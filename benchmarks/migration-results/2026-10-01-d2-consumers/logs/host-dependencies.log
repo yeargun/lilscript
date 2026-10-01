@@ -1,0 +1,16 @@
+    Updating crates.io index
+     Locking 1 package to latest compatible version
+      Adding oxc_ast_visit v0.143.0 (available: v0.152.0)
+ Downloading crates ...
+  Downloaded once_cell_polyfill v1.70.2
+  Downloaded simd-adler32 v0.3.10
+  Downloaded windows-link v0.2.1
+  Downloaded adler2 v2.0.1
+  Downloaded miniz_oxide v0.8.9
+  Downloaded r-efi v5.3.0
+  Downloaded wasip2 v1.0.4+wasi-0.2.12
+  Downloaded anstyle-wincon v3.0.11
+  Downloaded wit-bindgen v0.57.1
+  Downloaded zerocopy-derive v0.8.55
+  Downloaded windows-sys v0.61.2
+  Downloaded oxc_ast_visit v0.143.0

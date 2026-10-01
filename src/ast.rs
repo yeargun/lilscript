@@ -617,6 +617,10 @@ pub struct SourceIdentity {
 }
 
 impl SourceIdentity {
+    /// Recover a node only within its retained source identity's range.
+    pub(crate) fn node(&self, index: usize) -> Option<SourceNodeId> {
+        (index < self.len()).then(|| SourceNodeId(std::num::NonZeroU32::new(index as u32 + 1).unwrap()))
+    }
     pub fn len(&self) -> usize {
         self.nodes as usize
     }

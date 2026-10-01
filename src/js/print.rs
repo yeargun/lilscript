@@ -156,6 +156,7 @@ pub(super) fn render_with_literals_admitted(
         forms: &forms,
         output: Buffer {
             text: String::new(),
+            points: None,
             budget: &mut phase,
             limit,
             error: None,
@@ -164,7 +165,10 @@ pub(super) fn render_with_literals_admitted(
         lazy: &[],
         container: None,
         root_activation: true,
-        planned_structure: None,
+        planned_structure: PlannedStructure::default(),
+        inline: None,
+        inline_module: None,
+        local_names: &[],
     };
     let wrapped = format == crate::config::JavaScriptFormat::Iife;
     if wrapped {
@@ -231,11 +235,30 @@ pub(crate) use files::PlannedStructure;
 
 struct Buffer<'a, 'ledger> {
     text: String,
+    points: Option<Vec<crate::source_maps::Point>>,
     budget: &'a mut AllocationBudget<'ledger>,
     limit: usize,
     error: Option<PrintError>,
 }
 impl Buffer<'_, '_> {
+    fn mark(&mut self, origin: Option<crate::program::SourceOriginId>) {
+        let Some(points) = &mut self.points else { return; };
+        if self.error.is_some() { return; }
+        let point = crate::source_maps::Point { offset: self.text.len(), origin };
+        if let Some(last) = points.last_mut() {
+            if last.offset == point.offset { *last = point; return; }
+            if last.origin == point.origin { return; }
+        }
+        if let Err(error) = self.budget.push(AllocationClass::Scratch, points, point) {
+            self.error = Some(PrintError::Admission(error));
+        }
+    }
+    fn shifted(&mut self, at: usize) {
+        if let Some(points) = &mut self.points {
+            for point in points.iter_mut().rev().take_while(|point| point.offset >= at) { point.offset += 1; }
+        }
+    }
+
     fn admit<T>(
         &mut self,
         build: impl FnOnce(&mut AllocationBudget<'_>) -> Result<T, AllocationError>,
@@ -298,6 +321,7 @@ impl Buffer<'_, '_> {
         }
         let mut bytes = std::mem::take(&mut self.text).into_bytes();
         bytes[at..].rotate_right(1);
+        self.shifted(at);
         self.text = String::from_utf8(bytes).expect("moving one ASCII byte keeps UTF-8");
     }
     /// A `/` ending at `at` followed by the `/` that opens a regular
@@ -318,6 +342,7 @@ impl Buffer<'_, '_> {
         }
         let mut bytes = std::mem::take(&mut self.text).into_bytes();
         bytes[at..].rotate_right(1);
+        self.shifted(at);
         self.text = String::from_utf8(bytes).expect("moving one ASCII byte keeps UTF-8");
     }
     /// A keyword printed just before `at` needs a space only when the
@@ -335,6 +360,7 @@ impl Buffer<'_, '_> {
         }
         let mut bytes = std::mem::take(&mut self.text).into_bytes();
         bytes[at..].rotate_right(1);
+        self.shifted(at);
         self.text = String::from_utf8(bytes).expect("moving one ASCII byte keeps UTF-8");
     }
     fn push_str(&mut self, value: &str) {
@@ -367,6 +393,7 @@ impl std::fmt::Write for Buffer<'_, '_> {
 struct Printer<'a, 'budget, 'ledger> {
     module: &'a Module,
     names: &'a Names,
+    local_names: &'a [(BindingId, &'a str)],
     literal_alternatives: &'a [LiteralAlternative],
     literals: LiteralOutput,
     output: Buffer<'budget, 'ledger>,
@@ -378,7 +405,9 @@ struct Printer<'a, 'budget, 'ledger> {
     forms: &'a super::spellings::PrintForms,
     container: Option<&'a containers::ContainerView<'a>>,
     root_activation: bool,
-    planned_structure: Option<PlannedStructure>,
+    planned_structure: PlannedStructure,
+    inline: Option<&'a inline::InlineView<'a>>,
+    inline_module: Option<u32>,
 }
 
 /// The surrounding JavaScript syntax's named-evaluation behavior. A computed
@@ -391,6 +420,11 @@ enum InferredName<'a> {
 }
 
 impl<'a> Printer<'a, '_, '_> {
+    fn local(&self, binding: BindingId) -> &'a str {
+        self.local_names.binary_search_by_key(&binding, |(binding, _)| *binding)
+            .map_or_else(|_| self.names.get(binding), |index| self.local_names[index].1)
+    }
+
     /// Foreign imports (indices into the module's imports, in order): one
     /// declaration per specifier, at its first occurrence. Module requests
     /// are unique and ordered by first appearance (ECMA-262
@@ -458,7 +492,7 @@ impl<'a> Printer<'a, '_, '_> {
                 .position(|&index| module.imports[index].imported == "default");
             self.text("import");
             if let Some(position) = default {
-                let local = self.names.get(module.imports[group[position]].binding);
+                let local = self.local(module.imports[group[position]].binding);
                 if !self.output.work(local.len()) {
                     return;
                 }
@@ -476,7 +510,7 @@ impl<'a> Printer<'a, '_, '_> {
                         continue;
                     }
                     let import = &module.imports[index];
-                    let local = self.names.get(import.binding);
+                    let local = self.local(import.binding);
                     if !self.output.work(local.len().min(import.imported.len()) + 1) {
                         return;
                     }
@@ -526,7 +560,7 @@ impl<'a> Printer<'a, '_, '_> {
             return false;
         };
         self.text("for(let ");
-        self.text(self.names.get(form.binding));
+        self.text(self.local(form.binding));
         self.text("=");
         self.expression(form.value, 2);
         self.text(";");
@@ -556,6 +590,7 @@ impl<'a> Printer<'a, '_, '_> {
             return;
         };
         groups.resize_with(hosts.modules.len(), Vec::new);
+        let mut requested = Vec::new();
         for index in imports {
             let import = &self.module.imports[index];
             if let Some(position) = import
@@ -563,6 +598,7 @@ impl<'a> Printer<'a, '_, '_> {
                 .as_unicode()
                 .and_then(|source| hosts.position(source))
             {
+                if groups[position].is_empty() && self.output.admit(|budget| budget.push(AllocationClass::Scratch, &mut requested, position)).is_none() { return; }
                 if !groups[position].contains(&index) {
                     if self
                         .output
@@ -587,7 +623,7 @@ impl<'a> Printer<'a, '_, '_> {
                     printer.text(",");
                 }
                 let import = &printer.module.imports[index];
-                let local = printer.names.get(import.binding);
+                let local = printer.local(import.binding);
                 if identifier_name(&import.imported) {
                     printer.text(&import.imported);
                 } else {
@@ -623,7 +659,7 @@ impl<'a> Printer<'a, '_, '_> {
             self.text("]=");
             let Some(expression) = self
                 .output
-                .admit(|budget| hosts.expression_in(strict, budget))
+                .admit(|budget| hosts.expression_selected_in(strict, requested.iter().copied(), budget))
             else {
                 return;
             };
@@ -637,6 +673,7 @@ impl<'a> Printer<'a, '_, '_> {
                 .drop_vec(std::mem::take(group), AllocationClass::Scratch);
         }
         self.output.drop_vec(groups, AllocationClass::Scratch);
+        self.output.drop_vec(requested, AllocationClass::Scratch);
     }
 
     /// Returns only a nonnegative numeric literal, preserving primary precedence.
@@ -979,6 +1016,9 @@ impl<'a> Printer<'a, '_, '_> {
         if !self.output.work(1) {
             return;
         }
+        if self.output.points.is_some() {
+            if let Some(origin) = self.module.origins.get(id.index()).copied().flatten() { self.output.mark(Some(origin)); }
+        }
         let expression = &self.module.expressions[id.index()];
         if let Expr::Function(function) = expression {
             if let Some(name) = self.module.functions[function.index()].name.exact() {
@@ -1197,12 +1237,12 @@ impl<'a> Printer<'a, '_, '_> {
                 invocation,
             } => {
                 let callee_node = &self.module.expressions[callee.index()];
-                let unbind = *invocation == Invocation::Value
+                let unbind = matches!(callee_node, Expr::Binding(binding) if self.member_binding(*binding)) || *invocation == Invocation::Value
                     && (self.forms.optional[callee.index()].is_some()
                         || match callee_node {
                             Expr::Member { .. } => true,
                             Expr::Host(host) => host.kind == crate::catalog::HostKind::Eval,
-                            Expr::Binding(symbol) => self.names.get(*symbol) == "eval" || self.container.is_some_and(|view| view.imported(*symbol)),
+                            Expr::Binding(symbol) => self.local(*symbol) == "eval" || self.member_binding(*symbol),
                             _ => false,
                         });
                 let function_literal = matches!(callee_node, Expr::Function(_));
@@ -1282,7 +1322,7 @@ impl<'a> Printer<'a, '_, '_> {
                 self.expression(*target, 18);
                 self.text("=");
                 let inferred = match &self.module.expressions[target.index()] {
-                    Expr::Binding(binding) => InferredName::Known(self.names.get(*binding)),
+                    Expr::Binding(binding) => InferredName::Known(self.local(*binding)),
                     Expr::Host(host) => InferredName::Known(&host.name),
                     _ => InferredName::None,
                 };
@@ -1331,12 +1371,15 @@ impl<'a> Printer<'a, '_, '_> {
                     .iter()
                     .find(|(loaded, _)| loaded == module)
                     .map(|(_, specifier)| specifier);
-                if let Some(chunk) = chunk {
+                if chunk.is_some() || self.inline.is_some() {
                     // The file's own namespace; a failed load reports the
                     // source specifier, as the old route did.
-                    if let Some(view)=self.container.filter(|view| view.commonjs) {
-                        self.expression(*promise,18);self.text(".resolve().then(()=>");self.text(view.prefix);self.text("r(");self.unicode_string(chunk);self.text("))");
-                    } else { self.text("import(");self.unicode_string(chunk);self.text(")"); }
+                    if let Some(inline) = self.inline {
+                        self.expression(*promise,18); self.text(".resolve().then(()=>"); self.text(inline.prefix);
+                        let _ = write!(self.output,"l({module}))");
+                    } else if let Some(view)=self.container.filter(|view| view.commonjs) {
+                        self.expression(*promise,18);self.text(".resolve().then(()=>");self.text(view.prefix);self.text("r(");self.unicode_string(chunk.unwrap());self.text("))");
+                    } else { self.text("import(");self.unicode_string(chunk.unwrap());self.text(")"); }
                     self.text(".catch(e=>");
                     self.expression(*promise, 18);
                     self.text(".reject({specifier:");
@@ -1415,7 +1458,7 @@ impl<'a> Printer<'a, '_, '_> {
                     };
                     let shorthand =
                         spelled.is_some_and(|name| match &self.module.expressions[value.index()] {
-                            Expr::Binding(binding) => self.names.get(*binding) == name && !self.container.is_some_and(|view| view.imported(*binding)),
+                            Expr::Binding(binding) => self.local(*binding) == name && !self.member_binding(*binding),
                             Expr::Host(host) => host.name == *name,
                             _ => false,
                         });
@@ -1495,6 +1538,7 @@ impl<'a> Printer<'a, '_, '_> {
     }
 
     fn named_function_expression(&mut self, id: FunctionId, name: &StringValue) {
+        self.function_annotation(id);
         let function = &self.module.functions[id.index()];
         self.text(match function.suspension {
             Suspension::None => "function ",
@@ -1509,6 +1553,7 @@ impl<'a> Printer<'a, '_, '_> {
     }
 
     fn function_expression(&mut self, id: FunctionId) {
+        self.function_annotation(id);
         let function = &self.module.functions[id.index()];
         self.text(match (function.arrow, function.suspension) {
             (false, Suspension::None) => "function",
@@ -1555,7 +1600,7 @@ impl<'a> Printer<'a, '_, '_> {
             if rest {
                 self.text("...");
             }
-            self.text(self.names.get(*parameter));
+            self.text(self.local(*parameter));
             if !rest && function.length.is_some_and(|length| index >= length) {
                 match defaults.get(index).copied().flatten() {
                     Some(default) => {
@@ -1672,13 +1717,14 @@ impl<'a> Printer<'a, '_, '_> {
             let last = index + 1 == statements.len();
             if let Statement::Let { binding, value } = statement {
                 self.text(if declaring { "," } else { "let " });
-                self.text(self.names.get(*binding));
+                self.text(self.local(*binding));
                 if let Some(value) = value {
                     self.text("=");
+                    if id == self.module.root { self.root_call_annotation(index, *value); }
                     self.expression_with_name(
                         *value,
                         2,
-                        InferredName::Known(self.names.get(*binding)),
+                        InferredName::Known(self.local(*binding)),
                     );
                 }
                 declaring = matches!(statements.get(index + 1), Some(Statement::Let { .. }));
@@ -1698,23 +1744,30 @@ impl<'a> Printer<'a, '_, '_> {
         let mut declaring = false;
         let mut order = order.peekable();
         while let Some(index) = order.next() {
+            self.output.mark(None);
             if !self.output.work(1) {
                 return;
             }
+            if let Some((binding, function)) = self.inline_module.and_then(|_| inline::hoisted(self.module, &statements[index])) {
+                self.statement(&Statement::Function { binding, function }, false);
+                declaring = false;
+                continue;
+            }
             if let Statement::Let { binding, value } = &statements[index] {
                 self.text(if declaring { "," } else { "let " });
-                self.text(self.names.get(*binding));
+                self.text(self.local(*binding));
                 if let Some(value) = value {
                     self.text("=");
+                    self.root_call_annotation(index, *value);
                     self.expression_with_name(
                         *value,
                         2,
-                        InferredName::Known(self.names.get(*binding)),
+                        InferredName::Known(self.local(*binding)),
                     );
                 }
                 declaring = order
                     .peek()
-                    .is_some_and(|&next| matches!(statements[next], Statement::Let { .. }));
+                    .is_some_and(|&next| matches!(statements[next], Statement::Let { .. }) && !(self.inline_module.is_some() && inline::hoisted(self.module, &statements[next]).is_some()));
                 if !declaring {
                     self.text(";");
                 }
@@ -1723,10 +1776,12 @@ impl<'a> Printer<'a, '_, '_> {
             declaring = false;
             self.statement(&statements[index], false);
         }
+        self.output.mark(None);
     }
 
     /// One statement; with `closing`, a following `}` implies its `;`.
     fn statement(&mut self, statement: &Statement, closing: bool) {
+        self.output.mark(None);
         let end = |printer: &mut Self| {
             if !closing {
                 printer.text(";");
@@ -1834,7 +1889,7 @@ impl<'a> Printer<'a, '_, '_> {
                 body,
             } => {
                 self.text("for(let ");
-                self.text(self.names.get(*binding));
+                self.text(self.local(*binding));
                 self.text(" in ");
                 // A comma expression would end the `in` operand early.
                 self.expression(*object, 3);
@@ -1847,7 +1902,7 @@ impl<'a> Printer<'a, '_, '_> {
                 body,
             } => {
                 self.text("for(let ");
-                self.text(self.names.get(*binding));
+                self.text(self.local(*binding));
                 self.text(" of ");
                 // The head takes an AssignmentExpression.
                 self.expression(*iterable, 2);
@@ -1865,7 +1920,7 @@ impl<'a> Printer<'a, '_, '_> {
                     self.text("catch");
                     if let Some(binding) = catch.binding {
                         self.text("(");
-                        self.text(self.names.get(binding));
+                        self.text(self.local(binding));
                         self.text(")");
                     }
                     self.region(catch.body, true);
@@ -1884,18 +1939,33 @@ impl<'a> Printer<'a, '_, '_> {
                 end(self);
             }
             Statement::Function { binding, function } => {
+                self.function_annotation(*function);
                 self.text(match self.module.functions[function.index()].suspension {
                     Suspension::None => "function ",
                     Suspension::Async => "async function ",
                     Suspension::Generator => "function*",
                 });
-                self.text(self.names.get(*binding));
+                self.text(self.local(*binding));
                 self.function(*function);
             }
         }
     }
 
     /// Render a selected logical form; legality and site selection are complete.
+    fn function_annotation(&mut self, function: FunctionId) {
+        if self.module.consumer_annotations.functions()
+            && self.module.discardable_functions.binary_search(&function).is_ok() {
+            self.text("/*#__NO_SIDE_EFFECTS__*/");
+        }
+    }
+    fn root_call_annotation(&mut self, index: usize, value: ExprId) {
+        if self.module.consumer_annotations.calls()
+            && self.module.root_rows.get(index).is_some_and(|row| row.anchor == Anchor::Definition && row.origin == RowOrigin::Source)
+            && matches!(self.module.expressions[value.index()], Expr::Call { .. } | Expr::Construct { .. }) {
+            self.text("/*#__PURE__*/");
+        }
+    }
+
     fn logical_statement(&mut self, condition: ExprId, yes: RegionId) -> bool {
         let Some(form) = self
             .forms
@@ -2118,3 +2188,6 @@ mod number_spelling_tests {
         }
     }
 }
+
+#[path = "print_inline.rs"]
+mod inline;

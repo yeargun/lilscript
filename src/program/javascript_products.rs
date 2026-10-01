@@ -406,7 +406,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         &mut self,
         location: StorageLocation,
         value: js::ExprId,
-        origin: Option<crate::ast::SourceNodeId>,
+        origin: Option<SourceOriginId>,
     ) -> Result<js::ExprId, FormationError> {
         match location {
             StorageLocation::Binding(binding) => self.assign(binding, value, origin),

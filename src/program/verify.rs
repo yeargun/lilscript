@@ -842,7 +842,7 @@ fn verify_units(
                     budget.push(Scratch, &mut introduced, value.index())?;
                 }
                 Task::Op(id, region, in_loop) => {
-                    work(budget, 8 + 3 * capture_lookup)?;
+                    work(budget, 8 + 3 * capture_lookup + (usize::BITS - program.modules.len().leading_zeros()) as usize)?;
                     let Some(op) = unit.operations.get(id.index()) else {
                         return fail("dangling operation");
                     };
@@ -850,9 +850,7 @@ fn verify_units(
                         return fail("operation has incorrect or multiple owners");
                     }
                     op_seen[id.index()] = true;
-                    if op.origin.is_some_and(|origin| {
-                        origin.index() >= program.modules[unit.module.index()].source.len()
-                    }) {
+                    if op.origin.is_some_and(|origin| program.source_origin(origin).is_none()) {
                         return fail("operation origin is outside its source module");
                     }
                     let Some(operands) = unit.operands(op.operands) else {
@@ -1456,7 +1454,11 @@ fn verify_modules(
     let mut dependencies = Vec::new();
     let mut export_name_work = 2;
     work(budget, program.modules.len())?;
+    let mut source_offset = 0usize;
     for (index, module) in program.modules.iter().enumerate() {
+        if module.source_offset as usize != source_offset { return Err("source origin ranges are not contiguous".into()); }
+        source_offset = source_offset.checked_add(module.source.len()).filter(|&end| end <= u32::MAX as usize).ok_or("source origin capacity")?;
+        if module.dependencies.len() != module.dependency_spans.len() { return Err("module dependency spans are not parallel".into()); }
         let id = ModuleId::from_index(index).ok_or("semantic module identity capacity")?;
         let unit = program
             .unit(module.initializer)

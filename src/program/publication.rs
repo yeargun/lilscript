@@ -805,6 +805,7 @@ struct JavaScriptTarget<'scope, 'src> {
     module_names: &'scope [String],
     chunk_extension: &'static str,
     hosts: Option<&'scope crate::host_modules::HostDelivery>,
+    source_maps: Option<&'scope crate::source_maps::Sources>,
     module: TargetModule<'scope>,
     admission: Option<crate::admission_replay::Receipt>,
     prepared: bool,
@@ -895,9 +896,13 @@ fn prepare_delivery_in(
     // Placement (plan M3.3): once per formed tree, after the target
     // rules and before naming; the plan is stored on the tree.
     if let Some(contract) = policy.delivery() {
+        module.consumer_annotations = contract.container.annotations;
         let entries = semantic.program.entries().len();
         if module.delivery.is_none()
-            && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single
+            && (entries > 1 || !module.imports.is_empty() || module.root_rows.iter().any(|row| row.origin == crate::js::RowOrigin::Host) || module.expressions.iter().any(|node| matches!(node, crate::js::Expr::LoadModule { .. }))
+                || contract.mode != crate::config::DeliveryMode::Single
+                || contract.container.annotations != crate::config::ConsumerAnnotations::Off
+                || contract.container.source_maps != crate::config::SourceMaps::Off
                 || matches!(contract.format, crate::config::JavaScriptFormat::Cjs | crate::config::JavaScriptFormat::Umd)
                 || (contract.library && contract.format == crate::config::JavaScriptFormat::Iife))
         {
@@ -913,9 +918,8 @@ fn prepare_delivery_in(
             };
             module.delivery = super::entries::with_entry_graph(
                 &semantic.program,
-                delivered_hosts
-                    .into_iter()
-                    .flat_map(|hosts| hosts.modules.iter().map(|host| host.specifier.as_str())),
+                delivered_hosts,
+                module.root_rows.iter().any(|row| row.origin == crate::js::RowOrigin::Host),
                 module_names,
                 budget,
                 |graph, budget| {
@@ -979,6 +983,7 @@ impl JavaScriptTarget<'_, '_> {
             choices,
             budget,
             hosts,
+            source_maps,
             ..
         } = self;
         let hosts = hosts.filter(|hosts| {
@@ -996,6 +1001,7 @@ impl JavaScriptTarget<'_, '_> {
             let mut phase = AllocationBudget::new(ledger.map(|(ledger, _)| (ledger, domain)));
             let mut output = module.prepare_output_with_literals_admitted(policy, &mut phase)?;
             output.set_hosts(hosts.map(|hosts| (hosts, strict)));
+            output.set_sources(*source_maps)?;
             #[cfg(test)]
             let output = super::search_target_reuse_tests::AdmittedOutputOwner::new(output);
             output.with_allocation_budget(|budget| budget.work(WorkKind::Render, 0))?;
@@ -1055,6 +1061,7 @@ pub(super) struct Formations<'scope, 'src> {
     module_names: &'scope [String],
     chunk_extension: &'static str,
     hosts: Option<&'scope crate::host_modules::HostDelivery>,
+    source_maps: Option<&'scope crate::source_maps::Sources>,
     contract: &'scope CompilationContract,
     semantic: &'scope SemanticSnapshot<'src>,
     implementations: &'scope ImplementationMap,
@@ -1282,6 +1289,7 @@ impl Formations<'_, '_> {
                 module_names: self.module_names,
                 chunk_extension: self.chunk_extension,
                 hosts: self.hosts,
+                source_maps: self.source_maps,
                 module,
                 admission: None,
                 prepared: true,
@@ -1305,6 +1313,7 @@ impl Formations<'_, '_> {
             module_names: self.module_names,
             chunk_extension: self.chunk_extension,
             hosts: self.hosts,
+            source_maps: self.source_maps,
             module: TargetModule::Owned(module),
             admission,
             prepared: true,
@@ -1452,9 +1461,14 @@ pub struct Compilation<'src> {
     chunk_extension: &'static str,
     /// Relative host modules delivered with every output (008-D3).
     host_modules: Option<(crate::host_modules::HostDelivery, Charge)>,
+    source_maps: Option<(crate::source_maps::Sources, Charge)>,
 }
 
 impl<'src> Compilation<'src> {
+    pub(crate) fn adopt_source_maps(&mut self, prepared: crate::source_maps::PreparedSources) {
+        assert!(self.source_maps.is_none(), "one source-map owner per compilation");
+        self.source_maps = Some((prepared.sources, Charge { domain: WorkDomain::Baseline, bytes: prepared.bytes }));
+    }
     pub(crate) fn measurement_stats(
         &self,
     ) -> super::artifacts::compression_cache::MeasurementStats {
@@ -1542,6 +1556,7 @@ impl<'src> Compilation<'src> {
             local_facts: None,
             artifacts: ArtifactArena::new(store),
             module_names: None,
+            source_maps: None,
             chunk_extension: "js",
             host_modules: None,
         })
@@ -2628,6 +2643,7 @@ impl<'src> Compilation<'src> {
                 .map_or(&[][..], |(names, _)| names.as_slice()),
             chunk_extension: self.chunk_extension,
             hosts: self.host_modules.as_ref().map(|(delivery, _)| delivery),
+            source_maps: self.source_maps.as_ref().map(|(sources, _)| sources),
             module: TargetModule::Owned(module),
             admission: None,
             prepared: false,
@@ -2696,6 +2712,7 @@ impl<'src> Compilation<'src> {
             module_names,
             chunk_extension,
             host_modules,
+            source_maps,
             ..
         } = self;
         let target = javascript
@@ -2770,6 +2787,7 @@ impl<'src> Compilation<'src> {
                 .map_or(&[][..], |(names, _)| names.as_slice()),
             chunk_extension: *chunk_extension,
             hosts,
+            source_maps: source_maps.as_ref().map(|(sources, _)| sources),
             contract: &target.contract,
             semantic,
             implementations: map,
@@ -3129,8 +3147,13 @@ impl<'src> Compilation<'src> {
             artifacts,
             module_names,
             host_modules,
+            source_maps,
             ..
         } = self;
+        if let Some((sources, charge)) = source_maps {
+            drop(sources);
+            charge.release(&mut ledger).expect("owned source-map inputs");
+        }
         if let Some((names, charge)) = module_names {
             drop(names);
             charge
@@ -3337,7 +3360,7 @@ fn copy_javascript_contract(
             chunk_names: copy(&delivery.chunk_names)?,
             module_names: copy(&delivery.module_names)?,
             container: crate::compilation_policy::ContainerContract {
-                global:copy(&delivery.container.global)?,globals,..delivery.container
+                global:copy(&delivery.container.global)?,source_root:copy(&delivery.container.source_root)?,globals,..delivery.container
             },
             ..*delivery
         },
@@ -3859,6 +3882,7 @@ fn table_bytes(
                 total = sum(&[
                     total,
                     capacity(&module.dependencies)?,
+                    capacity(&module.dependency_spans)?,
                     capacity(&module.imports)?,
                     capacity(&module.pooled_strings)?,
                 ])?;

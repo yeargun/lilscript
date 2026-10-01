@@ -216,8 +216,15 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     )
                 {
                     let ty = &self.program.types[self.program.cells[cell.index()].ty.index()];
+                    // Stored products keep their private layout. A separate
+                    // public graph is initialized beside this cell below.
+                    if self.program.cells[cell.index()].declared_const
+                        && super::public_structs::carries_product(ty, self.budget)? {
+                        return Ok(value);
+                    }
                     let value = self.public_value(ty, value, false)?;
                     return if self.program.cells[cell.index()].declared_const && super::super::rules::const_data::aggregate(ty) {
+                        if !self.module.pristine_builtins { self.anchor = js::Anchor::Anchored; }
                         self.freeze_const_boundary(value)
                     } else { Ok(value) };
                 }

@@ -1,0 +1,3 @@
+import {values,table} from "./data";
+export {values,table};
+export async int load(){auto m=await import("./feature");return m.read();}

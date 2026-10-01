@@ -116,6 +116,7 @@ pub fn manifest_v3(
                     json!({
                         "file": delivered.name,
                         "role": file.role.name(),
+                        "source_map_for": match file.role { crate::js::delivery::FileRole::SourceMap(owner) => Some(name(owner)), _ => None },
                         "label": layout.label_names(&file.label),
                         "modules": file.modules.iter().map(|&module| module_name(module)).collect::<Vec<_>>(),
                         "anchored": file.anchored,

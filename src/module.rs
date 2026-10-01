@@ -118,9 +118,9 @@ pub(crate) fn static_evaluation_order_from_admitted<I: IntoIterator<Item = usize
 }
 
 /// Static evaluation order from the roots, in their order, then every module
-/// only `import()` reaches, in module order. Such a module is
-/// initialization-free, so its place is unobservable; last, it runs after
-/// everything it may read.
+/// only `import()` reaches, in module order. This is a formation schedule,
+/// not proof that a lazy module evaluates eagerly. Initialization facts and
+/// delivery retain the source graph and each entry’s actual evaluation order.
 pub(crate) fn initialization_order_admitted<I: IntoIterator<Item = usize>>(
     roots: &[usize],
     module_count: usize,
@@ -900,14 +900,14 @@ impl<S: DiscoveryStorage> ModuleLoader<S> {
         let path = if extension.is_some() {
             requested
         } else {
-            ["ts", "mts", "js", "mjs", "tsx", "jsx"]
+            ["ts", "mts", "js", "mjs", "tsx", "jsx", "cjs", "cts"]
                 .into_iter()
                 .map(|extension| requested.with_extension(extension))
                 .find(|candidate| candidate.is_file())
                 .ok_or_else(|| format!("cannot resolve foreign module `{specifier}`"))?
         };
         let extension = path.extension().and_then(|value| value.to_str());
-        if !matches!(extension, Some("js" | "jsx" | "mjs" | "ts" | "tsx" | "mts")) {
+        if !matches!(extension, Some("js" | "jsx" | "mjs" | "cjs" | "ts" | "tsx" | "mts" | "cts")) {
             return Err(format!(
                 "foreign module `{specifier}` must use a JavaScript or TypeScript extension"
             ));

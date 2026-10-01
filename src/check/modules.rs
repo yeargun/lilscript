@@ -712,20 +712,6 @@ fn body_phase<'ast, 'src>(
             exports.sort_by_key(|export| export.span.start);
         }
     }
-    // A first-class constructor observation can leave through an untyped host
-    // operation. Preserve its identity and prototype using canonical bindings,
-    // including imported aliases and used dynamic namespace members.
-    checked
-        .declarations
-        .mark_constructor_observations(&checked.facts, budget)
-        .map_err(|error| resource(checked.roots[0], error))?;
-    checked
-        .declarations
-        .mark_observed_classes()
-        .map_err(|(module, error)| ModuleCheckError {
-            module: module.expect("class declaration owner"),
-            error,
-        })?;
     // Identity tests anywhere keep their classes (R13).
     checked.declarations.mark_tested_classes();
     for &root in &checked.roots {
@@ -750,6 +736,49 @@ fn body_phase<'ast, 'src>(
             }
         }
     }
+    // A whole namespace reaching JavaScript keeps its complete interface.
+    // Close first because an exported callable can itself return another
+    // namespace, then let the ordinary demand/interface owners consume it.
+    {
+        let mut phase = budget.scope();
+        let mut exposed = phase.filled(AllocationClass::Scratch, checked.interfaces.len(), false)
+            .map_err(|error| resource(checked.roots[0], error))?;
+        loop {
+            let mut changed = false;
+            for (module, interface) in checked.interfaces.iter().enumerate() {
+                phase.work(WorkKind::Analysis, 1).map_err(|error| resource(module, error))?;
+                if exposed[module] || !checked.declarations.reflected_namespaces.borrow().contains(&(module as u32)) { continue; }
+                exposed[module] = true; changed = true;
+                for export in &interface.exports {
+                    phase.work(WorkKind::Analysis, 1).map_err(|error| resource(module, error))?;
+                    if let InterfaceTarget::Value(symbol) = export.target {
+                        checked.declarations.reflect(&checked.declarations.symbols[symbol.0 as usize].ty);
+                    }
+                }
+            }
+            if !changed { break; }
+        }
+        for (module, facts) in checked.facts.iter_mut().enumerate() {
+            for &(target, name) in facts.dynamic_export_symbols.keys() {
+                phase.work(WorkKind::Analysis, 1).map_err(|error| resource(module, error))?;
+                if exposed[target as usize] { facts.used_dynamic_exports.insert((target, name)); }
+            }
+        }
+    }
+    // A first-class constructor observation can leave through an untyped host
+    // operation. Preserve its identity and prototype using canonical bindings,
+    // including imported aliases and used dynamic namespace members.
+    checked
+        .declarations
+        .mark_constructor_observations(&checked.facts, budget)
+        .map_err(|error| resource(checked.roots[0], error))?;
+    checked
+        .declarations
+        .mark_observed_classes()
+        .map_err(|(module, error)| ModuleCheckError {
+            module: module.expect("class declaration owner"),
+            error,
+        })?;
     // Crossings anywhere reflect their nominals, closed over fields (R6).
     checked.declarations.close_reflected();
     if checked.declarations.classes.iter().any(|class| class.shape) {
@@ -800,22 +829,6 @@ fn validate_graph<S>(
                 return Err(
                     error(module, program.span, "direct module dependency mismatch").into(),
                 );
-            }
-        }
-        // A module reached only through `import()` runs no code when it
-        // loads, so its place in the initialization order is unobservable.
-        if !modules.eager[module] {
-            if let Some(item) = program
-                .items
-                .iter()
-                .find(|item| matches!(item, Item::Stmt(_)))
-            {
-                return Err(error(
-                    module,
-                    item.span(),
-                    "lazy modules must be initialization-free; move top-level executable declarations into an exported function",
-                )
-                .into());
             }
         }
         for &target in &source.dynamic_dependencies {
@@ -876,71 +889,9 @@ fn validate_graph<S>(
         }
         crate::module::StaticOrderError::Resources(reason) => resource(root, reason),
     })?;
-    // Two entries entering one static cycle at different modules evaluate
-    // it in different orders; one schedule cannot serve both (plan M3.3a
-    // refusal, lifted by M3.3d). A module one entry loads with `import()`
-    // and does not reach statically is an entry of its own here.
-    if modules.roots.len() > 1 {
-        let mut phase = budget.scope();
-        let mut graph = phase.vector(AllocationClass::Scratch, modules.modules.len())
-            .map_err(|failure| resource(root, failure))?;
-        let mut dynamic = phase.vector(AllocationClass::Scratch, modules.modules.len())
-            .map_err(|failure| resource(root, failure))?;
-        for module in &modules.modules {
-            graph.push(phase.copy_slice(AllocationClass::Scratch, &module.dependencies)
-                .map_err(|failure| resource(root, failure))?);
-            dynamic.push(phase.copy_slice(AllocationClass::Scratch, &module.dynamic_dependencies)
-                .map_err(|failure| resource(root, failure))?);
-        }
-        let cycles = crate::module::static_cycles_admitted(&graph, &mut phase)
-            .map_err(|failure| resource(root, failure))?;
-        phase.work(WorkKind::Analysis, cycles.len() as u64)
-            .map_err(|failure| resource(root, failure))?;
-        if cycles.iter().any(Option::is_some) {
-            let mut roots = phase.copy_slice(AllocationClass::Scratch, &modules.roots)
-                .map_err(|failure| resource(root, failure))?;
-            let lazy = crate::module::lazy_roots_admitted(&roots, &graph, &dynamic, &mut phase)
-                .map_err(|failure| resource(root, failure))?;
-            phase.extend_copy(AllocationClass::Scratch, &mut roots, &lazy)
-                .map_err(|failure| resource(root, failure))?;
-            let entered = crate::module::cycle_entries_admitted(&roots, &graph, &cycles, &mut phase)
-                .map_err(|failure| resource(root, failure))?;
-            let mut first = phase.filled(AllocationClass::Scratch, graph.len(), None)
-                .map_err(|failure| resource(root, failure))?;
-            let mut conflict = None;
-            // A cycle needs only its first entry. Keep the old diagnostic's
-            // first-root/second-root/first-cycle ordering without R² scans.
-            for (entry, entries) in entered.iter().enumerate() {
-                for (position, &(cycle, at)) in entries.iter().enumerate() {
-                    phase.work(WorkKind::Analysis, 1).map_err(|failure| resource(root, failure))?;
-                    if let Some((previous, other, first_position)) = first[cycle as usize] {
-                        if at != other {
-                            let candidate = (previous, entry, first_position, cycle);
-                            if conflict.is_none_or(|old| candidate < old) { conflict = Some(candidate); }
-                        }
-                    } else { first[cycle as usize] = Some((entry, at, position)); }
-                }
-            }
-            if let Some((first, second, _, cycle)) = conflict {
-                let members = (0..graph.len())
-                    .filter(|&module| cycles[module] == Some(cycle))
-                    .map(|module| modules.modules[module].path.display().to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let name = |entry: usize| match modules.root_names.get(entry) {
-                    Some(name) => format!("`{name}`"),
-                    None => format!("`import(\"{}\")`", modules.modules[roots[entry]].path.display()),
-                };
-                return Err(error(
-                    roots[second], programs[roots[second]].span,
-                    format!(
-                        "entries {} and {} enter the import cycle of {members} at different modules, so they evaluate it in different orders; one entry must import the cycle through the same module as the other",
-                        name(first), name(second),
-                    ),
-                ).into());
-            }
-        }
-    }
+    // Entry-specific cycle evaluation belongs to target placement. The
+    // checker validates one shared graph; it must not impose one entry's
+    // evaluation order on every consumer.
     // Discovery's post-order interleaves dynamic edges, so it matches the
     // static order only in a graph without them.
     let dynamic = modules

@@ -398,10 +398,14 @@ pub struct ModuleInterface {
     /// Checked literal values admitted by authored @pool regions.
     pub(crate) pooled_strings: Vec<StringId>,
     pub source: crate::ast::SourceIdentity,
+    /// Start of this source’s node range in the program-wide origin space.
+    pub source_offset: u32,
     pub initializer: UnitId,
     pub dependencies: Vec<ModuleId>,
-    /// Modules this one loads with `import()`. A module only these edges
-    /// reach is initialization-free and initializes after every other.
+    /// Import declaration spans, parallel to dependencies, retain mixed host/source order.
+    pub dependency_spans: Vec<Span>,
+    /// Modules this one loads with `import()`. Their initialization begins
+    /// on the first load, in source dependency order, and may have effects.
     pub dynamic_dependencies: Vec<ModuleId>,
     /// The runtime exports some code reads through an `import()` namespace
     /// of this module, by name.
@@ -418,6 +422,7 @@ pub struct ModuleInterface {
 /// directory, as the old route's linker spelled it; a bare specifier is kept.
 #[derive(Debug, Clone)]
 pub struct ForeignImport {
+    pub span: Span,
     pub cell: CellId,
     pub source: String,
     pub imported: String,
@@ -761,7 +766,9 @@ pub struct Operation {
     pub operands: OperandRange,
     pub result: Option<ValueId>,
     pub region: RegionId,
-    pub origin: Option<SourceNodeId>,
+    /// Qualified independently of the operation’s current unit: inlining
+    /// preserves the defining source and its original span.
+    pub origin: Option<SourceOriginId>,
     pub span: Span,
 }
 
@@ -1185,3 +1192,12 @@ mod search_naming_neighborhood_tests;
 
 #[cfg(test)]
 mod nominal_identity_tests;
+
+impl Program<'_> {
+    pub fn source_origin(&self, origin: SourceOriginId) -> Option<(ModuleId, SourceNodeId)> {
+        let index = origin.index();
+        let owner = self.modules.partition_point(|module| module.source_offset as usize <= index).checked_sub(1)?;
+        let source = &self.modules[owner];
+        Some((ModuleId::from_index(owner)?, source.source.node(index - source.source_offset as usize)?))
+    }
+}

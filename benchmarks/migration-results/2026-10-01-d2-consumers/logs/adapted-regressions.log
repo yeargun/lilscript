@@ -1,0 +1,67 @@
+
+running 1 test
+test build::delivery_tests::preserve_modules_supports_a_static_cycle ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2110 filtered out; finished in 1.54s
+
+
+running 1 test
+test build::delivery_tests::lazy_modules_initialize_on_the_first_load ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2110 filtered out; finished in 1.69s
+
+
+running 1 test
+test build::delivery_tests::a_lazy_load_runs_what_its_importer_has_not_in_the_target_order ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2110 filtered out; finished in 2.94s
+
+
+running 1 test
+test build::delivery_tests::import_of_a_module_another_entry_imports_statically_evaluates_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2110 filtered out; finished in 2.90s
+
+
+running 1 test
+test build::delivery_tests::a_lazy_load_entering_a_cycle_elsewhere_preserves_initialization ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2110 filtered out; finished in 0.73s
+
+
+running 1 test
+test build::delivery_tests::relative_host_modules_travel_with_the_output ... 
+thread 'build::delivery_tests::relative_host_modules_travel_with_the_output' (1503780) panicked at src/build_delivery_tests.rs:546:6:
+called `Result::unwrap()` on an `Err` value: ServiceError { phase: "javascript", message: "unsupported or unnamed library container", diagnostic: None, resource: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    build::delivery_tests::relative_host_modules_travel_with_the_output
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2110 filtered out; finished in 0.77s
+
+
+running 1 test
+test build::delivery_tests::embedded_host_modules_become_program_code_in_a_strict_output ... 
+thread 'build::delivery_tests::embedded_host_modules_become_program_code_in_a_strict_output' (1503816) panicked at src/build_delivery_tests.rs:657:5:
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    build::delivery_tests::embedded_host_modules_become_program_code_in_a_strict_output
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2110 filtered out; finished in 1.19s
+
+
+running 1 test
+test build::delivery_tests::carried_host_code_runs_for_every_entry_reaching_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2110 filtered out; finished in 1.47s
+
+failed: ['relative_host_modules_travel_with_the_output', 'embedded_host_modules_become_program_code_in_a_strict_output']

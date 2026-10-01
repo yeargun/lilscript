@@ -1,0 +1,18 @@
+
+running 1 test
+test build::delivery_tests::relative_host_modules_travel_with_the_output ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2099 filtered out; finished in 0.90s
+
+
+running 1 test
+test build::delivery_tests::embedded_host_modules_become_program_code_in_a_strict_output ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2099 filtered out; finished in 1.47s
+
+
+running 1 test
+test build::delivery_tests::carried_host_code_runs_for_every_entry_reaching_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2099 filtered out; finished in 1.39s
+

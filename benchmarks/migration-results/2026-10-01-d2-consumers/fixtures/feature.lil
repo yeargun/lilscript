@@ -1,0 +1,3 @@
+extern void note(string message);
+note("feature");
+export int read(){return 19;}

@@ -18,14 +18,14 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M3.1 | [C1](plan.md#c1) | Configuration contract; remaining format producers belong to D1, instrumentation to Q2 and runtime evidence to C2 |
 | M3.2 | [C1](plan.md#c1) | Family registry; new producers register permissions within their owning milestone |
 | M3.3b | [D1](plan.md#d1), complete | CJS/library-IIFE/UMD/bare and manifest contracts; [evidence](d1-acceptance.md) |
-| M3.3c | [D2](plan.md#d2) | Facts and choices |
-| M3.3d | [D2](plan.md#d2) | Lazy effects and cycles |
+| M3.3c | [D2](plan.md#d2), complete | Facts and choices |
+| M3.3d | [D2](plan.md#d2), complete | Lazy effects and cycles |
 | M3.3e | [D3](plan.md#d3) | Ports, with M12.2 for motionlil |
 | M3.4 | [D3](plan.md#d3) | Remaining graph consumers and shared formation; independent TOML/API/CLI objective sets implemented |
 | M3.5 | [Q3](plan.md#q3) | `-j` scoring (after M5.6) |
 | M3.7 | [C1](plan.md#c1) | Environment variables |
-| M3.8a | [D2](plan.md#d2) | Consumer-shakeable delivery, first half |
-| M3.8b | [D2](plan.md#d2) | Consumer-shakeable delivery, second half |
+| M3.8a | [D2](plan.md#d2), complete | Consumer-shakeable delivery, first half |
+| M3.8b | [D2](plan.md#d2), complete | Consumer-shakeable delivery, second half |
 | M3.9 | [Q2](plan.md#q2), [D3](plan.md#d3) | Whole-build/codec caches and explicit decision locks implemented in Q2; per-module elaboration remains D3 work under the shared module/session owner |
 | M4.2 | [S4](plan.md#s4) | Implemented: type-parameter identity and canonical checked types |
 | M4.3 | [S4](plan.md#s4) | Implemented: defaults evaluated in the selected declaration's scope |
@@ -58,9 +58,9 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M7.10 | [S3](plan.md#s3), complete | Identity-safe primitive body sharing; general runtime-prelude ownership remains Q4 (M8.5) |
 | M8.2 | [G3](plan.md#g3), complete | Logical normalization remains a classified, decreasing target rule with capture/HTMLDDA guards; printer recognizers moved to proved formation |
 | M8.3 | [G3](plan.md#g3), complete | Loop, statement, compound, quote and edition-gated modern forms have stable sites and prepared printer forms |
-| M8.4 | [D2](plan.md#d2) | Host modules |
+| M8.4 | [D2](plan.md#d2), complete | Host modules |
 | M8.5 | [Q4](plan.md#q4), complete | Typed target helpers with actual module ownership, shared dependencies, demand and full artifact costs; [mechanism decision](q4-acceptance.md) |
-| M8.6 | [D2](plan.md#d2) | Source maps |
+| M8.6 | [D2](plan.md#d2), complete | Source maps |
 | M8.7 | [C3](plan.md#c3), complete | Source allowlist is empty and enforced; generic policy/provenance replaces library citations |
 | M9.1 | [Q1](plan.md#q1), complete | Shared family/site/alternative contract, per-helper choices, bounded coupled moves and replay admission |
 | M9.2 | [Q3](plan.md#q3), complete | Independent objective rows and frozen training-derived optional orders |
@@ -77,7 +77,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.11 | [S4](plan.md#s4), [Q4](plan.md#q4) | Q4 implements checked scalar defines and TOML overrides, exact policy identity and bounded required evaluation. Preserve Y4; `inline for` expansion, resource/replay admission and independent TOML permission implemented; `@pool` consumed through formation/replay; `@choose` complete for documented regional families with hard permissions and stable pinned sites |
 | M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
 | M10.14 | [S4](plan.md#s4), complete under current contract | Public adapters preserve constructibility; the Y3 amendment remains unapproved |
-| M10.3 | [Q4](plan.md#q4), complete; [D2](plan.md#d2), [N2](plan.md#n2) | Checked required evaluation and private immutable graphs; supported JS public data freezes exactly. D2 owns stored public product graphs; N2 static storage/native ABI |
+| M10.3 | [Q4](plan.md#q4), complete; [D2](plan.md#d2), complete; [N2](plan.md#n2) | Checked required evaluation and private immutable graphs; supported JS public data freezes exactly. D2 implements graph-preserving public product views; N2 owns static storage/native ABI |
 | M10.19 | [Q4](plan.md#q4), complete | Bounded uniform static-schema parameter forwarding, ordinary aggregate folding and existing per-call choices |
 | M10.1 | [S4](plan.md#s4) | Implemented: declared data/accessor shapes, contextual generic literals, tags, development checks and concrete product storage; unrestricted public presence needs the [separate ABI](s4-public-abi.md), native storage remains N2 |
 | M10.8 | [S4](plan.md#s4) | Implemented: declared-key shape spread, shared-key intersection checks, optional defaults and CreateDataProperty behavior; existing dictionary spread retained |
@@ -117,9 +117,9 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | Y5c / M3.3b | [D1](plan.md#d1), complete | `bare` for scripts; |
 | Y5c / M3.3b | [D1](plan.md#d1), complete | the manifest's module names, `[path]` escaping, stale v2 manifests and `bundle.cost`; |
 | Y5c / M3.3b | [D1](plan.md#d1), complete | comparing each delivered file with its part of the tree. |
-| M3.3c | [D2](plan.md#d2) | interfaces escaping at the one `END`; |
-| M3.3c | [D2](plan.md#d2) | `RootRow::completes`; |
-| M3.3c | [D2](plan.md#d2) | `single` with several entries. |
+| M3.3c | [D2](plan.md#d2), complete | interfaces escaping at the one `END`; |
+| M3.3c | [D2](plan.md#d2), complete | `RootRow::completes`; |
+| M3.3c | [D2](plan.md#d2), complete | `single` with several entries. |
 | M3.3e | [D3](plan.md#d3) | build motionlil's ten entries as one program. |
 | M3.4 | [D3](plan.md#d3) | the LSP and `lilscript-lint` check one root. |
 | M3.5 | [Q3](plan.md#q3), resolved | Level 0 does no optional codec or checkpoint work |

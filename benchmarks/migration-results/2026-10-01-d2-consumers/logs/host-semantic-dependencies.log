@@ -1,0 +1,12 @@
+    Updating crates.io index
+     Locking 5 packages to latest compatible versions
+      Adding either v1.18.0
+      Adding itertools v0.15.0
+      Adding oxc_semantic v0.143.0 (available: v0.152.0)
+      Adding self_cell v1.3.0
+      Adding smallvec v1.16.2
+ Downloading crates ...
+  Downloaded smallvec v1.16.2
+  Downloaded self_cell v1.3.0
+  Downloaded itertools v0.15.0
+  Downloaded oxc_semantic v0.143.0

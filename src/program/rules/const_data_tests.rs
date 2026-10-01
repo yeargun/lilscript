@@ -282,12 +282,15 @@ fn q4_many_const_initializers_reuse_one_sparse_frame() {
 }
 
 #[test]
-fn q4_public_const_products_require_a_graph_preserving_boundary() {
-    for source in [
-        "struct Point{int x;}export const Point data=Point{3};export int read(){return data.x;}",
-        "struct Point{int x;}const Point[] child=[Point{3}];export const Record<Point[]> data=record{left:child,right:child};",
-    ] {
-        let error = compile_source(source, &configuration(""), ServiceOptions::default()).unwrap_err();
-        assert!(error.to_string().contains("public const value-struct graph"), "{error:?}");
+fn d2_public_const_products_preserve_private_layout_and_reference_aliases() {
+    let source = "struct Point{int x;}export const Point point=Point{3};export const Point[] child=[point];export const Record<Point[]> data=record{left:child,right:child};export int read(){return point.x+child[0].x+(data[\"right\"]??child)[0].x;}";
+    for effort in [0, 13] {
+        let mut config = configuration(""); config.effort.level = effort;
+        let built = compile_source(source, &config, ServiceOptions::default()).unwrap();
+        let code = built.javascript(crate::js::selection::Objective::Raw).unwrap().javascript();
+        let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));if(m.point.x!==3||m.child[0].x!==3||m.read()!==9||m.child!==m.data.left||m.data.left!==m.data.right)throw Error('layout/alias');for(const v of [m.point,m.child,m.child[0],m.data])if(!Object.isFrozen(v))throw Error('mutable');if(Object.getPrototypeOf(m.data)!==null)throw Error('record prototype');console.log('ok');",serde_json::to_string(code).unwrap());
+        let result = Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+        assert!(result.status.success(), "{}\n{code}", String::from_utf8_lossy(&result.stderr));
+        assert_eq!(result.stdout,b"ok\n");
     }
 }

@@ -1126,6 +1126,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             },
         )?;
         let binding = self.adapter_binding(scope, "public_export")?;
+        self.module.settle_in(binding, 0, self.budget)?;
         if declared_form {
             // A hoisted declaration is callable from instantiation on, like
             // the source declaration it publishes, and needs no name recipe.

@@ -108,7 +108,9 @@ fn with_modules<R>(inspect: impl FnOnce(Program<'_>, Targets, Json) -> R) -> R {
         let module = unit.data().module.index();
         for operation in &unit.data().operations {
             if let Some(origin) = operation.origin {
-                assert!(origin.index() < syntax[module].source_identity().len());
+                let (owner, node) = program.source_origin(origin).unwrap();
+                assert_eq!(owner.index(), module);
+                assert!(node.index() < syntax[module].source_identity().len());
             }
         }
     }

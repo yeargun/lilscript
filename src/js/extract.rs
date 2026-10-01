@@ -64,6 +64,7 @@ pub struct Output<'a> {
     permits_observed_literals: bool,
     /// Host modules the output carries, and whether they run strict.
     hosts: Option<(&'a crate::host_modules::HostDelivery, bool)>,
+    sources: Option<&'a crate::source_maps::Sources>,
     // Basis (including installed lazy caches) drops before its reservation owner.
     budget: RefCell<AllocationBudget<'a>>,
 }
@@ -122,6 +123,7 @@ impl<'a> Output<'a> {
             has_literal_alternative,
             permits_observed_literals,
             hosts: None,
+            sources: None,
             budget: RefCell::new(budget),
         })
     }
@@ -132,6 +134,13 @@ impl<'a> Output<'a> {
         hosts: Option<(&'a crate::host_modules::HostDelivery, bool)>,
     ) {
         self.hosts = hosts;
+    }
+
+    pub(crate) fn set_sources(&mut self, sources: Option<&'a crate::source_maps::Sources>) -> Result<(), OutputError> {
+        if self.module.delivery.as_ref().is_some_and(|plan| plan.container.source_maps != crate::config::SourceMaps::Off) {
+            self.sources = Some(sources.ok_or(OutputError::Invalid("source maps require retained frontend source inputs"))?);
+        }
+        Ok(())
     }
 
     /// The layout of the tree's delivery plan, when the output is several
@@ -349,6 +358,7 @@ impl<'a> Output<'a> {
                                 names: file_names,
                             },
                             self.hosts,
+                            self.sources,
                         )
                         .map_err(|error| match error {
                             print::PrintError::Admission(error) => OutputError::Admission(error),
@@ -359,12 +369,13 @@ impl<'a> Output<'a> {
                         })?;
                         used = used
                             .checked_add(text.len())
+                            .and_then(|used| used.checked_add(text.map.as_ref().map_or(0, String::len)))
                             .ok_or(AllocationError::Capacity)?;
                         texts.push(text);
                     }
                     Ok(texts)
                 };
-                let file_names = if !delivery.needs_hash() {
+                let mut file_names = if !delivery.needs_hash() {
                     delivery.file_names_in(None, Retained, render)?
                 } else {
                     render.with_temporary(
@@ -394,8 +405,32 @@ impl<'a> Output<'a> {
                     ));
                 }
                 drop_vec(sorted, Scratch, render)?;
-                let texts = print_all(&file_names, render)?;
-                let layout = delivery.layout_in(render)?;
+                let mut texts = print_all(&file_names, render)?;
+                let mut layout = delivery.layout_in(render)?;
+                // Append metadata after all JavaScript files so every linkage
+                // index remains stable. Maps count as bytes, not runtime requests.
+                let count = texts.len();
+                for index in 0..count {
+                    let Some(map) = texts[index].map.take() else { continue; };
+                    let mut name = render.string(Retained, &file_names[index])?;
+                    render.push_str(Retained, &mut name, ".map")?;
+                    if file_names.iter().any(|existing| *existing == name) {
+                        return Err(OutputError::Invalid("a source-map filename collides with a JavaScript filename"));
+                    }
+                    let map_index = u32::try_from(texts.len()).map_err(|_| AllocationError::Capacity)?;
+                    let label = render.copy_slice(Retained, &layout.files[index].label)?;
+                    let modules = render.copy_slice(Retained, &layout.files[index].modules)?;
+                    render.push(Retained, &mut layout.files, delivery::LayoutFile {
+                        role: delivery::FileRole::SourceMap(index as u32), label, modules,
+                        anchored: false, imports: Vec::new(), dynamic: Vec::new(),
+                    })?;
+                    for entry in &mut layout.entries {
+                        render.work(WorkKind::Render, entry.closure.len() as u64)?;
+                        if entry.closure.contains(&(index as u32)) { render.push(Retained, &mut entry.closure, map_index)?; }
+                    }
+                    render.push(Retained, &mut file_names, name)?;
+                    render.push(Retained, &mut texts, print::PlannedText { code: map, structure: print::PlannedStructure::default(), map: None })?;
+                }
                 let containers = crate::output_budget::vector_bytes(&file_names)?
                     .checked_add(crate::output_budget::vector_bytes(&texts)?)
                     .ok_or(AllocationError::Capacity)?;
@@ -405,6 +440,7 @@ impl<'a> Output<'a> {
                     .checked_add(crate::output_budget::vector_bytes(&files)?)
                     .ok_or(AllocationError::Capacity)?;
                 for (name, code) in file_names.into_iter().zip(texts) {
+                    bytes = bytes.checked_add(code.structure.heap_bytes()?).ok_or(AllocationError::Capacity)?;
                     bytes = bytes
                         .checked_add(name.capacity() as u64)
                         .and_then(|sum| sum.checked_add(code.code.capacity() as u64))
@@ -569,7 +605,7 @@ fn drop_strings(
 
 fn drop_planned_texts(values:Vec<print::PlannedText>,class:AllocationClass,budget:&mut AllocationBudget<'_>) -> Result<(),AllocationError> {
     let bytes=crate::output_budget::vector_bytes(&values)?;
-    for value in values {let capacity=value.code.capacity() as u64;drop(value);budget.release(class,capacity)?;}
+    for value in values {let capacity=value.code.capacity() as u64 + value.structure.heap_bytes()? + value.map.as_ref().map_or(0, |map| map.capacity() as u64);drop(value);budget.release(class,capacity)?;}
     budget.release(class,bytes)
 }
 
@@ -589,7 +625,13 @@ fn content_hashes(
         let mut own = budget.vector(Scratch, texts.len())?;
         for text in texts {
             budget.work(WorkKind::Render, text.len() as u64)?;
-            own.push(Sha256::digest(text.as_bytes()));
+            let mut hash = Sha256::new();
+            hash.update(text.as_bytes());
+            if let Some(map) = &text.map {
+                budget.work(WorkKind::Render, map.len() as u64)?;
+                hash.update([0]); hash.update(map.as_bytes());
+            }
+            own.push(hash.finalize());
         }
         let count = texts.len();
         let mut hashes = budget.vector(Retained, count)?;

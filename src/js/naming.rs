@@ -346,7 +346,7 @@ impl<'a> Basis<'a> {
             if structure.region_depths[index].is_none() {
                 continue;
             }
-            for statement in &region.statements {
+            for (position, statement) in region.statements.iter().enumerate() {
                 budget.work(WorkKind::Analysis, 1)?;
                 match statement {
                     Statement::Function { binding, function } => {
@@ -355,7 +355,13 @@ impl<'a> Basis<'a> {
                                 .as_unicode()
                                 .ok_or("declared function name is not an identifier")?;
                             budget.work(WorkKind::Analysis, name.len() as u64)?;
-                            if basis.required[binding.index()]
+                            if index == module.root.index() && module.root_rows.get(position).is_some_and(|row| row.hoisted) {
+                                // The module file declares this exact name. A
+                                // distinct global key still links it to other
+                                // files, and no other allocated binding may
+                                // capture a reference to the local name.
+                                budget.push(Retained, &mut basis.hosts, name)?;
+                            } else if basis.required[binding.index()]
                                 .replace(name)
                                 .is_some_and(|old| old != name)
                             {

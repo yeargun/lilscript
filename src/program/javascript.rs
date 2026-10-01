@@ -53,6 +53,8 @@ mod product_calls;
 mod products;
 #[path = "javascript_const.rs"]
 mod const_data;
+#[path = "javascript_const_graph.rs"]
+mod const_graph;
 #[path = "javascript_public_structs.rs"]
 mod public_structs;
 #[path = "javascript_references.rs"]
@@ -847,6 +849,7 @@ fn form_head(
                     positions.push(u32::MAX);
                     continue;
                 };
+                formation.current_module = program.units[program.cells[cell.index()].owner.index()].data().module.index() as u32;
                 let export_name = export.name.as_str();
                 formation.work(1)?;
                 if several {
@@ -928,6 +931,9 @@ fn form_head(
                     }
                 }
                 let mut binding = formation.cell_binding(context, cell)?;
+                if let Some((_, public)) = formation.struct_plan.const_exports.iter().find(|(known, _)| *known == cell) {
+                    binding = *public;
+                }
                 if !formation.struct_plan.abi_types.is_empty() && formation.struct_plan.abi_types[program.cells[cell.index()].ty.index()]
                     && matches!(program.cells[cell.index()].binding, CellBinding::Function(_))
                 {
@@ -995,6 +1001,21 @@ fn form_head(
     }
     // One-use forwarding: a checked target edit on the finished tree, part
     // of target compaction.
+    // Module loading and export-name validation survive an unused local binding.
+    // The delivery graph owns these requests independently of value demand.
+    for source in program.modules() {
+        for import in &source.foreign_imports {
+            if let Err(error) = formation.foreign_import(import.cell) { drop(formation); return Err(error); }
+        }
+    }
+    // Host syntax lowering is a delivery operation at every effort level.
+    // Optimization permissions still govern the subsequent target rules.
+    if let (true, Some(hosts)) = (formation.contract.execution.guarantees_strict_execution(), hosts) {
+        if let Err(error) = formation.module.lower_hosts(hosts, formation.program.modules().len(), formation.budget) {
+            drop(formation);
+            return Err(error.into());
+        }
+    }
     let mut tail = None;
     if formation.compact {
         let pristine = formation.contract.assumptions.pristine_builtins;
@@ -1002,14 +1023,6 @@ fn form_head(
         // elimination, which its own permission governs.
         let prunes = formation.demand.prunes();
         let strict = formation.contract.execution.guarantees_strict_execution();
-        // Delivered host modules become target code, so every rule below
-        // reaches them as well; they are strict, as the output must be.
-        if let (true, Some(hosts)) = (strict, hosts) {
-            if let Err(error) = formation.module.lower_hosts(hosts, formation.budget) {
-                drop(formation);
-                return Err(error.into());
-            }
-        }
         let numeric_lengths = formation.contract.assumptions.numeric_lengths;
         let year = formation.contract.ecmascript.year();
         // Frames the rules may elide or move: strict code's, and every frame
@@ -3106,7 +3119,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         &mut self,
         binding: js::BindingId,
         value: js::ExprId,
-        origin: Option<crate::ast::SourceNodeId>,
+        origin: Option<SourceOriginId>,
     ) -> Result<js::ExprId, FormationError> {
         let target = self.reference(binding)?;
         Ok(self
@@ -3138,6 +3151,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         operation: &Operation,
         value: js::ExprId,
     ) -> Result<Option<js::ExprId>, FormationError> {
+        if self.module.origins[value.index()].is_none() { self.module.origins[value.index()] = operation.origin; }
         self.record_behaviour(operation, value)?;
         if operation.result.is_some_and(|result| {
             self.demand
@@ -3400,6 +3414,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 let expression =
                     self.call(unit, call, arguments, operation.span, expanded_products)?;
+                self.module.origins[expression.index()] = operation.origin;
                 let mut expression = self.assumed_product(unit, call, &operation, expression)?;
                 if self.host_call_boundary(unit, call) {
                     if let Some(result) = operation.result {
@@ -5396,6 +5411,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     &mut self.unit_functions,
                     (body_unit, function),
                 )?;
+                if self.contract.checks == crate::compilation_contract::PreconditionChecks::Production
+                    && self.demand.discardable_body(body_unit) {
+                    self.budget.push(AllocationClass::Retained, &mut self.module.discardable_functions, function)?;
+                }
                 // A private function goes straight into its cell's binding;
                 // its name is not observable, so any spelling will do.
                 if let Some(result) = operation.result.filter(|_| private_cell.is_some()) {
@@ -6071,9 +6090,27 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                 }
                 _ => {
-                    if let Some(expression) =
-                        self.scheduled_expression(unit, &operations, &mut cursor)?
-                    {
+                    let start = cursor;
+                    let first_row = self.module.root_rows.len();
+                    let expression = self.scheduled_expression(unit, &operations, &mut cursor)?;
+                    if classify {
+                        // A prepared call consumes its argument schedule and
+                        // invocation together. Those operations do not pass
+                        // through this loop again: fold their effects into the
+                        // same window, including calls deferred into the next
+                        // declaration's initializer.
+                        anchored |= self.root_anchor(unit, &operations[start + 1..cursor])?
+                            == js::Anchor::Anchored;
+                        self.anchor = if anchored { js::Anchor::Anchored } else { js::Anchor::Definition };
+                        if anchored {
+                            for row in &mut self.module.root_rows[first_row..] {
+                                if row.origin == js::RowOrigin::Source {
+                                    row.anchor = js::Anchor::Anchored;
+                                }
+                            }
+                        }
+                    }
+                    if let Some(expression) = expression {
                         // The statement completes with the last operation
                         // it took.
                         if classify {
@@ -6084,8 +6121,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     continue;
                 }
             };
+            let initialized = match operation.kind { OperationKind::Initialize(cell) => Some(cell), _ => None };
             cursor += 1;
             self.statement(target_region, statement)?;
+            if let Some(cell) = initialized {
+                if target_region == self.module.root {
+                    self.publish_const_graph(unit, cell)?;
+                }
+            }
         }
         if classify {
             self.point = None;

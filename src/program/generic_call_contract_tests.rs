@@ -107,7 +107,7 @@ fn imported_generic_calls_keep_original_arguments_and_one_body_for_point_and_int
         let original = semantics
             .view(0)
             .unwrap()
-            .call_instantiation(op.origin.unwrap())
+            .call_instantiation(program.source_origin(op.origin.unwrap()).unwrap().1)
             .unwrap();
         assert_eq!(
             program.types[instance.arguments[0].index()],

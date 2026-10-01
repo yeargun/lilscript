@@ -74,7 +74,7 @@ pub(crate) fn program(
         // `let{…}=<host modules>;`: foreign text, compared by kind.
         out.push(Canon::Pattern);
     }
-    let walk = Walk { module, member_imports:&[], lazy:&[], commonjs:false, module_root:false, root_activation:true };
+    let walk = Walk { module, member_imports:&[], lazy:&[], commonjs:false, module_root:false, root_activation:true, inline_loads:false };
     for statement in &module.regions[module.root.index()].statements {
         out.push(walk.statement(statement));
     }
@@ -92,15 +92,28 @@ struct Walk<'a> {
     commonjs: bool,
     module_root: bool,
     root_activation: bool,
+    inline_loads: bool,
 }
 
 /// A planned file's source-owned statements, independently of wrapper text.
 /// Import reads and lazy links are part of its explicit delivery recipe.
 pub(super) fn planned_core_digest(module:&Module, statements:&[u32], member_imports:&[BindingId],
-    lazy:&[(u32,String)], commonjs:bool, module_root:bool) -> StructureDigest {
-    let walk=Walk{module,member_imports,lazy,commonjs,module_root,root_activation:true};
+    lazy:&[(u32,String)], commonjs:bool, module_root:bool, inline_loads:bool, hoist:bool) -> StructureDigest {
+    let walk=Walk{module,member_imports,lazy,commonjs,module_root,root_activation:true,inline_loads};
     let root=&module.regions[module.root.index()].statements;
-    admission_parse::digest(&admission_parse::statement_list(statements.iter().map(|&index|walk.statement(&root[index as usize])).collect()))
+    admission_parse::digest(&admission_parse::statement_list(statements.iter().map(|&index| {
+        let statement = &root[index as usize];
+        if hoist {
+            if let Statement::Let { binding, value: Some(value) } = *statement {
+                if module.settled.get(binding.index()).copied().flatten() == Some(0) {
+                    if let Expr::Function(function) = module.expressions[value.index()] {
+                        return walk.statement(&Statement::Function { binding, function });
+                    }
+                }
+            }
+        }
+        walk.statement(statement)
+    }).collect()))
 }
 
 fn unary(op: Unary) -> &'static str {
@@ -435,12 +448,12 @@ impl Walk<'_> {
             Expr::LoadModule {
                 module, members, promise, string, ..
             } => {
-                if self.lazy.iter().any(|(loaded,_)|loaded==module) {
+                if self.inline_loads || self.lazy.iter().any(|(loaded,_)|loaded==module) {
                     let arrow=|parameters, value| Canon::Function(Box::new(CanonFunction {
                         arrow:true,asynchronous:false,generator:false,strict:false,
                         parameters:vec![None;parameters],rest:false,body:vec![Canon::Return(Some(Box::new(value)))],
                     }));
-                    let loaded=if self.commonjs {
+                    let loaded=if self.commonjs || self.inline_loads {
                         let resolve=Canon::Call(Box::new(Canon::member(self.expression(*promise),None)),vec![]);
                         Canon::Call(Box::new(Canon::member(resolve,None)),vec![arrow(0,Canon::Call(Box::new(Canon::Ident),vec![Canon::Lit]))])
                     } else {Canon::ImportCall(Box::new(Canon::Lit))};

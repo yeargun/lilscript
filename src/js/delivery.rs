@@ -199,8 +199,9 @@ impl PartialOrd for EntrySet {
 pub struct EntryGraph {
     /// Static entries in name order: name and module.
     pub entries: Vec<(String, u32)>,
-    /// Modules only `import()` reaches that some `import()` loads, by first
-    /// load in the canonical schedule: bit `entries.len() + i`.
+    /// Every statically known `import()` target, by first request in the
+    /// canonical schedule: bit `entries.len() + i`. Already initialized
+    /// targets still need their shared, live namespace.
     pub dynamic: Vec<u32>,
     /// Per module: its static imports, in source order.
     pub imports: Vec<Vec<u32>>,
@@ -215,6 +216,8 @@ pub struct EntryGraph {
     /// Modules importing a host module the output carries: host code runs
     /// for the entries that reach one of them.
     pub host_importers: Vec<u32>,
+    /// External module requests are independent, effectful leaves in the graph.
+    pub foreign: Vec<(String, u32)>,
     /// Per module: its source path relative to the common source
     /// directory, without extension (`[path]` in file name templates).
     pub paths: Vec<String>,
@@ -263,6 +266,8 @@ pub enum FileRole {
     Definitions,
     /// Delivered host code.
     Host,
+    /// Debugging metadata for a JavaScript file, by delivered file index.
+    SourceMap(u32),
 }
 
 impl FileRole {
@@ -275,6 +280,7 @@ impl FileRole {
             Self::Module(_) => "module",
             Self::Definitions => "definitions",
             Self::Host => "host",
+            Self::SourceMap(_) => "source-map",
         }
     }
 }
@@ -299,6 +305,30 @@ pub struct FileLinks {
     pub dynamic: Vec<u32>,
 }
 
+/// A source module instantiated within a single delivered file. Eager modules
+/// retain native root cells; lazy modules keep their cells in suspended lexical
+/// activations. Dependencies are source-module ids in authored order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InlineModule {
+    pub source: u32,
+    pub publish: bool,
+    pub eager: bool,
+    pub dependencies: Vec<u32>,
+    pub members: Vec<(String, BindingId)>,
+}
+impl InlineModule {
+    fn heap_bytes(&self) -> Result<u64, AllocationError> {
+        Ok(vector_bytes(&self.dependencies)? + vector_bytes(&self.members)?
+            + self.members.iter().map(|(name, _)| name.capacity() as u64).sum::<u64>())
+    }
+    fn clone_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
+        Ok(Self { source: self.source, publish: self.publish, eager: self.eager,
+            dependencies: budget.copy_slice(Retained, &self.dependencies)?,
+            members: super::cloning::map(&self.members, budget, |(name, binding), budget|
+                Ok((budget.string(Retained, name)?, *binding)))? })
+    }
+}
+
 /// One delivered file of a plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlannedFile {
@@ -308,6 +338,7 @@ pub struct PlannedFile {
     pub modules: Vec<u32>,
     /// Root statements, in print order.
     pub statements: Vec<u32>,
+    pub initializers: Vec<InlineModule>,
     /// Holds an anchored statement: loading it has effects.
     pub anchored: bool,
     pub links: FileLinks,
@@ -454,6 +485,34 @@ impl DeliveryPlan {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<DeliveredLayout, AllocationError> {
         budget.retained_phase(|budget| {
+            // Package sideEffects metadata is a loading contract, including
+            // transitive imports and generated preludes. A pure facade over
+            // an effectful dependency must not authorize dropping that load.
+            let mut effects = budget.vector(Scratch, self.files.len())?;
+            let mut users: Vec<Vec<usize>> = defaults_in(self.files.len(), Scratch, budget)?;
+            let mut pending = budget.vector(Scratch, self.files.len())?;
+            for (index, file) in self.files.iter().enumerate() {
+                budget.work(WorkKind::Analysis, 1)?;
+                let preload = self.preload != crate::config::PreloadPolicy::None
+                    && matches!(file.role, FileRole::Entry(_))
+                    && self.files.iter().any(|file| matches!(file.role, FileRole::Lazy(_)));
+                let observable = file.anchored || !file.links.foreign.is_empty()
+                    || !file.links.hosted.is_empty() || preload
+                    || self.format != crate::config::JavaScriptFormat::Esm;
+                effects.push(observable);
+                if observable { pending.push(index); }
+                for &(dependency, _) in &file.links.imports {
+                    budget.push(Scratch, &mut users[dependency as usize], index)?;
+                }
+            }
+            let mut cursor = 0;
+            while cursor < pending.len() {
+                let source = pending[cursor]; cursor += 1;
+                for &user in &users[source] {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    if !std::mem::replace(&mut effects[user], true) { pending.push(user); }
+                }
+            }
             let entries = super::cloning::map(&self.entries, budget, |entry, budget| {
                 Ok(EntryDelivery {
                     name: budget.string(Retained, &entry.name)?,
@@ -465,12 +524,14 @@ impl DeliveryPlan {
             let entry_names = super::cloning::map(&self.entry_names, budget, |name, budget| {
                 budget.string(Retained, name)
             })?;
+            let mut file_index = 0;
             let files = super::cloning::map(&self.files, budget, |file, budget| {
+                let anchored = effects[file_index]; file_index += 1;
                 Ok(LayoutFile {
                     role: file.role,
                     label: collect_in(file.label.bits(), Retained, budget)?,
                     modules: budget.copy_slice(Retained, &file.modules)?,
-                    anchored: file.anchored,
+                    anchored,
                     imports: collect_in(
                         file.links.imports.iter().map(|&(source, _)| source),
                         Retained,
@@ -547,7 +608,7 @@ impl DeliveredLayout {
                     .checked_add(sizes.get(file as usize).copied().unwrap_or(0) as u64)
                     .ok_or(AllocationError::Capacity)
             })?;
-            let requests = (entry.closure.len() as u64).saturating_sub(1);
+            let requests = (entry.closure.iter().filter(|&&file| !matches!(self.files[file as usize].role, FileRole::SourceMap(_))).count() as u64).saturating_sub(1);
             let depth = if self.depth_bytes == 0 {
                 0
             } else {
@@ -976,10 +1037,9 @@ impl Facts {
         Ok(result)
     }
 
-    /// The module whose evaluation an anchored statement belongs to; host
-    /// code belongs to none (`None`).
+    /// Lowered host modules have their own nodes in the same evaluation graph.
     fn module_of(&self, statement: usize) -> Option<u32> {
-        (self.rows[statement].origin != RowOrigin::Host).then_some(self.rows[statement].module)
+        Some(self.rows[statement].module)
     }
 }
 
@@ -1037,6 +1097,20 @@ impl Atoms {
             })
         };
         let mut groups: Vec<Option<u32>> = collect_in((0..count).map(group_of), Scratch, budget)?;
+        for statement in 0..count {
+            if let Some(binding) = facts.rows[statement].completes {
+                let owner = facts.owners.get(binding.index()).copied().unwrap_or(NONE);
+                // A target rule can inline the entire private declaration
+                // into its only public view; there is then no separate atom.
+                if owner == NONE { continue; }
+                if facts.rows[owner].module != facts.rows[statement].module {
+                    return Err("completion row without a definition in its source module".into());
+                }
+                let (left, right) = (find(&mut parents, statement), find(&mut parents, owner));
+                parents[left] = right;
+                groups[right] = groups[left].or(groups[right]);
+            }
+        }
         if !preserve {
             for writer in 0..count {
                 for &(_, owner, write) in &facts.references[writer] {
@@ -1327,6 +1401,8 @@ impl PlannedFile {
         Ok(vector_bytes(&self.label.0)?
             + vector_bytes(&self.modules)?
             + vector_bytes(&self.statements)?
+            + vector_bytes(&self.initializers)?
+            + self.initializers.iter().try_fold(0u64, |sum, row| Ok::<_, AllocationError>(sum + row.heap_bytes()?))?
             + self.links.heap_bytes()?)
     }
     pub(super) fn clone_in(
@@ -1338,6 +1414,7 @@ impl PlannedFile {
             label: self.label.clone_in(budget)?,
             modules: budget.copy_slice(Retained, &self.modules)?,
             statements: budget.copy_slice(Retained, &self.statements)?,
+            initializers: super::cloning::map(&self.initializers, budget, |row, budget| row.clone_in(budget))?,
             anchored: self.anchored,
             links: self.links.clone_in(budget)?,
         })
@@ -1384,6 +1461,11 @@ struct Context<'a> {
 }
 
 impl Context<'_> {
+    fn foreign_file(&self, layout: &Layout, import: usize) -> Option<usize> {
+        let source = self.module.imports[import].source.as_unicode()?;
+        let owner = self.graph.foreign.iter().find(|(name, _)| name == source)?.1;
+        layout.files.iter().position(|file| file.role == FileRole::Module(owner))
+    }
     /// A file's first point in the canonical schedule.
     fn first_point(&self, file: &PlannedFile) -> usize {
         file.statements
@@ -1445,6 +1527,13 @@ fn link(
         let mut foreign: Vec<Vec<usize>> = defaults_in(count, Scratch, budget)?;
         let mut dynamic: Vec<Vec<u32>> = defaults_in(count, Scratch, budget)?;
         for (index, file) in layout.files.iter().enumerate() {
+            if let FileRole::Module(owner) = file.role {
+                if let Some((source, _)) = context.graph.foreign.iter().find(|(_, module)| *module == owner) {
+                    for (import, row) in module.imports.iter().enumerate() {
+                        if row.source.as_unicode() == Some(source.as_str()) { budget.push(Retained, &mut foreign[index], import)?; }
+                    }
+                }
+            }
             for &statement in &file.statements {
                 let statement = statement as usize;
                 for &(binding, owner, _) in &facts.references[statement] {
@@ -1455,7 +1544,7 @@ fn link(
                     budget.push(Scratch, &mut needs[index], (source, binding))?;
                 }
                 for &import in &facts.imports[statement] {
-                    match host_file.filter(|_| context.hosted[import]) {
+                    match host_file.filter(|_| context.hosted[import]).or_else(|| context.foreign_file(layout, import)) {
                         Some(host) if host != index => budget.push(
                             Scratch,
                             &mut needs[index],
@@ -1483,8 +1572,8 @@ fn link(
                 return Some(layout.file_of[owner]);
             }
             let import = facts.foreign[binding.index()];
-            if import != NONE && context.hosted[import] {
-                return host_file;
+            if import != NONE {
+                return if context.hosted[import] { host_file } else { context.foreign_file(layout, import) };
             }
             None
         };
@@ -1587,6 +1676,20 @@ fn link(
                     _ => None,
                 };
                 match file.role {
+                    FileRole::Entry(entry) if context.preserve && file.statements.is_empty() => {
+                        // A facade enters the source graph through its root,
+                        // not through the first module in post-order. Entering
+                        // a cycle at that dependency would reverse its effects.
+                        let own = context.graph.entries[entry as usize].1;
+                        if let Some(source) = layout.files.iter().position(|file| file.role == FileRole::Module(own)) {
+                            budget.push(Scratch, &mut order, source)?;
+                        } else {
+                            preserve_imports(context, layout, index, own, &sources, &mut order, budget)?;
+                        }
+                        for &source in &sources {
+                            if !order.contains(&source) { budget.push(Scratch, &mut order, source)?; }
+                        }
+                    }
                     _ if facade.is_some() => {
                         // Every anchored file carrying its bit, in its own module
                         // order, then the files holding its public bindings.
@@ -2056,7 +2159,19 @@ fn simulate(
                         state[source] = 1;
                         budget.push(Scratch, &mut stack, (source, 0))?;
                     }
-                    1 => return Err(PlanFailure::P6Cycle.into()),
+                    1 => {
+                        // A preserved source SCC is a legal native module
+                        // cycle. Hoisted rows were established before facts
+                        // and placement; artificial cross-component cycles
+                        // remain forbidden.
+                        let cycle = |file: usize| {
+                            let [module] = layout.files[file].modules.as_slice() else { return None; };
+                            context.graph.cycles[*module as usize]
+                        };
+                        if !context.preserve || cycle(file).is_none() || cycle(file) != cycle(source) {
+                            return Err(PlanFailure::P6Cycle.into());
+                        }
+                    },
                     _ => {}
                 }
             } else {
@@ -2267,6 +2382,7 @@ fn file(role: FileRole, label: EntrySet) -> PlannedFile {
         label,
         modules: Vec::new(),
         statements: Vec::new(),
+        initializers: Vec::new(),
         anchored: false,
         links: FileLinks::default(),
     }
@@ -2282,6 +2398,9 @@ fn settle(
     for file in &mut layout.files {
         file.statements.clear();
         file.modules.clear();
+        if let FileRole::Module(owner) = file.role {
+            if !file.links.foreign.is_empty() || !file.links.hosted.is_empty() { budget.push(Retained, &mut file.modules, owner)?; }
+        }
     }
     for (statement, &index) in layout.file_of.iter().enumerate() {
         if index != NONE {
@@ -2293,12 +2412,12 @@ fn settle(
         }
     }
     for file in &mut layout.files {
-        file.anchored = file.statements.iter().any(|&s| facts.anchored[s as usize]);
+        file.anchored = !file.links.foreign.is_empty() || !file.links.hosted.is_empty() || file.statements.iter().any(|&s| facts.anchored[s as usize]);
         extend_in(
             &mut file.modules,
             file.statements
                 .iter()
-                .filter(|&&s| facts.rows[s as usize].origin == RowOrigin::Source)
+                .filter(|&&s| facts.rows[s as usize].origin != RowOrigin::Synthetic)
                 .map(|&s| facts.rows[s as usize].module),
             Retained,
             budget,
@@ -2599,7 +2718,7 @@ fn compact(layout: &mut Layout, budget: &mut AllocationBudget<'_>) -> Result<(),
         let mut next = 0;
         let mut released = 0u64;
         for (index, file) in layout.files.iter().enumerate() {
-            if !file.statements.is_empty()
+            if !file.statements.is_empty() || !file.links.foreign.is_empty() || !file.links.hosted.is_empty()
                 || matches!(file.role, FileRole::Entry(_) | FileRole::Lazy(_))
             {
                 renumber[index] = next;
@@ -2666,6 +2785,7 @@ fn coalesce(
     context: &Context<'_>,
     layout: &mut Layout,
     reference: &[Vec<usize>],
+    export_placement: crate::config::ExportPlacement,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), OutputError> {
     // 1. Definitions-only files.
@@ -2727,6 +2847,7 @@ fn coalesce(
     }
     // 3 and 4. Files one entry alone loads into its facade.
     for facade in 0..layout.files.len() {
+        if export_placement == crate::config::ExportPlacement::Facade && matches!(layout.files[facade].role, FileRole::Entry(_)) { continue; }
         let bit = match layout.files[facade].role {
             FileRole::Entry(entry) => entry as usize,
             FileRole::Lazy(module) => match context.graph.dynamic_bit(module) {
@@ -2781,6 +2902,7 @@ fn preserve_layout(
     facts: &Facts,
     labels: &[EntrySet],
     graph: &EntryGraph,
+    export_placement: crate::config::ExportPlacement,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Layout, OutputError> {
     budget.retained_phase(|budget| {
@@ -2800,7 +2922,7 @@ fn preserve_layout(
         };
         // An entry module another file imports, statically or with `import()`,
         // keeps its module file, and its entry file is a facade (P7).
-        let shared = |module: u32| imported[module as usize] || graph.dynamic.contains(&module);
+        let shared = |module: u32| export_placement == crate::config::ExportPlacement::Facade || imported[module as usize] || graph.dynamic.contains(&module);
         // Entry files first, in entry order; then module files by position.
         for (entry, (_, root)) in graph.entries.iter().enumerate() {
             if !shared(*root) {
@@ -2836,11 +2958,10 @@ fn preserve_layout(
                 FileRole::Module(module)
             }
         };
-        let mut host = NONE;
         for statement in 0..count {
             let row = facts.rows[statement];
             let target = match row.origin {
-                RowOrigin::Source => {
+                RowOrigin::Source | RowOrigin::Host => {
                     let module = row.module as usize;
                     if module_file[module] == NONE {
                         let label = graph.reach[module].clone_in(budget)?;
@@ -2849,17 +2970,23 @@ fn preserve_layout(
                     }
                     module_file[module]
                 }
-                RowOrigin::Host => {
-                    if host == NONE {
-                        let label = graph.host_label(Retained, budget)?;
-                        budget.push(Retained, &mut files, file(FileRole::Host, label))?;
-                        host = files.len() - 1;
-                    }
-                    host
-                }
                 RowOrigin::Synthetic => continue,
             };
             file_of[statement] = target;
+        }
+        // Even an unused foreign binding retains loading and link validation.
+        // Its facade keeps the request in the authored dependency order.
+        for (source, owner) in &graph.foreign {
+            let label = graph.reach[*owner as usize].clone_in(budget)?;
+            let mut foreign_file = file(FileRole::Module(*owner), label);
+            for (index, import) in module.imports.iter().enumerate() {
+                if import.source.as_unicode() == Some(source.as_str()) {
+                    let carried = module.carried.iter().any(|name| name == source);
+                    budget.push(Retained, if carried { &mut foreign_file.links.hosted } else { &mut foreign_file.links.foreign }, index)?;
+                }
+            }
+            module_file[*owner as usize] = files.len();
+            budget.push(Retained, &mut files, foreign_file)?;
         }
         // Every entry and lazily loaded module has its file, even when empty.
         for &loaded in &graph.dynamic {
@@ -2916,7 +3043,7 @@ fn preserve_layout(
                             .iter()
                             .filter(|&&(_, owner, _)| {
                                 file_of[owner] != NONE
-                                    && facts.rows[owner].origin == RowOrigin::Source
+                                    && facts.rows[owner].origin != RowOrigin::Synthetic
                             })
                             .max_by_key(|&&(_, owner, _)| {
                                 graph.position[facts.rows[owner].module as usize]
@@ -3043,7 +3170,21 @@ fn single(
                 FileRole::Entry(entry as u32),
                 EntrySet::single_in(entry, Retained, budget)?,
             );
-            let order = evaluation(&layout, facade, &[], budget)?;
+            let mut order = evaluation(&layout, facade, &[], budget)?;
+            let mut seen = budget.filled(Scratch, layout.files.len(), false)?;
+            for &index in &order { seen[index] = true; }
+            let mut cursor = 0;
+            while cursor < order.len() {
+                let index = order[cursor]; cursor += 1;
+                for &target in &layout.files[index].links.dynamic {
+                    let loaded = evaluation(&layout, target as usize, &[], budget)?;
+                    for &next in &loaded {
+                        if !std::mem::replace(&mut seen[next], true) { budget.push(Retained, &mut order, next)?; }
+                    }
+                    release_vec(loaded, Retained, budget)?;
+                }
+            }
+            release_vec(seen, Scratch, budget)?;
             for &index in &order {
                 budget.extend_copy(
                     Retained,
@@ -3058,8 +3199,51 @@ fn single(
                 )?;
             }
             release_vec(order, Retained, budget)?;
+            let mut positions = budget.filled(Scratch, context.graph.imports.len(), NONE)?;
+            for (position, &module) in context.graph.orders[entry].iter().enumerate() { positions[module as usize] = position; }
+            budget.work(WorkKind::Analysis, (entry_file.statements.len() as u64).saturating_mul(usize::BITS as u64))?;
+            entry_file.statements.sort_by_key(|&index| {
+                let index = index as usize;
+                let statement = &context.module.regions[context.module.root.index()].statements[index];
+                let instantiated = match statement {
+                    Statement::Function { .. } => true,
+                    Statement::Let { binding, value: Some(value) } => context.module.settled.get(binding.index()).copied().flatten() == Some(0)
+                        && matches!(context.module.expressions[value.index()], Expr::Function(_)),
+                    _ => false,
+                };
+                let position = context.facts.module_of(index).map_or(0, |module| positions[module as usize].saturating_add(1));
+                (u8::from(!instantiated), position, index)
+            });
+            release_vec(positions, Scratch, budget)?;
             entry_file.modules.sort_unstable();
             entry_file.modules.dedup();
+            if !context.graph.dynamic.is_empty() {
+                let mut needed = budget.filled(Scratch, context.graph.imports.len(), false)?;
+                let mut pending = budget.copy_slice(Scratch, &entry_file.modules)?;
+                budget.extend_copy(Scratch, &mut pending, &context.graph.orders[entry])?;
+                for &statement in &entry_file.statements {
+                    budget.extend_copy(Scratch, &mut pending, &context.facts.every_load[statement as usize])?;
+                }
+                while let Some(source) = pending.pop() {
+                    if std::mem::replace(&mut needed[source as usize], true) { continue; }
+                    budget.extend_copy(Scratch, &mut pending, &context.graph.imports[source as usize])?;
+                }
+                for (source, &include) in needed.iter().enumerate() {
+                    if !include { continue; }
+                    let members = context.namespaces.iter().find(|(owner, _)| *owner as usize == source).map_or(&[][..], |(_, members)| members.as_slice());
+                    let row = InlineModule { source: source as u32, publish: context.graph.dynamic.contains(&(source as u32)), eager: context.graph.reach[source].contains(entry),
+                        dependencies: budget.copy_slice(Retained, &context.graph.imports[source])?,
+                        members: super::cloning::map(members, budget, |(name, binding), budget| Ok((budget.string(Retained, name)?, *binding)))? };
+                    budget.push(Retained, &mut entry_file.initializers, row)?;
+                }
+                entry_file.anchored = entry_file.statements.iter().any(|&statement| {
+                    let row = context.facts.rows[statement as usize];
+                    context.facts.anchored[statement as usize]
+                        && (row.origin == RowOrigin::Synthetic || context.graph.reach[row.module as usize].contains(entry))
+                });
+                release_vec(needed, Scratch, budget)?;
+                release_vec(pending, Scratch, budget)?;
+            }
             files.push(entry_file);
         }
         Ok::<_, OutputError>(Layout {
@@ -3092,7 +3276,7 @@ fn check_in_place_loads(
     let mut statements_of = defaults_in(modules, Scratch, budget)?;
     for statement in 0..facts.count {
         let row = facts.rows[statement];
-        if row.origin != RowOrigin::Source || row.module as usize >= modules {
+        if row.origin == RowOrigin::Synthetic || row.module as usize >= modules {
             continue;
         }
         budget.push(Scratch, &mut statements_of[row.module as usize], statement)?;
@@ -3163,6 +3347,22 @@ fn link_single(
         let links = budget.retained_phase(|budget| {
             let mut foreign = Vec::new();
             let mut hosted = Vec::new();
+            let mut prior_effect = false;
+            for &owner in &context.graph.orders[entry as usize] {
+                if let Some((source, _)) = context.graph.foreign.iter().find(|(_, module)| *module == owner) {
+                    if prior_effect { return Err(OutputError::Invalid("a foreign module must evaluate after a source initializer; single-file static imports cannot preserve that order: use split/preserve-modules, or embed a host module supported by typed lowering")); }
+                    for (index, import) in module.imports.iter().enumerate() {
+                        if import.source.as_unicode() == Some(source.as_str()) { budget.push(Retained, if context.hosted[index] { &mut hosted } else { &mut foreign }, index)?; }
+                    }
+                } else {
+                    prior_effect |= context.facts.rows.iter().enumerate().any(|(index, row)| row.module == owner && context.facts.anchored[index]);
+                }
+            }
+            for part in &file.initializers {
+                if !part.eager && context.graph.foreign.iter().any(|(_, owner)| *owner == part.source) {
+                    return Err(OutputError::Invalid("a lazy foreign module cannot be eagerly imported into a single file; use split/preserve-modules, or embed a host module supported by typed lowering"));
+                }
+            }
             for &statement in &file.statements {
                 for &import in &facts.imports[statement as usize] {
                     if context.hosted[import] {
@@ -3186,10 +3386,11 @@ fn link_single(
                 let name = budget.string(Retained, &export.name)?;
                 budget.push(Retained, &mut public, (name, export.binding, 0))?;
             }
-            foreign.sort_unstable();
-            foreign.dedup();
-            hosted.sort_unstable();
-            hosted.dedup();
+            let mut seen = budget.filled(Scratch, module.imports.len(), false)?;
+            foreign.retain(|&index| !std::mem::replace(&mut seen[index], true));
+            seen.fill(false);
+            hosted.retain(|&index| !std::mem::replace(&mut seen[index], true));
+            drop(seen);
             Ok::<_, OutputError>(FileLinks {
                 imports: Vec::new(),
                 exports: Vec::new(),
@@ -3457,15 +3658,19 @@ pub(crate) fn plan(
         && contract.container.global.as_ref().is_none_or(|name|!name.contains("[name]")&&!name.contains("[index]")) {
         return Err(OutputError::Invalid("several global entries require [name] or [index] in delivery.global"));
     }
-    let simple_container=matches!(contract.format,crate::config::JavaScriptFormat::Esm|crate::config::JavaScriptFormat::Bare)
-        || (!contract.library && contract.format==crate::config::JavaScriptFormat::Iife);
-    if statics==0 || (statics==1 && contract.mode==DeliveryMode::Single && simple_container) {
+    let simple_container=(matches!(contract.format,crate::config::JavaScriptFormat::Esm|crate::config::JavaScriptFormat::Bare)
+        || (!contract.library && contract.format==crate::config::JavaScriptFormat::Iife))
+        && contract.container.annotations == crate::config::ConsumerAnnotations::Off
+        && contract.container.source_maps == crate::config::SourceMaps::Off
+        && !module.root_rows.iter().any(|row| row.origin == RowOrigin::Host)
+        && module.imports.is_empty();
+    if statics==0 || (statics==1 && contract.mode==DeliveryMode::Single && simple_container && graph.dynamic.is_empty()) {
         return Ok(None);
     }
     let lazy_files = contract.mode != DeliveryMode::Single && dynamic_import;
     // Trimming is an admitted temporary projection. Its strings, adjacency
     // rows and labels cannot escape with the delivered target.
-    if !lazy_files && !graph.dynamic.is_empty() {
+    if !lazy_files && contract.mode != DeliveryMode::Single && !graph.dynamic.is_empty() {
         return budget.with_temporary(
             |budget| {
                 let mut entries = budget.vector(Retained, graph.entries.len())?;
@@ -3502,6 +3707,7 @@ pub(crate) fn plan(
                     position: budget.copy_slice(Retained, &graph.position)?,
                     cycles: budget.copy_slice(Retained, &graph.cycles)?,
                     host_importers: budget.copy_slice(Retained, &graph.host_importers)?,
+                    foreign: super::cloning::map(&graph.foreign, budget, |(source, owner), budget| Ok((budget.string(Retained, source)?, *owner)))?,
                 })
             },
             |graph, budget| plan_graph(module, graph, contract, lazy_files, ext, budget),
@@ -3546,8 +3752,48 @@ fn plan_graph(
     ext: &str,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Option<DeliveryPlan>, OutputError> {
-    let is_lazy = |target: u32| lazy_files && graph.dynamic.contains(&target);
-    let preserve = contract.mode == DeliveryMode::PreserveModules;
+    let is_lazy = |target: u32| (lazy_files || contract.mode == DeliveryMode::Single) && graph.dynamic.contains(&target);
+    let preserve = contract.mode == DeliveryMode::PreserveModules || !graph.foreign.is_empty()
+        || contract.mode == DeliveryMode::Split && graph.cycles.iter().any(Option::is_some);
+    if preserve {
+        // A source function exists during module instantiation, before any
+        // member of a cycle evaluates. A lexical function expression would
+        // create an artificial TDZ in a separately delivered module.
+        let root = module.root.index();
+        for index in 0..module.regions[root].statements.len() {
+            budget.work(WorkKind::Analysis, 1)?;
+            if graph.cycles[module.root_rows[index].module as usize].is_none() && graph.foreign.is_empty() { continue; }
+            if matches!(module.regions[root].statements[index], Statement::Function { .. }) {
+                module.root_rows[index].hoisted = true;
+                continue;
+            }
+            let Statement::Let { binding, value: Some(value) } = module.regions[root].statements[index] else { continue; };
+            if module.settled.get(binding.index()).copied().flatten() != Some(0) { continue; }
+            let Expr::Function(function) = module.expressions[value.index()] else { continue; };
+            module.functions[function.index()].arrow = false;
+            module.regions[root].statements[index] = Statement::Function { binding, function };
+            module.root_rows[index].hoisted = true;
+        }
+    }
+    if contract.mode == DeliveryMode::Single && !graph.dynamic.is_empty() {
+        if !module.reserved.iter().any(|name| name == "Object") {
+            let name = budget.string(Retained, "Object")?;
+            budget.push(Retained, &mut module.reserved, name)?;
+        }
+        for index in 0..module.regions[module.root.index()].statements.len() {
+            budget.work(WorkKind::Analysis, 1)?;
+            let Statement::Let { binding, value: Some(value) } = module.regions[module.root.index()].statements[index] else { continue; };
+            if module.settled.get(binding.index()).copied().flatten() != Some(0) { continue; }
+            let Expr::Function(function) = module.expressions[value.index()] else { continue; };
+            module.functions[function.index()].arrow = false;
+            if let Some(name) = module.functions[function.index()].name.exact().and_then(|name| name.as_unicode()) {
+                if !module.reserved.iter().any(|reserved| reserved == name) {
+                    let name = budget.string(Retained, name)?;
+                    budget.push(Retained, &mut module.reserved, name)?;
+                }
+            }
+        }
+    }
     // Build before borrowing the mutable module in the consumer closure.
     let input = |module: &Module, budget: &mut AllocationBudget<'_>| {
         let facts = Facts::collect(module, &is_lazy, budget)?;
@@ -3565,7 +3811,7 @@ fn plan_graph(
         )?;
         if contract.mode != DeliveryMode::Single
             && !facts.rows.iter().any(|row| row.origin == RowOrigin::Host)
-            && facts.imports.iter().flatten().any(|&import| hosted[import])
+            && hosted.iter().any(|&carried| carried)
         {
             return Err(OutputError::Invalid("carried host modules that were not lowered into the program are delivered in one file per entry: use `delivery.mode = \"single\"` or `host_modules = \"external\"` (plan M8.4)"));
         }
@@ -3596,38 +3842,35 @@ fn plan_graph(
     budget.with_temporary_context(module, input, |input, module, budget| {
         let context = input.context(module, &input.facts, graph, preserve);
         let mut layout = match contract.mode {
-            DeliveryMode::Split => {
+            DeliveryMode::Split if !preserve => {
                 let mut layout = fallback(&input.facts, &input.atoms, &input.labels, graph, budget)?;
                 link(&context, &mut layout, budget)?;
                 simulate(&context, &layout, &input.reference, budget)?;
-                coalesce(&context, &mut layout, &input.reference, budget)?;
+                coalesce(&context, &mut layout, &input.reference, contract.export_placement, budget)?;
                 compact(&mut layout, budget)?;
                 link(&context, &mut layout, budget)?;
                 layout
             }
-            DeliveryMode::PreserveModules => {
-                let mut layout = preserve_layout(module, &input.facts, &input.labels, graph, budget)?;
+            DeliveryMode::PreserveModules | DeliveryMode::Split => {
+                let mut layout = preserve_layout(module, &input.facts, &input.labels, graph, contract.export_placement, budget)?;
                 compact(&mut layout, budget)?;
                 link(&context, &mut layout, budget)?;
-                if fold_unimported_entry_modules(&input.facts, &mut layout, graph, budget)? {
+                if contract.export_placement != crate::config::ExportPlacement::Facade && fold_unimported_entry_modules(&input.facts, &mut layout, graph, budget)? {
                     compact(&mut layout, budget)?;
                     link(&context, &mut layout, budget)?;
                 }
-                match simulate(&context, &layout, &input.reference, budget) {
-                    Ok(()) => {},
-                    Err(VerificationError::Plan(PlanFailure::P6Cycle)) => return Err(OutputError::Invalid("preserve-modules delivery of a static import cycle waits for its hoisting constraint on the tree (plan M3.3d)")),
-                    Err(error) => return Err(error.into()),
-                }
+                simulate(&context, &layout, &input.reference, budget)?;
                 layout
             }
             DeliveryMode::Single => {
-                let layout = fallback(&input.facts, &input.atoms, &input.labels, graph, budget)?;
+                let layout = if graph.foreign.is_empty() { fallback(&input.facts, &input.atoms, &input.labels, graph, budget)? }
+                    else { preserve_layout(module, &input.facts, &input.labels, graph, contract.export_placement, budget)? };
                 let mut layout = single(&context, layout, budget)?;
                 link_single(&context, &mut layout, budget)?;
                 layout
             }
         };
-        if !lazy_files { check_in_place_loads(&input.facts, graph, &layout, budget)?; }
+        if !lazy_files && contract.mode != DeliveryMode::Single { check_in_place_loads(&input.facts, graph, &layout, budget)?; }
         let setters = if contract.mode == DeliveryMode::Single { Vec::new() }
             else { create_setters(module, &input.facts, &mut layout, budget)? };
         if layout.files.iter().any(|file| matches!(file.role, FileRole::Lazy(_))) && !module.reserved.iter().any(|name| name == "then") {
@@ -3659,7 +3902,7 @@ fn finish_plan(
         module,
         facts,
         graph,
-        contract.mode == DeliveryMode::PreserveModules,
+        contract.mode == DeliveryMode::PreserveModules || !graph.foreign.is_empty() || contract.mode == DeliveryMode::Split && graph.cycles.iter().any(Option::is_some),
     );
     verify(&context, &layout, &input.reference, contract.mode, budget)?;
     let entries = closures(graph, &layout, contract.mode, budget)?;
@@ -4008,7 +4251,7 @@ fn verify(
     if mode == DeliveryMode::PreserveModules {
         for (statement, &file) in layout.file_of.iter().enumerate() {
             let row = facts.rows[statement];
-            if row.origin != RowOrigin::Source {
+            if row.origin == RowOrigin::Synthetic {
                 continue;
             }
             let home = match layout.files[file].role {

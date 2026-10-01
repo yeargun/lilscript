@@ -18,6 +18,10 @@ pub(super) struct ContainerView<'a> {
     pub strict: bool,
 }
 impl ContainerView<'_> {
+    pub fn member(&self, binding: BindingId) -> bool {
+        self.imports.binary_search_by_key(&binding, |read| read.binding)
+            .is_ok_and(|index| !self.imports[index].default_interop)
+    }
     pub fn imported(&self, binding: BindingId) -> bool {
         self.imports
             .binary_search_by_key(&binding, |read| read.binding)
@@ -26,6 +30,12 @@ impl ContainerView<'_> {
 }
 impl Printer<'_, '_, '_> {
     pub(super) fn binding_read(&mut self, binding: BindingId) {
+        if let Some((prefix, owner)) = self.inline.and_then(|view| view.owner(binding, self.inline_module).map(|owner| (view.prefix, owner))) {
+            self.text(prefix);
+            let _ = write!(self.output, "c{owner}[");
+            self.unicode_string(self.names.get(binding)); self.text("]");
+            return;
+        }
         let view = self.container;
         let read = view.and_then(|view| {
             view.imports
@@ -34,7 +44,7 @@ impl Printer<'_, '_, '_> {
                 .map(|index| (&view.imports[index], view.prefix))
         });
         let Some((read, prefix)) = read else {
-            self.text(self.names.get(binding));
+            self.text(self.local(binding));
             return;
         };
         if !self
@@ -332,6 +342,7 @@ fn render_inner(
     };
     {
         let mut out = Printer {
+            local_names: printer.local_names,
             module: printer.module,
             names: printer.names,
             literal_alternatives: printer.literal_alternatives,
@@ -339,6 +350,7 @@ fn render_inner(
             forms: printer.forms,
             output: Buffer {
                 text: std::mem::take(&mut printer.output.text),
+                points: printer.output.points.take(),
                 budget: printer.output.budget,
                 limit: printer.output.limit,
                 error: printer.output.error,
@@ -347,7 +359,9 @@ fn render_inner(
             lazy: printer.lazy,
             container: Some(&view),
             root_activation: true,
-            planned_structure: None,
+            planned_structure: files::PlannedStructure::default(),
+            inline: printer.inline,
+            inline_module: None,
         };
         header(
             &mut out,
@@ -396,38 +410,9 @@ fn render_inner(
                 out.host_bindings(hosts, file.links.hosted.iter().copied());
             }
         }
-        let root = &out.module.regions[out.module.root.index()].statements;
-        let start = out.output.text.len();
-        out.statement_list(root, file.statements.iter().map(|&index| index as usize));
-        let mut members = out
-            .output
-            .admit(|b| b.vector(Scratch, reads.len()))
-            .ok_or(PrintError::ByteLimit)?;
-        members.extend(
-            reads
-                .iter()
-                .filter(|read| !read.default_interop)
-                .map(|read| read.binding),
-        );
-        if !out
-            .output
-            .work(out.module.expressions.len() + out.module.regions.len())
-        {
-            return Err(out.output.error.unwrap());
-        }
-        printer.planned_structure = Some(files::PlannedStructure {
-            start,
-            end: out.output.text.len(),
-            expected: crate::js::admission::planned_core_digest(
-                out.module,
-                &file.statements,
-                &members,
-                out.lazy,
-                view.commonjs,
-                config.strict,
-            ),
-        });
-        out.output.drop_vec(members, Scratch);
+        inline::body(&mut out, file);
+        out.output.mark(None);
+        printer.planned_structure = std::mem::take(&mut out.planned_structure);
         out.text("return ");
         if default_only {
             out.binding_read(exports[0].binding);
@@ -438,6 +423,7 @@ fn render_inner(
         out.text("}");
         footer(&mut out, planned, &requests);
         printer.output.text = out.output.text;
+        printer.output.points = out.output.points;
         printer.output.error = out.output.error;
     }
     let request_bytes =
@@ -520,6 +506,37 @@ fn global_provider(out: &mut Printer<'_, '_, '_>, requests: &[Request]) {
     }
     out.text("}}");
 }
+// Node deletes a failing require from its cache. A delivered lazy graph needs
+// module evaluation failures to remain cached, so internal files publish a
+// cached activation. Entry exports retain the ordinary CommonJS surface.
+fn cached_graph(planned: &files::PlannedPrint<'_>) -> bool {
+    planned.plan.format == JavaScriptFormat::Cjs
+        && planned.plan.files.iter().any(|file| matches!(file.role, FileRole::Lazy(_)))
+}
+fn cached_chunk(planned: &files::PlannedPrint<'_>) -> bool {
+    cached_graph(planned) && !matches!(planned.plan.files[planned.file].role, FileRole::Entry(_))
+}
+fn runtime_text(out: &mut Printer<'_, '_, '_>, text: &str) {
+    let prefix = out.container.expect("container recipe").prefix;
+    for (index, part) in text.split('$').enumerate() {
+        if index != 0 { out.text(prefix); }
+        out.text(part);
+    }
+}
+fn require_provider(out: &mut Printer<'_, '_, '_>, planned: &files::PlannedPrint<'_>, requests: &[Request]) {
+    let internal = planned.plan.files[planned.file].links.imports.len();
+    if !cached_graph(planned) || internal == 0 && out.lazy.is_empty() { out.text("require"); return; }
+    if internal == requests.len() { out.text("s=>require(s)()"); return; }
+    out.text("s=>{switch(s){");
+    for request in &requests[..internal] {
+        out.text("case "); out.unicode_string(&request.path); out.text(":");
+    }
+    for (_, path) in out.lazy {
+        out.text("case "); out.unicode_string(path); out.text(":");
+    }
+    out.text("return require(s)();default:return require(s)}}");
+}
+
 fn header(
     out: &mut Printer<'_, '_, '_>,
     planned: &files::PlannedPrint<'_>,
@@ -529,6 +546,9 @@ fn header(
 ) {
     match planned.plan.format {
         JavaScriptFormat::Cjs => {
+            if cached_chunk(planned) {
+                runtime_text(out, "let $s=0,$x={},$z;module.exports=()=>{if($s===3)throw $z;if($s)return $x;$s=1;try{");
+            }
             if default_only {
                 out.text("module.exports=");
             }
@@ -579,7 +599,13 @@ fn header(
 }
 fn footer(out: &mut Printer<'_, '_, '_>, planned: &files::PlannedPrint<'_>, requests: &[Request]) {
     match planned.plan.format {
-        JavaScriptFormat::Cjs => out.text(")(exports,require,Object);"),
+        JavaScriptFormat::Cjs => {
+            out.text(")(");
+            if cached_chunk(planned) { runtime_text(out, "$x,"); } else { out.text("exports,"); }
+            require_provider(out, planned, requests);
+            out.text(",Object);");
+            if cached_chunk(planned) { runtime_text(out, "$s=2;return $x}catch(e){$s=3;$z=e;throw e}};"); }
+        }
         JavaScriptFormat::Iife => {
             out.text(")({},");
             global_provider(out, requests);

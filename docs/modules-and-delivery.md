@@ -97,13 +97,14 @@ filesystem search. Dynamic and static import cycles are legal. Static cycles
 retain live bindings and once-only initialization; eager reads before a binding
 is initialized remain errors.
 
-Lazy-only modules (no entry imports them statically) are initialization-free:
-they may declare functions, structs, and classes, but may not contain top-level
-executable statements or variables. The compiler rejects such modules instead
-of silently running a supposedly lazy initializer in the entry artifact. Put
-initialization in an exported function. A module one entry imports statically
-and another loads with `import()` may have effects: `split` and
-`preserve-modules` evaluate it when that entry loads it, as ES modules do.
+Lazy modules may contain top-level executable statements and variables. Their
+static dependencies initialize in source order on the first load; later loads
+share live bindings, namespace identity and the cached initialization outcome.
+`single` includes their code in the entry artifact, with suspended lexical
+activations for initialization. `split` and `preserve-modules` use separate files.
+Single-file entries retain independent instances; split entries share them.
+A function in a static cycle is available during instantiation, while reading a
+lexical value before its initializer still throws.
 
 Dynamic module tasks are JavaScript-only. Native targets report a source
 diagnostic because LilScript does not claim that a JavaScript chunk has a
@@ -156,18 +157,24 @@ exports (`let s=v=>x=v`): ES imports are read-only.
 The plan verifier (design §7.11, P1–P10) checks every plan before its files are
 printed; a failure is an internal error that names the assertion.
 
-### Refused until a later batch
+### Target limits
 
-- Two entries, or an entry and a module one of them loads with `import()`, that
-  enter one static import cycle at different modules (plan M3.3d).
-- `preserve-modules` over a static import cycle among delivered files (M3.3d).
-- A module an entry reaches only through `import()` that runs code when it
-  loads, where `import()` is built in place: `single` with several entries, or
-  a target without dynamic import (M3.3d).
-- Carried host code that was not lowered into the program, outside `single`
-  (M8.4).
-- `format` other than `esm` (M3.3b), several entries for `--target js`, and
-  several entries for a native target (M11.8).
+- Effects in lazy modules on a target without dynamic-import syntax need
+  `delivery.mode = "single"`; that mode uses the in-file module runtime.
+- Typed embedded host modules participate in the source dependency graph,
+  including separate entry reachability, mixed import order and lazy activation.
+  Carried host text outside typed lowering requires `single`, or
+  `host_modules = "external"`; each single entry carries only its host closure.
+- External module requests retain loading and named-export validation even when
+  their local bindings are unused. Split/preserved delivery uses separate
+  request files to preserve their place in the dependency order.
+- A single-file static import necessarily loads before that file's body. If a
+  foreign request belongs only to a lazy closure, or must follow a source
+  initializer, single-file delivery diagnoses the mismatch. Use split/preserved
+  delivery, or embed a host module supported by typed lowering. These cases
+  never silently turn lazy effects into eager effects.
+- Native dynamic module tasks and multiple native entries have no supported
+  portable module ABI yet; they receive target diagnostics.
 
 ### Files, names and the manifest
 

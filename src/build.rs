@@ -275,11 +275,10 @@ impl std::error::Error for ServiceError {
 /// The service returns immutable delivered bytes with their exact scores.
 #[derive(Debug, serde::Serialize)]
 pub struct ServiceJavaScript {
-    /// The one delivered file; empty when a delivery plan places the output
-    /// in several files.
+    /// The unplanned single file. Planned output is stored in `files`.
     javascript: String,
-    /// Every file of a delivery plan, with its measured sizes; empty for one
-    /// file.
+    /// Every file of a delivery plan, with its measured sizes. A plan may
+    /// deliver a single file; unplanned output leaves this empty.
     files: Vec<crate::program::publication::DeliveredFile>,
     /// The plan's files, entries and links (manifest v3).
     layout: Option<crate::js::delivery::DeliveredLayout>,
@@ -289,14 +288,16 @@ pub struct ServiceJavaScript {
 }
 
 impl ServiceJavaScript {
+    /// The delivered JavaScript when there is exactly one file; empty for
+    /// multiple files, including an external source map alongside its code.
     pub fn javascript(&self) -> &str {
-        &self.javascript
+        if let [file] = self.files.as_slice() { &file.code } else { &self.javascript }
     }
-    /// Every file of a multi-file delivery, in plan order.
+    /// Every file of a planned delivery, in plan order.
     pub fn files(&self) -> &[crate::program::publication::DeliveredFile] {
         &self.files
     }
-    /// The delivery plan's layout, when the output is several files.
+    /// The delivery plan's layout, including planned single-file output.
     pub fn layout(&self) -> Option<&crate::js::delivery::DeliveredLayout> {
         self.layout.as_ref()
     }
@@ -344,6 +345,7 @@ struct Frontend {
     source_buffer_bytes: Option<u64>,
     /// Relative host modules every output carries.
     hosts: crate::host_modules::HostDelivery,
+    source_maps: Option<crate::source_maps::PreparedSources>,
     native_bindings: Vec<(crate::program::CellId, String)>,
     decisions: decisions::Request,
 }
@@ -361,6 +363,10 @@ thread_local! {
 }
 
 impl Frontend {
+    fn wants_source_maps(&self) -> bool {
+        self.javascript.as_ref().into_iter().chain(self.independent_javascript.iter().flatten())
+            .any(|policy| policy.delivery().is_some_and(|delivery| delivery.container.source_maps != crate::config::SourceMaps::Off))
+    }
     fn trap_index_reads(&self) -> bool {
         self.native.is_some() || self.javascript.as_ref().and_then(ResolvedPolicy::javascript_contract)
             .is_some_and(|contract| contract.checks == crate::compilation_contract::PreconditionChecks::Development)
@@ -474,6 +480,7 @@ impl Frontend {
             phases: json!({"policy_ns": nanos(started)}),
             source_buffer_bytes: None,
             hosts: Default::default(),
+            source_maps: None,
             native_bindings: Vec::new(),
             decisions: decisions::Request::new(config, options)?,
         };
@@ -493,6 +500,7 @@ impl Frontend {
         inputs: Value,
     ) -> Result<CheckedSourceSession<'src>, (ServiceError, BudgetLedger)> {
         if let Err(error) = self.checkpoint(0) {
+            if let Some(maps) = self.source_maps.take() { maps.discard(&mut self.ledger); }
             prepared.discard(&mut self.ledger);
             #[cfg(test)]
             record_retained("prepared-discard", self.ledger.retained_bytes());
@@ -508,6 +516,7 @@ impl Frontend {
             mut phases,
             source_buffer_bytes,
             hosts,
+            source_maps,
             native_bindings,
             mut decisions,
         } = self;
@@ -525,12 +534,14 @@ impl Frontend {
             match Compilation::new_preserving_ledger(ledger, CheckpointLimit { max_live: 128 }) {
                 Ok(compilation) => compilation,
                 Err((mut ledger, error)) => {
+                    if let Some(maps) = source_maps { maps.discard(&mut ledger); }
                     prepared.discard(&mut ledger);
                     #[cfg(test)]
                     record_retained("prepared-discard", ledger.retained_bytes());
                     return Err((ServiceError::new("adoption", error), ledger));
                 }
             };
+        if let Some(maps) = source_maps { compilation.adopt_source_maps(maps); }
         let source = match compilation.adopt_prepared(prepared) {
             Ok(source) => source,
             Err(error) => {
@@ -1462,6 +1473,12 @@ fn check_source_frontend<'src>(
         })??;
     drop(syntax);
     drop(arena);
+    if frontend.wants_source_maps() {
+        frontend.source_maps = Some(match crate::source_maps::Sources::prepare(program.program(), [("source.lil", source)], &mut frontend.ledger) {
+            Ok(sources) => sources,
+            Err(error) => { program.discard(&mut frontend.ledger); return Err(ServiceError::resources("source-map inputs", error)); }
+        });
+    }
     frontend.phases["frontend_release_ns"] = json!(nanos(release_started));
     Ok(program)
 }
@@ -1651,6 +1668,14 @@ fn check_path_frontend<'src, T>(
         })??;
     drop(syntax);
     drop(arena);
+    if frontend.wants_source_maps() {
+        let paths = modules.modules.iter().map(|module| module.path.clone()).collect::<Vec<_>>();
+        let names = module_paths(&paths).into_iter().zip(&paths).map(|(name, path)| format!("{name}.{}", path.extension().and_then(|ext|ext.to_str()).unwrap_or("lil"))).collect::<Vec<_>>();
+        frontend.source_maps = Some(match crate::source_maps::Sources::prepare(program.program(), names.iter().zip(&modules.modules).map(|(name, module)| (name.as_str(), module.source)), &mut frontend.ledger) {
+            Ok(sources) => sources,
+            Err(error) => { program.discard(&mut frontend.ledger); return Err(ServiceError::resources("source-map inputs", error)); }
+        });
+    }
     drop(modules);
     frontend.phases["frontend_release_ns"] = json!(nanos(release_started));
     Ok((program, inputs, inspected))
@@ -2124,6 +2149,9 @@ mod budget_tests;
 #[cfg(test)]
 #[path = "build_delivery_tests.rs"]
 mod delivery_tests;
+#[cfg(test)]
+#[path = "build_consumer_tests.rs"]
+mod consumer_tests;
 
 #[cfg(test)]
 #[path = "build_objective_tests.rs"]

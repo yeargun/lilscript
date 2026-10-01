@@ -1,0 +1,189 @@
+{
+  "base": "13e9261c821189ff0df9610c64462804abb3d25b",
+  "algorithm": 67,
+  "search": 33,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/d2-consumers-1/lilscript",
+    "sha256": "4c0c524e2095899738fcd07307a05af2375100e11712f4ae5521867eaa0bdfc2"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+    "sha256": "34bc6627675906f8431892630b5e91fc4cc9f1e03ce15e9716025aa551e5c823"
+  },
+  "consumer_bundler": {
+    "path": "/home/azureuser/motionlil/node_modules/esbuild/bin/esbuild",
+    "sha256": "92d1ca653cf188da8d7650ddfe1c32d5a139bf3a9a2808f3e622e6d667ce0389",
+    "version": "0.25.9"
+  },
+  "fixtures": {
+    "data.lil": "02cfd948e007bcbdf0606df61c8f7e6d024c0ce9f4cce2106085716ee6c2ef1d",
+    "feature.lil": "2db66ef5c31896e577e5dbc3e13d9144a5cc8704c1bef0f2cdd2dee51552c8a6",
+    "main.lil": "8ab05dab4dff4c5de36ac6654854a44baa2c47b90fcae831a91c8078a0417463"
+  },
+  "rows": [
+    {
+      "maps": "off",
+      "objective": "raw",
+      "config": "objective.codecs='raw'\neffort.level=13\n[policy]\nversion=3\n[target.javascript]\nformat='esm'\n[delivery]\nmode='single'\nentry_names='main.mjs'\nannotations='all'\nsource_maps='off'\n",
+      "config_sha256": "17725647652f3693f11c1851240de6286ca0652b104993c169b9df581e4bd70a",
+      "exit_code": 0,
+      "wall_seconds": 0.03716277499916032,
+      "cpu_seconds": 0.0368,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "0a22deff39f0af1be614f2d83deb6390446ec8d6d2a438b7dbe24f42e7ed89e6",
+          "raw": 1608,
+          "gzip9": 757,
+          "brotli11": 670
+        }
+      ],
+      "bytes": 1608,
+      "judged": 10,
+      "oracle": true,
+      "manifest_sha256": "9cbb704b5fbe951ab925dc68b2c64dac8775683631fac21a202001f4b1de9ffb",
+      "explanation_sha256": "d2f2629aff9983d727ded86fddab8869b63295d65015e1a1de3ef5b51f4a4612"
+    },
+    {
+      "maps": "off",
+      "objective": "gzip",
+      "config": "objective.codecs='gzip'\neffort.level=13\n[policy]\nversion=3\n[target.javascript]\nformat='esm'\n[delivery]\nmode='single'\nentry_names='main.mjs'\nannotations='all'\nsource_maps='off'\n",
+      "config_sha256": "08a09922cba23598b8ffce8a3bf878cefdb66de61aaa9f46a550f77c76a939c2",
+      "exit_code": 0,
+      "wall_seconds": 0.04070699599105865,
+      "cpu_seconds": 0.04034499999999999,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "5718d6d5d6a20b784fb2fd5b10060b48a5d7468b60403fbd15b965b382112dde",
+          "raw": 1608,
+          "gzip9": 716,
+          "brotli11": 626
+        }
+      ],
+      "bytes": 716,
+      "judged": 2,
+      "oracle": true,
+      "manifest_sha256": "3f3c1c1d90570650f39cce461623d6d54ddae30e892ea20369713d2b00c5e6b3",
+      "explanation_sha256": "e9a39a29177374017f6830839e666d93072344695eef22a863a7c72646f9df53"
+    },
+    {
+      "maps": "off",
+      "objective": "brotli",
+      "config": "objective.codecs='brotli'\neffort.level=13\n[policy]\nversion=3\n[target.javascript]\nformat='esm'\n[delivery]\nmode='single'\nentry_names='main.mjs'\nannotations='all'\nsource_maps='off'\n",
+      "config_sha256": "d87e63cd44521f8d22b5e1f3e231a07b20a44c9f0df2cf1fb69a71dde6d34770",
+      "exit_code": 0,
+      "wall_seconds": 0.07611319998977706,
+      "cpu_seconds": 0.075764,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "b71d030b0e557c96a8ce5941f62aa6dfce16012a7bc6897183301dc550b7cd60",
+          "raw": 1608,
+          "gzip9": 718,
+          "brotli11": 620
+        }
+      ],
+      "bytes": 620,
+      "judged": 24,
+      "oracle": true,
+      "manifest_sha256": "2d2f54045a25e05205bb285a8f73aca1db02683148188cf5632a6678cca01136",
+      "explanation_sha256": "47be6a174d744dfc74070bf747f48ae71b0686ef1a387d1ff9bb93fba2b286a0"
+    },
+    {
+      "maps": "external",
+      "objective": "raw",
+      "config": "objective.codecs='raw'\neffort.level=13\n[policy]\nversion=3\n[target.javascript]\nformat='esm'\n[delivery]\nmode='single'\nentry_names='main.mjs'\nannotations='all'\nsource_maps='external'\n",
+      "config_sha256": "c55264fcfcccc0bd39b88ea33c9576345ddcd36037c5a6f3fb00529cdfcb79e9",
+      "exit_code": 0,
+      "wall_seconds": 0.03731081201112829,
+      "cpu_seconds": 0.036981000000000014,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "0909505d8cd3cc697fb02363690a819d3bebf70012f513afd4d0ce0bc401f822",
+          "raw": 1642,
+          "gzip9": 788,
+          "brotli11": 692
+        },
+        {
+          "name": "main.mjs.map",
+          "sha256": "ecc5784a800232580369f94f91d7063dbf216174f7864de4817bff8ae8660bd9",
+          "raw": 371,
+          "gzip9": 258,
+          "brotli11": 219
+        }
+      ],
+      "bytes": 2013,
+      "judged": 10,
+      "oracle": true,
+      "manifest_sha256": "9a18114533978f5861fe21fef4af4e5bedac3d7f0909e7c6926f19dc09bfce36",
+      "explanation_sha256": "1372786fbd48dbc6c6b5b915bbe374de7d1fafbf5a24eea2a5b6424f247d8892"
+    },
+    {
+      "maps": "external",
+      "objective": "gzip",
+      "config": "objective.codecs='gzip'\neffort.level=13\n[policy]\nversion=3\n[target.javascript]\nformat='esm'\n[delivery]\nmode='single'\nentry_names='main.mjs'\nannotations='all'\nsource_maps='external'\n",
+      "config_sha256": "21ef9ffa81122b8a89e023873ec29fde21f045a1ca3ed53fdff14ca2eee7eb6b",
+      "exit_code": 0,
+      "wall_seconds": 0.04196006400161423,
+      "cpu_seconds": 0.041608999999999986,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "8e40fd67b1b4fa13bf776e45b6916bffd0a3724027a6a62c5c7166da6a0a539a",
+          "raw": 1642,
+          "gzip9": 744,
+          "brotli11": 661
+        },
+        {
+          "name": "main.mjs.map",
+          "sha256": "ecc5784a800232580369f94f91d7063dbf216174f7864de4817bff8ae8660bd9",
+          "raw": 371,
+          "gzip9": 258,
+          "brotli11": 219
+        }
+      ],
+      "bytes": 1002,
+      "judged": 5,
+      "oracle": true,
+      "manifest_sha256": "03d1e775fbdb97c974f95d3e04d00a50a5c26ac49149583d784c7301f993cf3d",
+      "explanation_sha256": "2eb443497fd1bf874145169167ca69b8b32898c0e73ecd338df1bfbb5f706c04"
+    },
+    {
+      "maps": "external",
+      "objective": "brotli",
+      "config": "objective.codecs='brotli'\neffort.level=13\n[policy]\nversion=3\n[target.javascript]\nformat='esm'\n[delivery]\nmode='single'\nentry_names='main.mjs'\nannotations='all'\nsource_maps='external'\n",
+      "config_sha256": "6615a1828746982a61e4026fc342dffb3e5fdaf0628e23a16ca988e8b38e4c4d",
+      "exit_code": 0,
+      "wall_seconds": 0.0841109849861823,
+      "cpu_seconds": 0.083752,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "e7eddea55179e13c676f2285bb9de3b006f484930eb8beb698c6656fa3151619",
+          "raw": 1642,
+          "gzip9": 749,
+          "brotli11": 656
+        },
+        {
+          "name": "main.mjs.map",
+          "sha256": "ecc5784a800232580369f94f91d7063dbf216174f7864de4817bff8ae8660bd9",
+          "raw": 371,
+          "gzip9": 258,
+          "brotli11": 219
+        }
+      ],
+      "bytes": 875,
+      "judged": 24,
+      "oracle": true,
+      "manifest_sha256": "e965e2493dc7e0ca0d7dbcabc3b583a56b668282d071e5c4c56baff716dc7954",
+      "explanation_sha256": "f8a4494fc5b3ef533c0928da077329e28caed77712b46f4127a2b2a7d70a8cf0"
+    }
+  ],
+  "complete": true
+}

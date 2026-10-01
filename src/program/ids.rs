@@ -3,7 +3,9 @@
 //! Handles are positions, not addresses or source spellings. Values, operations,
 //! regions, places and allocation sites are local to a unit. Cross-unit clients
 //! must carry the owning unit and consult a matching published revision. Cells,
-//! types and strings belong to the program's tables.
+//! types and strings belong to the program's tables. SourceOriginId qualifies
+//! the original source node through each module's immutable source range; it
+//! survives copies into another unit without widening the per-operation handle.
 
 use std::num::{NonZeroU32, NonZeroU64};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -41,6 +43,7 @@ macro_rules! semantic_handles {
 
 semantic_handles!(
     ModuleId,
+    SourceOriginId,
     UnitId,
     OpId,
     ValueId,

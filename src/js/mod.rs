@@ -2,7 +2,7 @@
 //! passes here edit it; naming, printing and delivery turn it into files.
 //!
 //! Expressions contain syntax, lexical cells have independent `BindingId`
-//! handles. Their optional source symbol and each operation's `SourceNodeId`
+//! handles. Their optional source symbol and each operation's `SourceOriginId`
 //! retain provenance through target edits. Arena handles locate target
 //! storage; source identities explain its origin.
 //! There is deliberately no raw-code node or per-node rendered text.
@@ -10,7 +10,7 @@
 //! value requires a binding reference or an explicitly justified rematerialized
 //! occurrence, never accidental duplication of a shared expression graph.
 
-use crate::ast::SourceNodeId;
+use crate::program::SourceOriginId;
 pub(crate) use crate::catalog::{integer_intrinsic, original_int32_intrinsic};
 use crate::catalog::{
     intrinsic_arity, intrinsic_form, intrinsic_recipe, native_constructor, IntrinsicForm,
@@ -83,7 +83,7 @@ pub(crate) use verify::MAX_NESTING;
 
 // Zero-based arena positions and optional absence share one word. The encoded
 // value is private: consumers use the index, not a second identity mapping.
-// Source SymbolId/SourceNodeId provenance is independent and keeps its own encoding.
+// Source SymbolId/SourceOriginId provenance is independent and keeps its own encoding.
 macro_rules! target_handles {
     ($($name:ident),+ $(,)?) => {$(
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -971,6 +971,12 @@ pub struct RootRow {
     /// formed from (M6.5): code the program first runs later cannot run
     /// before the statement completes. None for a statement a rule created.
     pub point: Option<u32>,
+    /// Finishes a fresh definition's public graph or object. Placement keeps
+    /// it with that definition; it is not a free-standing observable store.
+    pub completes: Option<BindingId>,
+    /// A source-instantiated function in a separately delivered cycle. Its
+    /// declaration must be hoisted and its exact name is local to this file.
+    pub hoisted: bool,
 }
 
 /// Where a root statement comes from.
@@ -991,6 +997,8 @@ impl RootRow {
             anchor,
             origin: RowOrigin::Source,
             point: None,
+            completes: None,
+            hoisted: false,
         }
     }
     /// The row formed at program root point `point`.
@@ -1004,6 +1012,8 @@ impl RootRow {
             anchor: Anchor::Definition,
             origin: RowOrigin::Synthetic,
             point: None,
+            completes: None,
+            hoisted: false,
         }
     }
     /// The row of a statement that now holds both statements' code:
@@ -1020,6 +1030,8 @@ impl RootRow {
                 .point
                 .zip(other.point)
                 .map(|(this, other)| this.max(other)),
+            hoisted: self.hoisted && other.hoisted,
+            completes: if self.completes == other.completes { self.completes } else { None },
             ..self
         }
     }
@@ -1035,6 +1047,11 @@ pub struct EntryPublic {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
+    pub(crate) consumer_annotations: crate::config::ConsumerAnnotations,
+    /// Source effects prove termination and no observable effects for every
+    /// admitted argument. Body rewrites preserve that contract; new helpers
+    /// receive no annotation without a semantic proof of their own.
+    pub(crate) discardable_functions: Vec<FunctionId>,
     /// Local data ranking uses this objective's proxy and window. The full
     /// artifact, with its final names and shared helpers, is judged separately.
     pub(crate) const_freezers: Vec<(u32, BindingId)>,
@@ -1042,7 +1059,7 @@ pub struct Module {
     pub(crate) immutable_data: Vec<BindingId>,
     pub(crate) data_estimator: Option<(crate::config::CompressionCostModel, crate::compression::CodecSettings)>,
     pub expressions: Vec<Expr>,
-    pub origins: Vec<Option<SourceNodeId>>,
+    pub origins: Vec<Option<SourceOriginId>>,
     /// Source-authored string values admitted to shared storage regardless of seed.
     pub(crate) authored_pool: Vec<StringValue>,
     pub(crate) authored_pool_formed: bool,
@@ -3193,6 +3210,8 @@ impl Module {
             unconstructed_callbacks: false,
             root_rows: vec![],
             entries: vec![],
+            consumer_annotations: crate::config::ConsumerAnnotations::Off,
+            discardable_functions: Vec::new(),
             delivery: None,
             reserved: vec![],
             carried: vec![],
@@ -3398,7 +3417,7 @@ impl Module {
         Ok(())
     }
 
-    pub fn expression(&mut self, expression: Expr, origin: Option<SourceNodeId>) -> ExprId {
+    pub fn expression(&mut self, expression: Expr, origin: Option<SourceOriginId>) -> ExprId {
         self.expression_in(expression, origin, &mut AllocationBudget::new(None))
             .expect("structured target allocation failed")
     }
@@ -3406,7 +3425,7 @@ impl Module {
     pub(crate) fn expression_in(
         &mut self,
         expression: Expr,
-        origin: Option<SourceNodeId>,
+        origin: Option<SourceOriginId>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<ExprId, AllocationError> {
         let id = ExprId::try_new(self.expressions.len()).ok_or(AllocationError::Capacity)?;

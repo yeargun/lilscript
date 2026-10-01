@@ -34,7 +34,8 @@
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 use crate::host_modules::HostDelivery;
-use serde_json::Value;
+use oxc_ast::{AstKind, ast};
+use oxc_ast_visit::Visit;
 
 /// Why lowering stopped: a construct the tree does not represent, or the
 /// budget.
@@ -83,6 +84,7 @@ impl Module {
     pub(crate) fn lower_hosts(
         &mut self,
         delivery: &HostDelivery,
+        source_modules: usize,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<bool, AllocationError> {
         if delivery.is_empty() {
@@ -96,9 +98,10 @@ impl Module {
         // function and runs nothing (a definition); every other statement is
         // host code the program cannot see into (anchored).
         let mut anchors = Vec::new();
-        for host in &delivery.modules {
+        for (host_index, host) in delivery.modules.iter().enumerate() {
             budget.work(Analysis, host.body().len() as u64)?;
-            let Ok(tree) = crate::host_modules::parse_program(host.body()) else {
+            let arena = oxc_allocator::Allocator::default();
+            let Ok(tree) = crate::host_modules::parse_program(&arena, host.body()) else {
                 return Ok(false);
             };
             let mut lowering = Lowering {
@@ -131,26 +134,15 @@ impl Module {
                 }
             }
             let declared = tree
-                .get("body")
-                .and_then(Value::as_array)
-                .map_or(0, |body| {
-                    body.iter()
-                        .filter(|statement| kind(statement) == "FunctionDeclaration")
-                        .count()
-                });
-            let lowered = match tree.get("body").and_then(Value::as_array) {
-                Some(body) => lowering.block_statements(body),
-                None => Err(Stop::Refused),
-            };
+                .body
+                .iter()
+                .filter(|statement| matches!(statement, ast::Statement::FunctionDeclaration(_)))
+                .count();
+            let lowered = lowering.block_statements(&tree.body);
             match lowered {
                 Ok(lowered) => {
-                    anchors.extend((0..lowered.len()).map(|position| {
-                        if position < declared {
-                            Anchor::Definition
-                        } else {
-                            Anchor::Anchored
-                        }
-                    }));
+                    let owner = u32::try_from(source_modules.checked_add(host_index).ok_or(AllocationError::Capacity)?).map_err(|_| AllocationError::Capacity)?;
+                    anchors.extend((0..lowered.len()).map(|position| (owner, if position < declared { Anchor::Definition } else { Anchor::Anchored })));
                     statements.extend(lowered)
                 }
                 Err(Stop::Refused) => return Ok(false),
@@ -233,14 +225,15 @@ impl Module {
             count,
         )?;
         // Host code: rows of their own origin (design §7.9).
-        let first = self.root_rows.first().map_or(0, |row| row.module);
         if !self.root_rows.is_empty() {
             budget.reserve_vec(AllocationClass::Retained, &mut self.root_rows, count)?;
         }
         self.prepend_roots(
             statements,
-            anchors.into_iter().map(|anchor| RootRow {
-                module: first,
+            anchors.into_iter().map(|(owner, anchor)| RootRow {
+                completes: None,
+                hoisted: false,
+                module: owner,
                 anchor,
                 origin: RowOrigin::Host,
                 point: None,
@@ -322,7 +315,7 @@ impl Lowering<'_, '_> {
         Ok(())
     }
 
-    fn block(&mut self, body: &[Value]) -> Lowered<RegionId> {
+    fn block(&mut self, body: &[ast::Statement<'_>]) -> Lowered<RegionId> {
         let region = self.enter()?;
         let statements = self.block_statements(body)?;
         self.scopes.pop();
@@ -330,41 +323,39 @@ impl Lowering<'_, '_> {
         Ok(region)
     }
 
-    /// A statement list in the current scope: its names declared first, its
-    /// function declarations created first, then the rest in order.
-    fn block_statements(&mut self, body: &[Value]) -> Lowered<Vec<Statement>> {
+    fn block_statements(&mut self, body: &[ast::Statement<'_>]) -> Lowered<Vec<Statement>> {
         self.budget.work(Analysis, body.len() as u64)?;
         for statement in body {
-            match kind(statement) {
-                "FunctionDeclaration" => {
-                    self.declare(identifier(statement.get("id"))?, false)?;
+            match statement {
+                ast::Statement::FunctionDeclaration(function) => {
+                    self.declare(
+                        function.id.as_ref().ok_or(Stop::Refused)?.name.as_str(),
+                        false,
+                    )?;
                 }
-                "VariableDeclaration" => {
-                    let constant = match text(statement, "kind") {
-                        Some("let") => false,
-                        Some("const") => true,
-                        _ => return Err(Stop::Refused),
-                    };
-                    for declarator in array(statement, "declarations")? {
-                        let name = identifier(declarator.get("id"))?;
+                ast::Statement::VariableDeclaration(declaration) => {
+                    let constant = constant(declaration.kind)?;
+                    for declarator in &declaration.declarations {
+                        let name = identifier(&declarator.id)?;
                         let binding = self.declare(name, constant)?;
-                        if !constant
-                            && numeric_literal(declarator.get("init"))
-                            && numeric_writes(body, name)
-                        {
+                        let mut facts = Observations::new(name);
+                        for node in body {
+                            facts.visit_statement(node);
+                        }
+                        if !constant && numeric_literal(declarator.init.as_ref()) && facts.numeric {
                             self.numeric.push(binding);
                         }
                     }
                 }
-                "ClassDeclaration" => return Err(Stop::Refused),
+                ast::Statement::ClassDeclaration(_) => return Err(Stop::Refused),
                 _ => {}
             }
         }
         let mut statements = Vec::new();
         for statement in body {
-            if kind(statement) == "FunctionDeclaration" {
-                let binding = self.own(identifier(statement.get("id"))?)?;
-                let function = self.function(statement, false)?;
+            if let ast::Statement::FunctionDeclaration(node) = statement {
+                let binding = self.own(node.id.as_ref().ok_or(Stop::Refused)?.name.as_str())?;
+                let function = self.function(node)?;
                 let value = self.expression(Expr::Function(function))?;
                 statements.push(Statement::Let {
                     binding,
@@ -373,17 +364,16 @@ impl Lowering<'_, '_> {
             }
         }
         for statement in body {
-            if kind(statement) != "FunctionDeclaration" {
+            if !matches!(statement, ast::Statement::FunctionDeclaration(_)) {
                 self.statement(statement, &mut statements)?;
             }
         }
         Ok(statements)
     }
 
-    /// A statement's body: its block, or a region of the one statement.
-    fn nested(&mut self, node: &Value) -> Lowered<RegionId> {
-        if kind(node) == "BlockStatement" {
-            return self.block(array(node, "body")?);
+    fn nested(&mut self, node: &ast::Statement<'_>) -> Lowered<RegionId> {
+        if let ast::Statement::BlockStatement(node) = node {
+            return self.block(&node.body);
         }
         let region = self.enter()?;
         let mut statements = Vec::new();
@@ -393,261 +383,267 @@ impl Lowering<'_, '_> {
         Ok(region)
     }
 
-    fn statement(&mut self, node: &Value, out: &mut Vec<Statement>) -> Lowered<()> {
+    fn variables(
+        &mut self,
+        node: &ast::VariableDeclaration<'_>,
+        out: &mut Vec<Statement>,
+    ) -> Lowered<()> {
+        for declarator in &node.declarations {
+            let binding = self.own(identifier(&declarator.id)?)?;
+            let value = declarator
+                .init
+                .as_ref()
+                .map(|value| self.expr(value))
+                .transpose()?;
+            out.push(Statement::Let { binding, value });
+        }
+        Ok(())
+    }
+
+    fn statement(&mut self, node: &ast::Statement<'_>, out: &mut Vec<Statement>) -> Lowered<()> {
+        use ast::Statement as S;
         self.budget.work(Analysis, 1)?;
-        match kind(node) {
-            "EmptyStatement" => {}
-            "ExpressionStatement" => {
-                if present(node, "directive") {
-                    return Ok(());
-                }
-                let expression = field(node, "expression")?;
-                let value = if kind(expression) == "UpdateExpression" {
-                    self.update(expression)?
-                } else {
-                    self.expr(expression)?
-                };
-                out.push(Statement::Evaluate(value));
+        match node {
+            S::EmptyStatement(_) => {}
+            S::ExpressionStatement(node) => {
+                out.push(Statement::Evaluate(self.discarded(&node.expression)?))
             }
-            "VariableDeclaration" => {
-                for declarator in array(node, "declarations")? {
-                    let binding = self.own(identifier(declarator.get("id"))?)?;
-                    let value = match declarator.get("init") {
-                        Some(init) if !init.is_null() => Some(self.expr(init)?),
-                        _ => None,
-                    };
-                    out.push(Statement::Let { binding, value });
-                }
-            }
-            "ReturnStatement" => {
+            S::VariableDeclaration(node) => self.variables(node, out)?,
+            S::ReturnStatement(node) => {
                 if self.functions.is_empty() {
                     return Err(Stop::Refused);
                 }
-                let value = match node.get("argument") {
-                    Some(argument) if !argument.is_null() => Some(self.expr(argument)?),
-                    _ => None,
-                };
-                out.push(Statement::Return(value));
+                out.push(Statement::Return(
+                    node.argument
+                        .as_ref()
+                        .map(|value| self.expr(value))
+                        .transpose()?,
+                ));
             }
-            "IfStatement" => {
-                let condition = self.expr(field(node, "test")?)?;
-                let yes = self.nested(field(node, "consequent")?)?;
-                let no = match node.get("alternate") {
-                    Some(alternate) if !alternate.is_null() => Some(self.nested(alternate)?),
-                    _ => None,
-                };
+            S::IfStatement(node) => {
+                let condition = self.expr(&node.test)?;
+                let yes = self.nested(&node.consequent)?;
+                let no = node
+                    .alternate
+                    .as_ref()
+                    .map(|value| self.nested(value))
+                    .transpose()?;
                 out.push(Statement::If { condition, yes, no });
             }
-            "BlockStatement" => {
-                let region = self.block(array(node, "body")?)?;
-                out.push(Statement::Block(region));
-            }
-            "ThrowStatement" => {
-                let value = self.expr(field(node, "argument")?)?;
-                out.push(Statement::Throw(value));
-            }
-            "TryStatement" => {
-                let body = self.block(array(field(node, "block")?, "body")?)?;
-                let catch = match node.get("handler") {
-                    Some(handler) if !handler.is_null() => {
-                        let region = self.enter()?;
-                        let binding = match handler.get("param") {
-                            Some(param) if !param.is_null() => {
-                                Some(self.declare(identifier(Some(param))?, false)?)
-                            }
-                            _ => None,
-                        };
-                        let statements =
-                            self.block_statements(array(field(handler, "body")?, "body")?)?;
-                        self.scopes.pop();
-                        self.fill(region, statements)?;
-                        Some(Catch {
-                            binding,
-                            body: region,
-                        })
-                    }
-                    _ => None,
+            S::BlockStatement(node) => out.push(Statement::Block(self.block(&node.body)?)),
+            S::ThrowStatement(node) => out.push(Statement::Throw(self.expr(&node.argument)?)),
+            S::TryStatement(node) => {
+                let body = self.block(&node.block.body)?;
+                let catch = if let Some(handler) = &node.handler {
+                    let region = self.enter()?;
+                    let binding = handler
+                        .param
+                        .as_ref()
+                        .map(|param| self.declare(identifier(&param.pattern)?, false))
+                        .transpose()?;
+                    let statements = self.block_statements(&handler.body.body)?;
+                    self.scopes.pop();
+                    self.fill(region, statements)?;
+                    Some(Catch {
+                        binding,
+                        body: region,
+                    })
+                } else {
+                    None
                 };
-                let finally = match node.get("finalizer") {
-                    Some(finalizer) if !finalizer.is_null() => {
-                        Some(self.block(array(finalizer, "body")?)?)
-                    }
-                    _ => None,
-                };
+                let finally = node
+                    .finalizer
+                    .as_ref()
+                    .map(|node| self.block(&node.body))
+                    .transpose()?;
                 out.push(Statement::Try {
                     body,
                     catch,
                     finally,
                 });
             }
-            "WhileStatement" => {
-                let condition = self.expr(field(node, "test")?)?;
-                let body = self.nested(field(node, "body")?)?;
+            S::WhileStatement(node) => {
+                let condition = Some(self.expr(&node.test)?);
+                let body = self.nested(&node.body)?;
                 out.push(Statement::Loop {
-                    condition: Some(condition),
+                    condition,
                     update: None,
                     body,
                 });
             }
-            "ForStatement" => self.for_statement(node, out)?,
-            "ForInStatement" | "ForOfStatement" => {
-                if flag(node, "await") {
-                    return Err(Stop::Refused);
-                }
-                let left = field(node, "left")?;
-                if kind(left) != "VariableDeclaration" {
-                    return Err(Stop::Refused);
-                }
-                let constant = match text(left, "kind") {
-                    Some("let") => false,
-                    Some("const") => true,
-                    _ => return Err(Stop::Refused),
-                };
-                let [declarator] = array(left, "declarations")? else {
-                    return Err(Stop::Refused);
-                };
-                if present(declarator, "init") {
-                    return Err(Stop::Refused);
-                }
-                let name = identifier(declarator.get("id"))?;
-                // The head evaluates with the loop's binding in its TDZ.
-                let right = field(node, "right")?;
-                if mentions(right, name) {
-                    return Err(Stop::Refused);
-                }
-                let object = self.expr(right)?;
-                let body = self.enter()?;
-                let binding = self.declare(name, constant)?;
-                let body_node = field(node, "body")?;
-                let statements = if kind(body_node) == "BlockStatement" {
-                    self.block_statements(array(body_node, "body")?)?
-                } else {
-                    let mut statements = Vec::new();
-                    self.statement(body_node, &mut statements)?;
-                    statements
-                };
-                self.scopes.pop();
-                self.fill(body, statements)?;
-                out.push(if kind(node) == "ForInStatement" {
-                    Statement::ForIn {
-                        binding,
-                        object,
-                        body,
-                    }
-                } else {
-                    Statement::ForOf {
-                        binding,
-                        iterable: object,
-                        body,
-                    }
-                });
+            S::ForStatement(node) => self.for_statement(node, out)?,
+            S::ForInStatement(node) => {
+                self.for_each(&node.left, &node.right, &node.body, false, out)?
             }
-            "BreakStatement" | "ContinueStatement" => {
-                if present(node, "label") {
-                    return Err(Stop::Refused);
-                }
-                out.push(if kind(node) == "BreakStatement" {
-                    Statement::Break
-                } else {
-                    Statement::Continue
-                });
+            S::ForOfStatement(node) if !node.r#await => {
+                self.for_each(&node.left, &node.right, &node.body, true, out)?
             }
+            S::BreakStatement(node) if node.label.is_none() => out.push(Statement::Break),
+            S::ContinueStatement(node) if node.label.is_none() => out.push(Statement::Continue),
             _ => return Err(Stop::Refused),
         }
         Ok(())
     }
 
-    /// `for(init;test;update)body`. A declared `let` lives in a block around
-    /// the loop, where the tree keeps one cell for every iteration: only a
-    /// closure created in the loop could tell, so such a loop is refused.
-    fn for_statement(&mut self, node: &Value, out: &mut Vec<Statement>) -> Lowered<()> {
-        let init = node.get("init").filter(|init| !init.is_null());
-        let declares = init.is_some_and(|init| kind(init) == "VariableDeclaration");
-        let parts: Vec<&Value> = ["test", "update", "body"]
-            .into_iter()
-            .filter_map(|part| node.get(part).filter(|value| !value.is_null()))
-            .collect();
-        let region = if declares { Some(self.enter()?) } else { None };
-        let mut statements = Vec::new();
-        if let Some(init) = init {
-            if declares {
-                let constant = match text(init, "kind") {
-                    Some("let") => false,
-                    Some("const") => true,
-                    _ => return Err(Stop::Refused),
-                };
-                for declarator in array(init, "declarations")? {
-                    let name = identifier(declarator.get("id"))?;
-                    if parts.iter().any(|part| captures(part, name)) {
-                        return Err(Stop::Refused);
-                    }
-                    let binding = self.declare(name, constant)?;
-                    if !constant
-                        && numeric_literal(declarator.get("init"))
-                        && parts
-                            .iter()
-                            .all(|part| numeric_writes(std::slice::from_ref(*part), name))
-                    {
-                        self.numeric.push(binding);
-                    }
-                }
-                self.statement(init, &mut statements)?;
-            } else {
-                let value = if kind(init) == "UpdateExpression" {
-                    self.update(init)?
-                } else {
-                    self.expr(init)?
-                };
-                statements.push(Statement::Evaluate(value));
-            }
+    fn for_each(
+        &mut self,
+        left: &ast::ForStatementLeft<'_>,
+        right: &ast::Expression<'_>,
+        node: &ast::Statement<'_>,
+        of: bool,
+        out: &mut Vec<Statement>,
+    ) -> Lowered<()> {
+        let ast::ForStatementLeft::VariableDeclaration(left) = left else {
+            return Err(Stop::Refused);
+        };
+        let constant = constant(left.kind)?;
+        let [declarator] = left.declarations.as_slice() else {
+            return Err(Stop::Refused);
+        };
+        if declarator.init.is_some() {
+            return Err(Stop::Refused);
         }
-        let condition = match node.get("test") {
-            Some(test) if !test.is_null() => Some(self.expr(test)?),
+        let name = identifier(&declarator.id)?;
+        let mut facts = Observations::new(name);
+        facts.visit_expression(right);
+        if facts.mentioned {
+            return Err(Stop::Refused);
+        }
+        // A target loop has one cell; a captured source binding has a fresh
+        // cell on each iteration. Keep the latter in host text delivery.
+        facts.visit_statement(node);
+        if facts.captured {
+            return Err(Stop::Refused);
+        }
+        let object = self.expr(right)?;
+        let body = self.enter()?;
+        let binding = self.declare(name, constant)?;
+        let statements = if let ast::Statement::BlockStatement(node) = node {
+            self.block_statements(&node.body)?
+        } else {
+            let mut statements = Vec::new();
+            self.statement(node, &mut statements)?;
+            statements
+        };
+        self.scopes.pop();
+        self.fill(body, statements)?;
+        out.push(if of {
+            Statement::ForOf {
+                binding,
+                iterable: object,
+                body,
+            }
+        } else {
+            Statement::ForIn {
+                binding,
+                object,
+                body,
+            }
+        });
+        Ok(())
+    }
+
+    fn for_statement(
+        &mut self,
+        node: &ast::ForStatement<'_>,
+        out: &mut Vec<Statement>,
+    ) -> Lowered<()> {
+        let declaration = match &node.init {
+            Some(ast::ForStatementInit::VariableDeclaration(node)) => Some(node),
             _ => None,
         };
-        let update = match node.get("update") {
-            Some(update) if !update.is_null() => Some(if kind(update) == "UpdateExpression" {
-                self.update(update)?
-            } else {
-                self.expr(update)?
-            }),
-            _ => None,
+        let region = if declaration.is_some() {
+            Some(self.enter()?)
+        } else {
+            None
         };
-        let body = self.nested(field(node, "body")?)?;
+        let mut statements = Vec::new();
+        if let Some(declaration) = declaration {
+            let constant = constant(declaration.kind)?;
+            for declarator in &declaration.declarations {
+                let name = identifier(&declarator.id)?;
+                let mut facts = Observations::new(name);
+                if let Some(test) = &node.test {
+                    facts.visit_expression(test);
+                }
+                if let Some(update) = &node.update {
+                    facts.visit_expression(update);
+                }
+                facts.visit_statement(&node.body);
+                if facts.captured {
+                    return Err(Stop::Refused);
+                }
+                let binding = self.declare(name, constant)?;
+                if !constant && numeric_literal(declarator.init.as_ref()) && facts.numeric {
+                    self.numeric.push(binding);
+                }
+            }
+            self.variables(declaration, &mut statements)?;
+        } else if let Some(init) = &node.init {
+            statements.push(Statement::Evaluate(
+                self.discarded(init.as_expression().ok_or(Stop::Refused)?)?,
+            ));
+        }
+        let condition = node
+            .test
+            .as_ref()
+            .map(|value| self.expr(value))
+            .transpose()?;
+        let update = node
+            .update
+            .as_ref()
+            .map(|value| self.discarded(value))
+            .transpose()?;
+        let body = self.nested(&node.body)?;
         statements.push(Statement::Loop {
             condition,
             update,
             body,
         });
-        match region {
-            Some(region) => {
-                self.scopes.pop();
-                self.fill(region, statements)?;
-                out.push(Statement::Block(region));
-            }
-            None => out.extend(statements),
+        if let Some(region) = region {
+            self.scopes.pop();
+            self.fill(region, statements)?;
+            out.push(Statement::Block(region));
+        } else {
+            out.extend(statements);
         }
         Ok(())
     }
 
-    fn function(&mut self, node: &Value, arrow: bool) -> Lowered<FunctionId> {
-        if flag(node, "async") || flag(node, "generator") {
+    fn function(&mut self, node: &ast::Function<'_>) -> Lowered<FunctionId> {
+        if node.r#async || node.generator {
+            return Err(Stop::Refused);
+        }
+        self.callable(
+            &node.params,
+            Some(node.body.as_ref().ok_or(Stop::Refused)?),
+            None,
+            false,
+        )
+    }
+    fn callable(
+        &mut self,
+        params: &ast::FormalParameters<'_>,
+        block: Option<&ast::FunctionBody<'_>>,
+        value: Option<&ast::Expression<'_>>,
+        arrow: bool,
+    ) -> Lowered<FunctionId> {
+        if params.rest.is_some() {
             return Err(Stop::Refused);
         }
         let body = self.enter()?;
         self.functions.push(arrow);
         let mut parameters = Vec::new();
-        for parameter in array(node, "params")? {
-            if kind(parameter) != "Identifier" {
+        for parameter in &params.items {
+            if parameter.initializer.is_some() {
                 return Err(Stop::Refused);
             }
-            parameters.push(self.declare(name(parameter)?, false)?);
+            parameters.push(self.declare(identifier(&parameter.pattern)?, false)?);
         }
-        let body_node = field(node, "body")?;
-        let statements = if arrow && flag(node, "expression") {
-            vec![Statement::Return(Some(self.expr(body_node)?))]
+        let statements = if let Some(value) = value {
+            vec![Statement::Return(Some(self.expr(value)?))]
         } else {
-            self.block_statements(array(body_node, "body")?)?
+            self.block_statements(&block.ok_or(Stop::Refused)?.statements)?
         };
         self.functions.pop();
         self.scopes.pop();
@@ -676,7 +672,6 @@ impl Lowering<'_, '_> {
             Some(found) => Expr::Binding(found.binding),
             None => match name {
                 "undefined" => Expr::Literal(Literal::Undefined),
-                // Only a function's own `arguments`; an arrow reads its creator's.
                 "arguments" if self.functions.iter().any(|arrow| !arrow) => {
                     Expr::Host(Host::new(name))
                 }
@@ -687,228 +682,199 @@ impl Lowering<'_, '_> {
         self.expression(expression)
     }
 
-    fn expr(&mut self, node: &Value) -> Lowered<ExprId> {
+    fn expr(&mut self, node: &ast::Expression<'_>) -> Lowered<ExprId> {
+        use ast::Expression as E;
         self.budget.work(Analysis, 1)?;
-        let expression = match kind(node) {
-            "Identifier" => return self.reference(name(node)?),
-            "Literal" => literal(node)?,
-            "ThisExpression" => {
-                if !self.functions.iter().any(|arrow| !arrow) {
-                    return Err(Stop::Refused);
-                }
-                Expr::This
+        let expression = match node {
+            E::Identifier(node) => return self.reference(node.name.as_str()),
+            E::NullLiteral(_) => Expr::Literal(Literal::Null),
+            E::BooleanLiteral(node) => Expr::Literal(Literal::Bool(node.value)),
+            E::NumericLiteral(node) => Expr::Literal(Literal::Number(node.value)),
+            E::StringLiteral(node) if !node.lone_surrogates => {
+                Expr::Literal(Literal::String(node.value.as_str().into()))
             }
-            "TemplateLiteral" => {
-                let expressions = array(node, "expressions")?;
+            E::RegExpLiteral(node) => {
+                Expr::Regex(node.raw.as_ref().ok_or(Stop::Refused)?.to_string())
+            }
+            E::ThisExpression(_) if self.functions.iter().any(|arrow| !arrow) => Expr::This,
+            E::TemplateLiteral(node) => {
                 let mut parts = Vec::new();
-                for (index, quasi) in array(node, "quasis")?.iter().enumerate() {
+                for (index, quasi) in node.quasis.iter().enumerate() {
                     let cooked = quasi
-                        .get("value")
-                        .and_then(|value| value.get("cooked"))
-                        .and_then(Value::as_str)
-                        .filter(|cooked| !cooked.contains('\u{FFFD}'))
+                        .value
+                        .cooked
+                        .as_ref()
+                        .filter(|s| !s.contains('\u{FFFD}'))
                         .ok_or(Stop::Refused)?;
                     if !cooked.is_empty() {
-                        parts.push(TemplatePart::String(StringValue::from(cooked)));
+                        parts.push(TemplatePart::String(cooked.as_str().into()));
                     }
-                    if let Some(expression) = expressions.get(index) {
-                        parts.push(TemplatePart::Expression(self.expr(expression)?));
+                    if let Some(value) = node.expressions.get(index) {
+                        parts.push(TemplatePart::Expression(self.expr(value)?));
                     }
                 }
                 Expr::Template(parts)
             }
-            "ArrayExpression" => {
+            E::ArrayExpression(node) => {
                 let mut values = Vec::new();
-                for element in array(node, "elements")? {
-                    if element.is_null() {
-                        return Err(Stop::Refused);
-                    }
-                    let value = if kind(element) == "SpreadElement" {
-                        let inner = self.expr(field(element, "argument")?)?;
-                        self.expression(Expr::Spread(inner))?
-                    } else {
-                        self.expr(element)?
+                for element in &node.elements {
+                    let value = match element {
+                        ast::ArrayExpressionElement::SpreadElement(node) => {
+                            let value = self.expr(&node.argument)?;
+                            self.expression(Expr::Spread(value))?
+                        }
+                        _ => self.expr(element.as_expression().ok_or(Stop::Refused)?)?,
                     };
                     values.push(value);
                 }
                 Expr::Array(values)
             }
-            "ObjectExpression" => {
+            E::ObjectExpression(node) => {
                 let mut entries = Vec::new();
-                for property in array(node, "properties")? {
-                    if kind(property) != "Property"
-                        || text(property, "kind") != Some("init")
-                        || flag(property, "method")
-                    {
+                for property in &node.properties {
+                    let ast::ObjectPropertyKind::ObjectProperty(property) = property else {
+                        return Err(Stop::Refused);
+                    };
+                    if property.kind != ast::PropertyKind::Init || property.method {
                         return Err(Stop::Refused);
                     }
-                    let key = field(property, "key")?;
-                    let key = if flag(property, "computed") {
-                        Property::Computed(self.expr(key)?)
+                    let key = if property.computed {
+                        Property::Computed(
+                            self.expr(property.key.as_expression().ok_or(Stop::Refused)?)?,
+                        )
                     } else {
-                        match (kind(key), key.get("value")) {
-                            // `{__proto__}` defines a property; `__proto__:` sets
-                            // the prototype, as the named key prints.
-                            ("Identifier", _)
-                                if flag(property, "shorthand") && name(key)? == "__proto__" =>
+                        match &property.key {
+                            ast::PropertyKey::StaticIdentifier(key)
+                                if !(property.shorthand && key.name == "__proto__") =>
                             {
-                                let literal = Expr::Literal(Literal::String("__proto__".into()));
-                                Property::Computed(self.expression(literal)?)
+                                Property::Named(key.name.to_string())
                             }
-                            ("Identifier", _) => Property::Named(name(key)?.to_string()),
-                            ("Literal", Some(Value::String(key))) if identifier_name(key) => {
-                                Property::Named(key.clone())
+                            ast::PropertyKey::StaticIdentifier(key) => {
+                                Property::Computed(self.expression(Expr::Literal(
+                                    Literal::String(key.name.as_str().into()),
+                                ))?)
                             }
-                            ("Literal", Some(Value::String(_) | Value::Number(_))) => {
-                                let literal = literal(key)?;
-                                Property::Computed(self.expression(literal)?)
+                            ast::PropertyKey::StringLiteral(key)
+                                if !key.lone_surrogates && identifier_name(key.value.as_str()) =>
+                            {
+                                Property::Named(key.value.to_string())
                             }
+                            ast::PropertyKey::StringLiteral(_)
+                            | ast::PropertyKey::NumericLiteral(_) => Property::Computed(
+                                self.expr(property.key.as_expression().ok_or(Stop::Refused)?)?,
+                            ),
                             _ => return Err(Stop::Refused),
                         }
                     };
-                    let value = self.expr(field(property, "value")?)?;
+                    let value = self.expr(&property.value)?;
                     entries.push((key, value));
                 }
                 Expr::Object(entries)
             }
-            "FunctionExpression" => {
-                if present(node, "id") {
-                    return Err(Stop::Refused);
-                }
-                Expr::Function(self.function(node, false)?)
+            E::FunctionExpression(node) if node.id.is_none() => {
+                Expr::Function(self.function(node)?)
             }
-            "ArrowFunctionExpression" => Expr::Function(self.function(node, true)?),
-            "UnaryExpression" => {
-                let op = match text(node, "operator") {
-                    Some("-") => Unary::Negate,
-                    Some("+") => Unary::Plus,
-                    Some("!") => Unary::Not,
-                    Some("~") => Unary::BitNot,
-                    Some("typeof") => Unary::TypeOf,
-                    Some("void") => Unary::Void,
-                    Some("delete") => Unary::Delete,
+            E::ArrowFunctionExpression(node) if !node.r#async => {
+                let (block, value) = match &node.body {
+                    ast::ArrowFunctionBody::FunctionBody(body) => (Some(body.as_ref()), None),
+                    body => (None, body.as_expression()),
+                };
+                Expr::Function(self.callable(&node.params, block, value, true)?)
+            }
+            E::UnaryExpression(node) => {
+                let op = match node.operator.as_str() {
+                    "-" => Unary::Negate,
+                    "+" => Unary::Plus,
+                    "!" => Unary::Not,
+                    "~" => Unary::BitNot,
+                    "typeof" => Unary::TypeOf,
+                    "void" => Unary::Void,
+                    "delete" => Unary::Delete,
                     _ => return Err(Stop::Refused),
                 };
-                let argument = field(node, "argument")?;
                 if op == Unary::Delete
-                    && (kind(argument) != "MemberExpression" || flag(argument, "optional"))
+                    && node
+                        .argument
+                        .as_member_expression()
+                        .is_none_or(|member| member.optional())
                 {
                     return Err(Stop::Refused);
                 }
-                let value = self.expr(argument)?;
-                Expr::Unary { op, value }
+                Expr::Unary {
+                    op,
+                    value: self.expr(&node.argument)?,
+                }
             }
-            "BinaryExpression" => {
-                let op = match text(node, "operator") {
-                    Some("+") => Binary::Add,
-                    Some("-") => Binary::Subtract,
-                    Some("*") => Binary::Multiply,
-                    Some("/") => Binary::Divide,
-                    Some("%") => Binary::Remainder,
-                    Some("<<") => Binary::ShiftLeft,
-                    Some(">>") => Binary::ShiftRight,
-                    Some(">>>") => Binary::UnsignedShiftRight,
-                    Some("<") => Binary::Less,
-                    Some("<=") => Binary::LessEqual,
-                    Some(">") => Binary::Greater,
-                    Some(">=") => Binary::GreaterEqual,
-                    Some("===") => Binary::StrictEqual,
-                    Some("!==") => Binary::StrictNotEqual,
-                    Some("==") => Binary::Equal,
-                    Some("!=") => Binary::NotEqual,
-                    Some("in") => Binary::In,
-                    Some("instanceof") => Binary::InstanceOf,
-                    Some("&") => Binary::BitAnd,
-                    Some("^") => Binary::BitXor,
-                    Some("|") => Binary::BitOr,
-                    _ => return Err(Stop::Refused),
-                };
-                let left = self.expr(field(node, "left")?)?;
-                let right = self.expr(field(node, "right")?)?;
-                Expr::Binary { op, left, right }
-            }
-            "LogicalExpression" => {
-                let op = match text(node, "operator") {
-                    Some("&&") => Binary::And,
-                    Some("||") => Binary::Or,
-                    Some("??") => Binary::Nullish,
-                    _ => return Err(Stop::Refused),
-                };
-                let left = self.expr(field(node, "left")?)?;
-                let right = self.expr(field(node, "right")?)?;
-                Expr::Binary { op, left, right }
-            }
-            "ConditionalExpression" => {
-                let condition = self.expr(field(node, "test")?)?;
-                let yes = self.expr(field(node, "consequent")?)?;
-                let no = self.expr(field(node, "alternate")?)?;
-                Expr::Conditional { condition, yes, no }
-            }
-            "SequenceExpression" => {
+            E::BinaryExpression(node) => Expr::Binary {
+                op: binary(node.operator.as_str())?,
+                left: self.expr(&node.left)?,
+                right: self.expr(&node.right)?,
+            },
+            E::LogicalExpression(node) => Expr::Binary {
+                op: binary(node.operator.as_str())?,
+                left: self.expr(&node.left)?,
+                right: self.expr(&node.right)?,
+            },
+            E::ConditionalExpression(node) => Expr::Conditional {
+                condition: self.expr(&node.test)?,
+                yes: self.expr(&node.consequent)?,
+                no: self.expr(&node.alternate)?,
+            },
+            E::SequenceExpression(node) => {
                 let mut values = Vec::new();
-                for value in array(node, "expressions")? {
+                for value in &node.expressions {
                     values.push(self.expr(value)?);
                 }
                 Expr::Sequence(values)
             }
-            "AssignmentExpression" => {
-                let left = field(node, "left")?;
-                let target = self.target(left)?;
-                let op = match text(node, "operator") {
-                    Some("=") => None,
-                    Some("+=") => Some(Binary::Add),
-                    Some("-=") => Some(Binary::Subtract),
-                    Some("*=") => Some(Binary::Multiply),
-                    Some("/=") => Some(Binary::Divide),
-                    Some("%=") => Some(Binary::Remainder),
-                    Some("<<=") => Some(Binary::ShiftLeft),
-                    Some(">>=") => Some(Binary::ShiftRight),
-                    Some(">>>=") => Some(Binary::UnsignedShiftRight),
-                    Some("&=") => Some(Binary::BitAnd),
-                    Some("^=") => Some(Binary::BitXor),
-                    Some("|=") => Some(Binary::BitOr),
-                    _ => return Err(Stop::Refused),
-                };
-                let value = match op {
-                    None => self.expr(field(node, "right")?)?,
-                    Some(op) => {
-                        let read = self.reread(left)?;
-                        let right = self.expr(field(node, "right")?)?;
-                        self.expression(Expr::Binary {
-                            op,
-                            left: read,
-                            right,
-                        })?
+            E::AssignmentExpression(node) => {
+                let target = self.target(&node.left)?;
+                let value = if node.operator.as_str() == "=" {
+                    self.expr(&node.right)?
+                } else {
+                    let spelling = node
+                        .operator
+                        .as_str()
+                        .strip_suffix('=')
+                        .ok_or(Stop::Refused)?;
+                    let op = binary(spelling)?;
+                    if matches!(op, Binary::And | Binary::Or | Binary::Nullish) {
+                        return Err(Stop::Refused);
                     }
+                    let left = self.reread(&node.left)?;
+                    let right = self.expr(&node.right)?;
+                    self.expression(Expr::Binary { op, left, right })?
                 };
                 Expr::Assign { target, value }
             }
-            "MemberExpression" => {
-                if flag(node, "optional") {
+            E::ComputedMemberExpression(_) | E::StaticMemberExpression(_) => {
+                let member = node.as_member_expression().ok_or(Stop::Refused)?;
+                if member.optional() {
                     return Err(Stop::Refused);
                 }
-                self.member(node)?
+                self.member(member)?
             }
-            "ChainExpression" => {
-                // `o?.k` for a binding `o`, which reading twice cannot observe.
-                let inner = field(node, "expression")?;
-                if kind(inner) != "MemberExpression" || !flag(inner, "optional") {
+            E::ChainExpression(node) => {
+                let inner = node
+                    .expression
+                    .as_member_expression()
+                    .ok_or(Stop::Refused)?;
+                if !inner.optional() {
                     return Err(Stop::Refused);
                 }
-                let object = field(inner, "object")?;
-                if kind(object) != "Identifier" {
+                let E::Identifier(object) = inner.object() else {
                     return Err(Stop::Refused);
-                }
+                };
                 let binding = self
-                    .lookup(name(object)?)
+                    .lookup(object.name.as_str())
                     .map(|found| found.binding)
                     .ok_or(Stop::Refused)?;
-                let null_test = self.absent(binding, Literal::Null)?;
-                let undefined_test = self.absent(binding, Literal::Undefined)?;
+                let left = self.absent(binding, Literal::Null)?;
+                let right = self.absent(binding, Literal::Undefined)?;
                 let condition = self.expression(Expr::Binary {
                     op: Binary::Or,
-                    left: null_test,
-                    right: undefined_test,
+                    left,
+                    right,
                 })?;
                 let yes = self.expression(Expr::Literal(Literal::Undefined))?;
                 let object = self.expression(Expr::Binding(binding))?;
@@ -916,20 +882,9 @@ impl Lowering<'_, '_> {
                 let no = self.expression(Expr::Member { object, property })?;
                 Expr::Conditional { condition, yes, no }
             }
-            "CallExpression" => {
-                if flag(node, "optional") {
-                    return Err(Stop::Refused);
-                }
-                let callee = field(node, "callee")?;
-                if kind(callee) == "Super"
-                    || (kind(callee) == "Identifier"
-                        && name(callee)? == "eval"
-                        && self.lookup("eval").is_none())
-                {
-                    return Err(Stop::Refused);
-                }
-                let callee = self.expr(callee)?;
-                let arguments = self.arguments(node)?;
+            E::CallExpression(node) if !node.optional => {
+                let callee = self.expr(&node.callee)?;
+                let arguments = self.arguments(&node.arguments)?;
                 let invocation =
                     if matches!(self.module.expressions[callee.index()], Expr::Member { .. }) {
                         Invocation::Reference
@@ -942,17 +897,16 @@ impl Lowering<'_, '_> {
                     invocation,
                 }
             }
-            "NewExpression" => {
-                let callee = self.expr(field(node, "callee")?)?;
-                let arguments = self.arguments(node)?;
-                Expr::Construct { callee, arguments }
-            }
+            E::NewExpression(node) => Expr::Construct {
+                callee: self.expr(&node.callee)?,
+                arguments: self.arguments(&node.arguments)?,
+            },
+            E::ParenthesizedExpression(node) => return self.expr(&node.expression),
             _ => return Err(Stop::Refused),
         };
         self.expression(expression)
     }
 
-    /// `binding === value`.
     fn absent(&mut self, binding: BindingId, value: Literal) -> Lowered<ExprId> {
         let left = self.expression(Expr::Binding(binding))?;
         let right = self.expression(Expr::Literal(value))?;
@@ -962,230 +916,196 @@ impl Lowering<'_, '_> {
             right,
         })
     }
-
-    fn arguments(&mut self, node: &Value) -> Lowered<Vec<ExprId>> {
-        let mut arguments = Vec::new();
-        for argument in array(node, "arguments")? {
-            if kind(argument) == "SpreadElement" {
-                return Err(Stop::Refused);
-            }
-            arguments.push(self.expr(argument)?);
+    fn arguments(&mut self, nodes: &[ast::Argument<'_>]) -> Lowered<Vec<ExprId>> {
+        let mut values = Vec::new();
+        for node in nodes {
+            values.push(self.expr(node.as_expression().ok_or(Stop::Refused)?)?);
         }
-        Ok(arguments)
+        Ok(values)
     }
-
-    fn member(&mut self, node: &Value) -> Lowered<Expr> {
-        let object = field(node, "object")?;
-        if kind(object) == "Super" {
-            return Err(Stop::Refused);
-        }
-        let object = self.expr(object)?;
+    fn member(&mut self, node: &ast::MemberExpression<'_>) -> Lowered<Expr> {
+        let object = self.expr(node.object())?;
         let property = self.property(node)?;
         Ok(Expr::Member { object, property })
     }
-
-    fn property(&mut self, node: &Value) -> Lowered<Property> {
-        let property = field(node, "property")?;
-        if flag(node, "computed") {
-            Ok(Property::Computed(self.expr(property)?))
-        } else if kind(property) == "Identifier" {
-            Ok(Property::Named(name(property)?.to_string()))
-        } else {
-            Err(Stop::Refused)
-        }
-    }
-
-    /// An assignment's target: a binding it may write, or a member.
-    fn target(&mut self, node: &Value) -> Lowered<ExprId> {
-        match kind(node) {
-            "Identifier" => {
-                let found = self.lookup(name(node)?).ok_or(Stop::Refused)?;
-                if found.constant {
-                    return Err(Stop::Refused);
-                }
-                let binding = found.binding;
-                self.expression(Expr::Binding(binding))
+    fn property(&mut self, node: &ast::MemberExpression<'_>) -> Lowered<Property> {
+        match node {
+            ast::MemberExpression::StaticMemberExpression(node) => {
+                Ok(Property::Named(node.property.name.to_string()))
             }
-            "MemberExpression" if !flag(node, "optional") => {
-                let member = self.member(node)?;
-                self.expression(member)
+            ast::MemberExpression::ComputedMemberExpression(node) => {
+                Ok(Property::Computed(self.expr(&node.expression)?))
             }
             _ => Err(Stop::Refused),
         }
     }
-
-    /// A second read of an assignment target, where it observes nothing new:
-    /// a binding, or a member of a binding or `this` under a fixed key.
-    fn reread(&mut self, node: &Value) -> Lowered<ExprId> {
-        if kind(node) == "Identifier" {
-            return self.reference(name(node)?);
+    fn target(&mut self, node: &ast::AssignmentTarget<'_>) -> Lowered<ExprId> {
+        if let Some(name) = node.get_identifier_name() {
+            let found = self
+                .lookup(name)
+                .filter(|found| !found.constant)
+                .ok_or(Stop::Refused)?;
+            return self.expression(Expr::Binding(found.binding));
         }
-        let object = field(node, "object")?;
-        let fixed = !flag(node, "computed") || kind(field(node, "property")?) == "Literal";
-        let simple = match kind(object) {
-            "Identifier" => self.lookup(name(object)?).is_some(),
-            "ThisExpression" => true,
+        let member = node
+            .as_member_expression()
+            .filter(|member| !member.optional())
+            .ok_or(Stop::Refused)?;
+        let expression = self.member(member)?;
+        self.expression(expression)
+    }
+    fn reread(&mut self, node: &ast::AssignmentTarget<'_>) -> Lowered<ExprId> {
+        if let Some(name) = node.get_identifier_name() {
+            return self.reference(name);
+        }
+        let member = node.as_member_expression().ok_or(Stop::Refused)?;
+        let fixed = match member {
+            ast::MemberExpression::StaticMemberExpression(_) => true,
+            ast::MemberExpression::ComputedMemberExpression(node) => matches!(
+                node.expression,
+                ast::Expression::NumericLiteral(_)
+                    | ast::Expression::StringLiteral(_)
+                    | ast::Expression::BooleanLiteral(_)
+                    | ast::Expression::NullLiteral(_)
+            ),
             _ => false,
         };
-        if kind(node) != "MemberExpression" || flag(node, "optional") || !fixed || !simple {
-            return Err(Stop::Refused);
-        }
-        let member = self.member(node)?;
-        self.expression(member)
-    }
-
-    /// `x++` or `x--` whose value is unused: `x=x±1`, for a binding every
-    /// write keeps a number (for any other value `++` converts differently).
-    fn update(&mut self, node: &Value) -> Lowered<ExprId> {
-        let argument = field(node, "argument")?;
-        if kind(argument) != "Identifier" {
-            return Err(Stop::Refused);
-        }
-        let found = self.lookup(name(argument)?).ok_or(Stop::Refused)?;
-        let binding = found.binding;
-        if found.constant || !self.numeric.contains(&binding) {
-            return Err(Stop::Refused);
-        }
-        let op = match text(node, "operator") {
-            Some("++") => Binary::Add,
-            Some("--") => Binary::Subtract,
-            _ => return Err(Stop::Refused),
+        let simple = match member.object() {
+            ast::Expression::Identifier(node) => self.lookup(node.name.as_str()).is_some(),
+            ast::Expression::ThisExpression(_) => true,
+            _ => false,
         };
+        if member.optional() || !fixed || !simple {
+            return Err(Stop::Refused);
+        }
+        let expression = self.member(member)?;
+        self.expression(expression)
+    }
+    fn discarded(&mut self, node: &ast::Expression<'_>) -> Lowered<ExprId> {
+        let ast::Expression::UpdateExpression(node) = node else {
+            return self.expr(node);
+        };
+        let name = node.argument.get_identifier_name().ok_or(Stop::Refused)?;
+        let found = self
+            .lookup(name)
+            .filter(|found| !found.constant && self.numeric.contains(&found.binding))
+            .ok_or(Stop::Refused)?;
+        let binding = found.binding;
         let target = self.expression(Expr::Binding(binding))?;
-        let read = self.expression(Expr::Binding(binding))?;
-        let one = self.expression(Expr::Literal(Literal::Number(1.0)))?;
-        let value = self.expression(Expr::Binary {
-            op,
-            left: read,
-            right: one,
-        })?;
+        let left = self.expression(Expr::Binding(binding))?;
+        let right = self.expression(Expr::Literal(Literal::Number(1.0)))?;
+        let op = if node.operator.as_str() == "++" {
+            Binary::Add
+        } else {
+            Binary::Subtract
+        };
+        let value = self.expression(Expr::Binary { op, left, right })?;
         self.expression(Expr::Assign { target, value })
     }
 }
 
-fn literal(node: &Value) -> Lowered<Expr> {
-    if present(node, "regex") {
-        let raw = text(node, "raw")
-            .filter(|raw| raw.starts_with('/'))
-            .ok_or(Stop::Refused)?;
-        return Ok(Expr::Regex(raw.to_string()));
-    }
-    if present(node, "bigint") {
-        return Err(Stop::Refused);
-    }
-    Ok(Expr::Literal(match node.get("value") {
-        Some(Value::Null) => Literal::Null,
-        Some(Value::Bool(value)) => Literal::Bool(*value),
-        Some(Value::Number(value)) => Literal::Number(value.as_f64().ok_or(Stop::Refused)?),
-        // A lone surrogate reaches the tree replaced; its text would change.
-        Some(Value::String(value)) if !value.contains('\u{FFFD}') => {
-            Literal::String(StringValue::from(value.as_str()))
-        }
-        _ => return Err(Stop::Refused),
-    }))
-}
-
-fn kind(node: &Value) -> &str {
-    node.get("type").and_then(Value::as_str).unwrap_or("")
-}
-
-fn text<'v>(node: &'v Value, key: &str) -> Option<&'v str> {
-    node.get(key).and_then(Value::as_str)
-}
-
-fn flag(node: &Value, key: &str) -> bool {
-    node.get(key).and_then(Value::as_bool) == Some(true)
-}
-
-fn present(node: &Value, key: &str) -> bool {
-    node.get(key).is_some_and(|value| !value.is_null())
-}
-
-fn field<'v>(node: &'v Value, key: &str) -> Lowered<&'v Value> {
-    node.get(key)
-        .filter(|value| !value.is_null())
-        .ok_or(Stop::Refused)
-}
-
-fn array<'v>(node: &'v Value, key: &str) -> Lowered<&'v [Value]> {
-    node.get(key)
-        .and_then(Value::as_array)
-        .map(Vec::as_slice)
-        .ok_or(Stop::Refused)
-}
-
-fn name(node: &Value) -> Lowered<&str> {
-    text(node, "name").ok_or(Stop::Refused)
-}
-
-/// A declaration's plain identifier; a pattern is refused.
-fn identifier(node: Option<&Value>) -> Lowered<&str> {
+fn identifier<'a>(node: &'a ast::BindingPattern<'_>) -> Lowered<&'a str> {
     match node {
-        Some(node) if kind(node) == "Identifier" => name(node),
+        ast::BindingPattern::BindingIdentifier(node) => Ok(node.name.as_str()),
         _ => Err(Stop::Refused),
     }
 }
-
-fn numeric_literal(node: Option<&Value>) -> bool {
-    node.is_some_and(|node| {
-        kind(node) == "Literal" && node.get("value").is_some_and(Value::is_number)
-    })
-}
-
-/// Every node under `node`, depth first, while `visit` keeps returning true.
-fn each(node: &Value, visit: &mut dyn FnMut(&Value) -> bool) -> bool {
-    match node {
-        Value::Object(fields) => {
-            if fields.contains_key("type") && !visit(node) {
-                return false;
-            }
-            fields.values().all(|value| each(value, visit))
-        }
-        Value::Array(items) => items.iter().all(|item| each(item, visit)),
-        _ => true,
+fn constant(kind: ast::VariableDeclarationKind) -> Lowered<bool> {
+    match kind {
+        ast::VariableDeclarationKind::Let => Ok(false),
+        ast::VariableDeclarationKind::Const => Ok(true),
+        _ => Err(Stop::Refused),
     }
 }
-
-/// Whether any identifier under `node` spells `name`.
-fn mentions(node: &Value, target: &str) -> bool {
-    !each(node, &mut |node| {
-        !(kind(node) == "Identifier" && text(node, "name") == Some(target))
+fn numeric_literal(node: Option<&ast::Expression<'_>>) -> bool {
+    matches!(node, Some(ast::Expression::NumericLiteral(_)))
+}
+fn binary(op: &str) -> Lowered<Binary> {
+    Ok(match op {
+        "+" => Binary::Add,
+        "-" => Binary::Subtract,
+        "*" => Binary::Multiply,
+        "/" => Binary::Divide,
+        "%" => Binary::Remainder,
+        "<<" => Binary::ShiftLeft,
+        ">>" => Binary::ShiftRight,
+        ">>>" => Binary::UnsignedShiftRight,
+        "<" => Binary::Less,
+        "<=" => Binary::LessEqual,
+        ">" => Binary::Greater,
+        ">=" => Binary::GreaterEqual,
+        "===" => Binary::StrictEqual,
+        "!==" => Binary::StrictNotEqual,
+        "==" => Binary::Equal,
+        "!=" => Binary::NotEqual,
+        "in" => Binary::In,
+        "instanceof" => Binary::InstanceOf,
+        "&" => Binary::BitAnd,
+        "^" => Binary::BitXor,
+        "|" => Binary::BitOr,
+        "&&" => Binary::And,
+        "||" => Binary::Or,
+        "??" => Binary::Nullish,
+        _ => return Err(Stop::Refused),
     })
 }
 
-/// Whether a function under `node` mentions `name`: it could capture a
-/// per-iteration binding.
-fn captures(node: &Value, target: &str) -> bool {
-    !each(node, &mut |node| {
-        !(matches!(
-            kind(node),
-            "FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration"
-        ) && mentions(node, target))
-    })
+/// Conservative observations: shadowing can only refuse a lowering. AST
+/// binding/reference nodes avoid mistaking fixed property names for captures.
+struct Observations<'n> {
+    target: &'n str,
+    depth: usize,
+    mentioned: bool,
+    captured: bool,
+    numeric: bool,
 }
-
-/// Whether every write to `name` under `nodes` keeps a number: `++`, `--`,
-/// or `=`, `+=`, `-=` of a number literal. Writes to a shadowing binding of
-/// the same name count too, which only refuses more.
-fn numeric_writes(nodes: &[Value], target: &str) -> bool {
-    let is_target = |node: &Value| kind(node) == "Identifier" && text(node, "name") == Some(target);
-    nodes.iter().all(|node| {
-        each(node, &mut |node| match kind(node) {
-            "AssignmentExpression" => {
-                let left = node.get("left");
-                match left {
-                    Some(left) if is_target(left) => {
-                        matches!(text(node, "operator"), Some("=" | "+=" | "-="))
-                            && numeric_literal(node.get("right"))
-                    }
-                    Some(left) => !mentions(left, target),
-                    None => false,
+impl<'n> Observations<'n> {
+    fn new(target: &'n str) -> Self {
+        Self {
+            target,
+            depth: 0,
+            mentioned: false,
+            captured: false,
+            numeric: true,
+        }
+    }
+}
+impl<'a> Visit<'a> for Observations<'_> {
+    fn enter_node(&mut self, node: AstKind<'a>) {
+        match node {
+            AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) => self.depth += 1,
+            AstKind::IdentifierReference(node) if node.name == self.target => {
+                self.mentioned = true;
+                self.captured |= self.depth != 0;
+            }
+            AstKind::AssignmentExpression(node) => {
+                if node.left.get_identifier_name() == Some(self.target) {
+                    self.numeric &= matches!(node.operator.as_str(), "=" | "+=" | "-=")
+                        && numeric_literal(Some(&node.right));
+                } else {
+                    let mut writes = Observations::new(self.target);
+                    writes.visit_assignment_target(&node.left);
+                    self.numeric &= !writes.mentioned;
                 }
             }
-            "ForInStatement" | "ForOfStatement" => {
-                node.get("left").is_none_or(|left| !is_target(left))
-            }
-            _ => true,
-        })
-    })
+            AstKind::ForInStatement(node) => self.loop_write(&node.left),
+            AstKind::ForOfStatement(node) => self.loop_write(&node.left),
+            _ => {}
+        }
+    }
+    fn leave_node(&mut self, node: AstKind<'a>) {
+        if matches!(
+            node,
+            AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
+        ) {
+            self.depth -= 1;
+        }
+    }
+}
+impl Observations<'_> {
+    fn loop_write(&mut self, left: &ast::ForStatementLeft<'_>) {
+        let mut facts = Observations::new(self.target);
+        facts.visit_for_statement_left(left);
+        self.numeric &= !facts.mentioned;
+    }
 }

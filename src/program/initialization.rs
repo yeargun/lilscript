@@ -103,6 +103,10 @@ pub enum Moment {
     Instantiation,
     /// Host modules evaluate, before any root statement.
     HostModules,
+    /// Another entry may have been consumed before this module starts.
+    InterfaceHazard { module: ModuleId },
+    /// One entry's closure is ready; its public functions may now be called.
+    InterfaceReady { module: ModuleId },
     /// An entry-region operation of a module initializer.
     Statement {
         unit: UnitId,
@@ -382,12 +386,44 @@ impl ProgramInitialization {
                 budget.push(Retained, &mut moments, Moment::HostModules)?;
             }
             let mut statements = storage::collect((0..count).map(|_| None), Retained, budget)?;
+            // Only the static DAG has one valid global order. Lazy modules
+            // execute on demand; members of an import cycle can be entered
+            // from different roots. Their local dominance facts remain usable,
+            // but a canonical concatenation cannot prove cross-unit timing.
+            let several = program.entries().len() > 1;
+            let mut common = budget.filled(Scratch, program.modules.len(), true)?;
+            let mut eager = budget.filled(Scratch, program.modules.len(), false)?;
+            for entry in program.entries() {
+                let mut scope = budget.scope();
+                let order = crate::module::static_evaluation_order_from_admitted(
+                    &[entry.module.index()], program.modules.len(),
+                    |module| program.modules[module].dependencies.iter().map(|id| id.index()),
+                    &mut scope,
+                ).map_err(|error| match error {
+                    crate::module::StaticOrderError::Resources(error) => error,
+                    crate::module::StaticOrderError::Invalid(_) => AllocationError::Capacity,
+                })?;
+                let mut reached = scope.filled(Scratch, common.len(), false)?;
+                for module in order { reached[module] = true; eager[module] = true; }
+                for (common, reached) in common.iter_mut().zip(reached) { *common &= reached; }
+            }
+            let mut imports = budget.vector(Scratch, program.modules.len())?;
+            for module in program.modules.iter() {
+                let row = storage::collect(module.dependencies.iter().map(|id| id.index()), Scratch, budget)?;
+                imports.push(row);
+            }
+            let cycles = crate::module::static_cycles_admitted(&imports, budget)?;
+            for row in imports.iter_mut() { storage::release(std::mem::take(row), Scratch, budget)?; }
+            storage::release(imports, Scratch, budget)?;
             for &initializer in program.initialization.iter() {
                 let Some(data) = program.unit(initializer) else {
                     continue;
                 };
-                if statements[initializer.index()].is_some() {
+                if statements[initializer.index()].is_some() || !eager[data.module.index()] || cycles[data.module.index()].is_some() {
                     continue;
+                }
+                if several && !common[data.module.index()] {
+                    budget.push(Retained, &mut moments, Moment::InterfaceHazard { module: data.module })?;
                 }
                 let local = &locals[initializer.index()];
                 let mut entry = budget.filled(Scratch, data.operations.len(), None)?;
@@ -427,14 +463,22 @@ impl ProgramInitialization {
                 )?;
                 storage::release(entry, Scratch, budget)?;
                 statements[initializer.index()] = Some(points);
+                if several && program.entries().iter().any(|entry| entry.module == data.module) {
+                    budget.push(Retained, &mut moments, Moment::InterfaceReady { module: data.module })?;
+                }
             }
+            storage::release(common, Scratch, budget)?;
+            storage::release(eager, Scratch, budget)?;
+            storage::release(cycles, Scratch, budget)?;
             let settled = storage::collect(
                 program.cells.iter().enumerate().map(|(index, storage)| {
                     let cell = CellId::from_index(index).unwrap();
-                    let points = statements.get(storage.owner.index())?.as_ref()?;
                     match storage.binding {
-                        CellBinding::Function(_) => Some(RootPoint::INSTANTIATION),
+                        CellBinding::Function(_) => program.unit(storage.owner)
+                            .filter(|owner| owner.kind == UnitKind::ModuleInitialization)
+                            .map(|_| RootPoint::INSTANTIATION),
                         CellBinding::Local => {
+                            let points = statements.get(storage.owner.index())?.as_ref()?;
                             let (unit, operation) = graph.initializer(cell)?;
                             let data = program.unit(unit)?;
                             (unit == storage.owner
@@ -515,7 +559,7 @@ impl ProgramInitialization {
         let count = program.units.len();
         let mut hazards = budget.filled(Retained, self.moments.len(), false)?;
         for (point, moment) in self.moments.iter().enumerate() {
-            if *moment == Moment::HostModules {
+            if matches!(moment, Moment::HostModules | Moment::InterfaceHazard { .. } | Moment::InterfaceReady { .. }) {
                 hazards[point] = true;
             }
         }
@@ -650,7 +694,7 @@ impl ProgramInitialization {
                 {
                     push(
                         &mut heap,
-                        Reverse((hazard_after(RootPoint::FIRST), index as u32)),
+                        Reverse((RootPoint::INSTANTIATION, index as u32)),
                         budget,
                     )?;
                 }
@@ -664,14 +708,21 @@ impl ProgramInitialization {
         // preserve-modules delivery (M3.3) makes each module a file, its
         // exports join this set.
         let host_modules = self.moments.contains(&Moment::HostModules);
-        let exports_from = if graph.seal() == Seal::Module && !host_modules {
-            RootPoint::END
-        } else {
-            RootPoint::INSTANTIATION
-        };
-        let interface = program
-            .value_exports()
-            .map(|(_, cell)| (cell, exports_from))
+        let mut ready = budget.filled(Scratch, program.modules.len(), RootPoint::END)?;
+        for (index, moment) in self.moments.iter().enumerate() {
+            if let Moment::InterfaceReady { module } = moment {
+                ready[module.index()] = RootPoint(index as u32);
+            }
+        }
+        let interface = program.entries().iter().enumerate().flat_map(|(index, entry)| {
+            let point = if graph.seal() == Seal::Module && !host_modules {
+                ready[entry.module.index()]
+            } else { RootPoint::INSTANTIATION };
+            program.entry_exports(index).iter().filter_map(move |export| match export.target {
+                InterfaceTarget::Value(cell) => Some((cell, point)),
+                InterfaceTarget::Type(_) => None,
+            })
+        })
             .chain(program.modules.iter().flat_map(|module| {
                 module
                     .namespace
@@ -683,6 +734,7 @@ impl ProgramInitialization {
                 escape(&mut heap, body, point, budget)?;
             }
         }
+        storage::release(ready, Scratch, budget)?;
         while let Some(Reverse((point, index))) = heap.pop() {
             budget.work(WorkKind::Analysis, 1)?;
             let index = index as usize;

@@ -275,6 +275,7 @@ impl Module {
                     Expr::Binding(binding) => found.parameters.iter().position(|&p| p == binding).map_or(found.body, |index| arguments[index]),
                     _ => found.body,
                 };
+                module.origins[site.index()] = module.origins[source.index()].or(origin);
                 module.copy_behaviour_in(source, site, budget)?;
             }
             if sites.is_empty() {
@@ -605,7 +606,7 @@ impl Module {
         root: ExprId,
         arguments: &[ExprId],
         placed: &mut [bool],
-        origin: Option<SourceNodeId>,
+        origin: Option<SourceOriginId>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Expr, AllocationError> {
         budget.work(Analysis, 1)?;
@@ -633,14 +634,14 @@ impl Module {
                 Some(index) if !std::mem::replace(&mut placed[index], true) => arguments[index],
                 Some(index) => {
                     let copy = self.expressions[arguments[index].index()].clone();
-                    let id = self.expression_in(copy, origin, budget)?;
+                    let id = self.expression_in(copy, self.origins[arguments[index].index()].or(origin), budget)?;
                     self.copy_author_choices(arguments[index], id);
                     id
                 }
                 None => {
                     let copy =
                         self.clone_template(template, child, arguments, placed, origin, budget)?;
-                    let id = self.expression_in(copy, origin, budget)?;
+                    let id = self.expression_in(copy, self.origins[child.index()].or(origin), budget)?;
                     // The copy evaluates as the template's node does.
                     self.copy_behaviour_in(child, id, budget)?;
                     id
@@ -833,7 +834,7 @@ impl Module {
                 let mut statements = Vec::with_capacity(roots.len());
                 for root in roots {
                     let copy = module.substitute(root, &parameters, &arguments, origin, budget)?;
-                    let id = module.expression_in(copy, origin, budget)?;
+                    let id = module.expression_in(copy, module.origins[root.index()].or(origin), budget)?;
                     module.copy_author_choices(root, id);
                     statements.push(Statement::Evaluate(id));
                 }
@@ -927,7 +928,7 @@ impl Module {
         root: ExprId,
         parameters: &[BindingId],
         arguments: &[ExprId],
-        origin: Option<SourceNodeId>,
+        origin: Option<SourceOriginId>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Expr, AllocationError> {
         budget.work(Analysis, 1)?;
@@ -950,6 +951,7 @@ impl Module {
                 Expr::Binding(binding) => parameters.iter().position(|&p| p == binding).map_or(child, |index| arguments[index]),
                 _ => child,
             };
+            self.origins[id.index()] = self.origins[source.index()].or(origin);
             self.copy_author_choices(source, id);
             replaced.push(id);
         }

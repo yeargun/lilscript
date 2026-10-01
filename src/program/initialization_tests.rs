@@ -24,6 +24,9 @@ fn source_program<'src>(arena: &'src bumpalo::Bump, source: &'src str) -> Progra
 }
 
 fn modules(sources: &[&str], dependencies: &[&[usize]], inspect: impl FnOnce(Program<'_>)) {
+    modules_for_entries(sources, dependencies, &[0], inspect)
+}
+fn modules_for_entries(sources: &[&str], dependencies: &[&[usize]], roots: &[usize], inspect: impl FnOnce(Program<'_>)) {
     let graph = crate::module::ModuleSet {
         modules: sources
             .iter()
@@ -38,9 +41,10 @@ fn modules(sources: &[&str], dependencies: &[&[usize]], inspect: impl FnOnce(Pro
                 offset: 0,
             })
             .collect(),
-        dependency_order: static_order(dependencies),
-        roots: vec![0],
-        root_names: vec!["main".to_string()],
+        dependency_order: crate::module::initialization_order_admitted(roots, sources.len(),
+            |module| dependencies[module].iter().copied(), &mut crate::output_budget::AllocationBudget::new(None)).unwrap(),
+        roots: roots.to_vec(),
+        root_names: (0..roots.len()).map(|index|format!("entry{index}")).collect(),
         eager: vec![true; sources.len()],
     };
     let arena = bumpalo::Bump::new();
@@ -55,27 +59,20 @@ fn modules(sources: &[&str], dependencies: &[&[usize]], inspect: impl FnOnce(Pro
     inspect(program);
 }
 
-/// Post-order from the entry, dependencies in import order.
-fn static_order(dependencies: &[&[usize]]) -> Vec<usize> {
-    fn visit(
-        module: usize,
-        dependencies: &[&[usize]],
-        seen: &mut Vec<bool>,
-        order: &mut Vec<usize>,
-    ) {
-        if seen[module] {
-            return;
-        }
-        seen[module] = true;
-        for &dependency in dependencies[module] {
-            visit(dependency, dependencies, seen, order);
-        }
-        order.push(module);
-    }
-    let mut seen = vec![false; dependencies.len()];
-    let mut order = Vec::new();
-    visit(0, dependencies, &mut seen, &mut order);
-    order
+#[test]
+fn d2_entry_interfaces_escape_at_their_own_boundary() {
+    modules_for_entries(&[
+        "import {value} from \"./initialization-2\";export int read(){return value;}",
+        "export int later=9;export int other(){return later;}",
+        "export int value=4;",
+    ], &[&[2], &[], &[]], &[0,1], |program| {
+        let facts=facts(&program);
+        let first=facts.first_run(body(&program,"read"));
+        assert!(matches!(facts.moment(first),Some(Moment::InterfaceReady{module}) if module.index()==0));
+        assert!(first < facts.settled(cell(&program,"later")).unwrap());
+        assert_eq!(loads(&program,&facts,body(&program,"read"),"value"),[true]);
+        assert_eq!(loads(&program,&facts,body(&program,"other"),"later"),[true]);
+    });
 }
 
 /// The body a named function or a function-valued binding denotes.
@@ -317,6 +314,7 @@ fn exported_bodies_run_after_initialization_unless_host_code_can_call_them_early
     Arc::make_mut(&mut hosted.modules)[module]
         .foreign_imports
         .push(ForeignImport {
+            span: Span::default(),
             cell: foreign,
             source: "./host.mjs".into(),
             imported: "host".into(),
@@ -359,7 +357,7 @@ fn an_import_cycle_that_calls_back_during_root_initialization_keeps_the_dead_zon
         |program| {
             let facts = facts(&program);
             let read_a = body(&program, "read_a");
-            assert!(facts.first_run(read_a) < facts.settled(cell(&program, "KA")).unwrap());
+            assert_eq!(facts.settled(cell(&program, "KA")), None);
             assert_eq!(loads(&program, &facts, read_a, "KA"), [false]);
         },
     );

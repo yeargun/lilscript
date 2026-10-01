@@ -691,7 +691,8 @@ fn explicit_print_policy_is_reentrant_and_preserves_provenance() {
     let symbol = binding(&mut module, RegionId::new(0), 0, "sourceName");
     let nodes = crate::ast::SourceNodes::default();
     let source = nodes.expression(crate::ast::ExprKind::Int(7, crate::span::Span::new(0, 1)));
-    let value = module.expression(Expr::Literal(Literal::Number(7.0)), Some(source.id));
+    let origin = SourceOriginId::from_index(source.id.index()).unwrap();
+    let value = module.expression(Expr::Literal(Literal::Number(7.0)), Some(origin));
     module.regions[0].statements.push(Statement::Let {
         binding: symbol,
         value: Some(value),
@@ -704,7 +705,7 @@ fn explicit_print_policy_is_reentrant_and_preserves_provenance() {
         .unwrap();
     assert_ne!(plain, small);
     assert_eq!(plain, module.render(PrintPolicy::default()).unwrap());
-    assert_eq!(module.origins[value.index()], Some(source.id));
+    assert_eq!(module.origins[value.index()], Some(origin));
 }
 
 fn reflected_function(module: &mut Module, arrow: bool, name: &str) -> ExprId {

@@ -282,6 +282,8 @@ impl Module {
         let budget = &mut phase;
         let result = Self {
             expressions: map(&self.expressions, budget, Expr::clone_in)?,
+            consumer_annotations: self.consumer_annotations,
+            discardable_functions: budget.copy_slice(Retained, &self.discardable_functions)?,
             const_freezers: budget.copy_slice(Retained, &self.const_freezers)?,
             immutable_data: budget.copy_slice(Retained, &self.immutable_data)?,
             data_estimator: self.data_estimator,

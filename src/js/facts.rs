@@ -93,6 +93,9 @@ pub(super) struct BindingFacts {
     /// during which each function may run.
     settled: Vec<Option<u32>>,
     first_runs: Vec<Option<u32>>,
+    /// A multi-entry or lazy program has no single end after which all
+    /// root cells are initialized. Syntax alone cannot supply that proof.
+    separate_initialization: bool,
 }
 
 impl BindingFacts {
@@ -126,11 +129,11 @@ impl BindingFacts {
     pub(super) fn initialized_in(&self, binding: BindingId, function: FunctionId) -> bool {
         let settled = self.settled.get(binding.index()).copied().flatten();
         let first = self.first_runs.get(function.index()).copied().flatten();
-        if settled
-            .zip(first)
-            .is_some_and(|(settled, first)| first > settled)
-        {
-            return true;
+        if let Some((settled, first)) = settled.zip(first) {
+            return first > settled;
+        }
+        if self.separate_initialization {
+            return matches!(self.declared[binding.index()], Some(Moment::Hoisted));
         }
         match (self.declared[binding.index()], self.first_run(function)) {
             (Some(Moment::Hoisted), _) => true,
@@ -273,6 +276,8 @@ impl Module {
             runs_from,
             settled: budget.copy_slice(AllocationClass::Scratch, &self.settled)?,
             first_runs: budget.copy_slice(AllocationClass::Scratch, &self.first_runs)?,
+            separate_initialization: !self.entries.is_empty()
+                || self.expressions.iter().any(|expression| matches!(expression, Expr::LoadModule { .. })),
         })
     }
 
@@ -330,14 +335,19 @@ impl Module {
     /// run: a later root statement, or a function created by one.
     pub(super) fn runs_after_root(&self, owner: Owner, index: usize, order: &BindingFacts) -> bool {
         match owner {
-            Owner::Root(at) => at > index,
+            Owner::Root(at) => at > index && (!order.separate_initialization
+                || self.root_rows.get(at).zip(self.root_rows.get(index)).is_some_and(|(at, before)|
+                    at.module == before.module || at.point.zip(before.point).is_some_and(|(at, before)| at > before))),
             Owner::Function(function) => {
                 // The program's answer first (M6.5): the function's unit
                 // first runs after the statement's last operation.
                 let first = order.first_runs.get(function.index()).copied().flatten();
                 let point = self.root_rows.get(index).and_then(|row| row.point);
-                first.zip(point).is_some_and(|(first, point)| first > point)
-                    || order.first_run(function).is_some_and(|first| first > index)
+                match first.zip(point) {
+                    Some((first, point)) => first > point,
+                    None => !order.separate_initialization
+                        && order.first_run(function).is_some_and(|first| first > index),
+                }
             }
         }
     }

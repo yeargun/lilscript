@@ -817,7 +817,6 @@ fn inline(
         }
         _ => None,
     };
-    let foreign_module = caller.module != body.module;
     let passed = caller
         .arguments(caller.calls[site.call.index()].arguments)
         .ok_or("invalid argument range")?;
@@ -943,12 +942,8 @@ fn inline(
         if let OperationKind::Closure(unit) = &mut op.kind {
             *unit = units.get(unit).copied().unwrap_or(*unit);
         }
-        // Node IDs are local to the source module. The copied operation has a
-        // new call-site origin; its nested callable keeps its original module.
-        if foreign_module {
-            op.origin = None;
-            op.span = span;
-        }
+        // SourceOriginId is qualified independently of the receiving unit.
+        // Keep the callee's provenance and span through cross-module copies.
     }
 
     let data = editor.unit_mut_in(site.caller, budget)?;

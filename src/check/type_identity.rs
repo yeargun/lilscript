@@ -215,7 +215,7 @@ mod tests {
                         | crate::program::OperationKind::Return
                 )
             })
-            .filter_map(|op| op.origin)
+            .filter_map(|op| op.origin.and_then(|origin| program.source_origin(origin)).map(|(_, node)| node))
             .collect::<Vec<_>>();
         for id in [ids[0], ids[2], ids[3]] {
             assert!(origins.contains(&id), "missing {id:?}: {origins:?}");

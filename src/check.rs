@@ -1198,6 +1198,8 @@ struct DeclarationTables<'src> {
     /// arguments once they are (`close_reflected`). Property names, key
     /// order and identity are observable only for these.
     reflected: std::cell::RefCell<AHashSet<NominalId>>,
+    /// A namespace erased to a host value exposes every runtime export.
+    reflected_namespaces: std::cell::RefCell<AHashSet<u32>>,
     nominal_members: Vec<MemberDefinition>,
     enums: Vec<EnumInfo<'src>>,
     symbol_modules: Vec<Option<crate::module::ModuleId>>,
@@ -1513,6 +1515,7 @@ impl<'src> DeclarationTables<'src> {
 
     /// Seeds the reflected set with every nominal `ty` names (R6).
     fn reflect(&self, ty: &Type<'_>) {
+        namespaces_in(ty, &mut self.reflected_namespaces.borrow_mut());
         let mut found = Vec::new();
         nominals_in(ty, &mut found);
         if !found.is_empty() {
@@ -3472,12 +3475,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             signature: signature.clone(),
                         })
                     };
-                    let repeated = self.module.is_some()
+                    let imported = program.foreign_imports.iter().any(|import| import.specifiers.iter().any(|binding| binding.local.name == extern_decl.name.name));
+                    let repeated = !imported && self.module.is_some()
                         && self
                             .declarations
                             .foreign_symbols
                             .contains_key(extern_decl.name.name);
-                    let symbol = self.declare_foreign(extern_decl.name, ty, true)?;
+                    let symbol = self.declare_foreign(extern_decl.name, ty, true, imported)?;
                     let attributes = Attributes {
                         define: false,
                         constant: false,
@@ -3519,7 +3523,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             "foreign bindings do not support mutable-reference callable contracts",
                         ));
                     }
-                    self.declare_foreign(global.name, ty, false)?;
+                    let imported = program.foreign_imports.iter().any(|import| import.specifiers.iter().any(|binding| binding.local.name == global.name.name));
+                    self.declare_foreign(global.name, ty, false, imported)?;
                 }
                 _ => {}
             }
@@ -9786,6 +9791,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         ident: Ident<'src>,
         ty: Type<'src>,
         callable: bool,
+        imported: bool,
     ) -> Result<SymbolId, AdmittedCheckError> {
         if crate::catalog::host_kind(ident.name) == crate::catalog::HostKind::Eval {
             return Err(AdmittedCheckError::new(ident.span,
@@ -9793,7 +9799,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
         // A host binding's parameters, result or value cross (R6).
         self.declarations.reflect(&ty);
-        if self.module.is_none() {
+        // A module import's local spelling does not identify a global extern.
+        // Target linkage may unify equal (specifier, exported-name) requests;
+        // declarations from different modules keep their own checked symbols.
+        if self.module.is_none() || imported {
             let symbol = self.declare(ident, ty)?;
             self.declarations.symbols[symbol.0 as usize].origin = DeclarationOrigin::Foreign;
             return Ok(symbol);
@@ -10402,6 +10411,31 @@ fn nominals_in(ty: &Type<'_>, out: &mut Vec<NominalId>) {
                 nominals_in(&parameter.ty, out);
             }
             nominals_in(&function.signature.return_type, out);
+        }
+        _ => {}
+    }
+}
+
+/// Namespace identities can cross inside tasks, callbacks and collections as
+/// well as directly. This uses the same erasure owner as nominal reflection.
+fn namespaces_in(ty: &Type<'_>, out: &mut AHashSet<u32>) {
+    match ty {
+        Type::ModuleNamespace(module) => { out.insert(*module); }
+        Type::Array(value) | Type::Record(value) | Type::Set(value)
+        | Type::Task(value) | Type::Generator(value) => namespaces_in(value, out),
+        Type::Nullable(value) => namespaces_in(value, out),
+        Type::Map(key, value) => { namespaces_in(key, out); namespaces_in(value, out); }
+        Type::Union(members) | Type::Intersection(members)
+        | Type::ClassInstance { args: members, .. } | Type::StructInstance { args: members, .. } => {
+            for member in members { namespaces_in(member, out); }
+        }
+        Type::Function(function) => {
+            for parameter in &function.params { namespaces_in(&parameter.ty, out); }
+            namespaces_in(&function.return_type, out);
+        }
+        Type::GenericFunction(function) => {
+            for parameter in &function.signature.params { namespaces_in(&parameter.ty, out); }
+            namespaces_in(&function.signature.return_type, out);
         }
         _ => {}
     }

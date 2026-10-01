@@ -1148,6 +1148,13 @@ impl ProjectConfig {
             format => format,
         };
         use JavaScriptFormat as F;
+        if delivery.annotations != ConsumerAnnotations::Off && (format != F::Esm || !library) {
+            return Err("`delivery.annotations` requires an ESM library intended for a consuming bundler".into());
+        }
+        if delivery.export_placement == ExportPlacement::Facade
+            && (!library || format != F::Esm || delivery.mode == DeliveryMode::Single) {
+            return Err("`delivery.export_placement = \"facade\"` requires a split or preserved ESM library".into());
+        }
         if library && format == F::Bare {
             return Err("`bare` is an application script; use iife with delivery.global for a library".into());
         }
@@ -1187,6 +1194,7 @@ impl ProjectConfig {
         }
         Ok(crate::compilation_policy::DeliveryContract {
             mode: delivery.mode,
+            export_placement: delivery.export_placement,
             format,
             preload: if delivery.mode == DeliveryMode::Single {
                 PreloadPolicy::None
@@ -1208,6 +1216,10 @@ impl ProjectConfig {
                 exports: delivery.exports,
                 default_interop: delivery.default_interop,
                 strict: library,
+                annotations: delivery.annotations,
+                source_maps: delivery.source_maps,
+                sources_content: delivery.sources_content,
+                source_root: delivery.source_root.clone(),
             },
         })
     }
@@ -2107,11 +2119,36 @@ impl HostModules {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ConsumerAnnotations { #[default] Off, Calls, Functions, All }
+impl ConsumerAnnotations {
+    pub(crate) fn calls(self) -> bool { matches!(self, Self::Calls | Self::All) }
+    pub(crate) fn functions(self) -> bool { matches!(self, Self::Functions | Self::All) }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SourceMaps { #[default] Off, Inline, External }
+
+/// Retain an entry's public export facade for consumers that want a stable
+/// surface distinct from implementation chunks. Auto permits proved folding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExportPlacement { #[default] Auto, Facade }
+
 /// `[delivery]` (architecture §14): how the one program is placed in files
 /// and named. Entries are the program's roots; every other key is contract.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DeliveryConfig {
+    /// Consumer hints, only when semantic discardability is proven. These
+    /// comments add bytes to a standalone artifact; choose them for bundlers.
+    pub annotations: ConsumerAnnotations,
+    pub export_placement: ExportPlacement,
+    pub source_maps: SourceMaps,
+    pub sources_content: bool,
+    pub source_root: Option<String>,
     /// IIFE/UMD namespace, with optional [name]/[index] entry placeholders.
     pub global: Option<String>,
     pub global_binding: GlobalBinding,
@@ -2149,6 +2186,11 @@ pub struct DeliveryConfig {
 impl Default for DeliveryConfig {
     fn default() -> Self {
         Self {
+            annotations: ConsumerAnnotations::Off,
+            export_placement: ExportPlacement::Auto,
+            source_maps: SourceMaps::Off,
+            sources_content: true,
+            source_root: None,
             global: None,
             global_binding: GlobalBinding::default(),
             globals: BTreeMap::new(),

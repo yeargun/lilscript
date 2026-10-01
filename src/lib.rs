@@ -74,3 +74,5 @@ pub use lint::{
 };
 pub use module::ModuleError;
 pub use parser::{parse_source, ParseError, Parser};
+
+pub(crate) mod source_maps;

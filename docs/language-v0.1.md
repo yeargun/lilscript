@@ -834,11 +834,12 @@ parameters receive the module namespace or a general `JsValue` rejection.
 Split builds normalize loader-created failures to objects with stable
 `specifier` and `message` fields, while user-created task rejections may carry
 any non-void JavaScript value. Lazily loaded files tree-shake unreferenced
-namespace exports. Lazy-only modules must be initialization-free. Dynamic module
-tasks are JavaScript-only. Two entries that enter one static import cycle at
-different modules, `preserve-modules` over a static cycle, and a module an entry
-loads only with `import()` that runs code where `import()` is built in place are
-refused until plan M3.3d. The complete delivery and package contract is in
+namespace exports. Lazy modules may have effects: initialization runs once, in
+source dependency order, and failures remain cached. Static cycles preserve
+hoisted functions and lexical initialization errors. Single-file output keeps
+lazy execution inside the artifact; split and preserved output use separate
+files. Dynamic module tasks are JavaScript-only. The complete delivery contract
+is in
 [modules-and-delivery.md](modules-and-delivery.md).
 
 ## Aggregates and classes

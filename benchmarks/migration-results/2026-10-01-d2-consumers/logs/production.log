@@ -1,0 +1,6 @@
+off raw 1608 0.037
+off gzip 716 0.04
+off brotli 620 0.076
+external raw 2013 0.037
+external gzip 1002 0.042
+external brotli 875 0.084

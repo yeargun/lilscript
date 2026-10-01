@@ -68,6 +68,7 @@ fn fixture(writes: bool) -> (Module, EntryGraph) {
     let mut shared = EntrySet::single(0);
     shared.insert(1);
     let graph = EntryGraph {
+        foreign: Vec::new(),
         entries: vec![("first".into(), 1), ("second".into(), 2)],
         dynamic: vec![],
         imports: vec![vec![], vec![0], vec![0]],

@@ -259,7 +259,7 @@ impl Record {
                 let _timing = crate::timing::ADMISSION_PARSE.scope(0);
                 let bytes =
                     self.text.len() + self.files.iter().map(|file| file.code.len()).sum::<usize>();
-                let bytes=self.files.iter().try_fold(bytes,|sum,file|sum.checked_add(file.structure.end.saturating_sub(file.structure.start))).ok_or(CandidateError::Capacity)?;
+                let bytes=self.files.iter().try_fold(bytes,|sum,file|file.structure.parts.iter().try_fold(sum, |sum, part| sum.checked_add(part.end.saturating_sub(part.start)))).ok_or(CandidateError::Capacity)?;
                 budget.work(
                     WorkKind::Analysis,
                     crate::admission_parse::work_units(bytes),
@@ -281,9 +281,18 @@ impl Record {
                         // or CommonJS scripts.
                         Some(layout) => {
                             let module = layout.format == crate::config::JavaScriptFormat::Esm;
-                            for file in &self.files {
-                                let core=file.code.get(file.structure.start..file.structure.end).ok_or_else(||crate::admission_parse::Refusal("invalid planned body range".into()))?;
-                                crate::admission_parse::admit(&file.structure.expected,core,module).map_err(|error|crate::admission_parse::Refusal(format!("file {} planned body: {}",file.name,error.0)))?;
+                            for (index, file) in self.files.iter().enumerate() {
+                                if matches!(layout.files[index].role, crate::js::delivery::FileRole::SourceMap(_)) {
+                                    let mut json = serde_json::Deserializer::from_str(&file.code);
+                                    <serde::de::IgnoredAny as serde::Deserialize>::deserialize(&mut json)
+                                        .and_then(|_| json.end())
+                                        .map_err(|error| crate::admission_parse::Refusal(format!("source map {}: {error}", file.name)))?;
+                                    continue;
+                                }
+                                for part in &file.structure.parts {
+                                    let core=file.code.get(part.start..part.end).ok_or_else(||crate::admission_parse::Refusal("invalid planned body range".into()))?;
+                                    crate::admission_parse::admit(&part.expected,core,module).map_err(|error|crate::admission_parse::Refusal(format!("file {} planned body: {}",file.name,error.0)))?;
+                                }
                                 crate::admission_parse::parse_canonical(&file.code, module)
                                     .map_err(|refusal| {
                                         crate::admission_parse::Refusal(format!(

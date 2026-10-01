@@ -149,10 +149,9 @@ fn preserve_modules_keeps_each_module_in_its_file_and_writes_through_a_setter() 
     let _ = fs::remove_dir_all(directory);
 }
 
-/// A static cycle among delivered files is refused in M3.3a: ES modules
-/// reproduce it only with a hoisting constraint the tree does not carry yet.
+/// Preserved source cycles retain function instantiation and evaluation order.
 #[test]
-fn preserve_modules_refuses_a_static_cycle() {
+fn preserve_modules_supports_a_static_cycle() {
     let directory = workspace(
         "cycle",
         &[
@@ -168,16 +167,8 @@ fn preserve_modules_refuses_a_static_cycle() {
     );
     let single = compile(&directory, "single");
     assert_eq!(run(&directory, &single), "45\n160\n");
-    let error = compile_path(
-        &directory.join("main.lil"),
-        &config("mode='preserve-modules'"),
-        options(),
-    )
-    .map(|_| ())
-    .unwrap_err();
-    assert!(error.to_string().contains("M3.3d"), "{error}");
-    // `split` has one file per label, and one entry means one label: the
-    // cycle stays inside one file.
+    let preserved = compile(&directory, "preserve-modules");
+    assert_eq!(run(&directory, &preserved), "45\n160\n");
     let bundle = compile(&directory, "split");
     assert_eq!(run(&directory, &bundle), "45\n160\n");
     let _ = fs::remove_dir_all(directory);
@@ -445,7 +436,7 @@ fn every_lazily_loaded_module_gets_its_file() {
 }
 
 #[test]
-fn lazy_modules_must_be_initialization_free() {
+fn lazy_modules_initialize_on_the_first_load() {
     let directory = workspace(
         "lazy-init",
         &[
@@ -459,13 +450,10 @@ fn lazy_modules_must_be_initialization_free() {
             ),
         ],
     );
-    let error = compile_path(
-        &directory.join("main.lil"),
-        &config(""),
-        ServiceOptions::default(),
-    )
-    .unwrap_err();
-    assert!(error.to_string().contains("initialization-free"), "{error}");
+    for mode in ["single", "split", "preserve-modules"] {
+        let built = compile(&directory, mode);
+        assert_eq!(run_script(&directory, &built, "globalThis.read=()=>41;await import('./main.js');await new Promise(r=>setTimeout(r,20));"), "41\n");
+    }
     let _ = fs::remove_dir_all(directory);
 }
 
@@ -851,11 +839,8 @@ fn a_lazy_load_runs_what_its_importer_has_not_in_the_target_order() {
             "{mode}"
         );
     }
-    // `single` builds `import()` in place: it cannot run y and z lazily.
-    let error = compile_several(&directory, &pairs, "mode='single'")
-        .map(|_| ())
-        .unwrap_err();
-    assert!(render_service_error(&error).contains("M3.3d"), "{error}");
+    let isolated = compile_several(&directory, &pairs, "mode='single'").unwrap();
+    assert_eq!(run_script(&directory, &isolated, &format!("await import('./b.js');{SETTLE}")), "b\ny\nz\n12\n");
     let _ = fs::remove_dir_all(directory);
 }
 
@@ -909,10 +894,8 @@ fn import_of_a_module_another_entry_imports_statically_evaluates_it() {
             );
         }
     }
-    let error = compile_several(&directory, &pairs, "mode='single'")
-        .map(|_| ())
-        .unwrap_err();
-    assert!(render_service_error(&error).contains("M3.3d"), "{error}");
+    let isolated = compile_several(&directory, &pairs, "mode='single'").unwrap();
+    assert_eq!(run_script(&directory, &isolated, &format!("await import('./b.js');{SETTLE}await import('./a.js');")), "y\n1\ny\na\n");
     let _ = fs::remove_dir_all(directory);
 }
 
@@ -1168,10 +1151,10 @@ fn hashed_names_cover_every_file_a_file_can_load() {
     assert!(changed >= 3, "{first:?}\n{second:?}");
 }
 
-/// A dynamic entry entering a static cycle at another module than a static
-/// entry would evaluate it in another order (§5.5): refused, naming both.
+/// A dynamic entry can enter a cycle at another module; once-only loading
+/// retains the order of the first consumer.
 #[test]
-fn a_lazy_load_entering_a_cycle_elsewhere_is_refused() {
+fn a_lazy_load_entering_a_cycle_elsewhere_preserves_initialization() {
     let directory = workspace(
         "lazy-cycle-entry",
         &[
@@ -1193,18 +1176,8 @@ fn a_lazy_load_entering_a_cycle_elsewhere_is_refused() {
             ),
         ],
     );
-    let error = compile_several(
-        &directory,
-        &[("a", "a.lil"), ("b", "b.lil")],
-        "mode='split'",
-    )
-    .map(|_| ())
-    .unwrap_err();
-    let message = render_service_error(&error);
-    assert!(
-        message.contains("import(") && message.contains("cycle"),
-        "{message}"
-    );
+    let compiled = compile_several(&directory, &[("a", "a.lil"), ("b", "b.lil")], "mode='split'").unwrap();
+    assert_eq!(run_script(&directory, &compiled, "await import('./b.js');await new Promise(r=>setTimeout(r,20));const a=await import('./a.js');console.log(a.a());"), "p\n2\n1\n");
     let _ = fs::remove_dir_all(directory);
 }
 

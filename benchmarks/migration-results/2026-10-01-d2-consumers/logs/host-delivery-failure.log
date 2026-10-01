@@ -1,0 +1,15 @@
+
+running 1 test
+
+thread 'build::delivery_tests::relative_host_modules_travel_with_the_output' (1437689) panicked at /home/azureuser/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oxc_index-5.0.0/src/indexing.rs:38:10:
+index out of bounds: the len is 0 but the index is 16
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test build::delivery_tests::relative_host_modules_travel_with_the_output ... FAILED
+
+failures:
+
+failures:
+    build::delivery_tests::relative_host_modules_travel_with_the_output
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2099 filtered out; finished in 0.01s
+

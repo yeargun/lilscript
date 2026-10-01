@@ -18,6 +18,9 @@ pub(super) struct Plan<'src> {
     pub(super) public_encodes: Vec<(ContextId, ValueId)>,
     /// One hoisted D2 callable adapter factory per function type.
     pub(super) public_callables: Vec<(Type<'src>, bool, js::BindingId)>,
+    pub(super) const_exports: Vec<(CellId, js::BindingId)>,
+    pub(super) const_codecs: Vec<(Type<'src>, js::BindingId)>,
+    pub(super) const_memo: Option<js::BindingId>,
     // Sorted once by stable member identity. Entries retain physical slots and
     // their schema owner, so emission never resolves a field by source spelling.
     fields: Vec<(usize, FieldRecipe)>,
@@ -43,11 +46,9 @@ pub(super) fn validate_interfaces(
             let check = (|| {
                 budget.work(WorkKind::Analysis, 1)?;
                 let ty = &program.types[declaration.ty.index()];
-                // Const publication must preserve the private layout and all
-                // reference identities. The callable codecs do not establish
-                // that proof for a stored aggregate graph.
                 if declaration.declared_const && ty.callable_signature().is_none()
-                    && super::public_structs::carries_product(ty, budget)? {
+                    && super::public_structs::carries_product(ty, budget)?
+                    && !super::const_graph::adaptable(program, ty, 0, budget)? {
                     return Err(Unsupported {
                         span: declaration.declaration,
                         feature: "public const value-struct graph adaptation",
@@ -95,7 +96,8 @@ pub(super) fn plan<'src>(
     if program.structs.is_empty() && !program.absence_abi {
         return Ok(Plan { boundary_types: Vec::new(), abi_types: Vec::new(),
             public_units: Vec::new(), public_exports: Vec::new(), public_codecs: Vec::new(),
-            public_encodes: Vec::new(), public_callables: Vec::new(), fields: Vec::new() });
+            public_encodes: Vec::new(), public_callables: Vec::new(), fields: Vec::new(),
+            const_exports: Vec::new(), const_codecs: Vec::new(), const_memo: None });
     }
     let mut boundary_types = budget.vector(AllocationClass::Scratch, program.types.len())?;
     let mut abi_types = budget.vector(AllocationClass::Scratch, program.types.len())?;
@@ -193,6 +195,9 @@ pub(super) fn plan<'src>(
         public_codecs: Vec::new(),
         public_encodes: Vec::new(),
         public_callables: Vec::new(),
+        const_exports: Vec::new(),
+        const_codecs: Vec::new(),
+        const_memo: None,
         fields,
     })
 }

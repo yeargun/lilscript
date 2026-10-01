@@ -642,7 +642,10 @@ fn convert_modules<'ast, 'src>(
                         .push(Retained, &mut dynamic, target)
                         .map_err(|error| make_error(error.into()))?;
                 }
+                let mut dependency_spans = lower.budget.vector(Retained, sources[module].imports.len()).map_err(|error| make_error(error.into()))?;
+                dependency_spans.extend(sources[module].imports.iter().map(|import| import.span));
                 let data = &mut building_table(&mut lower.program.modules)[module];
+                data.dependency_spans = dependency_spans;
                 data.dependencies = dependencies;
                 data.dynamic_dependencies = dynamic;
                 data.imports = imports;
@@ -764,6 +767,7 @@ fn convert_modules<'ast, 'src>(
     for (module, source) in sources.iter().enumerate() {
         lower.semantics = semantics.view(module).unwrap();
         lower.current_module = ModuleId::from_index(module).unwrap();
+        lower.origin_module = lower.current_module;
         lower
             .register_source(source)
             .map_err(|error| ModuleConversionError { module, error })?;
@@ -771,6 +775,7 @@ fn convert_modules<'ast, 'src>(
     for (module, source) in sources.iter().enumerate() {
         lower.semantics = semantics.view(module).unwrap();
         lower.current_module = ModuleId::from_index(module).unwrap();
+        lower.origin_module = lower.current_module;
         lower
             .emit_source(UnitId::from_index(module).unwrap(), source)
             .map_err(|error| ModuleConversionError { module, error })?;
@@ -848,6 +853,8 @@ struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     /// at each construction, under its class's module's facts.
     views: Vec<CheckedView<'sem, 'ast, 'src>>,
     current_module: ModuleId,
+    /// AST owner can differ when a class field initializer is copied at construction.
+    origin_module: ModuleId,
     program: Program<'src>,
     units: Vec<UnitData>,
     allocations: Vec<usize>,
@@ -908,6 +915,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         let mut units = budget.vector(Scratch, sources.len())?;
         let mut modules = budget.vector(Retained, sources.len())?;
         let mut initialization = budget.vector(Retained, sources.len())?;
+        let mut source_offset = 0u32;
         for (index, source) in sources.iter().enumerate() {
             let module = ModuleId::from_index(index).ok_or(Unsupported {
                 span: source.span,
@@ -923,8 +931,10 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 ModuleInterface {
                     pooled_strings: Vec::new(),
                     source: source.source_identity().clone(),
+                    source_offset,
                     initializer,
                     dependencies: Vec::new(),
+                    dependency_spans: Vec::new(),
                     dynamic_dependencies: Vec::new(),
                     namespace: Vec::new(),
                     imports: Vec::new(),
@@ -933,6 +943,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 },
             )?;
             budget.push(Retained, &mut initialization, initializer)?;
+            source_offset = source_offset.checked_add(source.source_identity().len() as u32).ok_or(AllocationError::Capacity)?;
         }
         let mut views = budget.vector(Scratch, sources.len())?;
         budget.push(Scratch, &mut views, semantics)?;
@@ -941,6 +952,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             semantics,
             views,
             current_module: ModuleId::from_index(0).unwrap(),
+            origin_module: ModuleId::from_index(0).unwrap(),
             program: Program {
                 tables_revision: RevisionId::fresh(),
                 trap_index_reads: false,
@@ -2121,8 +2133,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             feature: "missing checked module view",
         })?;
         let outer = std::mem::replace(&mut self.semantics, view);
+        let origin_module = std::mem::replace(&mut self.origin_module, ModuleId::from_index(module).ok_or(AllocationError::Capacity)?);
         let value = self.expression(unit, region, initializer);
         self.semantics = outer;
+        self.origin_module = origin_module;
         self.copy_value(unit, region, value?, initializer.span())
     }
     /// `super(...)` in a kept class's constructor: the base constructor runs
@@ -2326,6 +2340,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     Retained,
                     &mut building_table(&mut self.program.modules)[module].foreign_imports,
                     ForeignImport {
+                        span: import.span,
                         cell,
                         source,
                         imported,
@@ -3458,9 +3473,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let data = &mut self.units[unit.index()];
         let origin = origin.or_else(|| {
             self.statement_origin
-                .filter(|(module, _)| *module == data.module)
+                .filter(|(module, _)| *module == self.origin_module)
                 .map(|(_, id)| id)
         });
+        let origin = origin.map(|node| SourceOriginId::from_index(self.program.modules[self.origin_module.index()].source_offset as usize + node.index()).ok_or(AllocationError::Capacity)).transpose()?;
         let range = OperandRange {
             start: u32::try_from(data.operands.len()).map_err(|_| AllocationError::Capacity)?,
             len: u32::try_from(operands.len()).map_err(|_| AllocationError::Capacity)?,
@@ -4112,7 +4128,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
     ) -> Result<(), ConversionError> {
         let previous = self
             .statement_origin
-            .replace((self.current_module, statement.id()));
+            .replace((self.origin_module, statement.id()));
         let result = self.statement_body(unit, region, statement);
         self.statement_origin = previous;
         result

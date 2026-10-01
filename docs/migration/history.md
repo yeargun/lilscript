@@ -1762,3 +1762,26 @@ lanes. Initial build/fixture/harness failures are retained. No full suite/fleet
 rerun. D1 is complete under [its contract](d1-acceptance.md); D2 follows with
 consumer shaking, initialization/placement, lazy effects/cycles, host modules,
 source maps and graph-preserving public const product publication.
+
+## 2026-10-01: D2 consumer delivery and module semantics completion
+
+Algorithm67/search33 implements interface-aware initialization, completion/hoisting
+placement, source cycles and cached single-file/CJS lazy activation. Typed Oxc
+host lowering replaces the ESTree JSON walk. Embedded hosts have separate module
+ownership; external requests retain authored order, loading and binding validation.
+Conservative single-file foreign order/laziness diagnostics have explicit supported
+alternatives. Public immutable product graphs preserve reference aliases and value
+copies. Configurable annotations, facade placement and retained-origin source maps
+flow through final filenames, exact scoring, manifests and public service output.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-d2-consumers/README.md)
+records 14 final consumer tests, three final application/API regressions, affected
+legacy/typed-host checks and independently bundled consumers. Annotation-enabled
+consumers measure 111→71 raw, 119→80 gzip9 and 94→71 Brotli11 on the focused
+discardability fixture, with effects preserved. Six release builds independently
+optimize raw/gzip/Brotli and verify actual files against receipts: the lazy/public
+graph fixture costs 1608/716/620 with maps off and 2013/1002/875 with external map
+bytes included. These are fixture costs, not a fleet or compilation-speed claim.
+Failures and the accidentally broad aborted host test selection remain recorded.
+No full library/fleet rerun. D2 is complete under [its contract](d2-acceptance.md);
+D3 follows with shared graph/session reuse and compiler-written port integration.

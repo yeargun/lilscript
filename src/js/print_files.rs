@@ -18,12 +18,17 @@ pub(in crate::js) struct PlannedPrint<'a> {
 
 /// Fixed-size proof retained with the candidate, parsed once at admission.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PlannedStructure {
+pub(crate) struct StructurePart {
     pub start: usize,
     pub end: usize,
     pub expected: crate::admission_parse::StructureDigest,
 }
-pub(in crate::js) struct PlannedText { pub code:String, pub structure:PlannedStructure }
+#[derive(Debug, Default)]
+pub(crate) struct PlannedStructure { pub parts: Vec<StructurePart> }
+impl PlannedStructure {
+    pub fn heap_bytes(&self) -> Result<u64, AllocationError> { crate::output_budget::vector_bytes(&self.parts) }
+}
+pub(in crate::js) struct PlannedText { pub code:String, pub structure:PlannedStructure, pub map:Option<String> }
 impl std::ops::Deref for PlannedText {type Target=str;fn deref(&self)->&str{&self.code}}
 
 /// One planned file, in the plan's format.
@@ -37,6 +42,7 @@ pub(in crate::js) fn render_planned_file_admitted(
     budget: &mut AllocationBudget<'_>,
     planned: &PlannedPrint<'_>,
     hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
+    sources: Option<&crate::source_maps::Sources>,
 ) -> Result<PlannedText, PrintError> {
     let _timing = crate::timing::TARGET_PRINT.scope(0);
     let plan = planned.plan;
@@ -73,6 +79,49 @@ pub(in crate::js) fn render_planned_file_admitted(
             .map_err(PrintError::Admission)?,
         ),
     };
+    phase.work(WorkKind::Render, (file.statements.len() as u64).saturating_mul(file.initializers.len() as u64 + 1)).map_err(PrintError::Admission)?;
+    let activations = file.statements.iter().any(|&index| {
+        let row = module.root_rows[index as usize];
+        row.origin != RowOrigin::Synthetic && row.anchor == Anchor::Anchored
+            && file.initializers.iter().any(|part| part.source == row.module && !part.eager)
+    });
+    let mut inline_prefix = String::new();
+    let mut inline_owners = Vec::new();
+    if !file.initializers.is_empty() {
+        phase.push_str(AllocationClass::Scratch, &mut inline_prefix, "$l") .map_err(PrintError::Admission)?;
+        loop {
+            phase.work(WorkKind::Render, (module.bindings.len() + module.expressions.len() + module.reserved.len()) as u64).map_err(PrintError::Admission)?;
+            if !(0..module.bindings.len()).any(|index| names.get(BindingId::new(index)).starts_with(&inline_prefix))
+                && !module.expressions.iter().any(|expr| matches!(expr, Expr::Host(host) if host.name.starts_with(&inline_prefix)))
+                && !module.reserved.iter().any(|name| name.starts_with(&inline_prefix)) { break; }
+            phase.push_str(AllocationClass::Scratch, &mut inline_prefix, "$").map_err(PrintError::Admission)?;
+        }
+        for &index in &file.statements {
+            let row = module.root_rows[index as usize];
+            if !activations || row.origin == RowOrigin::Synthetic || !file.initializers.iter().any(|part| part.source == row.module && !part.eager) { continue; }
+            if let Statement::Let { binding, .. } | Statement::Function { binding, .. } = module.regions[module.root.index()].statements[index as usize] {
+                phase.push(AllocationClass::Scratch, &mut inline_owners, (binding, row.module)).map_err(PrintError::Admission)?;
+            }
+        }
+        inline_owners.sort_unstable_by_key(|(binding, _)| *binding);
+    }
+    let inline = inline::InlineView { prefix: &inline_prefix, owners: &inline_owners, modules: &file.initializers, activations };
+    let mut local_names = phase.vector(AllocationClass::Scratch, file.statements.len()).map_err(PrintError::Admission)?;
+    for &index in &file.statements {
+        let index = index as usize;
+        let statement = &module.regions[module.root.index()].statements[index];
+        let function = match *statement {
+            Statement::Function { binding, function } if module.root_rows[index].hoisted => Some((binding, function)),
+            Statement::Let { binding, value: Some(value) } if inline.owners.binary_search_by_key(&binding, |(binding, _)| *binding).is_ok()
+                && module.settled.get(binding.index()).copied().flatten() == Some(0) =>
+                match module.expressions[value.index()] { Expr::Function(function) => Some((binding, function)), _ => None },
+            _ => None,
+        };
+        if let Some((binding, function)) = function {
+            if let Some(name) = module.functions[function.index()].name.exact().and_then(|name| name.as_unicode()) { local_names.push((binding, name)); }
+        }
+    }
+    local_names.sort_unstable_by_key(|(binding, _)| *binding);
     let mut printer = Printer {
         module,
         names,
@@ -81,6 +130,7 @@ pub(in crate::js) fn render_planned_file_admitted(
         forms: &forms,
         output: Buffer {
             text: String::new(),
+            points: sources.map(|_| Vec::new()),
             budget: &mut phase,
             limit,
             error: None,
@@ -89,22 +139,57 @@ pub(in crate::js) fn render_planned_file_admitted(
         lazy: &lazy,
         container: None,
         root_activation: true,
-        planned_structure: None,
+        planned_structure: PlannedStructure::default(),
+        inline: (!file.initializers.is_empty()).then_some(&inline),
+        inline_module: None,
+        local_names: &local_names,
     };
     match plan.format {
-        JavaScriptFormat::Esm => esm(&mut printer, plan, planned, hosts),
+        JavaScriptFormat::Esm | JavaScriptFormat::Bare => esm(&mut printer, plan, planned, hosts),
+        JavaScriptFormat::Iife if plan.container.global.is_none() => {
+            // Application frames have no publication namespace. Keep the same
+            // lexical this/strictness as the unplanned application printer;
+            // retained origins and statement proofs include the frame offset.
+            printer.text("(()=>{");
+            esm(&mut printer, plan, planned, hosts);
+            printer.text("})();");
+        }
         JavaScriptFormat::Cjs | JavaScriptFormat::Iife | JavaScriptFormat::Umd => containers::render(&mut printer, planned, hosts),
         _ => return Err(PrintError::Container("unresolved output container")),
     }
     let structure=printer.planned_structure;
-    let Buffer { text, error, .. } = printer.output;
+    let Buffer { mut text, error, points, .. } = printer.output;
     if let Some(error) = error {
         drop(text);
         return Err(error);
     }
-    drop((forms, lazy));
+    let mut map = None;
+    if let Some(sources) = sources {
+        let file = own.rsplit('/').next().unwrap_or(own);
+        let json = crate::source_maps::render(&text, points.as_deref().unwrap_or(&[]), sources, file, &plan.container, &mut phase).map_err(PrintError::Admission)?;
+        match plan.container.source_maps {
+            crate::config::SourceMaps::Inline => {
+                crate::source_maps::inline_base64(&json, &mut text, &mut phase).map_err(PrintError::Admission)?;
+                let bytes = json.capacity() as u64; drop(json);
+                phase.release(AllocationClass::Retained, bytes).map_err(PrintError::Admission)?;
+            }
+            crate::config::SourceMaps::External => {
+                let mut path = phase.string(AllocationClass::Scratch, file).map_err(PrintError::Admission)?;
+                phase.push_str(AllocationClass::Scratch, &mut path, ".map").map_err(PrintError::Admission)?;
+                let path = crate::js::names::url_specifier_in(path, AllocationClass::Scratch, &mut phase).map_err(PrintError::Admission)?;
+                phase.push_str(AllocationClass::Retained, &mut text, "\n//# sourceMappingURL=").map_err(PrintError::Admission)?;
+                phase.push_str(AllocationClass::Retained, &mut text, &path).map_err(PrintError::Admission)?;
+                let bytes = path.capacity() as u64; drop(path);
+                phase.release(AllocationClass::Scratch, bytes).map_err(PrintError::Admission)?;
+                map = Some(json);
+            }
+            crate::config::SourceMaps::Off => unreachable!("source-map input installed only when requested"),
+        }
+        if text.len().checked_add(map.as_ref().map_or(0, String::len)).is_none_or(|size| size > limit) { return Err(PrintError::ByteLimit); }
+    }
+    drop((forms, lazy, local_names, inline_owners, inline_prefix, points));
     phase.finish_retained().map_err(PrintError::Admission)?;
-    Ok(PlannedText{code:text,structure:structure.expect("planned core proof")})
+    Ok(PlannedText{code:text,structure,map})
 }
 
 /// An exported or imported name: an identifier, or a string (ES2022).
@@ -209,12 +294,7 @@ fn esm(
             printer.host_bindings(hosts, file.links.hosted.iter().copied());
         }
     }
-    let root = &printer.module.regions[printer.module.root.index()].statements;
-    let start=printer.output.text.len();
-    printer.statement_list(root,file.statements.iter().map(|&statement| statement as usize));
-    if !printer.output.work(printer.module.expressions.len()+printer.module.regions.len()) {return;}
-    printer.planned_structure=Some(PlannedStructure{start,end:printer.output.text.len(),
-        expected:crate::js::admission::planned_core_digest(printer.module,&file.statements,&[],printer.lazy,false,false)});
+    inline::body(printer, file);
     // Internal exports under their own names, then the public names this
     // file declares.
     let own = planned.file as u32;
@@ -231,7 +311,12 @@ fn esm(
             return;
         }
         open(printer);
-        printer.text(names.get(*binding));
+        let local = printer.local(*binding);
+        printer.text(local);
+        if local != names.get(*binding) {
+            printer.text(" as ");
+            printer.text(names.get(*binding));
+        }
     }
     let imported = |binding: &BindingId| {
         file.links
@@ -246,8 +331,8 @@ fn esm(
         if !printer.output.work(1) {
             return;
         }
-        let local = names.get(*binding);
-        if local == name && file.links.exports.contains(binding) {
+        let local = printer.local(*binding);
+        if names.get(*binding) == name && file.links.exports.contains(binding) {
             continue;
         }
         open(printer);

@@ -288,6 +288,11 @@ mode = "single"               # single | split | preserve-modules
 # module_names = "[path].[ext]"  # preserve-modules module files
 preload = "none"              # none | entry | all
 host_modules = "external"     # external | auto | embed
+annotations = "off"           # off | calls | functions | all; bundler-facing ESM library
+export_placement = "auto"     # auto | facade; facade requires split/preserved ESM library
+source_maps = "off"           # off | inline | external; exact final-file debugging metadata
+sources_content = true       # include original source text in enabled maps
+# source_root = "https://example.org/src/" # optional debugger source URL prefix
 request_bytes = 0             # declared cost per file an entry loads beyond its first
 depth_bytes = 0               # declared cost per static import level beyond the first
 # global = "Library"            # required for library IIFE/UMD
@@ -1092,6 +1097,73 @@ The full table, generated from the source, is in
 The contract is [modules-and-delivery](modules-and-delivery.md#delivery): clauses DL1–DL10, the
 modes, the files and manifest v3. Every mode checks and optimizes the whole
 program, all entries together, before any file boundary is chosen.
+
+`annotations = "calls"`, `"functions"` or `"all"` adds proven `/*#__PURE__*/`
+call hints and/or `/*#__NO_SIDE_EFFECTS__*/` function hints to an ESM library.
+Use these for the export condition that downstream bundlers consume. They
+default to `"off"` at every effort level: comments cost standalone bytes and a
+consumer may ignore them. The selected codec scores their actual bytes. Call
+hints require a movable, discardable source definition; function hints require
+the semantic effects proof for every admitted argument, including termination
+and no callback invocation. A declared `pure` function alone is insufficient.
+Development checks remain observable and do not receive function hints. Other
+formats diagnose this option rather than silently ignoring it.
+
+`export_placement = "auto"` lets placement fold a public entry facade into its
+implementation when initialization and sharing proofs allow it. `"facade"`
+retains that separate public file in split/preserved ESM libraries. Use it when
+package entry paths should remain separate from implementation modules. It can
+add requests and export syntax; a downstream bundler can remove the indirection.
+It does not promise a smaller consumer bundle. The setting defaults to `"auto"`
+at every effort and objective, participates in policy/cache identity, and never
+allows duplication of shared state. Single-file or non-ESM output diagnoses an
+explicit `"facade"` choice. Consumer annotations and this control are independent.
+
+`source_maps = "inline"` embeds a source-map v3 data URL in each JavaScript file.
+`"external"` writes an adjacent `<filename>.map` and a relative, URL-escaped
+`sourceMappingURL`; `"off"` is the default. Use maps when debugging generated
+code. They preserve retained source origins through inlining, final mangling,
+chunk naming and container printing, with UTF-16 line/column coordinates.
+Generated helpers without source origins remain unmapped. Maps describe the
+compiler's language inputs; carried host JavaScript has no language origin.
+
+Both inline and external map bytes participate in the selected raw/gzip/Brotli
+objective and output limits. External maps are separate manifest files with
+`role = "source-map"` and `source_map_for`; each entry's byte row includes maps
+for its JavaScript closure. They add no runtime request/depth penalty or
+`side_effects` entry. Hash templates include map content. Enabling maps costs
+source retention, mapping work and output bytes, and can change which candidate
+wins. It does not enable an otherwise forbidden optimization.
+
+`sources_content = true` makes enabled maps self-contained and is the default.
+Set it to `false` when the debugger can retrieve the original source separately;
+this reduces map size and omits original source text from delivery. Source names
+are relative to the input graph's common directory. `source_root`, when set,
+supplies the debugger's source prefix; no absolute build-machine paths are
+inserted automatically. These two controls have no effect while maps are off.
+
+Unknown external module initialization is an ordering barrier. Split output
+keeps separate request files when necessary; an unused imported binding does
+not grant permission to omit module loading or named-export validation. This
+can increase file count and bytes. Single-file output is diagnosed when a
+foreign module must run lazily or after a source initializer, because a static
+import would change that order. Choose split/preserved delivery or typed host
+embedding for those graphs. Embedded hosts have individual dependency/entry
+ownership and can run lazily inside the single-file module runtime.
+
+
+
+The manifest's `side_effects` list includes static dependency effects, foreign
+imports and generated container/preload behavior. An otherwise empty facade
+over an effectful dependency stays in that list. Package tooling can use this
+metadata for the corresponding exact ESM files.
+
+Public const product graphs have a separate immutable view: value structs use
+their declared public field names, records keep their null prototype, and
+arrays/records shared by exported values retain their aliases. Conversion and
+freezing are mandatory boundary behavior, with their full code and runtime cost
+included. Internal reads retain the private product representation. Ambiguous
+product unions and unsupported stored graph schemas are diagnosed.
 
 - `mode`: `single` writes one file per entry; `split` writes each entry's file
   plus the files the entries that load them share; `preserve-modules` writes a

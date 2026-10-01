@@ -96,11 +96,15 @@ mod tests {
         Arc::make_mut(&mut program.modules)[root.index()]
             .dependencies
             .push(module);
+        Arc::make_mut(&mut program.modules)[root.index()].dependency_spans.push(Span::default());
+        let source_offset = program.modules.iter().map(|module| module.source.len() as u32).sum();
         Arc::make_mut(&mut program.modules).push(ModuleInterface {
+            source_offset,
             pooled_strings: Vec::new(),
             source: empty.source_identity().clone(),
             initializer,
             dependencies: vec![root],
+            dependency_spans: vec![Span::default()],
             dynamic_dependencies: Vec::new(),
             namespace: Vec::new(),
             imports: vec![ModuleImport {

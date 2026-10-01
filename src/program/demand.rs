@@ -327,6 +327,9 @@ pub(super) struct DemandPlan<'program, 'src> {
 }
 
 impl<'program, 'src> DemandPlan<'program, 'src> {
+    pub(super) fn discardable_body(&self, unit: UnitId) -> bool {
+        self.effects.summary(unit).is_some_and(|summary| summary.discardable())
+    }
     pub(super) fn build(
         program: &'program Program<'src>,
         uses: Option<&'program UseIndex>,

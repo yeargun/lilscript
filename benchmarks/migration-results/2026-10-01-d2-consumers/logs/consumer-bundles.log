@@ -1,0 +1,22 @@
+
+running 1 test
+test build::consumer_tests::d2_consumer_bundles_preserve_effects_and_remove_annotated_initializers ... consumer split/auto/off: raw=111 gzip=119 brotli=94
+consumer split/auto/all: raw=71 gzip=80 brotli=71
+consumer split/facade/off: raw=111 gzip=119 brotli=94
+consumer split/facade/all: raw=71 gzip=80 brotli=71
+consumer preserve-modules/auto/off: raw=111 gzip=119 brotli=94
+consumer preserve-modules/auto/all: raw=71 gzip=80 brotli=71
+
+thread 'build::consumer_tests::d2_consumer_bundles_preserve_effects_and_remove_annotated_initializers' (1475576) panicked at src/build_consumer_tests.rs:269:21:
+assertion failed: artifact.files().iter().find(|file|
+                    file.name == "main.js").unwrap().code.starts_with("export{")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    build::consumer_tests::d2_consumer_bundles_preserve_effects_and_remove_annotated_initializers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2104 filtered out; finished in 0.40s
+
