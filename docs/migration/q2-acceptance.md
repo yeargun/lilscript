@@ -20,8 +20,8 @@ scheduler suffixes remain useful starting points; do not rebuild their owners.
    cached evidence grants neither a permission nor extra search work.
 4. [ ] Finish resource admission for graph/cycle/delivery and analysis/edit
    storage, including failure cleanup. Entry graph, cycle checking and the
-   target use index are admitted; delivery placement, journals and remaining
-   analysis/edit owners still need completion. Count logical work independently from
+   target use index and edit journals are admitted; delivery placement and
+   remaining analysis/edit owners still need completion. Count logical work independently from
    physical cache hits and retain scaling/work/byte telemetry.
 5. [ ] Wire/document cache and scheduling controls with hard TOML behavior,
    lifetime/capacity, invalidation, defaults and tradeoffs. Transparent controls
@@ -43,3 +43,7 @@ raw/gzip/Brotli artifacts. No full library rerun.
 The first batch is [implemented and qualified](../../benchmarks/migration-results/2026-10-01-q2-use-index/README.md).
 It also closes stale print proofs after delivery inserts cross-file setters.
 Q2 remains active for tasks 2–7; this is not a milestone completion claim.
+
+The [bounded journal batch](../../benchmarks/migration-results/2026-10-01-q2-journals/README.md)
+closes repeated edit-list growth and its success/refusal lifetimes. Remaining
+resource owners and dirty scheduling are still open.

@@ -30,6 +30,49 @@
 
 use super::*;
 
+/// The slots that existed when a rule began. A bit is enough: repeating an
+/// edit does not allocate or duplicate a dirty entry. New nodes are reached
+/// through an existing parent edit and need no separate slot.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct RecordedSlots {
+    words: Vec<u64>,
+    limit: usize,
+}
+
+impl RecordedSlots {
+    fn new(limit: usize, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
+        Ok(Self {
+            words: budget.filled(AllocationClass::Retained, limit.div_ceil(64), 0)?,
+            limit,
+        })
+    }
+
+    fn mark(&mut self, slot: usize) {
+        if slot < self.limit {
+            self.words[slot / 64] |= 1 << (slot % 64);
+        }
+    }
+
+    fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        self.words.iter().enumerate().flat_map(|(index, &word)| {
+            let mut remaining = word;
+            std::iter::from_fn(move || {
+                if remaining == 0 {
+                    return None;
+                }
+                let bit = remaining.trailing_zeros() as usize;
+                remaining &= remaining - 1;
+                Some(index * 64 + bit)
+            })
+        })
+    }
+
+    fn bytes(&self) -> u64 {
+        // Backing was allocated by the admitted usize Layout.
+        (self.words.capacity() * std::mem::size_of::<u64>()) as u64
+    }
+}
+
 /// What the rules changed since the journal was opened.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct Journal {
@@ -37,10 +80,10 @@ pub(crate) struct Journal {
     open: bool,
     /// Edits recorded, including repeats of one slot.
     edits: u64,
-    regions: Vec<RegionId>,
-    expressions: Vec<ExprId>,
-    bindings: Vec<BindingId>,
-    functions: Vec<FunctionId>,
+    regions: RecordedSlots,
+    expressions: RecordedSlots,
+    bindings: RecordedSlots,
+    functions: RecordedSlots,
     /// Imports, exports, root rows or scopes changed.
     tables: bool,
 }
@@ -53,32 +96,32 @@ impl Journal {
 
     fn edit(&mut self) -> bool {
         if self.open {
-            self.edits += 1;
+            self.edits = self.edits.saturating_add(1);
         }
         self.open
     }
 
     fn region(&mut self, region: RegionId) {
         if self.edit() {
-            self.regions.push(region);
+            self.regions.mark(region.index());
         }
     }
 
     fn expression(&mut self, expression: ExprId) {
         if self.edit() {
-            self.expressions.push(expression);
+            self.expressions.mark(expression.index());
         }
     }
 
     fn binding(&mut self, binding: BindingId) {
         if self.edit() {
-            self.bindings.push(binding);
+            self.bindings.mark(binding.index());
         }
     }
 
     fn function(&mut self, function: FunctionId) {
         if self.edit() {
-            self.functions.push(function);
+            self.functions.mark(function.index());
         }
     }
 
@@ -90,15 +133,44 @@ impl Journal {
 
     /// Carry the node entries through a renumbering; a node that did not
     /// survive leaves the journal (its parent's edit is recorded).
-    pub(super) fn renumber(&mut self, map: &[Option<ExprId>]) {
-        self.expressions
-            .retain_mut(|id| match map.get(id.index()).copied().flatten() {
-                Some(new) => {
-                    *id = new;
-                    true
-                }
-                None => false,
-            });
+    pub(super) fn renumber(
+        &mut self,
+        map: &[Option<ExprId>],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        if !self.open {
+            return Ok(());
+        }
+        let mut phase = budget.scope();
+        let mut remapped = RecordedSlots::new(map.len(), &mut phase)?;
+        phase.work(
+            crate::compilation_policy::WorkKind::Edit,
+            self.expressions.words.len() as u64 + self.expressions.limit as u64,
+        )?;
+        for id in self.expressions.iter() {
+            if let Some(Some(new)) = map.get(id) {
+                remapped.mark(new.index());
+            }
+        }
+        phase.finish_retained()?;
+        let old = std::mem::replace(&mut self.expressions, remapped);
+        let bytes = old.bytes();
+        drop(old);
+        budget.release(AllocationClass::Retained, bytes)
+    }
+
+    fn bytes(&self) -> u64 {
+        self.regions.bytes()
+            + self.expressions.bytes()
+            + self.bindings.bytes()
+            + self.functions.bytes()
+    }
+
+    /// Drop backing before its reservation, preserving the caller's arenas.
+    pub(super) fn release(self, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {
+        let bytes = self.bytes();
+        drop(self);
+        budget.release(AllocationClass::Retained, bytes)
     }
 }
 
@@ -106,12 +178,31 @@ impl Journal {
 // rule started goes through one of these (or through the root-row helpers,
 // which record their region).
 impl Module {
-    /// Start recording: a rule begins.
-    pub(crate) fn open_journal(&mut self) {
-        self.journal = Journal {
+    /// Admit the complete dirty-slot map before a rule can edit the tree.
+    pub(crate) fn open_journal_admitted(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        assert!(!self.journal.open, "a target rule cannot nest its journal");
+        let mut phase = budget.scope();
+        let journal = Journal {
             open: true,
-            ..Journal::default()
+            edits: 0,
+            regions: RecordedSlots::new(self.regions.len(), &mut phase)?,
+            expressions: RecordedSlots::new(self.expressions.len(), &mut phase)?,
+            bindings: RecordedSlots::new(self.bindings.len(), &mut phase)?,
+            functions: RecordedSlots::new(self.functions.len(), &mut phase)?,
+            tables: false,
         };
+        phase.finish_retained()?;
+        self.journal = journal;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn open_journal(&mut self) {
+        self.open_journal_admitted(&mut AllocationBudget::new(None))
+            .unwrap();
     }
 
     /// Stop recording: what the rule changed.
@@ -282,11 +373,10 @@ mod check {
             let new = expression_digests(&self.expressions);
             // The regions reachable now, and the ones holding each node the
             // journal names.
-            let named: std::collections::HashSet<usize> =
-                journal.expressions.iter().map(|id| id.index()).collect();
+            let named: std::collections::HashSet<usize> = journal.expressions.iter().collect();
             let mut claimed = vec![false; self.regions.len()];
-            for region in &journal.regions {
-                if let Some(slot) = claimed.get_mut(region.index()) {
+            for region in journal.regions.iter() {
+                if let Some(slot) = claimed.get_mut(region) {
                     *slot = true;
                 }
             }
@@ -337,8 +427,7 @@ mod check {
                 .iter()
                 .zip(&before.expressions)
                 .any(|(node, previous)| node != previous);
-            let bindings: std::collections::HashSet<usize> =
-                journal.bindings.iter().map(|id| id.index()).collect();
+            let bindings: std::collections::HashSet<usize> = journal.bindings.iter().collect();
             for (index, binding) in self.bindings.iter().enumerate() {
                 if before
                     .bindings
@@ -351,8 +440,7 @@ mod check {
                     }
                 }
             }
-            let functions: std::collections::HashSet<usize> =
-                journal.functions.iter().map(|id| id.index()).collect();
+            let functions: std::collections::HashSet<usize> = journal.functions.iter().collect();
             for (index, function) in self.functions.iter().enumerate() {
                 if before
                     .functions

@@ -422,32 +422,36 @@ impl Module {
         let _rule_timing = RULE_TIMINGS[rule as usize].scope(0);
         #[cfg(any(test, debug_assertions))]
         let before = (self.clone(), self.measure(rule.progress()));
-        self.open_journal();
+        self.open_journal_admitted(budget)?;
         let result = self.run_rule(rule, context, budget);
         let journal = self.take_journal();
-        result?;
-        #[cfg(any(test, debug_assertions))]
-        {
-            let (before, measure) = before;
-            self.check_journal(&before, &journal)
-                .map_err(|error| RuleError::Bug(format!("{rule:?}: {error}")))?;
-            if journal.edits() > 0 && std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-                verify::check(self, &mut AllocationBudget::new(None))
-                    .map_err(|error| RuleError::Bug(format!("{rule:?}: {error}")))?;
-            }
-            // Normalization removes nodes. Spelling choices are bounded,
-            // one-way rewrites under the explicit per-site assignment.
-            if rule.progress().measured()
-                && journal.edits() > 0
-                && self.measure(rule.progress()) >= measure
+        let outcome = (|| {
+            result?;
+            #[cfg(any(test, debug_assertions))]
             {
-                return Err(RuleError::Bug(format!(
-                    "{rule:?} edited without decreasing the measure: {measure:?} to {:?}",
-                    self.measure(rule.progress())
-                )));
+                let (before, measure) = before;
+                self.check_journal(&before, &journal)
+                    .map_err(|error| RuleError::Bug(format!("{rule:?}: {error}")))?;
+                if journal.edits() > 0 && std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
+                    verify::check(self, &mut AllocationBudget::new(None))
+                        .map_err(|error| RuleError::Bug(format!("{rule:?}: {error}")))?;
+                }
+                // Normalization removes nodes. Spelling choices are bounded,
+                // one-way rewrites under the explicit per-site assignment.
+                if rule.progress().measured()
+                    && journal.edits() > 0
+                    && self.measure(rule.progress()) >= measure
+                {
+                    return Err(RuleError::Bug(format!(
+                        "{rule:?} edited without decreasing the measure: {measure:?} to {:?}",
+                        self.measure(rule.progress())
+                    )));
+                }
             }
-        }
-        Ok(journal.edits() > 0)
+            Ok(journal.edits() > 0)
+        })();
+        journal.release(budget)?;
+        outcome
     }
 
     /// Reachable progress only: dead arena nodes cannot hide an edit. Node
@@ -690,6 +694,28 @@ impl Module {
 #[cfg(test)]
 mod contract_tests {
     use super::*;
+
+    #[test]
+    fn q2_rule_refusal_closes_and_releases_its_journal() {
+        use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+        let mut module = Module::default();
+        for value in 0..64 {
+            let expr = module.expression(Expr::Literal(Literal::Number(value as f64)), None);
+            module.regions[0].statements.push(Statement::Evaluate(expr));
+        }
+        let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+            baseline_work: 20, optional_work: 0, baseline_retained_bytes: 0, retained_bytes: 1_000_000,
+        }).unwrap();
+        let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+        budget.retain(AllocationClass::Retained, 64).unwrap();
+        let context = Context { rules: TargetRules::SEMANTIC, frames_hidden: true, strict: true,
+            pristine: false, prunes: true, numeric_lengths: false, year: 2022,
+            statements: StatementSpellings::NONE, choices: None, families: OutputFamilies::NONE };
+        assert!(module.apply_rule(Rule::PruneDeclarations, &context, &mut budget).is_err());
+        assert_eq!(module.take_journal().edits(), 0);
+        assert_eq!(budget.retained_bytes(AllocationClass::Retained), 64);
+        assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
+    }
 
     #[test]
     fn shared_host_results_guard_equal_node_operator_progress() {

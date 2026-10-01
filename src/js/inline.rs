@@ -757,7 +757,7 @@ impl Module {
         });
         self.behaviours.sort_unstable_by_key(|row| row.expression);
         // And the journal's nodes (M5.2).
-        self.journal.renumber(&map);
+        self.journal.renumber(&map, budget)?;
         if !old_authored.is_empty() {
             let bytes = (old_authored.capacity() * std::mem::size_of::<crate::representation::RegionalChoices>()) as u64;
             drop(old_authored);

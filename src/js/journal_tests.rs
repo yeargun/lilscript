@@ -88,3 +88,96 @@ fn nothing_is_recorded_outside_a_rule_and_renumbering_carries_entries() {
     let journal = module.take_journal();
     module.check_journal(&before, &journal).unwrap();
 }
+
+fn budget_ledger(work: u64, bytes: u64) -> crate::compilation_policy::BudgetLedger {
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits};
+    BudgetLedger::new(
+        ResourceLimits::default(),
+        BudgetPlan {
+            baseline_work: work,
+            optional_work: 0,
+            baseline_retained_bytes: 0,
+            retained_bytes: bytes,
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn q2_repeated_edits_have_constant_admitted_journal_storage() {
+    use crate::compilation_policy::WorkDomain;
+    let (mut module, [first, _]) = two_prints();
+    let mut ledger = budget_ledger(100_000, 1024);
+    let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+    budget.retain(AllocationClass::Retained, 64).unwrap();
+    module.open_journal_admitted(&mut budget).unwrap();
+    let before = budget.retained_bytes(AllocationClass::Retained);
+    for n in 0..10_000 {
+        module.set_expression(first, Expr::Literal(Literal::Number(n as f64 + 10.0)));
+    }
+    assert_eq!(budget.retained_bytes(AllocationClass::Retained), before);
+    let journal = module.take_journal();
+    assert_eq!(
+        journal.expressions.iter().collect::<Vec<_>>(),
+        [first.index()]
+    );
+    assert_eq!(journal.edits(), 10_000);
+    assert_eq!(journal.bytes(), 16);
+    journal.release(&mut budget).unwrap();
+    assert_eq!(budget.retained_bytes(AllocationClass::Retained), 64);
+    drop(budget);
+    assert_eq!(ledger.retained_bytes(), 0);
+}
+
+#[test]
+fn q2_journal_open_refusal_is_atomic_and_keeps_parent_storage() {
+    use crate::compilation_policy::WorkDomain;
+    for (work, bytes, success) in [
+        (1, 1024, false),
+        (100, 64, false),
+        (100, 72, false),
+        (100, 80, true),
+    ] {
+        let (mut module, _) = two_prints();
+        let mut ledger = budget_ledger(work, bytes);
+        let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+        budget.retain(AllocationClass::Retained, 64).unwrap();
+        let result = module.open_journal_admitted(&mut budget);
+        assert_eq!(result.is_ok(), success);
+        if success {
+            module.take_journal().release(&mut budget).unwrap();
+        }
+        assert!(!module.journal.open);
+        assert_eq!(budget.retained_bytes(AllocationClass::Retained), 64);
+        assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
+        drop(budget);
+        assert_eq!(ledger.retained_bytes(), 0);
+    }
+}
+
+#[test]
+fn q2_journal_remap_handles_growth_removal_and_refusal_without_duplicate_entries() {
+    use crate::compilation_policy::WorkDomain;
+    for bytes in [88, 96] {
+        let (mut module, [first, second]) = two_prints();
+        let mut ledger = budget_ledger(100_000, bytes);
+        let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+        budget.retain(AllocationClass::Retained, 64).unwrap();
+        module.open_journal_admitted(&mut budget).unwrap();
+        module.set_expression(first, Expr::Literal(Literal::Number(7.0)));
+        module.set_expression(second, Expr::Literal(Literal::Number(8.0)));
+        let mut map = vec![None; 70];
+        map[first.index()] = Some(ExprId::new(69));
+        let result = module.journal.renumber(&map, &mut budget);
+        assert_eq!(result.is_ok(), bytes == 96);
+        let journal = module.take_journal();
+        let expected = if bytes == 96 {
+            vec![69]
+        } else {
+            vec![first.index(), second.index()]
+        };
+        assert_eq!(journal.expressions.iter().collect::<Vec<_>>(), expected);
+        journal.release(&mut budget).unwrap();
+        assert_eq!(budget.retained_bytes(AllocationClass::Retained), 64);
+    }
+}

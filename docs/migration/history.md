@@ -1267,3 +1267,17 @@ algorithm 43 / search 32 / walk 10 / local facts 15. Source and binary identitie
 are in the evidence record. Q2 remains the sole active milestone under its
 [acceptance contract](q2-acceptance.md); dirty scheduling, remaining resource
 owners, shared formation, persistent caches and decision replay remain open.
+
+
+## 2026-10-01: Q2 bounded target edit journals
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-journals/README.md).
+Admitted per-slot bitsets replace repeated edit-ID pushes. Exact edit counts,
+debug difference checking and expression remapping remain. Opening/remapping
+refusals release temporary backing, and a finished/failed rule releases its
+journal while retaining the target's reservations. A 10,000-edit fixture keeps
+16 bytes of journal backing; 26 focused checks pass in 0.92 seconds.
+Algorithm 44 records the tariff change. No new representation/default/flag,
+release rebuild, full suite or fleet run. The current release pin remains
+algorithm 43. Q2 remains active for dirty scheduling, remaining resource owners,
+shared formation and persistent reuse.
