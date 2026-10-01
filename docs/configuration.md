@@ -451,11 +451,35 @@ and searched use). `--print-policy` generates the tactic reference from the
 registry: requested permission, effective state, target availability, producer
 stages, prerequisites, analysis requirements and defaults. `auto` follows the
 tactic's own default and its effort gate. A missing producer cannot be enabled
-by a flag: `helper-sharing` and `recurring-reconstruction`
-currently report unavailable, with a diagnostic when explicitly requested on.
+by a flag: `recurring-reconstruction`
+currently reports unavailable, with a diagnostic when explicitly requested on.
 Native supports shared scalar replacement and final-use ownership transfers; call specialization still has no native producer.
 Disabling identifier mangling also disables its dependent naming search and
 alphabet trials, with the reason in the policy diagnostics.
+
+For private calls, `inlining` permits body movement and codec-judged expression
+duplication. Larger bodies can expose simplification but increase output and
+compilation work; the retained-call alternative remains available when that
+tradeoff is uncertain. Single-use nested closures keep a fresh capture bank
+whenever repeated activation is possible; native owners keep their original
+scope exit. Static call frequency is an upper bound, not a runtime profile.
+
+`call-specialization` independently permits product-argument transport choices
+and specialization of private primitive helpers on uniform literal arguments.
+Removing arguments can save bytes; spelling a constant repeatedly can cost
+bytes, particularly under a different codec. Each objective judges its own
+complete output, and explicit `off` vetoes these alternatives.
+
+`helper-sharing = "auto"` permits exact primitive-body sharing under the
+maximum preset. `"on"` additionally permits parameterized sharing: similar
+bodies pass their differing literals as extra arguments, adding work on each
+call. The matcher requires complete direct callers, unobserved identity and
+arity, compatible primitive types, identical captures and safe initialization.
+Receiver/member feedback sites and calls are outside its neutral proof. Matching
+is bounded and extra candidates consume the configured compilation budget;
+`"off"` vetoes both optional forms. Mandatory language-runtime helpers remain
+independent of this setting. Effort 13 retains the ordinary alternatives;
+14–15 provide more search budget, without changing these semantic permissions.
 
 The service's finite work and memory ceilings also enter the resolved resource
 policy and its fingerprint. TOML `[policy.resources]` restricts those ceilings;
@@ -682,8 +706,8 @@ the preset (dead-code elimination, constant folding, inlining, scalar
 replacement, call specialization, helper sharing); explicit settings still
 apply. `javascript.compression` and `javascript.optimizations` are exact
 allowlists: when present, a listed entry is on and an entry the list omits is
-off. `helper-sharing` has no producer in this compiler
-yet, so its permission changes nothing today.
+off. `helper-sharing` controls optional private implementation sharing; an
+explicit allowlist entry also permits its recurring parameterized form.
 
 ## Retired keys
 

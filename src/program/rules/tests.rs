@@ -721,20 +721,20 @@ fn a_function_called_once_moves_into_its_caller() {
 }
 
 #[test]
-fn a_small_body_is_copied_to_each_call_when_the_program_does_not_grow() {
+fn a_repeated_nonempty_body_stays_available_to_objective_judging() {
     let source = "int inc(int value) { return value + 1; }\nfor (int i = 0; i < 2; i++) {\n  print(inc(i));\n  print(inc(i * 10));\n}\n";
     optimized(source, MODULE, |program, receipt| {
-        assert!(!instantiated(program, "inc"), "{receipt:?}");
-        assert_eq!(receipt.inlined_calls, 2, "{receipt:?}");
+        assert!(instantiated(program, "inc"), "{receipt:?}");
+        assert_eq!(receipt.inlined_calls, 0, "{receipt:?}");
     });
 }
 
 #[test]
-fn recursion_and_early_returns_stay_calls() {
+fn recursion_stays_callable_and_terminal_returns_inline() {
     let source = "int fact(int n) {\n  if (n < 2) { return 1; }\n  return n * fact(n - 1);\n}\nint sign(int n) {\n  if (n < 0) { return -1; }\n  return 1;\n}\nfor (int i = 3; i < 5; i++) {\n  print(fact(i));\n  print(sign(i - 4));\n}\n";
     optimized(source, MODULE, |program, receipt| {
         assert!(instantiated(program, "fact"), "{receipt:?}");
-        assert!(instantiated(program, "sign"), "{receipt:?}");
+        assert!(!instantiated(program, "sign"), "{receipt:?}");
     });
 }
 
@@ -764,7 +764,7 @@ fn a_typed_caller_never_triggers_a_default() {
             0,
             "{receipt:?}"
         );
-        assert!(!instantiated(program, "scale"), "{receipt:?}");
+        assert!(instantiated(program, "scale"), "{receipt:?}");
     });
 }
 
@@ -830,12 +830,12 @@ fn an_argument_is_not_read_after_something_observable() {
 }
 
 #[test]
-fn a_result_cannot_leave_a_scoped_copy() {
-    // `items` owns storage, so it is scoped to the copy, which then cannot
-    // yield `result`; `doubled` owns nothing, so its copy needs no scope.
+fn a_result_leaves_a_scoped_copy_through_private_storage() {
+    // `items` owns storage, so its copy keeps a scope and carries the result
+    // across its exit; `doubled` owns nothing and needs no scope.
     let source = "int count(int value) {\n  int[] items = [value, value];\n  return items.length;\n}\nint twice(int value) {\n  int doubled = value * 2;\n  return doubled + 1;\n}\nfor (int i = 0; i < 3; i++) {\n  int result = count(i) + twice(i);\n  print(result);\n}\n";
     optimized(source, MODULE, |program, receipt| {
-        assert!(instantiated(program, "count"), "{receipt:?}");
+        assert!(!instantiated(program, "count"), "{receipt:?}");
     });
     let source = "int twice(int value) {\n  int doubled = value * 2;\n  return doubled + 1;\n}\nfor (int i = 0; i < 3; i++) {\n  int result = twice(i);\n  print(result);\n}\n";
     optimized(source, MODULE, |program, receipt| {
@@ -844,12 +844,12 @@ fn a_result_cannot_leave_a_scoped_copy() {
 }
 
 #[test]
-fn a_duplicate_with_typed_arithmetic_between_its_reads_is_free() {
+fn typed_arithmetic_duplication_is_a_representation_choice() {
     // `(left + right) + extra` adds before reading `extra`: typed ints run
-    // no user code, so each copy is the expression the call stood for.
+    // no user code, but its byte cost still belongs to objective judging.
     let source = "int add(int left, int right = 1, int extra = 0) {\n  return left + right + extra;\n}\nfor (int i = 0; i < 2; i++) {\n  print(add(i));\n  print(add(i, 2));\n  print(add(i, 2, 3));\n}\n";
     optimized(source, MODULE, |program, receipt| {
-        assert!(!instantiated(program, "add"), "{receipt:?}");
+        assert!(instantiated(program, "add"), "{receipt:?}");
     });
 }
 
@@ -915,7 +915,7 @@ fn a_signature_changes_for_every_function_that_shares_it() {
     // first parameter unread, so both keep it: one shape stays one shape.
     // `spare` has its signature to itself, and loses its unread parameter.
     let source = "int left(int a, int b) {\n  if (a > b) { return a; }\n  return b;\n}\nint right(int a, int b) {\n  if (b > 2) { return 1; }\n  return b;\n}\nbool spare(bool unused, float value) {\n  if (value > 1.5) { return true; }\n  return false;\n}\nfor (int i = 0; i < 4; i++) {\n  print(left(i, 2));\n  print(right(i, i));\n  print(spare(true, 1.0 * i));\n  print(spare(false, 2.0));\n}\n";
-    optimized(source, MODULE, |program, receipt| {
+    optimized(source, RuleRequest { inline: false, ..MODULE }, |program, receipt| {
         assert_eq!(signature(program, "left"), (2, false), "{receipt:?}");
         assert_eq!(signature(program, "right"), (2, false), "{receipt:?}");
         assert_eq!(signature(program, "spare"), (1, false), "{receipt:?}");

@@ -46,16 +46,16 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M6.5 | [S4](plan.md#s4) | deleting `quiet.rs`'s order and `root_constants.rs`'s own proof |
 | M6.6 | [S2](plan.md#s2), complete | Bounded allocation/alias/escape facts and complete-use physical ownership witnesses |
 | M6.7 | [S2](plan.md#s2), complete | Field reads, writes, constants, identity and boundary observations |
-| M6.8 | [S3](plan.md#s3) | Frequency |
+| M6.8 | [S3](plan.md#s3), complete | Bounded caller-path frequency, conservative recursion/host/loop handling and counted consumption in capture placement |
 | M7.1 | [S1](plan.md#s1), implementation complete | Removal |
 | M7.3 | [S1](plan.md#s1), implementation complete | callee-built defaults and deletion of the three tree passes (M5.3b) |
 | M7.4 | [S1](plan.md#s1), then [S4](plan.md#s4) | S1 complete: source value/alias forwarding; S4 after Q1: replace/delete target alias and literal normalization for representation-created bindings |
-| M7.5 | [S3](plan.md#s3) | Inlining, the rest |
-| M7.6 | [S2](plan.md#s2), complete; [S3](plan.md#s3) for remaining call shapes | Private lexical namespaces flatten through shared field proofs; method devirtualization stays with S3 |
+| M7.5 | [S3](plan.md#s3), complete | Cross-module calls, terminal returns, fresh nested closures and objective-judged repeated expression bodies |
+| M7.6 | [S2](plan.md#s2), complete; [S3](plan.md#s3), complete | Private lexical namespaces flatten through shared field proofs; known private calls use shared call evidence |
 | M7.7 | [S2](plan.md#s2), complete | Safe fixed-field forwarding, unread fields and overwritten stores; initializer effects and normalization preserved |
 | M7.8 | [S1](plan.md#s1) and [S2](plan.md#s2), implementation complete | Primitive folding plus bounded fresh array/object/record store collection with the correct prototype contract |
 | M7.9 | [S2](plan.md#s2), complete; formation dependencies below | Shared scalar banks/record aliases, owned JavaScript product updates and native final-use transfers |
-| M7.10 | [S3](plan.md#s3) | Identical units, after M8.5 |
+| M7.10 | [S3](plan.md#s3), complete | Identity-safe primitive body sharing; general runtime-prelude ownership remains Q4 (M8.5) |
 | M8.2 | [G3](plan.md#g3) | `fold_logical_*` as formation; the rest lands with each replacement |
 | M8.3 | [G3](plan.md#g3) | loop heads and logical statements as per-site spellings (with M9.3); the second half |
 | M8.4 | [D2](plan.md#d2) | Host modules |
@@ -69,7 +69,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M9.6 | [G2](plan.md#g2) | Property names |
 | M9.7 | [Q1](plan.md#q1) | Layouts |
 | M9.8 | [Q4](plan.md#q4) | the rest, after M10.3 |
-| M9.9 | [S3](plan.md#s3) | Function folding |
+| M9.9 | [S3](plan.md#s3), complete | Constant signatures, alpha-equivalent bodies and opt-in parameterized helpers compete on final bytes |
 | M9.10 | [Q3](plan.md#q3) | Calibration |
 | M9.11 | [G3](plan.md#g3) | Order and locality |
 | M9.12 | [G3](plan.md#g3) | The diagnosis's codec-judged items |
@@ -104,7 +104,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M12.5 | [V2](plan.md#v2) | Receipts |
 | M12.6 | [V1](plan.md#v1) | Runtime parity and residual pairing: continuous |
 
-S4 coordinates removal of duplicate fact derivations with their actual S/G/Q consumers. S2 completes source-level namespace flattening in M7.6; S3 owns remaining method devirtualization. Target scalar/namespace cleanup still sees bindings created by inlining and representation choices after source rules; Q1/S4 own its replacement and deletion. S3 supplies frequency facts to runtime classification and Q3. Native capability clauses in M4.5 are shared with N1. M10.18 keeps the current `ref` contract; S2 improves physical value-copy implementation under that contract. The [S2 acceptance record](s2-acceptance.md) makes these dependencies explicit.
+S4 coordinates removal of duplicate fact derivations with their actual S/G/Q consumers. S2 completes source-level namespace flattening in M7.6; S3 completes known private-call transport and folding under complete-use evidence. Target scalar/namespace cleanup still sees bindings created by inlining and representation choices after source rules; Q1/S4 own its replacement and deletion. S3 supplies counted frequency facts to capture placement and Q3. Native capability clauses in M4.5 are shared with N1. M10.18 keeps the current `ref` contract; S2 improves physical value-copy implementation under that contract. The [S2 acceptance record](s2-acceptance.md) makes these dependencies explicit.
 
 ## Carried-item ownership
 
@@ -130,14 +130,14 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M8.5 / M3.3 | [Q4](plan.md#q4) | table decoders sit at the first module's root. |
 | M8.7 | [C3](plan.md#c3), resolved | NO3's second half is empty; every retired threshold has a generic owner and historical provenance outside compiler sources. |
 | M9.1 / M9.5 | [G1](plan.md#g1) | a naming-plan tie can land on the worse delivered text. |
-| M7.9 | [S3](plan.md#s3), with [Q1](plan.md#q1) | A parameter written through a field inlines as a cell; its call-specific bank is created by target inline formation, after S2's source facts. Remove the extra binding with call transport and representation recipes. |
-| M7.9 | [S3](plan.md#s3), with [Q1](plan.md#q1) | A struct argument copy holds a waiting operand in the prepared-call schedule; elide it only after call transport proves evaluation/snapshot timing. S2's owned storage proof does not authorize rescheduling arguments. |
-| M7.5 | [S3](plan.md#s3) | tail-return bodies; |
-| M7.5 | [S3](plan.md#s3) | closures created inside a body; |
-| M7.5 | [S3](plan.md#s3) | bodies across modules. |
-| M9.3 / M10.4 | [S3](plan.md#s3) | mobxlil's law-P1 price; |
-| M9.3 / M10.4 | [S3](plan.md#s3) | non-private callbacks get the shared factory; |
-| M9.3 / M10.4 | [S3](plan.md#s3) | a rest list read with `.length` reads `arguments`. |
+| M7.9 | [S3](plan.md#s3), resolved | Field-written reference parameters forward the evaluated reference when whole-cell writes, ref and captures are absent; value-copy parameters retain their snapshot. |
+| M7.9 | [S3](plan.md#s3), resolved | Immutable initialized product roots rematerialize through copy chains without a waiting operand; mutation, reentry and representation-specific snapshots retain storage. |
+| M7.5 | [S3](plan.md#s3), resolved | tail-return bodies; |
+| M7.5 | [S3](plan.md#s3), resolved | closures created inside a body; |
+| M7.5 | [S3](plan.md#s3), resolved | bodies across modules. |
+| M9.3 / M10.4 | [G3](plan.md#g3) | Receiver alias spelling for repeated `this` reads (the historical mobxlil law-P1 cost). |
+| M9.3 / M10.4 | [S4](plan.md#s4) | Non-private callbacks retain the shared adapter until the R7 language contract supplies a replacement. |
+| M9.3 / M10.4 | [S4](plan.md#s4) | R7 owns replacing adapter rest-list `arguments` with actual rest semantics, including `.length` and variable indices. |
 | M4 / M10 | [S4](plan.md#s4) | `??=` on a place: implemented and qualified in `8ebb686d`; four carried tests enabled |
 | M4 / M10 | [S4](plan.md#s4) | generic methods; |
 | M4 / M10 | [S4](plan.md#s4) | an explicit `JS.undefined()` argument; |
@@ -155,6 +155,8 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | Ledger rows owned by done tasks | [S4](plan.md#s4) | M1.5's `objectHasOwn` prelude case; |
 | Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | Zod ReDoS timeout remains an exact host-dependent upstream-analysis ledger entry; unchanged assertion, quiet-host C1 suite passes |
 | Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | MobX mapping committed locally at `ccccb1d`; all three affected public Jest tests pass, stale path entries removed |
+
+The three M9.3/M10.4 rows above follow their actual dependencies: the [archived A1 diagnosis](../old-history/migration/history.md) identifies receiver aliasing as a spelling choice and the other two as R7 language changes. S3 private direct-call optimization does not authorize changing those adapter contracts.
 
 All 43 carried-item entries from the snapshot are represented above. C3 records the missing historical A1 CPU pair as a limitation and establishes a current baseline rather than inventing old measurements. D1 inspects the existing `~/lilscript-work/portwork/m3.3b-wip.patch` before continuing the format work.
 

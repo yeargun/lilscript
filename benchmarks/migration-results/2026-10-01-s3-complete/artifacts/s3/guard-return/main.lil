@@ -1,0 +1,1 @@
+extern bool input();int mark(int n){print(n);return n;}int choose(bool c){if(c){return mark(1);}return mark(2);}int a=choose(input());int b=choose(input());print(a);print(b);

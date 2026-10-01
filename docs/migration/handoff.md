@@ -1,77 +1,59 @@
-# Migration handoff — S2 complete, S3 next
+# Migration handoff — S3 complete, Q1 next
 
-The owner authorized committing/pushing S1 and completing S2, with focused
-checks after substantial implementation batches. Do not restart the stopped
-S1 qualification chain or repeatedly run the entire library suite. This
-checkpoint completes S2; it does not start another milestone.
+The owner requests the whole remaining plan, one milestone at a time, with
+substantial implementation batches and focused checks. Commit and push permission
+persists. Do not restart S1's deferred broad qualification or repeatedly run the
+whole library suite.
 
 ## Current state
 
-- Checkout: `/home/azureuser/lilscript`, branch
-  `finer/059-idiom-directed-naming`. S1 is committed and pushed at `343a3af0`.
-- C1, C2, C3, S1 and S2 implementation are complete. S1's final library/CLI
-  reruns and complete paired compile-cost study remain explicitly deferred.
-- S2 adds shared aggregate/field facts, fresh store collection, namespace
-  flattening, scalar banks and record-alias normalization. It adds owned
-  JavaScript product updates and native final-use transfers, with TOML gates,
-  invalidation and receipts. The [acceptance record](s2-acceptance.md) explains
-  conservative refusals and the corrected formation dependencies.
-- Retained S2 compiler: `/home/azureuser/lilscript-work/bin/s2-complete-2/lilscript`,
-  SHA-256 `a1c7c7bc8571e1da983b1178dfb2b1924f73a61e9df0ae64aa6b88dad57bdece`.
-  Its [identity](../../benchmarks/migration-results/2026-09-30-s2-complete/identity.json)
-  records every Rust/Cargo source hash. Build outputs are not a substitute for
-  that immutable pin. No test or measurement job is left running.
+Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
+C1/C2/C3/S1/S2/S3 implementation is complete. S3's [acceptance](s3-acceptance.md)
+and [evidence](../../benchmarks/migration-results/2026-10-01-s3-complete/README.md)
+record its conservative boundaries, tests, independent objective results and work.
+Retained compiler `/home/azureuser/lilscript-work/bin/s3-complete-2/lilscript`,
+SHA-256 `71561803d17e70ac89f5b3b50fd6499fd82edbc3364626d916c1fbead3ba4e50`.
+The source manifest identifies the exact uncommitted-at-build source tree.
 
-## Evidence to retain
+S3 supplies terminal-return normalization, cross-module calls, fresh nested
+closure captures, bounded frequency, reference-parameter transport and immutable
+product rematerialization. Source rules no longer duplicate nonempty repeated
+bodies unconditionally. Exact target alternatives handle expression duplication,
+constant signatures and safe primitive helper sharing. Recurring sharing needs
+an explicit permission. Native captured banks and result cleanup are repaired.
 
-[S2 evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md):
-22 final S2 checks plus 75 adjacent checks across implementation batches pass;
-native cases execute 21 compiler/sanitizer profiles. Fifteen development
-programs pass 90 old/new behavior observations at effort 13. Exact totals are
-**−59 raw / −47 gzip / −33 Brotli**, with no individual regression. The final
-release build and configuration reference checks pass. This is focused
-evidence, not full-fleet or timing qualification; the accepted ratchet baseline
-is unchanged.
+There are 100 distinct passing focused checks across the batches. Fifteen
+programs pass 90 old/new Node observations at effort 13. Ordinary permissions
+improve totals by 39 raw / 30 gzip / 8 Brotli bytes; one opt-in sharing case saves
+15 / 4 / 1 bytes separately. A two-byte local Brotli naming loss belongs to G1.
+No full-fleet, paired timing or native-complete claim is made.
 
-[S1 evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md):
-retain `s1-complete-4`, SHA-256
-`628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268`.
-All 642 generic programs pass in each objective; totals improve by
-593 raw / 340 gzip / 278 Brotli. The 403-case × 18-lane language matrix has
-zero unexpected failures; Marked 29/29, Zod 1,353/1,353 and PostHog 21/21 pass.
-Its two-byte local Brotli growth is explicitly accepted with smaller totals.
-Do not revive the rejected candidate 5 or repeat qualification to recover it.
-Native Record debt remains N2. Final library/CLI and complete paired CPU
-verification were deferred by the owner, not passed.
+## Next work
 
-## Next implementation work
+1. Start **Q1 only**, with a finite acceptance checklist. Unify representation
+   families, per-site assignments and useful joint moves; preserve old opportunity
+   coverage and use one admission owner. Delete bespoke mechanisms with their
+   replacement, without losing structural or output choices.
+2. Continue **G1 → G2 → G3 → S4 → Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
+   Receiver-alias spelling belongs to G3. Historical shared-adapter/rest behavior
+   belongs to S4's R7 contract; S3 direct-call proofs do not change it.
+3. Target scalar/namespace and alias/literal cleanup stays until Q1/S4's replacement
+   sees formation-created storage. General runtime helper ownership belongs to Q4.
 
-1. Start **S3 only**, with a finite acceptance checklist: remaining inlining,
-   known-call devirtualization, specialization and identical-body sharing.
-   Cover cross-module calls, nested closures and tail returns. Use S2's facts;
-   make duplication/sharing alternatives available to objective selection.
-2. Include the two historical M7.9 formation costs in S3's call transport:
-   an inline parameter written through a field still needs a cell, and a
-   copied struct argument can hold a waiting operand. Q1 coordinates their
-   representation recipes. S2's source ownership proof alone cannot remove
-   evaluation/snapshot timing requirements at a call.
-3. Then follow the existing order:
-   **Q1 → G1 → G2 → G3 → S4 → Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
-   Finish each milestone before opening another. Target scalar/namespace and
-   alias/literal cleanup stays until Q1/S4 can replace its proofs for storage
-   introduced after source rules. Do not delete useful coverage early.
+## Evidence and product rules
 
-## Product rules
+S1 retains `s1-complete-4`; its generic/matrix/reference-port results stand. The
+owner explicitly deferred final library/CLI reruns and complete paired CPU work.
+S2 retains `s2-complete-2`; its independent 15-program comparison and native
+profiles stand. The accepted ratchet baseline is unchanged by S2/S3.
 
-Optimize raw, gzip and Brotli independently. Keep default effort 13 focused on
-size; expensive marginal strategies may default to 14/15 with explicit flags.
-Preserve the best admitted artifact and deterministic effort progression.
-TOML permissions control initial, searched and reused output; document their
-purpose, defaults/gates and size/compile/runtime tradeoffs. No workload-name
-heuristics or blended scores. Stronger mangling and fair Closure ADVANCED wins
-remain goals, not claims established by this checkpoint.
+Optimize raw/gzip/Brotli separately. Default effort 13 prioritizes size, with
+expensive marginal strategies at 14/15 and explicit overrides. Keep the best
+admitted result, deterministic budgets and complete TOML permissions on every
+route. Document each flag's use, defaults/gates and tradeoffs. No library-name
+heuristics, blended objective or claim of a global optimum.
 
-Use one heavy job at a time. Implement a coherent batch, then use focused
-tests or matched measurements to resolve its concrete risks and effects.
-Broaden verification for an observed failure or unresolved concern, not simply
-because another small edit landed. Keep evidence limitations explicit.
+Use one heavy job at a time. Test a coherent batch to resolve its actual risks;
+reserve broad fleet/held-out qualification for V1 unless a real problem calls for
+it sooner. Stronger mangling, fair Closure ADVANCED wins and native completion
+remain requirements, not claims established by S3.

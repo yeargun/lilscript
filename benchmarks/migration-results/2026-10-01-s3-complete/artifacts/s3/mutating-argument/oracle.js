@@ -1,0 +1,1 @@
+let p={x:1,y:2};const read=(q,n)=>q.x+q.y+n;const change=()=>{p={...p,x:9};return 3;};console.log(read({...p},change()));console.log(p.x);

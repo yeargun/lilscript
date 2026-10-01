@@ -1,0 +1,1 @@
+(()=>{let o=o=>{console.log(o);return o},l=l=>l?o(1):o(2),n=l(input()),e=l(input());console.log(n);console.log(e);})();

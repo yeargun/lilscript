@@ -37,8 +37,10 @@ route's matrix (priorities, parsed-peephole finalization, the production cap of
 - `off` is a hard veto in direct and searched use; `on` permits and never
   forces. The formation-only lane (`tests/config/no-optimization.toml`) sets
   every tactic `--print-policy` lists to `off`.
-- `helper-sharing` and `property-mangling` have no producer yet: their
-  permission must change no byte.
+- `helper-sharing` and `property-mangling` have registered producers. Their
+  `off` veto applies to formation, search and artifact admission. Parameterized
+  helpers additionally require explicit `helper-sharing = "on"` for recurring
+  work; exact primitive-body sharing is neutral.
 - `-j` and `--codec-jobs` are accepted and warn that they have no effect; a
   thread count must never change output bytes (plan M3.6).
 - `[compiler] backend` is refused, and so are `priority` other than

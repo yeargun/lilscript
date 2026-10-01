@@ -116,6 +116,17 @@ impl<'src> Editor<'src> {
         self.program.units[unit.index()].clone()
     }
 
+    /// Clone a lexical callable together with its remapped storage. New units
+    /// follow checked units and participate in the same commit/invalidation.
+    pub(super) fn add_unit(&mut self, data: UnitData) -> Result<UnitId, &'static str> {
+        let id = UnitId::from_index(self.program.units.len()).ok_or("unit capacity")?;
+        self.program.units.push(WorkingUnit::new(id, data).freeze());
+        self.touched.push(true);
+        self.tables_changed = true;
+        self.program.tables_revision = RevisionId::fresh();
+        Ok(id)
+    }
+
     /// The type's id in the program's table, added when no equal type is
     /// there yet (conversion interns types the same way).
     pub(super) fn intern_type(

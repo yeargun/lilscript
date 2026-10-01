@@ -40,6 +40,10 @@ declare_rules! {
     SelfMethodCalls,
     SimplifyOperators,
     InlineExpressionFunctions,
+    DuplicateExpressionFunctions,
+    SpecializeCalls,
+    ShareHelpers,
+    ParameterizeHelpers,
     InlineStatementFunctions,
     EliminateAliases,
     FoldLiteralOperations,
@@ -86,6 +90,7 @@ impl Rule {
     fn permitted(self, context: &Context<'_>) -> bool {
         match self {
             Self::InlineExpressionFunctions
+            | Self::DuplicateExpressionFunctions
             | Self::InlineStatementFunctions
             | Self::InlineSingleCalls
             | Self::PlaceSingleCalls
@@ -101,6 +106,9 @@ impl Rule {
             | Self::ForwardSingleUses
             | Self::SimplifyOperators => context.rules.constant_folding,
             Self::DropUnreferencedFunctions | Self::DropUnreachable => context.prunes,
+            Self::SpecializeCalls => context.rules.call_specialization,
+            Self::ShareHelpers => context.rules.helper_sharing,
+            Self::ParameterizeHelpers => context.rules.parameterized_helpers,
             Self::EncodeTables => context.rules.data_encoding,
             Self::PackStringArrays => context.rules.array_packing != ArrayPacking::Disabled,
             Self::SelfMethodCalls
@@ -135,6 +143,7 @@ impl Rule {
             Self::SelfMethodCalls => "M10.4/M10.7 (receivers)",
             Self::ArrayReceiverCalls => "M6.4b (array class)",
             Self::InlineExpressionFunctions
+            | Self::DuplicateExpressionFunctions
             | Self::InlineStatementFunctions
             | Self::InlineSingleCalls
             | Self::PlaceSingleCalls => "M7.5a (removing case), M9.1 (duplicating case)",
@@ -158,6 +167,7 @@ impl Rule {
             | Self::FoldLiteralOperations => "M5.2 (annotations)",
             Self::FoldLogicalAssignments | Self::FoldLogicalReturns => "M8.2 A2",
             Self::CompressStatements | Self::FlattenBlocks => "M8.3 (per-site spellings)",
+            Self::SpecializeCalls | Self::ShareHelpers | Self::ParameterizeHelpers => "Q1 (per-site call representations)",
             Self::EncodeTables | Self::PackStringArrays | Self::PoolStrings => "M9.8",
             Self::GroupPrototypeStores => "M8.7",
         })
@@ -185,12 +195,6 @@ pub(crate) struct Context<'a> {
     pub(crate) statements: StatementSpellings,
     pub(crate) choices: Option<&'a ChoiceMap>,
 }
-
-/// Compatibility bound on duplicated expression bodies, not a legality fact
-/// or a universal optimum. Single-use bodies have a separate bounded move
-/// path. S3 replaces this prior with objective-judged call alternatives;
-/// provenance: `benchmarks/calibration/policy-provenance.md`.
-const INLINE_LIMIT: usize = 6;
 
 /// Rounds a rule set may take. Each rule's edits remove or move structure,
 /// so a few rounds reach the fixed point on every tree formation produces;
@@ -235,6 +239,15 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
     let mut rules = Vec::with_capacity(24);
     // String root constants read as their literals, when the artifact's
     // family says so (M7.4's longer values: a choice).
+    if families.call_specialization { rules.push(Rule::SpecializeCalls); }
+    if families.helper_sharing { rules.push(Rule::ShareHelpers); }
+    if families.parameterized_helpers { rules.push(Rule::ParameterizeHelpers); }
+    if families.expression_inlining { rules.push(Rule::DuplicateExpressionFunctions); }
+    // Call representations expose new literal operands after the head settled.
+    // Consume them under constant-folding's independent permission.
+    if families.expression_inlining || families.call_specialization {
+        rules.push(Rule::FoldLiteralOperations);
+    }
     if families.string_constants {
         rules.push(Rule::ForwardRootStrings);
     }
@@ -473,8 +486,14 @@ impl Module {
             }
             Rule::InlineExpressionFunctions => {
                 let _ =
-                    self.inline_expression_functions(INLINE_LIMIT, frames_hidden, strict, budget)?;
+                    self.inline_expression_functions(0, frames_hidden, strict, budget)?;
             }
+            Rule::DuplicateExpressionFunctions => {
+                let _ = self.inline_expression_functions(256, frames_hidden, strict, budget)?;
+            }
+            Rule::SpecializeCalls => self.private_calls(super::private_calls::Mode::Specialize, frames_hidden, budget)?,
+            Rule::ShareHelpers => self.private_calls(super::private_calls::Mode::Share, frames_hidden, budget)?,
+            Rule::ParameterizeHelpers => self.private_calls(super::private_calls::Mode::Parameterize, frames_hidden, budget)?,
             Rule::InlineStatementFunctions => {
                 let _ = self.inline_statement_functions(frames_hidden, strict, budget)?;
             }

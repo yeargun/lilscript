@@ -75,6 +75,11 @@ pub enum EdgeKind {
     Callback,
 }
 
+/// A structural upper bound, not a measured hotness estimate. Unknown callers
+/// and recursion never establish a single dynamic activation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CallFrequency { AtMostOnce, MayRepeat, Unknown }
+
 /// One call of a program body.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CallEdge {
@@ -162,6 +167,36 @@ struct Scan {
 }
 
 impl CallGraph {
+    pub(crate) fn frequency(&self, program: &Program<'_>, mut body: UnitId) -> (CallFrequency, u32) {
+        let mut work = 0u32;
+        for _ in 0..program.units.len() {
+            work += 1;
+            if work >= 65_536 { return (CallFrequency::Unknown, work); }
+            let data = program.unit(body).expect("call graph unit");
+            if data.kind == UnitKind::ModuleInitialization { return (CallFrequency::AtMostOnce, work); }
+            if self.recursive(body) { return (CallFrequency::Unknown, work); }
+            let Some(calls) = self.complete_callers(body) else { return (CallFrequency::Unknown, work) };
+            let [call] = calls else {
+                return (if calls.is_empty() { CallFrequency::AtMostOnce } else { CallFrequency::MayRepeat }, work);
+            };
+            let caller = program.unit(call.caller).expect("call graph caller");
+            let mut region = Some(caller.operations[call.operation.index()].region);
+            while let Some(id) = region {
+                for operation in &caller.operations {
+                    work += 1;
+                    if work >= 65_536 { return (CallFrequency::Unknown, work); }
+                    if matches!(operation.kind, OperationKind::Loop { .. } | OperationKind::ForIn { .. } | OperationKind::ForOf { .. })
+                        && operation.kind.child_regions().any(|child| child == id) {
+                        return (CallFrequency::MayRepeat, work);
+                    }
+                }
+                region = caller.regions[id.index()].parent;
+            }
+            body = call.caller;
+        }
+        (CallFrequency::Unknown, work)
+    }
+
     pub fn build(program: &Program<'_>, seal: Seal) -> Self {
         let scan = Scan::run(program);
         let mut resolution = vec![Resolution::Pending; program.cells.len()];
@@ -345,18 +380,14 @@ impl CallGraph {
         // Exported storage and `import()` namespaces hand bodies to the host,
         // and so does a published class: its constructor and its prototype
         // methods, which JavaScript calls with any arguments.
-        let exported = program
-            .modules
+        let exported = program.exports[program.public.clone()]
             .iter()
-            .flat_map(|module| {
-                program.exports[module.exports.clone()]
-                    .iter()
-                    .filter_map(|export| match export.target {
-                        InterfaceTarget::Value(cell) => Some(cell),
-                        InterfaceTarget::Type(_) => None,
-                    })
-                    .chain(module.namespace.iter().map(|(_, cell)| *cell))
+            .filter_map(|export| match export.target {
+                InterfaceTarget::Value(cell) => Some(cell),
+                InterfaceTarget::Type(_) => None,
             })
+            .chain(program.modules.iter().flat_map(|module|
+                module.namespace.iter().map(|(_, cell)| *cell)))
             .chain(
                 program
                     .classes

@@ -659,3 +659,35 @@ N2 owns native Record support. These items are not claimed fixed or discarded.
 No full library, port, ratchet or paired timing suite was rerun, and S1's broad
 verification remains deferred as directed. This sample makes no fleet,
 runtime-speed or Closure victory claim. S3 is next.
+
+## 2026-10-01: S3 complete — calls, captures and judged sharing
+
+S3 completes its [finite contract](s3-acceptance.md): bounded caller frequency,
+terminal-return normalization, cross-module/nested-closure inlining, reference
+parameter transport and immutable product rematerialization. Native activation
+storage and declared-result cleanup preserve ownership. Nonempty repeated bodies
+are no longer duplicated by an operation-count prior; final-byte alternatives
+cover expression duplication, constant signatures and private primitive helper
+sharing. Recurring parameterized sharing requires explicit permission. New
+producers, invalidations and configuration explanations are registered.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-s3-complete/README.md)
+pins `s3-complete-2` and all source/config/output identities. One hundred distinct
+focused checks pass across the batches, including the affected native sanitizer
+profiles. Fifteen programs pass 90 independent old/new behavior observations.
+Ordinary-permission totals improve 39 raw / 30 gzip / 8 Brotli bytes; the separate
+opt-in helper case improves 15 / 4 / 1. Captured activations retain a two-byte
+Brotli naming loss for G1. Candidate 1 exposed Select range transport and missing
+late literal folding; both are fixed in the measured final candidate.
+
+The comparison records increased structural exploration (99 → 108 proposals,
+48 → 51 structures) and fewer terminal exact judgments (368 → 304). These are
+work counts, not a timing claim. The full library/fleet was not rerun; S1's
+owner-deferred checks remain deferred. The plan now explicitly reserves broad
+qualification for V1, following the owner's focused batch-testing instruction.
+
+Coverage corrects three historical dependency assignments without dropping them:
+receiver aliasing is G3 spelling work; shared non-private adapters and rest-list
+`arguments` require S4's R7 contract, as the archived A1 diagnosis already states.
+Q1 is next, followed by the existing milestone order. The ratchet baseline and
+port artifacts are unchanged.

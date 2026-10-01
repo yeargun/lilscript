@@ -9,7 +9,7 @@ use crate::compilation_policy::{CompilationRequest, WorkDomain};
 use crate::js::PrintPolicy;
 use std::process::Command;
 
-fn modules(
+pub(super) fn modules(
     sources: &[&str],
     dependencies: &[&[usize]],
     order: &[usize],

@@ -1,0 +1,1 @@
+struct P{int x;int y;}P p=P{1,2};int change(){p.x=9;return 3;}int read(P q,int n){return q.x+q.y+n;}print(read(p,change()));print(p.x);

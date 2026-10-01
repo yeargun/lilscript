@@ -20,7 +20,7 @@ const WORK: u64 = 100_000_000;
 const MEMORY: u64 = 256_000_000;
 const SIMPLE: &str = "int twice(int value){return value*2;}print(twice(21));";
 
-fn native_policy() -> ResolvedPolicy {
+pub(super) fn native_policy() -> ResolvedPolicy {
     crate::config::ProjectConfig::default()
         .resolve_policy(CompilationRequest::Native)
         .unwrap()
@@ -35,7 +35,7 @@ fn javascript_policy() -> ResolvedPolicy {
         .unwrap()
 }
 
-fn compilation<'src>(optional_work: u64, memory: u64) -> Compilation<'src> {
+pub(super) fn compilation<'src>(optional_work: u64, memory: u64) -> Compilation<'src> {
     Compilation::new(
         BudgetLedger::new(
             ResourceLimits::default(),

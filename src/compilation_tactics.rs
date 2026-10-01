@@ -170,17 +170,18 @@ declare_tactics! {
     CallSpecialization {
         name: "call-specialization", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,
         analysis: A::CallsAndCaptures, default: D::Preset,
-        producers: &[P::StructuralSearch], prerequisites: &[], risks: &[R::Neutral],
-        invalidates: &[I::TargetHead, I::Names, I::RenderedFiles],
-        purpose: "Specialize proved private function signatures and transport of product arguments.",
+        producers: &[P::StructuralSearch, P::OutputFamilies], prerequisites: &[], risks: &[R::Neutral],
+        invalidates: &[I::TargetHead, I::TargetTail, I::Names, I::RenderedFiles],
+        purpose: "Specialize private signatures, product transport and uniform constant actuals as codec-judged alternatives.",
         tradeoffs: "Additional proofs and candidates can remove allocations or argument handling; more parameters can cost bytes. On permits competition only where every call is known."
     },
     HelperSharing {
         name: "helper-sharing", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,
         analysis: A::CallsAndCaptures, default: D::Preset,
-        producers: &[], prerequisites: &[], risks: &[R::Neutral], invalidates: &[],
-        purpose: "Compatibility name for optional parameterized helper sharing; no implementation is currently available.",
-        tradeoffs: "Explicit on reports unavailable and does not alter output. Mandatory runtime helpers remain language lowering; this flag does not control them."
+        producers: &[P::OutputFamilies], prerequisites: &[], risks: &[R::Neutral, R::Recurring],
+        invalidates: &[I::TargetTail, I::Names, I::RenderedFiles],
+        purpose: "Share identity-unobserved private primitive helpers as codec-judged alternatives.",
+        tradeoffs: "Exact bodies can share without extra runtime operations. Parameterized sharing adds constant arguments and needs recurring runtime permission. Complete direct calls, initialized roots, compatible primitive types and captures are required. Extra matching and codec work may save bytes; off vetoes both optional forms, independently of mandatory runtime helpers."
     },
     TargetCompaction {
         name: "target-compaction", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,

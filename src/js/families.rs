@@ -68,6 +68,9 @@ pub struct TargetRules {
     pub scalar_replacement: bool,
     pub data_encoding: bool,
     pub array_packing: ArrayPacking,
+    pub call_specialization: bool,
+    pub helper_sharing: bool,
+    pub parameterized_helpers: bool,
 }
 
 impl TargetRules {
@@ -79,6 +82,9 @@ impl TargetRules {
         scalar_replacement: true,
         data_encoding: false,
         array_packing: ArrayPacking::Disabled,
+        call_specialization: false,
+        helper_sharing: false,
+        parameterized_helpers: false,
     };
     pub const NONE: Self = Self {
         constant_folding: false,
@@ -86,6 +92,9 @@ impl TargetRules {
         scalar_replacement: false,
         data_encoding: false,
         array_packing: ArrayPacking::Disabled,
+        call_specialization: false,
+        helper_sharing: false,
+        parameterized_helpers: false,
     };
 
     pub fn from_policy(policy: &ResolvedPolicy) -> Self {
@@ -100,19 +109,25 @@ impl TargetRules {
                 }])
                 .is_ok(),
             array_packing: ArrayPacking::from_policy(policy),
+            call_specialization: policy.tactic(TacticId::CallSpecialization).enabled,
+            helper_sharing: policy.tactic(TacticId::HelperSharing).enabled,
+            parameterized_helpers: policy.check_tactic_permissions(&[TacticUse { tactic: TacticId::HelperSharing, risk: RuntimeRisk::Recurring }]).is_ok(),
         }
     }
 
-    pub fn tactics(self) -> [(bool, TacticId); 3] {
+    pub fn tactics(self) -> [(bool, TacticId); 5] {
         [
             (self.constant_folding, TacticId::ConstantFolding),
             (self.inlining, TacticId::Inlining),
             (self.scalar_replacement, TacticId::ScalarReplacement),
+            (self.call_specialization, TacticId::CallSpecialization),
+            (self.helper_sharing, TacticId::HelperSharing),
         ]
     }
 
     pub fn runtime_uses(self, families: OutputFamilies) -> impl Iterator<Item = TacticUse> {
         [
+            families.parameterized_helpers.then_some(TacticUse { tactic: TacticId::HelperSharing, risk: RuntimeRisk::Recurring }),
             self.data_encoding.then_some(TacticUse {
                 tactic: TacticId::StartupReconstruction,
                 risk: RuntimeRisk::Startup,
@@ -183,6 +198,14 @@ pub struct OutputFamilies {
     /// A function called once becomes a block at its call, its parameters
     /// copies to forward (Closure's FunctionInjector block mode).
     pub block_inlining: bool,
+    /// Bounded expression duplication, retained only after exact judging.
+    pub expression_inlining: bool,
+    /// Specialize private primitive helpers on uniform constant actuals.
+    pub call_specialization: bool,
+    /// Share alpha-equivalent private primitive implementations.
+    pub helper_sharing: bool,
+    /// Share literal-differing bodies with extra constant arguments.
+    pub parameterized_helpers: bool,
     /// Nested blocks flatten into their parent where no declaration would
     /// change scope.
     pub flat_blocks: bool,
@@ -244,6 +267,10 @@ impl OutputFamilies {
     /// No family: an artifact without target compaction.
     pub const NONE: Self = Self {
         block_inlining: false,
+        expression_inlining: false,
+        call_specialization: false,
+        helper_sharing: false,
+        parameterized_helpers: false,
         flat_blocks: false,
         statements: StatementSpellings::NONE,
         string_pooling: false,
@@ -267,6 +294,10 @@ impl OutputFamilies {
         match codec {
             Objective::Raw => Self {
                 block_inlining: true,
+                expression_inlining: true,
+                call_specialization: false,
+                helper_sharing: false,
+                parameterized_helpers: false,
                 flat_blocks: true,
                 statements: StatementSpellings::ALL,
                 string_pooling: true,
@@ -288,8 +319,12 @@ impl OutputFamilies {
 
     /// Semantic permissions required by this assignment. Keep generation,
     /// admission and retained provenance on the same registry.
-    pub fn tactics(self) -> [(bool, TacticId); 5] {
+    pub fn tactics(self) -> [(bool, TacticId); 9] {
         [
+            (self.expression_inlining, TacticId::Inlining),
+            (self.call_specialization, TacticId::CallSpecialization),
+            (self.helper_sharing, TacticId::HelperSharing),
+            (self.parameterized_helpers, TacticId::HelperSharing),
             (self.block_inlining, TacticId::Inlining),
             (self.string_constants, TacticId::ConstantFolding),
             (self.string_pooling, TacticId::StringPooling),
@@ -305,6 +340,10 @@ impl OutputFamilies {
             return Self::NONE;
         }
         self.block_inlining &= policy.tactic(TacticId::Inlining).enabled;
+        self.expression_inlining &= policy.tactic(TacticId::Inlining).enabled;
+        self.call_specialization &= policy.tactic(TacticId::CallSpecialization).enabled;
+        self.helper_sharing &= policy.tactic(TacticId::HelperSharing).enabled;
+        self.parameterized_helpers &= TargetRules::from_policy(policy).parameterized_helpers;
         self.string_constants &= policy.tactic(TacticId::ConstantFolding).enabled;
         self.string_pooling &= policy.tactic(TacticId::StringPooling).enabled;
         self.string_array_packing &= ArrayPacking::from_policy(policy) != ArrayPacking::Disabled;
@@ -384,13 +423,21 @@ pub enum Challenger {
     LogicalBranches,
     Int32Hints,
     StringConstants,
+    ExpressionInlining,
+    CallSpecialization,
+    HelperSharing,
+    ParameterizedHelpers,
 }
 
 impl Challenger {
     /// The declared schedule.
-    pub const ORDER: [Self; 19] = [
+    pub const ORDER: [Self; 23] = [
         Self::Int32Hints,
         Self::StringConstants,
+        Self::ExpressionInlining,
+        Self::CallSpecialization,
+        Self::HelperSharing,
+        Self::ParameterizedHelpers,
         Self::ConditionalValues,
         Self::ExitPoints,
         Self::LoopFusion,
@@ -431,6 +478,10 @@ impl Challenger {
             Self::LogicalBranches => "logical-branches",
             Self::Int32Hints => "int32-hints",
             Self::StringConstants => "string-constants",
+            Self::ExpressionInlining => "expression-inlining",
+            Self::CallSpecialization => "call-specialization",
+            Self::HelperSharing => "helper-sharing",
+            Self::ParameterizedHelpers => "parameterized-helpers",
         }
     }
 
@@ -479,6 +530,10 @@ impl Challenger {
                 families.string_array_packing ^= true;
             }
             Self::StringConstants => families.string_constants ^= true,
+            Self::ExpressionInlining => families.expression_inlining ^= true,
+            Self::CallSpecialization => families.call_specialization ^= true,
+            Self::HelperSharing => families.helper_sharing ^= true,
+            Self::ParameterizedHelpers => families.parameterized_helpers ^= true,
         }
         next
     }

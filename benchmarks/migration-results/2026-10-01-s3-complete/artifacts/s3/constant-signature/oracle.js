@@ -1,0 +1,1 @@
+globalThis.input=()=>3;const scale=(n,k)=>n*k+k,shift=(n,k)=>n+k;const n=input();console.log(scale(n,7));console.log(scale(n+1,7));console.log(shift(n,3));console.log(shift(n+1,4));

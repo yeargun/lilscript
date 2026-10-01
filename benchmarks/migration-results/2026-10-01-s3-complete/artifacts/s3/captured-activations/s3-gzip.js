@@ -1,0 +1,1 @@
+(()=>{let e=()=>0,o=()=>0;for(let l=0;l<2;++l){let c=l*10,d=()=>{c=c+1|0;return c};l==0?e=d:o=d}console.log(e());console.log(o());console.log(e());})();

@@ -1,0 +1,4050 @@
+{
+  "id": "s3/constant-signature",
+  "group": "ordinary-permissions",
+  "source_sha256": "f827690805bae0c173a4121af552dbbd6d49bba74586ed68cd21458b2565c68c",
+  "dependency_sha256": {},
+  "oracle_sha256": "c17c83fd6bbc88a9fc6ea4ce4625b08c9d2073e003b7bda1ed4a0a029e52df53",
+  "expected": "28\n35\n6\n8\n",
+  "lanes": {
+    "raw": {
+      "config_sha256": "8a776ef36a79b8440ea710f7a2efed2e337bde1ba821ffebc2a9c54e7f1f7c02",
+      "s2": {
+        "sha256": "6f6927e8d69355afddc4a48b03d3bdd6f0959e0ed17e75d3611652a541a26088",
+        "raw": 149,
+        "gzip9": 112,
+        "brotli11": 95,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 1,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 98,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 3,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          }
+        },
+        "search": {
+          "request": {
+            "objectives": [
+              "Raw"
+            ],
+            "scalar": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "helper": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "string": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "local_facts": {
+              "work": 1000000,
+              "result_bytes": 512000
+            },
+            "facts_cache": {
+              "entries": 128,
+              "bytes": 16000000,
+              "result_bytes": 512000
+            }
+          },
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 0,
+          "proof_queries": 0,
+          "beam_evictions": 0,
+          "structural_opportunities": {
+            "inventory_reached": true,
+            "inventory_truncated": false,
+            "families": [
+              {
+                "tactic": "scalar-replacement",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "inlining",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "call-specialization",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "constant-folding",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "string-pooling",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              }
+            ]
+          },
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": {
+            "objectives": [
+              {
+                "codec": "raw",
+                "prefix": null,
+                "exact": null,
+                "margin": 0,
+                "pass_limit": null,
+                "passes": 4,
+                "examined": 76,
+                "judged": 10,
+                "pruned": 3,
+                "tried": 45,
+                "scored": 2,
+                "codec_probes": 0,
+                "before": 149,
+                "searched": 149,
+                "after": 149,
+                "spelling": [
+                  "conditional-values",
+                  "exit-points",
+                  "loop-fusion",
+                  "self-named-functions",
+                  "read-order",
+                  "compound-assignments",
+                  "quotes",
+                  "loop-heads",
+                  "logical-statements",
+                  "flat-blocks",
+                  "string-pooling",
+                  "conditional-returns",
+                  "logical-branches",
+                  "string-constants"
+                ],
+                "style": "Global",
+                "choices_tried": 0,
+                "choices_scored": 0,
+                "heads": 3,
+                "choices": [],
+                "joints_tried": 12,
+                "restarts_tried": 2,
+                "stops": [
+                  {
+                    "level": 0,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 1,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 2,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 3,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 4,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 5,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 6,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 7,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 8,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 9,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 10,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 11,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 12,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  }
+                ],
+                "challengers": [
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "rejected",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "rejected",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "s3": {
+        "sha256": "edd02bec0887d8da475cc6368e23502567e919a3ed62c82979736ba970e42d48",
+        "raw": 141,
+        "gzip9": 109,
+        "brotli11": 103,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 0,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 1,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 98,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 3,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "request": {
+            "objectives": [
+              "Raw"
+            ],
+            "scalar": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "helper": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "string": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "local_facts": {
+              "work": 1000000,
+              "result_bytes": 512000
+            },
+            "facts_cache": {
+              "entries": 128,
+              "bytes": 16000000,
+              "result_bytes": 512000
+            }
+          },
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 0,
+          "proof_queries": 0,
+          "beam_evictions": 0,
+          "structural_opportunities": {
+            "inventory_reached": true,
+            "inventory_truncated": false,
+            "families": [
+              {
+                "tactic": "scalar-replacement",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "inlining",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "call-specialization",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "constant-folding",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "string-pooling",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              }
+            ]
+          },
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": {
+            "objectives": [
+              {
+                "codec": "raw",
+                "prefix": null,
+                "exact": null,
+                "margin": 0,
+                "pass_limit": null,
+                "passes": 7,
+                "examined": 172,
+                "judged": 11,
+                "pruned": 9,
+                "tried": 57,
+                "scored": 4,
+                "codec_probes": 0,
+                "before": 149,
+                "searched": 149,
+                "after": 141,
+                "spelling": [
+                  "conditional-values",
+                  "exit-points",
+                  "loop-fusion",
+                  "self-named-functions",
+                  "read-order",
+                  "compound-assignments",
+                  "quotes",
+                  "loop-heads",
+                  "logical-statements",
+                  "flat-blocks",
+                  "string-pooling",
+                  "conditional-returns",
+                  "logical-branches",
+                  "string-constants",
+                  "call-specialization"
+                ],
+                "style": "Global",
+                "choices_tried": 0,
+                "choices_scored": 0,
+                "heads": 3,
+                "choices": [],
+                "joints_tried": 11,
+                "restarts_tried": 2,
+                "stops": [
+                  {
+                    "level": 0,
+                    "size": 149,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 1,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 2,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 3,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 4,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 5,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 6,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 7,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 8,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 9,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 10,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 11,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  },
+                  {
+                    "level": 12,
+                    "size": 141,
+                    "sha256": "84a57fad5c2811384315deff42ab0a3a814ba61f863a844205e05158c4f482a0"
+                  }
+                ],
+                "challengers": [
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "kept",
+                    "delta": -8
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "kept",
+                    "delta": -8
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "rejected",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "kept",
+                    "delta": -8
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "gzip": {
+      "config_sha256": "20b57171cef0018f402c7576c020f05edd8afde1e7a09b77ed3cf5153317479b",
+      "s2": {
+        "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421",
+        "raw": 149,
+        "gzip9": 104,
+        "brotli11": 99,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 1,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 98,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 3,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          }
+        },
+        "search": {
+          "request": {
+            "objectives": [
+              "Gzip"
+            ],
+            "scalar": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "helper": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "string": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "local_facts": {
+              "work": 1000000,
+              "result_bytes": 512000
+            },
+            "facts_cache": {
+              "entries": 128,
+              "bytes": 16000000,
+              "result_bytes": 512000
+            }
+          },
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 2,
+          "proof_queries": 0,
+          "beam_evictions": 0,
+          "structural_opportunities": {
+            "inventory_reached": true,
+            "inventory_truncated": false,
+            "families": [
+              {
+                "tactic": "scalar-replacement",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "inlining",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "call-specialization",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "constant-folding",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "string-pooling",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              }
+            ]
+          },
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": {
+            "objectives": [
+              {
+                "codec": "gzip",
+                "prefix": null,
+                "exact": null,
+                "margin": 0,
+                "pass_limit": null,
+                "passes": 3,
+                "examined": 52,
+                "judged": 2,
+                "pruned": 6,
+                "tried": 21,
+                "scored": 1,
+                "codec_probes": 8,
+                "before": 105,
+                "searched": 105,
+                "after": 104,
+                "spelling": [
+                  "read-order",
+                  "loop-heads"
+                ],
+                "style": "Scoped",
+                "choices_tried": 0,
+                "choices_scored": 0,
+                "heads": 2,
+                "choices": [],
+                "joints_tried": 5,
+                "restarts_tried": 2,
+                "stops": [
+                  {
+                    "level": 0,
+                    "size": 105,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 1,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 2,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 3,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 4,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 5,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 6,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 7,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 8,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 9,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 10,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 11,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 12,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  }
+                ],
+                "challengers": [
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "kept",
+                    "delta": -1
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "s3": {
+        "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421",
+        "raw": 149,
+        "gzip9": 104,
+        "brotli11": 99,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 0,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 1,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 98,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 3,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "request": {
+            "objectives": [
+              "Gzip"
+            ],
+            "scalar": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "helper": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "string": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "local_facts": {
+              "work": 1000000,
+              "result_bytes": 512000
+            },
+            "facts_cache": {
+              "entries": 128,
+              "bytes": 16000000,
+              "result_bytes": 512000
+            }
+          },
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 2,
+          "proof_queries": 0,
+          "beam_evictions": 0,
+          "structural_opportunities": {
+            "inventory_reached": true,
+            "inventory_truncated": false,
+            "families": [
+              {
+                "tactic": "scalar-replacement",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "inlining",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "call-specialization",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "constant-folding",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "string-pooling",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              }
+            ]
+          },
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": {
+            "objectives": [
+              {
+                "codec": "gzip",
+                "prefix": null,
+                "exact": null,
+                "margin": 0,
+                "pass_limit": null,
+                "passes": 3,
+                "examined": 60,
+                "judged": 2,
+                "pruned": 8,
+                "tried": 25,
+                "scored": 1,
+                "codec_probes": 10,
+                "before": 105,
+                "searched": 105,
+                "after": 104,
+                "spelling": [
+                  "read-order",
+                  "loop-heads"
+                ],
+                "style": "Scoped",
+                "choices_tried": 0,
+                "choices_scored": 0,
+                "heads": 2,
+                "choices": [],
+                "joints_tried": 5,
+                "restarts_tried": 2,
+                "stops": [
+                  {
+                    "level": 0,
+                    "size": 105,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 1,
+                    "size": 105,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 2,
+                    "size": 105,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 3,
+                    "size": 105,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 4,
+                    "size": 105,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 5,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 6,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 7,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 8,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 9,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 10,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 11,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  },
+                  {
+                    "level": 12,
+                    "size": 104,
+                    "sha256": "71897ad3824356575b6a51b83590cfaa485aef263436ac5ce167005bf14b4421"
+                  }
+                ],
+                "challengers": [
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "kept",
+                    "delta": -1
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "pruned",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "brotli": {
+      "config_sha256": "ba01b57f3ea89bcdb204394a3c61d25f5d34b84ece91f09cafbe2abc5fd83a69",
+      "s2": {
+        "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c",
+        "raw": 149,
+        "gzip9": 105,
+        "brotli11": 89,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 1,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 98,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 3,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          }
+        },
+        "search": {
+          "request": {
+            "objectives": [
+              "Brotli"
+            ],
+            "scalar": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "helper": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "string": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "local_facts": {
+              "work": 1000000,
+              "result_bytes": 512000
+            },
+            "facts_cache": {
+              "entries": 128,
+              "bytes": 16000000,
+              "result_bytes": 512000
+            }
+          },
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 2,
+          "proof_queries": 0,
+          "beam_evictions": 0,
+          "structural_opportunities": {
+            "inventory_reached": true,
+            "inventory_truncated": false,
+            "families": [
+              {
+                "tactic": "scalar-replacement",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "inlining",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "call-specialization",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "constant-folding",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "string-pooling",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              }
+            ]
+          },
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": {
+            "objectives": [
+              {
+                "codec": "brotli",
+                "prefix": null,
+                "exact": null,
+                "margin": 150,
+                "pass_limit": null,
+                "passes": 6,
+                "examined": 124,
+                "judged": 10,
+                "pruned": 0,
+                "tried": 45,
+                "scored": 2,
+                "codec_probes": 10,
+                "before": 89,
+                "searched": 89,
+                "after": 89,
+                "spelling": [
+                  "loop-heads"
+                ],
+                "style": "Scoped",
+                "choices_tried": 0,
+                "choices_scored": 0,
+                "heads": 2,
+                "choices": [],
+                "joints_tried": 9,
+                "restarts_tried": 2,
+                "stops": [
+                  {
+                    "level": 0,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 1,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 2,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 3,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 4,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 5,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 6,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 7,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 8,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 9,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 10,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 11,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 12,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  }
+                ],
+                "challengers": [
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "rejected",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "rejected",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "recalled",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "recalled",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "s3": {
+        "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c",
+        "raw": 149,
+        "gzip9": 105,
+        "brotli11": 89,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 0,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 1,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 98,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 3,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "request": {
+            "objectives": [
+              "Brotli"
+            ],
+            "scalar": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "helper": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "string": {
+              "work": 2000000,
+              "scratch_bytes": 4000000,
+              "output_bytes": 2000000
+            },
+            "local_facts": {
+              "work": 1000000,
+              "result_bytes": 512000
+            },
+            "facts_cache": {
+              "entries": 128,
+              "bytes": 16000000,
+              "result_bytes": 512000
+            }
+          },
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 2,
+          "proof_queries": 0,
+          "beam_evictions": 0,
+          "structural_opportunities": {
+            "inventory_reached": true,
+            "inventory_truncated": false,
+            "families": [
+              {
+                "tactic": "scalar-replacement",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "inlining",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "call-specialization",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "constant-folding",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              },
+              {
+                "tactic": "string-pooling",
+                "outcomes": {
+                  "discovered": 0,
+                  "not_reached": 0,
+                  "legal": 0,
+                  "unknown": 0,
+                  "truncated": 0,
+                  "conflicting": 0,
+                  "redundant": 0,
+                  "equivalent": 0
+                }
+              }
+            ]
+          },
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": {
+            "objectives": [
+              {
+                "codec": "brotli",
+                "prefix": null,
+                "exact": null,
+                "margin": 150,
+                "pass_limit": null,
+                "passes": 6,
+                "examined": 144,
+                "judged": 13,
+                "pruned": 0,
+                "tried": 51,
+                "scored": 5,
+                "codec_probes": 13,
+                "before": 89,
+                "searched": 89,
+                "after": 89,
+                "spelling": [
+                  "loop-heads"
+                ],
+                "style": "Scoped",
+                "choices_tried": 0,
+                "choices_scored": 0,
+                "heads": 2,
+                "choices": [],
+                "joints_tried": 9,
+                "restarts_tried": 2,
+                "stops": [
+                  {
+                    "level": 0,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 1,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 2,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 3,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 4,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 5,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 6,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 7,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 8,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 9,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 10,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 11,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  },
+                  {
+                    "level": 12,
+                    "size": 89,
+                    "sha256": "3e7a449a75bcacba3ed873365206dac32a40606668ebaa6d300bad3359698f0c"
+                  }
+                ],
+                "challengers": [
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "rejected",
+                    "delta": 17
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "rejected",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "rejected",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "rejected",
+                    "delta": 8
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "recalled",
+                    "delta": 17
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "recalled",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "rejected",
+                    "delta": 3
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "identical",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "int32-hints",
+                    "outcome": "duplicate",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "string-constants",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "expression-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "call-specialization",
+                    "outcome": "recalled",
+                    "delta": 17
+                  },
+                  {
+                    "challenger": "helper-sharing",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "parameterized-helpers",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "conditional-values",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "exit-points",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-fusion",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "block-inlining",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "self-named-functions",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "read-order",
+                    "outcome": "recalled",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "compound-assignments",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "quotes",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "logical-statements",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "conditional-returns",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "other-objective-seed",
+                    "outcome": "recalled",
+                    "delta": 10
+                  },
+                  {
+                    "challenger": "flat-blocks",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "loop-heads",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "pooling-and-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  },
+                  {
+                    "challenger": "logical-branches",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-pooling",
+                    "outcome": "recalled",
+                    "delta": 0
+                  },
+                  {
+                    "challenger": "string-array-packing",
+                    "outcome": "vetoed",
+                    "delta": null
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

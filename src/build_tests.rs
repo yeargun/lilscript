@@ -11,6 +11,21 @@ fn config(extra: &str) -> ProjectConfig {
     )).unwrap()
 }
 
+#[test]
+fn s3_product_call_copies_preserve_waiting_values_and_mutation_snapshots() {
+    let settings = config("[policy.tactics]\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'");
+    for (source, expected) in [
+        ("struct P{int x;int y;}int offset(int n){return n+5;}int sum(P p){return p.x+p.y;}P p=P{2,3};print(offset(p.x)+sum(p));", "12\n"),
+        ("struct P{int x;int y;}P p=P{1,2};int change(){p.x=9;return 3;}int read(P q,int n){return q.x+q.y+n;}print(read(p,change()));print(p.x);", "6\n9\n"),
+        ("struct P{int x;int y;}int update(P p){p.x=9;return p.x+p.y;}P p=P{1,2};print(update(p));print(p.x);", "11\n1\n"),
+    ] {
+        let result = compile_source(source, &settings, ServiceOptions { objectives: Some(Objectives::All), ..ServiceOptions::default() }).unwrap();
+        for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(), "", ""), expected);
+        }
+    }
+}
+
 pub(super) fn execute_javascript(javascript: &str, setup: &str, body: &str) -> String {
     let script = format!(
         "{setup}\nconst library=await import('data:text/javascript,'+encodeURIComponent({}));{body}",
@@ -761,7 +776,7 @@ fn scalar_objects_public_construction_preserves_callback_initialization_errors()
 fn service_reports_unsupported_permissions_separately_from_policy_identity() {
     let result = compile_source(
         "print(7);",
-        &config("[policy.tactics]\nhelper-sharing='on'"),
+        &config("[policy.tactics]\nrecurring-reconstruction='on'"),
         ServiceOptions::default(),
     )
     .unwrap();
@@ -778,9 +793,9 @@ fn service_reports_unsupported_permissions_separately_from_policy_identity() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|value| value.as_str().unwrap().contains("helper-sharing")));
+        .any(|value| value.as_str().unwrap().contains("recurring-reconstruction")));
     assert!(report["javascript_policy"].get("diagnostics").is_none());
-    let tactic = &report["javascript_policy"]["tactics"][TacticId::HelperSharing as usize];
+    let tactic = &report["javascript_policy"]["tactics"][TacticId::RecurringReconstruction as usize];
     assert_eq!(tactic["state"]["permission"], "on");
     assert_eq!(tactic["available"], false);
     assert_eq!(tactic["state"]["enabled"], false);

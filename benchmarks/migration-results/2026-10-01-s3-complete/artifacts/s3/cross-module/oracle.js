@@ -1,0 +1,1 @@
+const base=7;const add=n=>base+n;console.log(add(5));

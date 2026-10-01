@@ -60,7 +60,7 @@ pub(super) trait Forward {
     fn expression_result(&self, _unit: &UnitData, _operation: OpId, _state: &Self::State) {}
 
     /// What a branch's outcome adds: the state entering the `taken` side of
-    /// `operation`'s test (an `if`, or a loop continuing when `taken` and
+    /// `operation`'s test (an `if`/select, or a loop continuing when `taken` and
     /// leaving otherwise). Nothing by default.
     fn branch(&self, _unit: &UnitData, _operation: OpId, _taken: bool, _state: &mut Self::State) {}
 
@@ -182,8 +182,12 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 out
             }
             OperationKind::Select { yes, no } => {
-                let mut out = self.region(yes, state.clone())?;
-                let other = self.region(no, state)?;
+                let mut taken = state.clone();
+                analysis.branch(unit, operation, true, &mut taken);
+                let mut other = state;
+                analysis.branch(unit, operation, false, &mut other);
+                let mut out = self.region(yes, taken)?;
+                let other = self.region(no, other)?;
                 analysis.join(&mut out, &other);
                 analysis.expression_result(unit, operation, &out);
                 out

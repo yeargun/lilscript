@@ -11,7 +11,7 @@ const STORAGE: RuleRequest = RuleRequest {
     pristine_builtins: false,
     seal: Seal::Module,
 };
-fn checked(
+pub(super) fn checked(
     source: &str,
     expected: &str,
     request: RuleRequest,

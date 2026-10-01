@@ -16,7 +16,7 @@ pub(super) enum ValueStorage {
     Captured(js::BindingId),
     /// A total read of a cell that nothing writes after initialization.
     /// It is not an evaluation event: each use reads the binding again.
-    Rematerialized,
+    Rematerialized(super::CellId),
 }
 impl ValueStorage {
     pub(super) fn binding(self) -> Option<js::BindingId> {
@@ -403,7 +403,7 @@ pub(super) fn plan_with_closures(
             // not an evaluation event.
             if op
                 .result
-                .is_some_and(|value| matches!(storage[value.index()], ValueStorage::Rematerialized))
+                .is_some_and(|value| matches!(storage[value.index()], ValueStorage::Rematerialized(_)))
             {
                 continue;
             }

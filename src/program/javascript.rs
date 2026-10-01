@@ -1223,26 +1223,40 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     /// no evaluation at its site) of a local cell nothing writes after its
     /// initialization. Its uses stay inside the load's own region, where the
     /// binding is in scope, and see the same value there.
-    fn rematerialized_load(
+    fn rematerialized_cell(
         &mut self,
         context: ContextId,
         value: ValueId,
-    ) -> Result<bool, FormationError> {
+    ) -> Result<Option<CellId>, FormationError> {
         let Some(uses) = self.uses else {
-            return Ok(false);
+            return Ok(None);
         };
         if self.demand.context(context).kind.is_inline() {
-            return Ok(false);
+            return Ok(None);
         }
         let semantic = self.semantic(context);
         let data = self.data(context);
-        let definition = data.values[value.index()].definition;
+        // CopyValue's default JavaScript recipe is the same persistent
+        // value. A chain rooted at an immutable, initialized cell can read
+        // that cell at each use without introducing a waiting temporary.
+        // Selected product recipes keep their own physical snapshot owner.
+        let mut source = value;
+        let mut proof_work = 0;
+        loop {
+            let definition = data.values[source.index()].definition;
+            if !matches!(data.operations[definition.index()].kind, OperationKind::CopyValue) { break; }
+            if self.demand.product_for_value(semantic, source).is_some() { return Ok(None); }
+            source = data.operands(data.operations[definition.index()].operands).unwrap()[0];
+            proof_work += 1;
+        }
+        let definition = data.values[source.index()].definition;
         let OperationKind::Load(place) = data.operations[definition.index()].kind else {
-            return Ok(false);
+            return Ok(None);
         };
         let Place::Cell(cell) = data.places[place.index()] else {
-            return Ok(false);
+            return Ok(None);
         };
+        self.work(proof_work)?;
         let program = self.program;
         // A parameter read never throws. Demand keeps a classic script's
         // parameter reads in place because mapped `arguments` can alias them;
@@ -1254,29 +1268,29 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             if self.contract.execution == crate::compilation_contract::JavaScriptExecution::Script
                 && self.reads_arguments()?
             {
-                return Ok(false);
+                return Ok(None);
             }
         } else if self.demand.needs_execution(context, definition) {
-            return Ok(false);
+            return Ok(None);
         }
         if program.cells[cell.index()].binding == CellBinding::Foreign
             || references::is_reference(program, cell)
         {
-            return Ok(false);
+            return Ok(None);
         }
         self.product_lookup()?;
         if self.demand.product_for_cell(cell).is_some() || self.addressed_cell(context, cell)? {
-            return Ok(false);
+            return Ok(None);
         }
         let Some(readers) = uses.unit(semantic).and_then(|uses| uses.value_uses(value)) else {
-            return Ok(false);
+            return Ok(None);
         };
         self.work(readers.len())?;
         if readers
             .iter()
             .any(|reader| matches!(reader, ValueUse::RegionResult(_)))
         {
-            return Ok(false);
+            return Ok(None);
         }
         if self.stable_cells.is_empty() {
             self.stable_cells =
@@ -1285,7 +1299,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         }
         if self.stable_cells[cell.index()] == 0 {
             let Some(users) = uses.cell(cell) else {
-                return Ok(false);
+                return Ok(None);
             };
             self.work(users.sites().len())?;
             let written = users.reference_exposed()
@@ -1300,7 +1314,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 });
             self.stable_cells[cell.index()] = if written { 2 } else { 1 };
         }
-        Ok(self.stable_cells[cell.index()] == 1)
+        Ok((self.stable_cells[cell.index()] == 1).then_some(cell))
     }
 
     /// `object.length`, spelled either way.
@@ -2093,9 +2107,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             {
                 continue;
             }
-            if self.compact && self.rematerialized_load(context, value)? {
-                *slot = ValueStorage::Rematerialized;
-                continue;
+            if self.compact {
+                if let Some(cell) = self.rematerialized_cell(context, value)? {
+                    *slot = ValueStorage::Rematerialized(cell);
+                    continue;
+                }
             }
             *slot = if self.compact
                 && !matches!(
@@ -2404,13 +2420,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             "deferred value is missing or consumed more than once",
                         )
                     }),
-                    ValueStorage::Rematerialized => {
-                        let OperationKind::Load(place) = operation.kind else {
-                            return Err(self.error(operation.span, "rematerialized non-load"));
-                        };
-                        let Place::Cell(cell) = self.data(unit).places[place.index()] else {
-                            return Err(self.error(operation.span, "rematerialized non-cell load"));
-                        };
+                    ValueStorage::Rematerialized(cell) => {
+                        let cell = *cell;
                         self.cell(unit, cell)
                     }
                     _ => Err(self.error(
@@ -3013,7 +3024,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     return Ok(None);
                 }
                 ValueStorage::Absent => {}
-                ValueStorage::Rematerialized => {
+                ValueStorage::Rematerialized(_) => {
                     return Err(self.error(operation.span, "rematerialized load was formed"));
                 }
                 _ => return Err(self.error(operation.span, "value placement was not completed")),
@@ -3152,7 +3163,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     };
                     if !matches!(
                         self.plan(unit).values[callee.index()],
-                        ValueStorage::Captured(_) | ValueStorage::Rematerialized
+                        ValueStorage::Captured(_) | ValueStorage::Rematerialized(_)
                     ) {
                         return Err(self
                             .error(operation.span, "zero-width product callee was not captured"));
@@ -4113,7 +4124,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         if operation.result.is_some_and(|result| {
             matches!(
                 self.plan(unit).values[result.index()],
-                ValueStorage::Rematerialized
+                ValueStorage::Rematerialized(_)
             )
         }) {
             return Ok(None);

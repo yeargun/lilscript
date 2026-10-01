@@ -25,7 +25,9 @@ mod fold;
 mod forward;
 mod aggregates;
 mod inline;
+mod inline_clones;
 mod params;
+mod returns;
 mod unreachable;
 mod values;
 
@@ -33,6 +35,8 @@ mod values;
 mod tests;
 #[cfg(test)]
 mod aggregate_tests;
+#[cfg(test)]
+mod call_tests;
 
 use super::call_graph::Seal;
 use super::effects::ProgramEffects;
@@ -88,6 +92,9 @@ pub(crate) struct RuleReceipt {
     /// Calls replaced by a copy of their body, and the bodies copied.
     pub(crate) inlined_calls: u32,
     pub(crate) inlined_bodies: u32,
+    pub(crate) normalized_returns: u32,
+    pub(crate) cloned_closure_units: u32,
+    pub(crate) call_frequency_work: u64,
     /// Parameters that left their signatures, those because every call
     /// passed one constant, and results no call used.
     pub(crate) dropped_parameters: u32,
@@ -118,7 +125,7 @@ pub(crate) struct RuleReceipt {
 
 impl RuleReceipt {
     pub(crate) fn json(&self) -> serde_json::Value {
-        serde_json::json!({
+        let mut result = serde_json::json!({
             "rounds": self.rounds,
             "folded_values": self.folded_values,
             "folded_calls": self.folded_calls,
@@ -130,6 +137,8 @@ impl RuleReceipt {
             "unreachable_operations": self.unreachable_operations,
             "inlined_calls": self.inlined_calls,
             "inlined_bodies": self.inlined_bodies,
+            "normalized_returns": self.normalized_returns,
+            "cloned_closure_units": self.cloned_closure_units,
             "dropped_parameters": self.dropped_parameters,
             "constant_parameters": self.constant_parameters,
             "unused_results": self.unused_results,
@@ -159,7 +168,9 @@ impl RuleReceipt {
                 "unsupported": self.evaluation_refusals[4],
                 "limit": self.evaluation_refusals[5],
             },
-        })
+        });
+        result["call_frequency_work"] = self.call_frequency_work.into();
+        result
     }
 }
 
@@ -182,6 +193,7 @@ fn scalar(program: &Program<'_>, ty: TypeId) -> bool {
 /// The program rules, in their structural order (architecture §8.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProgramRule {
+    Returns,
     Aggregates,
     Forward,
     Fold,
@@ -244,6 +256,7 @@ pub(crate) fn optimize<'src>(
         rules.push(ProgramRule::Unreachable);
     }
     if request.inlining() {
+        rules.push(ProgramRule::Returns);
         rules.push(ProgramRule::Inline);
     }
     if request.fold || request.dead_code || request.scalar {
@@ -259,6 +272,7 @@ pub(crate) fn optimize<'src>(
         |editor, rule| {
             let effects = editor.program().effects(request.seal);
             let changed = match rule {
+                ProgramRule::Returns => returns::apply(editor, &mut receipt).map_err(str::to_string)?,
                 ProgramRule::Aggregates => aggregates::apply(editor, &effects, request, &mut receipt).map_err(str::to_string)?,
                 ProgramRule::Forward => forward::apply(editor, &effects, &mut receipt),
                 ProgramRule::Fold => {
@@ -277,7 +291,7 @@ pub(crate) fn optimize<'src>(
                     fold::apply(editor, &values, &effects, &mut receipt).map_err(str::to_string)?
                 }
                 ProgramRule::Unreachable => unreachable::apply(editor, &mut receipt),
-                ProgramRule::Inline => inline::apply(editor, &effects, &mut receipt)
+                ProgramRule::Inline => inline::apply(editor, &effects, &mut receipt, request.native)
                     .map_err(|error| format!("program rules, inlining: {error}"))?,
                 // Unread parameters and unused results are dead code;
                 // constant parameters are folding.

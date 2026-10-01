@@ -9,6 +9,28 @@ fn resolve(source: &str, request: CompilationRequest) -> ResolvedPolicy {
         .unwrap()
 }
 
+#[test]
+fn s3_call_families_honor_independent_vetoes_and_parameterized_runtime_permission() {
+    use crate::program::publication::OutputTactics;
+    for codec in ["raw", "gzip", "brotli"] {
+        for permission in ["auto", "on", "off"] {
+            let policy = js(&format!("objective.codecs='{codec}'\neffort.level=13\n[policy.tactics]\nhelper-sharing='{permission}'"));
+            let mut output = OutputTactics::from_policy(&policy);
+            output.families.helper_sharing = true;
+            assert_eq!(output.check_policy(&policy).is_ok(), permission != "off");
+            output.families.parameterized_helpers = true;
+            assert_eq!(output.check_policy(&policy).is_ok(), permission == "on");
+        }
+        for tactic in ["inlining", "call-specialization"] {
+            let policy = js(&format!("objective.codecs='{codec}'\n[policy.tactics]\n{tactic}='off'"));
+            let mut output = OutputTactics::from_policy(&policy);
+            if tactic == "inlining" { output.families.expression_inlining = true; }
+            else { output.families.call_specialization = true; }
+            assert!(output.check_policy(&policy).is_err());
+        }
+    }
+}
+
 fn js(source: &str) -> ResolvedPolicy {
     resolve(
         source,
@@ -90,8 +112,8 @@ fn origins_explain_equivalent_permissions_without_splitting_cache_identity() {
         row(&blocked, "naming-search")["status"],
         "prerequisite-disabled"
     );
-    let unavailable = js("policy.tactics.helper-sharing='on'");
-    assert_eq!(row(&unavailable, "helper-sharing")["status"], "unavailable");
+    let unavailable = js("policy.tactics.recurring-reconstruction='on'");
+    assert_eq!(row(&unavailable, "recurring-reconstruction")["status"], "unavailable");
     let modern = js("policy.version=3\neffort.level=16");
     assert_eq!(
         row(&modern, "startup-reconstruction")["status"],

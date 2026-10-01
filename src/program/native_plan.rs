@@ -1114,6 +1114,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             let storage = match (cell.binding, classes[cell.ty.index()]) {
                 (CellBinding::Function(function), TypeClass::Function(_)) if !cell.reassigned => {
                     if program.unit(cell.owner).unwrap().kind != UnitKind::ModuleInitialization
+                        || cell.region != program.unit(cell.owner).unwrap().entry
                         || program.unit(function).unwrap().kind != UnitKind::Function
                     {
                         return Err(error("native non-global function storage"));
@@ -1201,10 +1202,13 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             {
                 return Err(error("native missing cell initialization"));
             }
-            // A module binding is not a closure payload: every function reads
-            // the one file-scope slot, so it needs no box or environment.
+            // Only the module's entry region has one file-scope activation.
+            // Captures in nested blocks/loops (including an inlined call bank)
+            // need a fresh box whenever their lexical region is entered.
+            let owner = program.unit(cell.owner).unwrap();
             let global = captured
-                && program.unit(cell.owner).unwrap().kind == UnitKind::ModuleInitialization;
+                && owner.kind == UnitKind::ModuleInitialization
+                && cell.region == owner.entry;
             if global {
                 captured = false;
             }

@@ -45,6 +45,7 @@ pub(crate) use literal_output::{LiteralAlternative, WeakLiteralObservation};
 #[cfg(test)]
 mod imports_tests;
 mod inline;
+mod private_calls;
 mod reach;
 mod journal;
 pub(crate) use journal::Journal;

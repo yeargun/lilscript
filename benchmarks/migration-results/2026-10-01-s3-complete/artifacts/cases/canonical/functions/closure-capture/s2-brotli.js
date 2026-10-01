@@ -1,0 +1,1 @@
+(()=>{let l=(o=>l=>o+l|0)(10);console.log(l(3));console.log(l(8));})();

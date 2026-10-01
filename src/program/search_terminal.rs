@@ -314,6 +314,10 @@ fn spelling_names(spelling: Spelling) -> Vec<&'static str> {
         (statements.logical_branches, Challenger::LogicalBranches),
         (families.int32_hints, Challenger::Int32Hints),
         (families.string_constants, Challenger::StringConstants),
+        (families.expression_inlining, Challenger::ExpressionInlining),
+        (families.call_specialization, Challenger::CallSpecialization),
+        (families.helper_sharing, Challenger::HelperSharing),
+        (families.parameterized_helpers, Challenger::ParameterizedHelpers),
     ]
     .into_iter()
     .filter_map(|(on, challenger)| on.then_some(challenger.name()))

@@ -650,7 +650,7 @@ impl Forward for Ranges<'_, '_> {
 
     fn branch(&self, unit: &UnitData, operation: OpId, taken: bool, state: &mut Self::State) {
         match unit.operations[operation.index()].kind {
-            OperationKind::If { .. } => {
+            OperationKind::If { .. } | OperationKind::Select { .. } => {
                 let op = &unit.operations[operation.index()];
                 if let Some(&condition) = unit.operands(op.operands).and_then(|o| o.first()) {
                     self.narrow(condition, Some(operation), taken, state);

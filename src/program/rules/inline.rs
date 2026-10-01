@@ -6,11 +6,11 @@
 //!
 //! Legality, from the program's facts (v1):
 //! - every call is known and direct (`CallGraph::complete_callers`), from
-//!   the same module, with value arguments for every parameter and no
+//!   compatible lexical environments, with value arguments for every parameter and no
 //!   generic instantiation;
 //! - the body is not recursive, does not suspend, is not a constructor or a
-//!   `debug` function (R15: `strip_debug` drops its calls), creates no
-//!   function, reads no ambient `this` or `arguments`, and has
+//!   `debug` function (R15: `strip_debug` drops its calls), reads no ambient
+//!   `this` or `arguments`, and has
 //!   one exit: its only `return` ends its entry region, or it has none;
 //! - a body with statements goes only into a statement region where no
 //!   value computed before the call is still waiting to be used after it:
@@ -18,14 +18,15 @@
 //!
 //! A parameter the program never writes reads its argument directly; the
 //! others become local cells of the caller, initialized with the argument.
-//! The body's other cells are cloned for each copy.
+//! Nested callable bodies and their captured cells are cloned per occurrence;
+//! a lexical block renews each dynamic activation and releases native owners.
 //!
 //! "No growth": a body with one call moves, and its copy may not outnumber
 //! the body, its creation and the call operations it replaces. A body with
-//! several calls is copied only where each copy costs nothing: an expression
-//! that reads each argument at most once (so the argument is spelled once,
-//! where it stood), in no more operations than the call. A larger duplicate
-//! is the inline-or-share choice, judged by the codec (M9.1).
+//! several calls is removed here only when its body is an identity transport.
+//! Even a two-operation body can contain a long literal; operation count does
+//! not price its duplication. Other duplicates are objective-judged target
+//! alternatives, with the retained-call representation still available.
 //! Each round inlines an independent set of bodies, callees first: a body
 //! copied this round receives no copy, so every copy reads the body as the
 //! round found it.
@@ -59,15 +60,18 @@ struct Candidate {
     forwarded: Vec<bool>,
     /// The copy declares cells of owned types at its top level: it keeps
     /// its own scope, a block, so their storage ends where the call's did
-    /// (native releases owned storage at scope end). A block yields no value.
+    /// (native releases owned storage at scope end). A used result crosses the
+    /// block through one private result cell, preserving the returned owner.
     /// A cell of a scalar type owns nothing, so its scope is unobservable.
     scoped: bool,
+    children: Vec<UnitId>,
 }
 
 pub(super) fn apply(
     editor: &mut Editor<'_>,
     effects: &ProgramEffects,
     receipt: &mut RuleReceipt,
+    native: bool,
 ) -> Result<bool, &'static str> {
     let program = editor.program();
     let graph = effects.graph();
@@ -100,7 +104,7 @@ pub(super) fn apply(
             if debug[body.index()] {
                 continue;
             }
-            let Some(candidate) = candidate(program, effects, &created, &declares, body) else {
+            let Some(candidate) = candidate(program, effects, &created, &declares, body, native, receipt) else {
                 continue;
             };
             if receivers.contains(&body)
@@ -125,6 +129,7 @@ pub(super) fn apply(
         for site in &candidate.sites {
             inline(editor, source.data(), candidate, site, &creators)?;
             receipt.inlined_calls += 1;
+            receipt.cloned_closure_units += candidate.children.len() as u32;
         }
         receipt.inlined_bodies += 1;
     }
@@ -157,6 +162,8 @@ fn candidate(
     created: &[bool],
     declares: &[bool],
     body: UnitId,
+    native: bool,
+    receipt: &mut RuleReceipt,
 ) -> Option<Candidate> {
     let graph = effects.graph();
     let data = program.unit(body)?;
@@ -182,6 +189,7 @@ fn candidate(
         return None;
     }
 
+    let children = super::inline_clones::children(program, body)?;
     // The body's shape: one exit, nothing it cannot lend to a caller.
     let entry = &data.regions[data.entry.index()].operations;
     let mut exit = None;
@@ -195,8 +203,7 @@ fn candidate(
                 }
                 exit = Some(op);
             }
-            OperationKind::Closure(_)
-            | OperationKind::IsUndefined
+            OperationKind::IsUndefined
             | OperationKind::Yield { .. }
             | OperationKind::Await
             | OperationKind::SuperConstruct
@@ -230,7 +237,14 @@ fn candidate(
         .iter()
         .map(|&cell| {
             let storage = graph.storage(cell);
-            !storage.stored && !storage.referenced
+            // A reference-valued parameter written only through a field still
+            // denotes the same evaluated handle. Captured formals need a fresh
+            // lexical bank; value products keep their private mutable copy.
+            !storage.referenced && !storage.shared && (!storage.stored ||
+                !matches!(program.types[program.cells[cell.index()].ty.index()],
+                    Type::Struct(_) | Type::StructInstance { .. } | Type::Nullable(_))
+                && !data.operations.iter().any(|op| matches!(op.kind,
+                    OperationKind::Store(place) if matches!(data.places[place.index()], Place::Cell(id) if id == cell))))
         })
         .collect();
     for operation in &data.operations {
@@ -260,7 +274,9 @@ fn candidate(
             return None;
         };
         let arguments = caller.arguments(site.arguments)?;
-        if caller.module != data.module
+        if (caller.module != data.module && data.captures.iter().any(|cell|
+            program.unit(program.cells[cell.index()].owner).is_none_or(|owner|
+                owner.kind != UnitKind::ModuleInitialization)))
             || site.contract.instantiation.is_some()
             || arguments.len() != data.parameters.len()
             || arguments
@@ -334,25 +350,22 @@ fn candidate(
             &behaviors(program, effects, body, None),
             movable,
         );
-    let scoped = declares[body.index()]
+    // One proved activation needs no renewed JavaScript capture bank. Native
+    // still ends its owned locals at the original call's exit. Unknown and
+    // repeated activations always keep the lexical block.
+    let capture_scope = if children.is_empty() { false } else {
+        let (frequency, work) = graph.frequency(program, body);
+        receipt.call_frequency_work += work as u64;
+        native || frequency != super::super::call_graph::CallFrequency::AtMostOnce
+    };
+    let scoped = capture_scope || declares[body.index()]
         || forwarded
             .iter()
             .zip(&data.parameters)
             .any(|(forwarded, &cell)| {
                 !*forwarded && !scalar(program, program.cells[cell.index()].ty)
             });
-    if scoped
-        && sites.iter().any(|site| {
-            program.unit(site.caller).is_none_or(|caller| {
-                caller.operations[site.operation.index()]
-                    .result
-                    .is_some_and(|result| used(caller, result))
-            })
-        })
-    {
-        return None;
-    }
-    if !expression
+    if (!expression || scoped)
         && sites.iter().any(|site| {
             program
                 .unit(site.caller)
@@ -390,11 +403,10 @@ fn candidate(
         // the cell that held it and the call operations.
         copy <= data.operations.len() + 1 + usize::from(held) + 2 + callee_loads
     } else {
-        // A copy per call is a duplicate, and must stand where its call stood
-        // at no cost: an expression reading each argument at most once (so
-        // the argument is spelled once, where it was), in no more operations
-        // than the call. Anything larger is the inline-or-share choice (M9).
-        expression && copy <= 2 + usize::from(held)
+        // Only identity transports add no duplicated representation. Counted
+        // operations do not bound literal bytes or predict a codec's repeats.
+        // Nonempty bodies compete through the expression-inlining family.
+        expression && copy == 0
     };
     growth.then_some(Candidate {
         body,
@@ -402,6 +414,7 @@ fn candidate(
         exit,
         forwarded,
         scoped,
+        children,
     })
 }
 
@@ -653,6 +666,9 @@ fn inline(
     let caller = program.unit(site.caller).ok_or("a missing caller")?;
     let at = &caller.operations[site.operation.index()];
     let (region, span) = (at.region, at.span);
+    let result_type = at.result.filter(|&value| used(caller, value))
+        .map(|value| caller.values[value.index()].ty);
+    let foreign_module = caller.module != body.module;
     let arguments: Vec<ValueId> = caller
         .arguments(caller.calls[site.call.index()].arguments)
         .ok_or("invalid argument range")?
@@ -714,7 +730,38 @@ fn inline(
     for (id, clone) in clones {
         cells.insert(id, editor.add_cell(clone)?);
     }
+    let units = super::inline_clones::clone(editor, &candidate.children, &mut cells)?;
+    let root_bindings: Vec<_> = cells.iter().filter_map(|(&old, &new)| {
+        let original = &editor.program().cells[old.index()];
+        if original.owner != candidate.body { return None; }
+        let CellBinding::Function(unit) = original.binding else { return None };
+        units.get(&unit).copied().map(|unit| (new, unit))
+    }).collect();
+    if !root_bindings.is_empty() {
+        let (_, table) = editor.unit_and_cells(site.caller);
+        for (cell, unit) in root_bindings { table[cell.index()].binding = CellBinding::Function(unit); }
+    }
+    let result_cell = if scope.is_some() {
+        if let Some(ty) = result_type {
+            Some(editor.add_cell(Cell {
+                source_symbol: None, name: "inline_result".into(), ty,
+                owner: site.caller, region, declaration: span, reassigned: true,
+                observable_before_initialization: false, binding: CellBinding::Local,
+                synthetic: true, declared_pure: false, debug: false,
+            })?)
+        } else { None }
+    } else { None };
     let captures: Vec<CellId> = body.captures.clone();
+
+    let mut source = body.clone();
+    for op in &mut source.operations {
+        if let OperationKind::Closure(unit) = &mut op.kind {
+            *unit = units.get(unit).copied().unwrap_or(*unit);
+        }
+        // Node IDs are local to the source module. The copied operation has a
+        // new call-site origin; its nested callable keeps its original module.
+        if foreign_module { op.origin = None; op.span = span; }
+    }
 
     let data = editor.unit_mut(site.caller);
     if let Some(scope) = scope {
@@ -729,7 +776,7 @@ fn inline(
         });
     }
     let grafted = edit::graft(
-        body,
+        &source,
         data,
         home,
         &GraftPlan {
@@ -753,7 +800,16 @@ fn inline(
         }
     }
     inserted.extend(grafted.operations);
+    let mut returned = grafted.result;
     if let Some(scope) = scope {
+        let result_place = if let Some(cell) = result_cell {
+            let place = PlaceId::from_index(data.places.len()).ok_or("inline result place")?;
+            data.places.push(Place::Cell(cell));
+            let value = returned.ok_or("inline result has no returned value")?;
+            let (store, _) = edit::push_operation(data, OperationKind::Store(place), &[value], None, scope, span)?;
+            inserted.push(store);
+            Some(place)
+        } else { None };
         // The arguments are evaluated between the call's preparation and the
         // call: in the block they run at the same point, and their values
         // stay inside it, where the copy reads them.
@@ -772,9 +828,18 @@ fn inline(
         evaluation.extend(inserted);
         data.regions[scope.index()].operations = evaluation;
         inserted = Vec::new();
+        if let Some(cell) = result_cell {
+            let (declare, _) = edit::push_operation(data, OperationKind::Declare(cell), &[], None, region, span)?;
+            inserted.push(declare);
+        }
         let (block, _) =
             edit::push_operation(data, OperationKind::Block(scope), &[], None, region, span)?;
         inserted.push(block);
+        returned = if let Some(place) = result_place {
+            let (load, value) = edit::push_operation(data, OperationKind::Load(place), &[], result_type, region, span)?;
+            inserted.push(load);
+            value
+        } else { None };
     }
     let list = &mut data.regions[region.index()].operations;
     let position = list
@@ -800,7 +865,7 @@ fn inline(
     // A used result has the returned value's type (`candidate`).
     if let (Some(result), Some(returned)) = (
         data.operations[site.operation.index()].result,
-        grafted.result,
+        returned,
     ) {
         edit::substitute(data, result, returned);
     }
@@ -810,6 +875,7 @@ fn inline(
     // and so does each unit between the caller and the cell's owner.
     for cell in captures {
         let owner = editor.program().cells[cell.index()].owner;
+        let global = editor.program().unit(owner).is_some_and(|data| data.kind == UnitKind::ModuleInitialization);
         let mut unit = site.caller;
         while unit != owner {
             let data = editor.unit_mut(unit);
@@ -817,6 +883,7 @@ fn inline(
                 break;
             }
             data.captures.push(cell);
+            if global && data.kind == UnitKind::ModuleInitialization { break; }
             unit = creators[unit.index()].ok_or("a capture has no path to its owner")?;
         }
     }

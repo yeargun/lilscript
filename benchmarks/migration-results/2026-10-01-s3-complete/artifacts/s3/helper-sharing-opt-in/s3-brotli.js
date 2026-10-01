@@ -1,0 +1,1 @@
+(()=>{let o=(o,a)=>((o*o|0)+(o*3|0)|0)+a|0,c=input();console.log(o(c,17));console.log(o(c+1|0,29));console.log(o(c+2|0,17));console.log(o(c+3|0,29));})();

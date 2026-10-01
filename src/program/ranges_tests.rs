@@ -76,6 +76,19 @@ fn conditional_results_publish_the_join_after_their_arms() {
 }
 
 #[test]
+fn s3_select_branches_keep_comparison_ranges_for_raw_arithmetic() {
+    let arena = bumpalo::Bump::new();
+    let program = program(&arena, "export int step(int n){return if(n>0){n-1}else{n};}");
+    let unit = unit_named(&program, "step");
+    let data = program.unit(unit).unwrap();
+    let ranges = program.ranges(Seal::Module);
+    let subtract = data.operations.iter().find(|op| matches!(op.kind,
+        OperationKind::IntBinary(crate::primitive::IntBinary::Subtract))).unwrap();
+    let operands = data.operands(subtract.operands).unwrap();
+    assert_eq!(ranges.number(unit, operands[0]).integer_bounds(), Some((1, i32::MAX as i64)));
+}
+
+#[test]
 fn forwarding_keeps_branch_local_range_observations() {
     let arena = bumpalo::Bump::new();
     let input = program(&arena, "export int clamp(int value){if(value < -120){return -120;}if(value > 120){return 120;}return value;}print(clamp(500));");

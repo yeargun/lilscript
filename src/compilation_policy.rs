@@ -1800,7 +1800,7 @@ mod tests {
 
     #[test]
     fn unavailable_producers_keep_requested_permissions_and_explain_the_refusal() {
-        for tactic in [TacticId::HelperSharing, TacticId::RecurringReconstruction] {
+        for tactic in [TacticId::RecurringReconstruction] {
             for permission in ["auto", "on", "off"] {
                 let p = js(&format!(
                     "[policy.tactics]\n{}='{permission}'",

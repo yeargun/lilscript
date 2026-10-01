@@ -1,0 +1,1 @@
+{let calls=0;globalThis.input=()=>++calls===1;}const mark=n=>(console.log(n),n);const choose=c=>c?mark(1):mark(2);const a=choose(input()),b=choose(input());console.log(a);console.log(b);

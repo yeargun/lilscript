@@ -317,7 +317,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     }
                 }
             }
-            if let OperationKind::Initialize(cell) = operation.kind {
+            if let OperationKind::Initialize(cell) | OperationKind::Declare(cell) = operation.kind {
                 self.cleanup_cell(cell)?;
             }
         }

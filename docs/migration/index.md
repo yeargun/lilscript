@@ -7,16 +7,15 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). S3 is next; this checkpoint does not start another milestone.
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). Q1 is next.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Finish **S3**: remaining inlining, known-call devirtualization, specialization
-and identical-body sharing. Record its finite acceptance checklist before
-implementation. Build on S2's shared allocation/field facts and the existing
-record/product families. The [S2 contract](s2-acceptance.md) records completion
-and dependency boundaries; the [handoff](handoff.md) identifies the retained
+Implement **Q1**: one representation-family interface for per-site and joint
+moves, preserving structural/layout/inline/helper opportunities and the common
+admission path. The [S3 evidence](../../benchmarks/migration-results/2026-10-01-s3-complete/README.md)
+records the completed call work; the [handoff](handoff.md) identifies the retained
 compiler and evidence.
 
 The owner requests substantial implementation batches followed by focused
@@ -33,7 +32,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [C3](plan.md#c3) Calibration | Complete; later policy changes belong to Q3 and external-library qualification remains V1 |
 | [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
-| [~] | [S3](plan.md#s3) Calls | Remaining inlining, devirtualization, specialization and sharing |
+| [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
 | [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
 | [~] | [G1](plan.md#g1) Lexical names | Broader final-byte tie and workload qualification; local frequency allocation and protected final refinement are qualified |
 | [~] | [G2](plan.md#g2) Property names | Broader observed/generic eligibility, field ordering and held-out calibration; private-field renaming/reuse is qualified |
