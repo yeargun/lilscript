@@ -690,7 +690,7 @@ impl Evaluator<'_, '_> {
                 }
                 OperationKind::PrepareCall(_) => {}
                 OperationKind::Call(call) => result = Some(self.call(unit, call, values, depth)?),
-                OperationKind::IsUndefined => {
+                OperationKind::IsUndefined { .. } => {
                     result = Some(Exact::Boolean(matches!(first()?, Exact::Undefined)))
                 }
                 OperationKind::Block(child) => {

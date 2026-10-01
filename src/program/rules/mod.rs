@@ -18,12 +18,13 @@
 //! `run_in_loop` (`oxc@591966d crates/oxc_minifier/src/compressor.rs:106-140`),
 //! here over the typed program instead of the syntax tree.
 
+mod aggregates;
 mod dce;
+mod defaults;
 mod edit;
 mod evaluate;
 mod fold;
 mod forward;
-mod aggregates;
 mod inline;
 mod inline_clones;
 mod params;
@@ -32,11 +33,11 @@ mod unreachable;
 mod values;
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod aggregate_tests;
 #[cfg(test)]
 mod call_tests;
+#[cfg(test)]
+mod tests;
 
 use super::call_graph::Seal;
 use super::effects::ProgramEffects;
@@ -105,6 +106,7 @@ pub(crate) struct RuleReceipt {
     /// Repeated total primitive operations replaced by a dominating result.
     pub(crate) common_computations: u32,
     pub(crate) default_arguments_omitted: u32,
+    pub(crate) materialized_default_arguments: u32,
     pub(crate) native_defaults: u32,
     pub(crate) set_folds: u32,
     pub(crate) path_folds: u32,
@@ -170,6 +172,7 @@ impl RuleReceipt {
             },
         });
         result["call_frequency_work"] = self.call_frequency_work.into();
+        result["materialized_default_arguments"] = self.materialized_default_arguments.into();
         result
     }
 }
@@ -193,6 +196,7 @@ fn scalar(program: &Program<'_>, ty: TypeId) -> bool {
 /// The program rules, in their structural order (architecture §8.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProgramRule {
+    Defaults,
     Returns,
     Aggregates,
     Forward,
@@ -203,7 +207,8 @@ enum ProgramRule {
     DeadCode,
 }
 
-/// Every round removes operations or calls and adds no operation, so rounds
+/// Default preparation fills a missing argument once; the other rules remove
+/// operations, calls or owned aggregate storage. This one-way progress makes rounds
 /// are bounded by the program's size; inlining a chain of calls takes a
 /// round per independent set, logarithmic in its depth. This ceiling only
 /// catches a rule that does not converge.
@@ -246,6 +251,7 @@ pub(crate) fn optimize<'src>(
     editor.commit()?;
     let mut rules = Vec::with_capacity(4);
     if request.fold {
+        rules.push(ProgramRule::Defaults);
         rules.push(ProgramRule::Forward);
     }
     if request.fold {
@@ -272,8 +278,15 @@ pub(crate) fn optimize<'src>(
         |editor, rule| {
             let effects = editor.program().effects(request.seal);
             let changed = match rule {
-                ProgramRule::Returns => returns::apply(editor, &mut receipt).map_err(str::to_string)?,
-                ProgramRule::Aggregates => aggregates::apply(editor, &effects, request, &mut receipt).map_err(str::to_string)?,
+                ProgramRule::Defaults => defaults::apply(editor, effects.graph(), &mut receipt)
+                    .map_err(str::to_string)?,
+                ProgramRule::Returns => {
+                    returns::apply(editor, &mut receipt).map_err(str::to_string)?
+                }
+                ProgramRule::Aggregates => {
+                    aggregates::apply(editor, &effects, request, &mut receipt)
+                        .map_err(str::to_string)?
+                }
                 ProgramRule::Forward => forward::apply(editor, &effects, &mut receipt),
                 ProgramRule::Fold => {
                     let values = values::ProgramValues::compute(
@@ -291,8 +304,10 @@ pub(crate) fn optimize<'src>(
                     fold::apply(editor, &values, &effects, &mut receipt).map_err(str::to_string)?
                 }
                 ProgramRule::Unreachable => unreachable::apply(editor, &mut receipt),
-                ProgramRule::Inline => inline::apply(editor, &effects, &mut receipt, request.native)
-                    .map_err(|error| format!("program rules, inlining: {error}"))?,
+                ProgramRule::Inline => {
+                    inline::apply(editor, &effects, &mut receipt, request.native)
+                        .map_err(|error| format!("program rules, inlining: {error}"))?
+                }
                 // Unread parameters and unused results are dead code;
                 // constant parameters are folding.
                 ProgramRule::Parameters => {

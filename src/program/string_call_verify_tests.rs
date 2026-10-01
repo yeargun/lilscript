@@ -132,7 +132,7 @@ fn slice_rejects_compatible_but_nonprimitive_parameters_defaults_and_result() {
             // Both arguments are supplied. The primitive's omission meaning
             // still belongs to its signature, not this particular call's arity.
             reject_signature_change(program, Intrinsic::StringSlice, |signature| {
-                signature.params[1].default = Some(DefaultValue::Int(0));
+                signature.params[1].optional = false;
             });
             reject_signature_change(program, Intrinsic::StringSlice, |signature| {
                 signature.return_type = Box::new(Type::Bool);
@@ -153,7 +153,7 @@ fn split_rejects_forged_array_element_scalar_result_and_optional_separator() {
                 signature.return_type = Box::new(Type::String);
             });
             reject_signature_change(program, Intrinsic::StringSplit, |signature| {
-                signature.params[0].default = Some(DefaultValue::String(""));
+                signature.params[0].optional = true;
             });
         },
     );

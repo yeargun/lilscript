@@ -103,8 +103,14 @@ fn nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays
     .unwrap();
     let model = analyze(&program).unwrap();
     let task = model.struct_info("Task").unwrap();
-    assert_eq!(task.type_params, ["T"]);
-    assert_eq!(task.fields["value"].ty, Type::TypeParameter("T"));
+    assert_eq!(
+        task.type_params.iter().map(|p| p.name).collect::<Vec<_>>(),
+        ["T"]
+    );
+    assert_eq!(
+        task.fields["value"].ty,
+        Type::TypeParameter(task.type_params[0])
+    );
     assert_eq!(
         binding(&model, "first"),
         &Type::StructInstance {
@@ -120,8 +126,18 @@ fn nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays
         }
     );
     let generator = model.class_info("Generator").unwrap();
-    assert_eq!(generator.type_params, ["T"]);
-    assert_eq!(generator.fields["value"].ty, Type::TypeParameter("T"));
+    assert_eq!(
+        generator
+            .type_params
+            .iter()
+            .map(|p| p.name)
+            .collect::<Vec<_>>(),
+        ["T"]
+    );
+    assert_eq!(
+        generator.fields["value"].ty,
+        Type::TypeParameter(generator.type_params[0])
+    );
     assert_eq!(
         binding(&model, "second"),
         &Type::ClassInstance {

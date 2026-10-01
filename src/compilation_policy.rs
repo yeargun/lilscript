@@ -32,7 +32,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version17 includes class constructors/methods in live naming ownership.
 // Version18 names private generic/kept layouts and reuses sibling property slots.
 // Version19 forms stable per-site spellings, declaration order and receiver aliases.
-pub const POLICY_ALGORITHM_VERSION: u32 = 19;
+pub const POLICY_ALGORITHM_VERSION: u32 = 20;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -697,31 +697,31 @@ impl ResolvedPolicy {
     pub fn resolution(&self) -> serde_json::Value {
         use serde_json::json;
         json!({"configuration_version": self.configuration_version,
-            "runtime_permissions": if self.configuration_version == LEGACY_POLICY_VERSION {
-                "legacy-effort-16-startup"
-            } else { "explicit" },
-            "tactics": TacticId::ALL.map(|id| {
-                let spec = id.spec();
-                let state = self.tactic(id);
-                let available = !spec.producers.is_empty()
-                    && (!spec.javascript_only || self.javascript_contract().is_some());
-                let missing = spec.prerequisites.iter().copied()
-                    .filter(|required| !self.tactic(*required).enabled).collect::<Vec<_>>();
-                let status = if state.permission == TacticPermission::Off { "disabled" }
-                    else if !available { "unavailable" }
-                    else if !missing.is_empty() { "prerequisite-disabled" }
-                    else if !state.enabled { "automatic-off" }
-                    else { "enabled" };
-                json!({"id": id, "origin": self.origins[id as usize], "status": status,
-                    "missing_prerequisites": missing,
-                    "permitted_risks": spec.risks.iter().copied().filter(|risk| {
-                        self.check_tactic_permissions(&[TacticUse {tactic:id, risk:*risk}]).is_ok()
-                    }).collect::<Vec<_>>(),
-                    "producers": spec.producers.iter().map(|producer| json!({
-                        "stage": producer, "enabled": spec.producer_enabled(*producer, self),
-                        "prerequisites": spec.producer_prerequisites(*producer)
-                    })).collect::<Vec<_>>()})
-            })})
+        "runtime_permissions": if self.configuration_version == LEGACY_POLICY_VERSION {
+            "legacy-effort-16-startup"
+        } else { "explicit" },
+        "tactics": TacticId::ALL.map(|id| {
+            let spec = id.spec();
+            let state = self.tactic(id);
+            let available = !spec.producers.is_empty()
+                && (!spec.javascript_only || self.javascript_contract().is_some());
+            let missing = spec.prerequisites.iter().copied()
+                .filter(|required| !self.tactic(*required).enabled).collect::<Vec<_>>();
+            let status = if state.permission == TacticPermission::Off { "disabled" }
+                else if !available { "unavailable" }
+                else if !missing.is_empty() { "prerequisite-disabled" }
+                else if !state.enabled { "automatic-off" }
+                else { "enabled" };
+            json!({"id": id, "origin": self.origins[id as usize], "status": status,
+                "missing_prerequisites": missing,
+                "permitted_risks": spec.risks.iter().copied().filter(|risk| {
+                    self.check_tactic_permissions(&[TacticUse {tactic:id, risk:*risk}]).is_ok()
+                }).collect::<Vec<_>>(),
+                "producers": spec.producers.iter().map(|producer| json!({
+                    "stage": producer, "enabled": spec.producer_enabled(*producer, self),
+                    "prerequisites": spec.producer_prerequisites(*producer)
+                })).collect::<Vec<_>>()})
+        })})
     }
 
     /// The caller supplies semantically validated uses from the candidate's
@@ -770,7 +770,8 @@ impl ResolvedPolicy {
                 RuntimeRisk::Startup
                     if state.permission == TacticPermission::On
                         || (self.configuration_version == LEGACY_POLICY_VERSION
-                            && self.effort >= 16 && usage.tactic.spec().startup_at_level_16) =>
+                            && self.effort >= 16
+                            && usage.tactic.spec().startup_at_level_16) =>
                 {
                     ()
                 }
@@ -2039,7 +2040,9 @@ mod tests {
         }
         assert!(config("effort.level=17").validate().is_err());
         for version in [2, 3] {
-            assert!(config(&format!("[policy]\nversion={version}")).validate().is_ok());
+            assert!(config(&format!("[policy]\nversion={version}"))
+                .validate()
+                .is_ok());
         }
         for version in [1, 4] {
             assert!(config(&format!("[policy]\nversion={version}"))

@@ -328,7 +328,10 @@ pub enum ParamRole {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ParameterType<'ast, 'src> {
+    pub receiver: bool,
     pub ty: TypeRef<'ast, 'src>,
+    /// A variadic element type in a function-type annotation.
+    pub rest: bool,
     pub passing: crate::primitive::ParameterPassing,
     pub span: Span,
 }
@@ -358,58 +361,69 @@ pub struct CatchClause<'ast, 'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt<'ast, 'src> {
-    VarDecl(VarDecl<'ast, 'src>),
+    VarDecl(VarDecl<'ast, 'src>, SourceNodeId),
     ArrayDestructure {
+        id: SourceNodeId,
         bindings: &'ast [ArrayBinding<'src>],
         value: Expr<'ast, 'src>,
         span: Span,
     },
     RecordDestructure {
+        id: SourceNodeId,
         bindings: &'ast [RecordBinding<'src>],
         rest: Option<Ident<'src>>,
         value: Expr<'ast, 'src>,
         span: Span,
     },
-    Expr(Expr<'ast, 'src>),
+    Expr(Expr<'ast, 'src>, SourceNodeId),
     Return {
+        id: SourceNodeId,
         value: Option<Expr<'ast, 'src>>,
         span: Span,
     },
     Throw {
+        id: SourceNodeId,
         value: Expr<'ast, 'src>,
         span: Span,
     },
     SuperCall {
+        id: SourceNodeId,
         args: &'ast [Argument<'ast, 'src>],
         span: Span,
     },
     Yield {
+        id: SourceNodeId,
         value: Expr<'ast, 'src>,
         delegate: bool,
         span: Span,
     },
     Try {
+        id: SourceNodeId,
         body: &'ast [Stmt<'ast, 'src>],
         catch: Option<CatchClause<'ast, 'src>>,
         finally: Option<&'ast [Stmt<'ast, 'src>]>,
         span: Span,
     },
     Block {
+        id: SourceNodeId,
         body: &'ast [Stmt<'ast, 'src>],
         span: Span,
     },
     If {
+        id: SourceNodeId,
         condition: Expr<'ast, 'src>,
         then_branch: &'ast Stmt<'ast, 'src>,
         else_branch: Option<&'ast Stmt<'ast, 'src>>,
         span: Span,
     },
     While {
+        id: SourceNodeId,
         condition: Expr<'ast, 'src>,
         body: &'ast Stmt<'ast, 'src>,
         span: Span,
     },
     For {
+        id: SourceNodeId,
         initializer: Option<ForInitializer<'ast, 'src>>,
         condition: Option<Expr<'ast, 'src>>,
         update: Option<Expr<'ast, 'src>>,
@@ -417,6 +431,7 @@ pub enum Stmt<'ast, 'src> {
         span: Span,
     },
     ForIn {
+        id: SourceNodeId,
         key_type: TypeRef<'ast, 'src>,
         key: Ident<'src>,
         object: Expr<'ast, 'src>,
@@ -424,6 +439,7 @@ pub enum Stmt<'ast, 'src> {
         span: Span,
     },
     ForOf {
+        id: SourceNodeId,
         element_type: TypeRef<'ast, 'src>,
         element: Ident<'src>,
         /// `for (K k, V v of map)`: the entry's value binding (R14).
@@ -433,8 +449,8 @@ pub enum Stmt<'ast, 'src> {
         inline: bool,
         span: Span,
     },
-    Break(Span),
-    Continue(Span),
+    Break(Span, SourceNodeId),
+    Continue(Span, SourceNodeId),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -475,11 +491,33 @@ impl<'ast, 'src> Expr<'ast, 'src> {
 }
 
 impl<'ast, 'src> Stmt<'ast, 'src> {
+    /// Identity of this statement occurrence in its owning source.
+    pub const fn id(&self) -> SourceNodeId {
+        match self {
+            Self::VarDecl(_, id)
+            | Self::Expr(_, id)
+            | Self::Break(_, id)
+            | Self::Continue(_, id)
+            | Self::ArrayDestructure { id, .. }
+            | Self::RecordDestructure { id, .. }
+            | Self::Return { id, .. }
+            | Self::Throw { id, .. }
+            | Self::SuperCall { id, .. }
+            | Self::Yield { id, .. }
+            | Self::Try { id, .. }
+            | Self::Block { id, .. }
+            | Self::If { id, .. }
+            | Self::While { id, .. }
+            | Self::For { id, .. }
+            | Self::ForIn { id, .. }
+            | Self::ForOf { id, .. } => *id,
+        }
+    }
     pub const fn span(&self) -> Span {
         match self {
-            Self::VarDecl(decl) => decl.span,
+            Self::VarDecl(decl, ..) => decl.span,
             Self::ArrayDestructure { span, .. } | Self::RecordDestructure { span, .. } => *span,
-            Self::Expr(expr) => expr.span(),
+            Self::Expr(expr, ..) => expr.span(),
             Self::Return { span, .. }
             | Self::Throw { span, .. }
             | Self::SuperCall { span, .. }
@@ -491,8 +529,8 @@ impl<'ast, 'src> Stmt<'ast, 'src> {
             | Self::For { span, .. }
             | Self::ForIn { span, .. }
             | Self::ForOf { span, .. }
-            | Self::Break(span)
-            | Self::Continue(span) => *span,
+            | Self::Break(span, ..)
+            | Self::Continue(span, ..) => *span,
         }
     }
 }
@@ -529,7 +567,7 @@ pub struct VarDecl<'ast, 'src> {
 }
 
 /// An index is meaningful only within the source program that owns it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceNodeId(std::num::NonZeroU32);
 
 impl SourceNodeId {
@@ -608,7 +646,7 @@ impl SourceNodes {
         }
     }
 
-    fn node(&self) -> SourceNodeId {
+    pub(crate) fn node(&self) -> SourceNodeId {
         let next = self
             .0
             .get()
@@ -726,6 +764,12 @@ pub enum ExprKind<'ast, 'src> {
     },
     ObjectLiteral {
         entries: &'ast [RecordElement<'ast, 'src>],
+        span: Span,
+    },
+    /// Snapshot a struct value, then update the named fields left to right.
+    With {
+        value: &'ast Expr<'ast, 'src>,
+        fields: &'ast [RecordEntry<'ast, 'src>],
         span: Span,
     },
     StructLiteral {
@@ -917,6 +961,7 @@ impl<'ast, 'src> ExprKind<'ast, 'src> {
             | Self::RecordLiteral { span, .. }
             | Self::ObjectLiteral { span, .. }
             | Self::StructLiteral { span, .. }
+            | Self::With { span, .. }
             | Self::New { span, .. }
             | Self::DynamicImport { span, .. }
             | Self::Member { span, .. }

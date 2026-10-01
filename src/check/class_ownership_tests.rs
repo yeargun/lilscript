@@ -73,7 +73,14 @@ fn hierarchy_resolution_moves_own_field_and_method_payloads_without_cloning() {
         let info = &analyzer.declarations.classes[analyzer.facts.type_bindings[name].index()];
         let field = &info.fields[field_name];
         let method = &info.methods[method_name];
-        assert_eq!(method.type_params, ["T"]);
+        assert_eq!(
+            method
+                .type_params
+                .iter()
+                .map(|p| p.name)
+                .collect::<Vec<_>>(),
+            ["T"]
+        );
         (
             name,
             field_name,
@@ -205,13 +212,19 @@ fn three_level_generic_inheritance_preserves_substitutions_and_declaring_slots()
     let base = model.class_info("Base").unwrap();
     let middle = model.class_info("Mid").unwrap();
     let leaf = model.class_info("Leaf").unwrap();
-    assert_eq!(base.fields["value"].ty, Type::TypeParameter("T"));
+    assert_eq!(
+        base.fields["value"].ty,
+        Type::TypeParameter(base.type_params[0])
+    );
     assert_eq!(
         middle.fields["value"].ty,
-        Type::Array(Box::new(Type::TypeParameter("U")))
+        Type::Array(Box::new(Type::TypeParameter(middle.type_params[0])))
     );
     assert_eq!(leaf.fields["value"].ty, Type::Array(Box::new(Type::Int)));
-    assert_eq!(middle.fields["middle"].ty, Type::TypeParameter("U"));
+    assert_eq!(
+        middle.fields["middle"].ty,
+        Type::TypeParameter(middle.type_params[0])
+    );
     assert_eq!(leaf.fields["middle"].ty, Type::Int);
     assert_eq!(
         leaf.methods["read"].signature.return_type.as_ref(),
@@ -290,20 +303,12 @@ fn canonical_class_and_object_signatures_finalize_pending_default_bindings() {
     ] {
         let info = model.class_info(class).unwrap();
         let signature = &info.methods[method].signature;
-        assert_eq!(
-            signature.params[0].default,
-            Some(DefaultValue::Symbol(seed))
-        );
-        assert!(!signature_has_pending_bindings(signature));
+        assert!(signature.params[0].optional);
         if let Some(field) = info.fields.get(method) {
             let Type::Function(signature) = &field.ty else {
                 panic!("expected object method field");
             };
-            assert_eq!(
-                signature.params[0].default,
-                Some(DefaultValue::Symbol(seed))
-            );
-            assert!(!signature_has_pending_bindings(signature));
+            assert!(signature.params[0].optional);
         }
     }
 }

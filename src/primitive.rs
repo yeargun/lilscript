@@ -16,6 +16,8 @@ pub enum Invocation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DefaultConvention {
     MaterializeAtCaller,
+    /// Declared callees evaluate their own defaults in their defining environment.
+    ApplyAtCallee,
     PreserveOmission,
 }
 
@@ -67,6 +69,8 @@ pub enum Intrinsic {
     UnwrapNullable,
     UnwrapUnion,
     ArrayLength,
+    /// Bounds-checked read, expanded to shared control flow before optimization.
+    ArrayGet,
     ArrayMap,
     ArrayFilter,
     ArrayReduce,
@@ -380,9 +384,10 @@ impl IntrinsicCallContract {
                 .iter()
                 .zip(self.defaults)
                 .map(|(ty, default)| crate::check::FunctionParameter {
+                    receiver: false,
                     ty: ty.clone(),
                     passing: ParameterPassing::Value,
-                    default: default.clone(),
+                    optional: default.is_some(),
                     rest: false,
                 })
                 .collect(),
@@ -423,15 +428,8 @@ impl IntrinsicCallContract {
             {
                 return Ok(false);
             }
-            match (&parameter.default, default) {
-                (None, None) => {}
-                (Some(left), Some(right)) => {
-                    admission.admit(RelationEvent::DefaultEquality { left, right })?;
-                    if left != right {
-                        return Ok(false);
-                    }
-                }
-                _ => return Ok(false),
+            if parameter.optional != default.is_some() || parameter.rest {
+                return Ok(false);
             }
         }
         type_equal_with(&signature.return_type, self.result, admission)
@@ -501,6 +499,26 @@ pub(crate) fn intrinsic_call_contract(
         defaults,
         result,
     })
+}
+
+/// Default operands owned by a language operation. Parameter type identity
+/// contains only optionality; this catalog is the sole value owner.
+pub(crate) fn intrinsic_default(
+    operation: ResolvedIntrinsic,
+    position: usize,
+) -> Option<crate::check::DefaultValue<'static>> {
+    if let Some(contract) = intrinsic_call_contract(operation) {
+        return contract.defaults.get(position).cloned().flatten();
+    }
+    if let ResolvedIntrinsic::Method(op) = operation {
+        if position == 1
+            && (op == Intrinsic::BufferSlice
+                || crate::typed_array::is_typed_array_range_intrinsic(op))
+        {
+            return Some(crate::check::DefaultValue::Int(i32::MAX as i64));
+        }
+    }
+    None
 }
 
 /// The runtime test for `value is T`, as the old route's emitter spelled it.
@@ -619,6 +637,7 @@ fn member_intrinsic(receiver: &crate::check::Type<'_>, property: &str) -> Option
         (Type::Dynamic, "truthy") => Some(Intrinsic::JsTruthy),
         (Type::Dynamic, "isArray") => Some(Intrinsic::JsIsArray),
         (Type::Dynamic, "isObject") => Some(Intrinsic::JsIsObject),
+        (Type::Array(_), "get") => Some(Intrinsic::ArrayGet),
         (Type::Array(_), "push") => Some(Intrinsic::ArrayPush),
         (Type::Array(_), "pop") => Some(Intrinsic::ArrayPop),
         (Type::Array(_), "indexOf") => Some(Intrinsic::ArrayIndexOf),
@@ -705,8 +724,8 @@ mod parameter_contract_tests {
         assert_eq!(signature.params.len(), 2);
         assert_eq!(signature.params[0].ty, Type::String);
         assert_eq!(signature.params[1].ty, Type::Int);
-        assert_eq!(signature.params[0].default, None);
-        assert_eq!(signature.params[1].default, Some(DefaultValue::Int(0)));
+        assert!(!signature.params[0].optional);
+        assert!(signature.params[1].optional);
         assert!(signature
             .params
             .iter()
@@ -716,7 +735,7 @@ mod parameter_contract_tests {
         edited.params[0].passing = ParameterPassing::MutableReference;
         assert!(!contract.matches(&Type::Function(FunctionType::new(edited))));
         let mut edited = (*signature).clone();
-        edited.params[1].default = None;
+        edited.params[1].optional = false;
         assert!(!contract.matches(&Type::Function(FunctionType::new(edited))));
     }
 }

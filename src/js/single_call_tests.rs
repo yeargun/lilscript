@@ -16,6 +16,7 @@ pub(super) fn sites() -> (Module, String) {
             vec![Statement::Evaluate(effect), Statement::Return(Some(value))];
         let function = FunctionId::new(module.functions.len());
         module.functions.push(Function {
+            rest: false,
             parameters: vec![],
             body,
             arrow: true,
@@ -92,6 +93,7 @@ pub(super) fn sites() -> (Module, String) {
                 module.regions[outer.index()].statements = vec![Statement::Return(Some(called))];
                 let wrapper = FunctionId::new(module.functions.len());
                 module.functions.push(Function {
+                    rest: false,
                     parameters: vec![],
                     body: outer,
                     arrow: true,

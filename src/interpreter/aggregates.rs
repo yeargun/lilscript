@@ -115,41 +115,6 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
     }
 
-    fn argument_frame(
-        &mut self,
-        params: &[Param<'ast, 'src>],
-        mut values: Vec<Value>,
-        span: Span,
-    ) -> Result<AHashMap<SymbolId, BindingCell>, InterpretError> {
-        for parameter in params.iter().skip(values.len()) {
-            let default = parameter
-                .default
-                .as_ref()
-                .ok_or_else(|| InterpretError::new(span, "missing aggregate call argument"))?;
-            values.push(self.evaluate(default)?);
-        }
-        if values.len() != params.len() {
-            return Err(InterpretError::new(
-                span,
-                "aggregate call argument count mismatch",
-            ));
-        }
-        let mut frame = AHashMap::new();
-        for (parameter, value) in params.iter().zip(values) {
-            let ty = self
-                .semantics
-                .binding_type(parameter.name.id)
-                .ok_or_else(|| {
-                    InterpretError::new(parameter.span, "parameter has no checked type")
-                })?;
-            frame.insert(
-                self.symbol(&parameter.name)?,
-                Rc::new(RefCell::new(coerce_value_to_type(value, ty))),
-            );
-        }
-        Ok(frame)
-    }
-
     pub(super) fn invoke_method(
         &mut self,
         receiver: Rc<AggregateValue>,
@@ -163,12 +128,12 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 "unsupported async/generator method",
             ));
         }
-        let mut frame = self.argument_frame(function.params, values, span)?;
+        let mut frame = AHashMap::new();
         frame.insert(
             self.symbol(&function.this)?,
             Rc::new(RefCell::new(Value::Instance(receiver))),
         );
-        self.execute_callable_frame(frame, function.body, None, span)
+        self.execute_callable_frame(frame, function.params, values, function.body, None, span)
             .map(|value| {
                 if matches!(function.return_type.kind, TypeKind::Float) {
                     coerce_value_to_type(value, &Type::Float)
@@ -192,7 +157,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         });
         let base = self.base_class(class)?;
         if let Some(constructor) = constructor {
-            let mut frame = self.argument_frame(constructor.params, values, span)?;
+            let mut frame = AHashMap::new();
             frame.insert(
                 self.symbol(&constructor.this)?,
                 Rc::new(RefCell::new(Value::Instance(receiver.clone()))),
@@ -201,7 +166,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 self.initialize_fields(&receiver, class)?;
             }
             self.constructors.push((receiver, class));
-            let result = self.execute_callable_frame(frame, constructor.body, None, span);
+            let result = self.execute_callable_frame(
+                frame,
+                constructor.params,
+                values,
+                constructor.body,
+                None,
+                span,
+            );
             self.constructors.pop();
             result?;
         } else {

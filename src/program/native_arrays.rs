@@ -1,10 +1,9 @@
 //! Native arrays: one reference-counted, growable C array per element kind.
 //! An element is plain value storage, so element copies carry no ownership.
-//! Reads and pops past the end follow the JavaScript recipes: an `int`
-//! reads 0 (`a[i]|0`) and a `string` reads `""` (`a[i]??""`); every other
-//! element would be `undefined`, which native values cannot hold, so it
-//! stops the program. Setting one past the end appends; further would leave
-//! holes, which native arrays do not have.
+//! Index reads trap outside the array, as required by R11. Checked `get`
+//! becomes guarded shared control flow; `pop` retains its existing contract.
+//! Setting one past the end appends; further would leave holes, which native
+//! arrays do not have.
 //!
 //! Methods follow ECMA-262 step by step where it is observable: callbacks
 //! see the length fixed when the method starts, and indices removed by a
@@ -91,7 +90,7 @@ ls_array{s}_acquire(value);\n\
 return ls_array{s}_push_owned(array, value);\n}}\n\
 static void ls_array{s}_hole(ls_array{s} *array) {{ {hole} }}\n\
 static {e} ls_array{s}_get(ls_array{s} *array, int32_t index) {{\n\
-if (index < 0 || (size_t)index >= array->length) {{ {absent} }}\n\
+if (index < 0 || (size_t)index >= array->length) {{ ls_native_undefined_element(); }}\n\
 return array->items[index];\n}}\n\
 static void ls_array{s}_set(ls_array{s} *array, int32_t index, {e} value) {{\n\
 if (index >= 0 && (size_t)index < array->length) {{ ls_array{s}_acquire(value); ls_array{s}_drop(array->items[index]); array->items[index] = value; return; }}\n\
@@ -225,6 +224,9 @@ return false;\n}}\n"
                 self.text(",")?;
             }
             self.text(argument)?;
+        }
+        if self.plan.signatures[signature].has_optional() {
+            self.write(format_args!(",{}", arguments.len()))?;
         }
         self.text(")")?;
         if floating {

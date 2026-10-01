@@ -132,7 +132,7 @@ pub(super) fn adaptable_export(
         };
         if parameter.passing != ParameterPassing::Value
             || !(element_array || adaptable(program, &parameter.ty, 0, budget)?)
-            || (parameter.default.is_some() && carries_product(&parameter.ty, budget)?)
+            || (parameter.optional && carries_product(&parameter.ty, budget)?)
         {
             return Ok(false);
         }
@@ -410,6 +410,11 @@ impl Formation<'_, '_, '_, '_, '_> {
             self.append(&mut parameters, binding)?;
             let value = self.reference(binding)?;
             let value = self.public_value(&parameter.ty, value, true)?;
+            let value = if parameter.rest {
+                self.expression(js::Expr::Spread(value))?
+            } else {
+                value
+            };
             self.append(&mut arguments, value)?;
         }
         let callee = self.reference(target)?;
@@ -453,6 +458,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: signature.params.last().is_some_and(|p| p.rest),
                 parameters,
                 body: inner,
                 arrow: false,
@@ -472,6 +478,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: false,
                 parameters: outer_parameters,
                 body: outer,
                 arrow: false,
@@ -558,6 +565,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: false,
                 parameters,
                 body,
                 arrow: false,
@@ -658,6 +666,11 @@ impl Formation<'_, '_, '_, '_, '_> {
             self.append(&mut parameters, binding)?;
             let value = self.reference(binding)?;
             let value = self.public_value(&parameter.ty, value, true)?;
+            let value = if parameter.rest {
+                self.expression(js::Expr::Spread(value))?
+            } else {
+                value
+            };
             self.append(&mut arguments, value)?;
         }
         let callee = self.reference(inner)?;
@@ -674,6 +687,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: signature.params.last().is_some_and(|p| p.rest),
                 parameters,
                 body,
                 // Only declared functions reach here; their public callable

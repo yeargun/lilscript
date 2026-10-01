@@ -7,15 +7,16 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is next**.
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is the sole active milestone**, under its [contract](s4-acceptance.md).
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Implement **S4**: close the checker identities, shared fact consumers and
-language/capability contracts, starting with the existing record fact/type
-refusal. G3's [evidence](../../benchmarks/migration-results/2026-10-01-g3-complete/README.md)
-and [handoff](handoff.md) pin the completed compiler.
+Complete **S4**: identities/defaults, the record fact/type fix, typed
+receivers/rest, checked array reads and value updates are implemented in its
+[contracts batch](../../benchmarks/migration-results/2026-10-01-s4-contracts/README.md).
+Continue its remaining shared-consumer and language/boundary work before Q2.
+The [handoff](handoff.md) records the current scope and compiler pins.
 
 The owner requests substantial implementation batches followed by focused
 checks that answer a correctness or size question. Do not restart the deferred
@@ -32,7 +33,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
-| [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
+| [~] | [S4](plan.md#s4) Contracts | Shapes/variants/enums, crossings, definite assignment, generic/host coverage and remaining fact-consumer audit |
 | [x] | [G1](plan.md#g1) Lexical names | Live printed-order/frequency allocation, full continuations, final-byte ties and replay controls complete; optional compaction is automatic at 14 |
 | [x] | [G2](plan.md#g2) Property names | Private generic/observed eligibility, inherited/sibling slot reuse, reflected boundaries and adapter-name fixtures complete |
 | [x] | [G3](plan.md#g3) JS generation | Stable per-site forms, guarded aliases, safe locality choices and structural printing complete |

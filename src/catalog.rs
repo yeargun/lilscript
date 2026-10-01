@@ -114,6 +114,7 @@ pub(crate) fn effect_class(operation: ResolvedIntrinsic) -> EffectClass {
         | I::JsStrictNotEqual => Class::Inert { throws: false },
         I::JsIsArray => Class::Inert { throws: true },
         I::ArrayLength
+        | I::ArrayGet
         | I::ArrayIndexOf
         | I::ArrayIncludes
         | I::MapSize
@@ -539,5 +540,27 @@ pub fn host_kind(name: &str) -> HostKind {
             .map_or(HostKind::Declared, |&(_, global)| {
                 HostKind::Standard(global)
             }),
+    }
+}
+
+/// Missing source-level native capabilities. Kept in the operation/type
+/// catalog so the frontend and native completion have one capability owner.
+/// `None` means a target plan may implement it; recipe-specific constraints
+/// (for example a particular host ABI) still need their checked interface.
+pub(crate) fn native_type_capability(ty: &crate::check::Type<'_>) -> Option<&'static str> {
+    use crate::check::Type;
+    match ty {
+        Type::Dynamic | Type::Unknown => Some("JsValue and unknown require a JavaScript target"),
+        Type::Record(_) => Some("native records are not implemented yet"),
+        Type::Regex => Some("native regular expressions are not implemented yet"),
+        Type::Task(_) => Some("native tasks and async functions are not implemented yet"),
+        Type::Generator(_) => Some("native generators are not implemented yet"),
+        Type::ModuleNamespace(_) | Type::ModuleLoadError => {
+            Some("dynamic module loading requires a JavaScript target")
+        }
+        Type::StructInstance { .. } => {
+            Some("native instantiated value structs are not implemented yet")
+        }
+        _ => None,
     }
 }

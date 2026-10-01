@@ -1162,7 +1162,7 @@ fn collect_stmt_dynamic_imports<'ast, 'src>(
 ) {
     for statement in statements {
         match statement {
-            Stmt::VarDecl(declaration) => {
+            Stmt::VarDecl(declaration, ..) => {
                 if let Some(initializer) = &declaration.initializer {
                     collect_expr_dynamic_imports(initializer, imports);
                 }
@@ -1170,7 +1170,7 @@ fn collect_stmt_dynamic_imports<'ast, 'src>(
             Stmt::ArrayDestructure { value, .. } | Stmt::RecordDestructure { value, .. } => {
                 collect_expr_dynamic_imports(value, imports)
             }
-            Stmt::Expr(expression) => collect_expr_dynamic_imports(expression, imports),
+            Stmt::Expr(expression, ..) => collect_expr_dynamic_imports(expression, imports),
             Stmt::Return { value, .. } => {
                 if let Some(value) = value {
                     collect_expr_dynamic_imports(value, imports);
@@ -1251,7 +1251,7 @@ fn collect_stmt_dynamic_imports<'ast, 'src>(
                 collect_expr_dynamic_imports(iterable, imports);
                 collect_stmt_dynamic_imports(std::slice::from_ref(*body), imports);
             }
-            Stmt::Break(_) | Stmt::Continue(_) => {}
+            Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {}
         }
     }
 }
@@ -1283,6 +1283,15 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
         } => {
             for entry in *entries {
                 collect_expr_dynamic_imports(entry.value(), imports);
+            }
+        }
+        Expr {
+            kind: ExprKind::With { value, fields, .. },
+            ..
+        } => {
+            collect_expr_dynamic_imports(value, imports);
+            for field in *fields {
+                collect_expr_dynamic_imports(&field.value, imports);
             }
         }
         Expr {

@@ -99,7 +99,7 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Replaces.** D1's mutable references; v0.1:874-900 (`ref`); the implementation's tuple rebuild per field write (`src/program/javascript_structs.rs:1-3`).
 - **JS.** Any layout the choice system picks; an update is a store into the place's storage; a copy is a fresh object or fresh scalars. **Native.** Value records; an update is a store.
 - **Why this form.** It keeps L13 by construction: the cursor loop that runs 4.0× slower today updates a local, which is always in place; a copy happens only where an untyped program would need `{...p}` to keep the same meaning.
-- **Status.** Target (M10.18, with M6.6 and M7.9), after the owner's yes to Y2 for the `ref` removal. The in-place and copy-on-store implementation needs no ruling.
+- **Status.** In-place updates and physical copy elision landed in S2. S4 adds `with`, which snapshots the original value before evaluating its overrides. `ref` remains supported; removing it still requires Y2.
 
 ### R5 Declared shapes for plain data
 
@@ -142,7 +142,7 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Clause.** Function types may state a receiver, `fn(this: T, A) -> R`; literals and shapes may hold methods. Parameters may be variadic, `T... rest`, excluded from `length`. Calls may spread, `f(...xs)`.
 - **Replaces.** v0.1:399-425 (13 adapter primitives, `extern JsValue this/arguments`).
 - **JS.** `function(a){…this…}`, `(a, ...b) =>`, `f(...xs)`. **Native.** The receiver is the first parameter; a rest parameter is an array.
-- **Status.** Target (M10.4), in language slice 1. Its formation half (a private lambda's adapter is emitted as the method itself) lands earlier, in batch A1 (M8.2, law P1).
+- **Status.** S4 implements typed receiver literals and function types, explicit `.call`, receiver-valued fields, real rest arrays for functions/methods/constructors, and typed array spread to rest parameters. Defaults and rest compose, with public `length` preserved on JavaScript and explicit array transport on native. Spreading into a fixed typed parameter list remains refused; legacy adapters retain their compatibility contract.
 
 ---
 
@@ -153,7 +153,7 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Clause.** `int` is wrapping int32 on every target (kept). `|0` appears only after an operation that can leave int32 without a range proof; loads never normalize. `length`, `size`, `indexOf` and `findIndex` are `int`: collections and strings hold at most 2^31 − 1 elements (a D3.10 resource bound). `a[i]` and `s.codeUnitAt(i) -> int` have an in-range precondition (native traps; `checks = "development"` throws; production does not check); `a.get(i) -> T?` is the checked read. `s.charCodeAt(i) -> number` keeps its JavaScript meaning (NaN out of range). Float `%` is added.
 - **Replaces.** v0.1:517-535 (keeps wrapping, drops load normalization), :1032-1034 (`charCodeAt` returns `int`, 0 out of range), the unspecified out-of-range behaviour (JavaScript defaults `""`/`0`/`null` while the interpreter errors).
 - **Migration.** `charCodeAt` changes type: the seven reference ports use it 47 times, many as `int c = s.charCodeAt(i)` (markedlil `src/str.lil:387`). The fix-it rewrites each to `s.charCodeAt(i) | 0`, which keeps today's meaning exactly, or to `s.codeUnitAt(i)` where the index is bounded by the string's length in the same loop head. Before index preconditions become production semantics, every port suite runs in the `checks = "development"` lane (§14).
-- **Status.** Partly in force (batch K9, 2026-09-28): float `%`; a bitwise operator's float operand through ToInt32; `s.codeUnitAt(i)`, checked under `checks = "development"` (batch K8, which also checks index reads); `migration/char-code`'s fix-it. The index precondition is production semantics since batch K12 (after the development-check lane): an `int` or `string` element read is the plain read, and a `Uint32Array` element alone keeps its int32 conversion. Native still reads a memory-safe default past the end, where the clause says it traps. Open: `charCodeAt` returning a number, which refuses `int c = s.charCodeAt(i)` and so waits for the ports' releases (M12.4); `a.get(i)`; native's trap.
+- **Status.** Float `%`, bitwise ToInt32, `codeUnitAt`, development index checks and the `migration/char-code` fix-it are implemented. Production JavaScript index reads use the in-range precondition (K12). S4 adds typed array `a.get(i)` with a nullable result and native array index traps. Remaining work includes the native string/typed-array audit and `charCodeAt` returning a number; the latter needs the port migration before changing accepted programs.
 
 ### R10 Typed intrinsics mean ECMAScript's originals
 

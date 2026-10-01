@@ -213,12 +213,12 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ModuleConversionError> {
     let mut scope = budget.scope();
     let program = convert_modules(sources, semantics, &mut scope)?;
-    verify_conversion(&program, sources[semantics.root()].span, &mut scope).map_err(|error| {
-        ModuleConversionError {
-            module: semantics.root(),
-            error,
-        }
-    })?;
+    verify_module_conversion(
+        &program,
+        semantics.root(),
+        sources[semantics.root()].span,
+        &mut scope,
+    )?;
     check_contracts(&program).map_err(|(module, violation)| ModuleConversionError {
         module: module.index(),
         error: ConversionError::Contract(violation),
@@ -326,6 +326,25 @@ fn invalid_conversion(span: Span) -> Unsupported {
     }
 }
 
+fn verification_error(
+    program: &Program<'_>,
+    error: super::verify::VerificationError,
+    span: Span,
+) -> ConversionError {
+    match error {
+        super::verify::VerificationError::Allocation(error) => ConversionError::Resources(error),
+        error => {
+            let span = match &error {
+                super::verify::VerificationError::TypeMismatch { span, .. } => *span,
+                _ => span,
+            };
+            if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
+                eprintln!("semantic verification: {}", error.into_string(program));
+            }
+            ConversionError::Unsupported(invalid_conversion(span))
+        }
+    }
+}
 fn verify_conversion(
     program: &Program<'_>,
     span: Span,
@@ -333,17 +352,26 @@ fn verify_conversion(
 ) -> Result<(), ConversionError> {
     super::verify::verify_admitted(program, budget)
         .map(|_| ())
-        .map_err(|error| match error {
-            super::verify::VerificationError::Allocation(error) => {
-                ConversionError::Resources(error)
-            }
-            error => {
-                // The diagnostic stays a fixed feature name; the verifier's
-                // reason is available to compiler developers on request.
-                if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-                    eprintln!("semantic verification: {}", error.into_string(program));
+        .map_err(|error| verification_error(program, error, span))
+}
+fn verify_module_conversion(
+    program: &Program<'_>,
+    root: usize,
+    span: Span,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), ModuleConversionError> {
+    super::verify::verify_admitted(program, budget)
+        .map(|_| ())
+        .map_err(|error| {
+            let module = match &error {
+                super::verify::VerificationError::TypeMismatch { unit, .. } => {
+                    program.unit(*unit).map_or(root, |data| data.module.index())
                 }
-                ConversionError::Unsupported(invalid_conversion(span))
+                _ => root,
+            };
+            ModuleConversionError {
+                module,
+                error: verification_error(program, error, span),
             }
         })
 }
@@ -392,11 +420,11 @@ pub fn from_checked_modules<'ast, 'src>(
     let mut budget = AllocationBudget::new(None);
     let result = (|| {
         let program = convert_modules(sources, semantics, &mut budget)?;
-        verify_conversion(&program, sources[semantics.root()].span, &mut budget).map_err(
-            |error| ModuleConversionError {
-                module: semantics.root(),
-                error,
-            },
+        verify_module_conversion(
+            &program,
+            semantics.root(),
+            sources[semantics.root()].span,
+            &mut budget,
         )?;
         check_contracts(&program).map_err(|(module, violation)| ModuleConversionError {
             module: module.index(),
@@ -716,6 +744,8 @@ fn interface_target(target: crate::check::InterfaceTarget) -> Option<InterfaceTa
 }
 
 struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
+    statement_origin: Option<(ModuleId, SourceNodeId)>,
+    checked_types: Vec<Option<TypeId>>,
     semantics: CheckedView<'sem, 'ast, 'src>,
     /// Every module's view, by module: a field initializer (R3) is lowered
     /// at each construction, under its class's module's facts.
@@ -808,6 +838,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         let mut views = budget.vector(Scratch, sources.len())?;
         budget.push(Scratch, &mut views, semantics)?;
         Ok(Self {
+            checked_types: budget.filled(Scratch, semantics.type_count(), None)?,
             semantics,
             views,
             current_module: ModuleId::from_index(0).unwrap(),
@@ -832,6 +863,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             allocations: budget.filled(Scratch, sources.len(), 0)?,
             class_methods: budget.vector(Scratch, 0)?,
             current_class: None,
+            statement_origin: None,
             class_values: None,
             field_initializers: Default::default(),
             budget,
@@ -967,8 +999,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     let mut type_parameters =
                         self.budget.vector(Retained, definition.type_params.len())?;
                     for name in &definition.type_params {
-                        let name = self.budget.string(Retained, name)?;
-                        self.budget.push(Retained, &mut type_parameters, name)?;
+                        self.budget
+                            .push(Retained, &mut type_parameters, name.identity)?;
                     }
                     let name = self.budget.string(Retained, definition.declaration.name)?;
                     self.budget.push(
@@ -1174,6 +1206,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         }
         drop_vector(units, Scratch, self.budget)?;
         drop_vector(self.allocations, Scratch, self.budget)?;
+        drop_vector(self.checked_types, Scratch, self.budget)?;
         drop_vector(self.class_methods, Scratch, self.budget)?;
         drop_vector(self.views, Scratch, self.budget)?;
         Ok(self.program)
@@ -1197,7 +1230,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             return self.ty(&ty.without_unknown());
         }
         use crate::check::type_admission::TypeQueryAdmission;
-        use crate::check::type_payload::{Payload, PayloadError, PayloadMeasure, measure_payload};
+        use crate::check::type_payload::{measure_payload, Payload, PayloadError, PayloadMeasure};
         fn measure(
             ty: &Type<'_>,
             budget: &mut AllocationBudget<'_>,
@@ -1211,7 +1244,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             }
         }
         for (index, known) in self.program.types.iter().enumerate() {
-            if crate::check::type_relation::type_equal_with(
+            if crate::check::type_relation::storage_equal_with(
                 known,
                 ty,
                 &mut TypeQueryAdmission::new(self.budget),
@@ -1251,11 +1284,20 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         Ok(id)
     }
     fn expression_type(&mut self, expr: &ast::Expr<'ast, 'src>) -> Result<TypeId, ConversionError> {
-        let ty = self.semantics.expression_type(expr.id).ok_or(Unsupported {
-            span: expr.span(),
-            feature: "missing checked expression type",
-        })?;
-        self.ty(ty)
+        let id = self
+            .semantics
+            .expression_type_id(expr.id)
+            .ok_or(Unsupported {
+                span: expr.span(),
+                feature: "missing checked expression type",
+            })?;
+        self.work(1)?;
+        if let Some(ty) = self.checked_types[id.index()] {
+            return Ok(ty);
+        }
+        let ty = self.ty(self.semantics.checked_type(id))?;
+        self.checked_types[id.index()] = Some(ty);
+        Ok(ty)
     }
     fn string(&mut self, value: &str) -> Result<StringId, ConversionError> {
         for (index, known) in self.program.strings.iter().enumerate() {
@@ -1820,60 +1862,39 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         arguments: &'ast [ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<Vec<ValueId>, ConversionError> {
-        let info = self.class_info(class, span)?;
-        let external = info.external;
-        let signature = info.constructor.clone();
-        let parameters = signature
+        let signature = self.class_info(class, span)?.constructor.clone();
+        let rest = signature
             .as_ref()
-            .map_or(0, |signature| signature.params.len());
-        if arguments.len() > parameters || (external && arguments.len() != parameters) {
-            return self.unsupported(span, "host class construction with omitted arguments");
+            .filter(|sig| sig.has_rest())
+            .map(|sig| (sig.fixed_params(), sig.params.last().unwrap().ty.clone()));
+        if signature
+            .as_ref()
+            .is_some_and(|sig| !sig.accepts_arity(arguments.len()))
+        {
+            return self.unsupported(span, "class construction arity");
         }
-        let mut values = Vec::with_capacity(parameters);
-        for argument in arguments {
-            self.work(1)?;
-            if argument.passing != crate::primitive::ParameterPassing::Value {
-                return self
-                    .unsupported(argument.span, "reference argument to a class constructor");
+        let mut values = self.budget.vector(Scratch, arguments.len() + 1)?;
+        for (index, argument) in arguments.iter().enumerate() {
+            if let Some((fixed, ref ty)) = rest {
+                if index == fixed {
+                    let ty = self.ty(ty)?;
+                    let packed = self.packed_rest(unit, region, &arguments[index..], ty, span)?;
+                    self.budget.push(Scratch, &mut values, packed)?;
+                    break;
+                }
             }
             let value = self.expression(unit, region, &argument.expression)?;
             let value = self.copy_value(unit, region, value, argument.span)?;
-            values.push(CallArgument::Value(value));
+            self.budget.push(Scratch, &mut values, value)?;
         }
-        if let Some(signature) = signature.filter(|_| !external) {
-            let mut end = signature.params.len();
-            while end > values.len()
-                && matches!(
-                    signature.params[end - 1].default,
-                    Some(crate::check::DefaultValue::Arrow(_))
-                )
-            {
-                end -= 1;
-            }
-            for position in values.len()..end {
-                self.work(1)?;
-                let parameter = &signature.params[position];
-                let Some(default) = parameter.default.as_ref() else {
-                    return self.unsupported(span, "omitted argument without a checked default");
-                };
-                if matches!(default, crate::check::DefaultValue::Arrow(_)) {
-                    return self
-                        .unsupported(span, "arrow default before a caller-evaluated default");
-                }
-                let ty = self.ty(&parameter.ty)?;
-                let value = self.default_value(unit, region, default, ty, &values, false, span)?;
-                values.push(CallArgument::Value(value));
+        if let Some((fixed, ty)) = rest {
+            if arguments.len() == fixed {
+                let ty = self.ty(&ty)?;
+                let packed = self.packed_rest(unit, region, &[], ty, span)?;
+                self.budget.push(Scratch, &mut values, packed)?;
             }
         }
-        Ok(values
-            .into_iter()
-            .map(|argument| match argument {
-                CallArgument::Value(value) => value,
-                CallArgument::Reference(_) | CallArgument::Spread(_) => {
-                    unreachable!("constructor arguments are values")
-                }
-            })
-            .collect())
+        Ok(values)
     }
     /// A kept class's own fields take their defaults, in order: at a root
     /// constructor's entry, or once `super(...)` returns, as JavaScript
@@ -2262,8 +2283,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let name = self.budget.string(Retained, declaration.name.name)?;
         let mut type_params = self.budget.vector(Retained, info.type_params.len())?;
         for parameter in &info.type_params {
-            let parameter = self.budget.string(Retained, parameter)?;
-            self.budget.push(Retained, &mut type_params, parameter)?;
+            self.budget
+                .push(Retained, &mut type_params, parameter.identity)?;
         }
         let mut base_arguments = Vec::new();
         if let Some(Type::ClassInstance { args, .. }) = &info.base {
@@ -2332,7 +2353,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         }
         for member in declaration.members {
             self.work(1)?;
-            let (name, member_id, this, signature, pure) = match member {
+            let (name, member_id, this, signature, pure, method_parameters) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => {
                     if function.is_async || function.is_generator {
@@ -2342,15 +2363,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span: function.span,
                         feature: "missing checked method",
                     })?;
-                    if !method.type_params.is_empty() {
-                        return self.unsupported(function.span, "generic method conversion");
-                    }
                     (
                         Some(function.name.name),
                         Some(method.member),
                         function.this,
                         method.signature.clone(),
                         method.declared_pure,
+                        method.type_params.clone(),
                     )
                 }
                 ast::ClassMember::Constructor(constructor) => {
@@ -2358,7 +2377,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span: constructor.span,
                         feature: "missing checked constructor",
                     })?;
-                    (None, None, constructor.this, signature, false)
+                    (None, None, constructor.this, signature, false, Vec::new())
                 }
             };
             let this_cell = self.cell(this)?;
@@ -2380,11 +2399,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             });
             // A generic class's bodies are generic over its parameters; each
             // call instantiates them from the receiver's type arguments.
-            let callable = self.ty(&if info.type_params.is_empty() {
+            let mut type_params = info.type_params.clone();
+            type_params.extend(method_parameters);
+            let callable = self.ty(&if type_params.is_empty() {
                 Type::Function(function)
             } else {
                 Type::GenericFunction(crate::check::GenericFunctionType {
-                    type_params: info.type_params.clone(),
+                    type_params,
                     signature: function,
                 })
             })?;
@@ -2582,6 +2603,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             {
                 self.own_field_defaults(method.unit, entry, class, this_cell, span)?;
             }
+            self.parameter_defaults(method.unit, params, 1)?;
             self.statements(method.unit, entry, body)?;
             self.current_class = outer;
             let ty = self.program.cells[method.cell.index()].ty;
@@ -2859,8 +2881,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 // A reference argument is a place the prepared call owns; the
                 // instance is created inside that call, after the arguments.
                 let receiver = CallReceiver::Construction { class, ty, origin };
-                let (_, instance) = self
-                    .call_class_function_with(unit, region, init, receiver, ty, arguments, span)?;
+                let (_, instance) = self.call_class_function_with(
+                    unit,
+                    region,
+                    init,
+                    receiver,
+                    ty,
+                    arguments,
+                    &[],
+                    span,
+                )?;
                 Ok(instance)
             }
             None if arguments.is_empty() => {
@@ -2904,14 +2934,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     self.budget.push(Scratch, &mut values, argument)?;
                 }
                 let signature = self.program.cells[init.cell.index()].ty;
-                let instantiation = self.class_instantiation(unit, init, ty, span)?;
+                let instantiation = self.class_instantiation(unit, init, ty, &[], span)?;
                 self.reference(unit, init.cell)?;
                 let callee = self.load_cell(unit, region, init.cell, span)?;
                 let contract = CallContract {
                     signature: Some(signature),
                     instantiation,
                     supplied: u32::try_from(values.len()).map_err(|_| AllocationError::Capacity)?,
-                    defaults: DefaultConvention::MaterializeAtCaller,
+                    defaults: DefaultConvention::ApplyAtCallee,
                 };
                 let (kind, operands) = self.prepare_call_values(
                     unit,
@@ -2941,6 +2971,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         unit: UnitId,
         method: ClassMethod<'src>,
         receiver: TypeId,
+        method_arguments: &[Type<'src>],
         span: Span,
     ) -> Result<Option<CallInstantiationId>, ConversionError> {
         let declaration = self.program.cells[method.cell.index()].ty;
@@ -2964,7 +2995,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 }
                 Some(Type::Class(declaration)) => (declaration.identity, Vec::new()),
                 _ => {
-                    return self.unsupported(span, "generic class body on another class's receiver");
+                    return self
+                        .unsupported(span, "generic class body on another class's receiver");
                 }
             };
             let parameters = info.type_params.clone();
@@ -2973,10 +3005,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 substituted.push(
                     crate::check::type_substitution::substitute_type_with(
                         argument,
-                        &mut |name: &str, _: &mut crate::check::type_relation::Unmetered| {
+                        &mut |name: crate::check::TypeParameterId, _: &mut crate::check::type_relation::Unmetered| {
                             Ok(parameters
                                 .iter()
-                                .position(|parameter| *parameter == name)
+                                .position(|parameter| parameter.identity == name)
                                 .and_then(|index| arguments.get(index)))
                         },
                         &mut crate::check::type_relation::Unmetered,
@@ -2987,16 +3019,18 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             class = base;
             arguments = substituted;
         }
+        arguments.extend_from_slice(method_arguments);
         if arguments.len() != function.type_params.len() {
-            return self.unsupported(span, "generic class receiver arity");
+            return self.unsupported(span, "generic class or method argument arity");
         }
         let effective = crate::check::type_substitution::substitute_type_with(
             &Type::Function(function.signature.clone()),
-            &mut |name: &str, _: &mut crate::check::type_relation::Unmetered| {
+            &mut |name: crate::check::TypeParameterId,
+                  _: &mut crate::check::type_relation::Unmetered| {
                 Ok(function
                     .type_params
                     .iter()
-                    .position(|parameter| *parameter == name)
+                    .position(|parameter| parameter.identity == name)
                     .map(|index| &arguments[index]))
             },
             &mut crate::check::type_relation::Unmetered,
@@ -3050,6 +3084,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         method: ClassMethod<'src>,
         receiver: ValueId,
         arguments: &'ast [ast::Argument<'ast, 'src>],
+        method_arguments: &[Type<'src>],
         span: Span,
     ) -> Result<ValueId, ConversionError> {
         let receiver_type = self.units[unit.index()].values[receiver.index()].ty;
@@ -3060,6 +3095,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             CallReceiver::Value(receiver),
             receiver_type,
             arguments,
+            method_arguments,
             span,
         )?;
         Ok(value)
@@ -3075,12 +3111,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         receiver: CallReceiver,
         receiver_type: TypeId,
         arguments: &'ast [ast::Argument<'ast, 'src>],
+        method_arguments: &[Type<'src>],
         span: Span,
     ) -> Result<(ValueId, ValueId), ConversionError> {
         self.reference(unit, method.cell)?;
         let callee = self.load_cell(unit, region, method.cell, span)?;
         let signature = self.program.cells[method.cell.index()].ty;
-        let instantiation = self.class_instantiation(unit, method, receiver_type, span)?;
+        let instantiation =
+            self.class_instantiation(unit, method, receiver_type, method_arguments, span)?;
         let result = self.class_call_result(unit, signature, instantiation, span)?;
         let contract = CallContract {
             signature: Some(signature),
@@ -3089,7 +3127,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
                 feature: "semantic call argument capacity",
             })?,
-            defaults: DefaultConvention::MaterializeAtCaller,
+            defaults: DefaultConvention::ApplyAtCallee,
         };
         let (kind, operands, receiver) = self.prepare_call_with_receiver(
             unit,
@@ -3194,6 +3232,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         span: Span,
     ) -> Result<Option<ValueId>, ConversionError> {
         let data = &mut self.units[unit.index()];
+        let origin = origin.or_else(|| {
+            self.statement_origin
+                .filter(|(module, _)| *module == data.module)
+                .map(|(_, id)| id)
+        });
         let range = OperandRange {
             start: u32::try_from(data.operands.len()).map_err(|_| AllocationError::Capacity)?,
             len: u32::try_from(operands.len()).map_err(|_| AllocationError::Capacity)?,
@@ -3303,7 +3346,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         unit: UnitId,
         parameters: &[ast::Param<'ast, 'src>],
     ) -> Result<(), ConversionError> {
-        self.parameters_with_receiver(unit, None, parameters)
+        self.parameters_with_receiver(unit, None, parameters)?;
+        self.parameter_defaults(unit, parameters, 0)
     }
     /// A class body's `this` is its first parameter; source parameters follow.
     fn parameters_with_receiver(
@@ -3329,33 +3373,34 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             self.budget
                 .push(Retained, &mut self.units[unit.index()].parameters, cell)?;
         }
-        // Typed callers supply every default themselves. A host or an erased
-        // caller can still omit one, so the body applies it to `undefined`,
-        // in parameter order, before any other code runs.
+        Ok(())
+    }
+    fn parameter_defaults(
+        &mut self,
+        unit: UnitId,
+        parameters: &[ast::Param<'ast, 'src>],
+        offset: usize,
+    ) -> Result<(), ConversionError> {
+        // Declaration defaults are evaluated by the selected callee, in its
+        // defining environment. Mutable aliases cannot cache another body's default.
         let entry = RegionId::from_index(0).unwrap();
         for (index, parameter) in parameters.iter().enumerate() {
             self.work(1)?;
             let position = index + offset;
-            if parameter.default.is_none() {
-                continue;
-            }
-            let signature = self.units[unit.index()]
-                .callable_type
-                .and_then(|ty| match &self.program.types[ty.index()] {
-                    Type::Function(signature) => Some(signature.clone()),
-                    Type::GenericFunction(function) => Some(function.signature.clone()),
-                    _ => None,
-                })
-                .ok_or(Unsupported {
-                    span: parameter.span,
-                    feature: "parameter default without a checked signature",
-                })?;
-            let Some(default) = signature.params[position].default.clone() else {
-                return self
-                    .unsupported(parameter.span, "parameter default lost its checked value");
-            };
-            if matches!(default, crate::check::DefaultValue::Undefined) {
-                // Absence already is `undefined`; there is nothing to apply.
+            let default = parameter.default.as_ref();
+            let omitted_rest = parameter.role == ast::ParamRole::Rest
+                && parameters[..index].iter().any(|p| p.default.is_some());
+            if let Some(default) = default {
+                self.units[unit.index()]
+                    .declared_length
+                    .get_or_insert(position as u32);
+                if self.semantics.builtin_call(default.id) == Some(BuiltinCall::JsUndefined)
+                    || self.semantics.dynamic_operation(default.id)
+                        == Some(BuiltinCall::JsUndefined)
+                {
+                    continue;
+                }
+            } else if !omitted_rest {
                 continue;
             }
             let cell = self.units[unit.index()].parameters[position];
@@ -3366,21 +3411,21 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             let missing = self.value(
                 unit,
                 entry,
-                OperationKind::IsUndefined,
+                OperationKind::IsUndefined {
+                    parameter: Some(position as u32),
+                },
                 &[current],
                 boolean,
                 None,
                 parameter.span,
             )?;
             let yes = self.region(unit, entry, parameter.span)?;
-            let value = match default {
-                crate::check::DefaultValue::Parameter(earlier) => {
-                    let earlier = self.units[unit.index()].parameters[earlier + offset];
-                    self.load_cell(unit, yes, earlier, parameter.span)?
-                }
-                default => {
-                    self.default_value(unit, yes, &default, ty, &[], true, parameter.span)?
-                }
+            let value = if let Some(default) = default {
+                let value = self.expression(unit, yes, default)?;
+                self.copy_value(unit, yes, value, default.span())?
+            } else {
+                let operation = self.allocation(unit, AllocationKind::Array)?;
+                self.value(unit, yes, operation, &[], ty, None, parameter.span)?
             };
             let target = self.push_place(unit, Place::Cell(cell))?;
             self.effect(
@@ -3469,14 +3514,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 let signature = self.ty(&Type::Function(crate::check::FunctionType::new(
                     crate::check::FunctionSignature {
                         params: vec![
-                            crate::check::FunctionParameter::defaulted(
-                                Type::Int,
-                                crate::check::DefaultValue::Int(0),
-                            ),
-                            crate::check::FunctionParameter::defaulted(
-                                Type::Int,
-                                crate::check::DefaultValue::Int(i32::MAX as i64),
-                            ),
+                            crate::check::FunctionParameter::optional(Type::Int),
+                            crate::check::FunctionParameter::optional(Type::Int),
                         ],
                         return_type: Box::new(Type::Array(element.clone())),
                     },
@@ -3833,6 +3872,19 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         region: RegionId,
         statement: &Stmt<'ast, 'src>,
     ) -> Result<(), ConversionError> {
+        let previous = self
+            .statement_origin
+            .replace((self.current_module, statement.id()));
+        let result = self.statement_body(unit, region, statement);
+        self.statement_origin = previous;
+        result
+    }
+    fn statement_body(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        statement: &Stmt<'ast, 'src>,
+    ) -> Result<(), ConversionError> {
         self.work(1)?;
         match statement {
             Stmt::ArrayDestructure {
@@ -3843,8 +3895,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 rest,
                 value,
                 span,
+                ..
             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
-            Stmt::VarDecl(declaration) => {
+            Stmt::VarDecl(declaration, ..) => {
                 let cell = self.declare(unit, region, declaration.name)?;
                 match &declaration.initializer {
                     Some(initializer) => {
@@ -3872,10 +3925,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     }
                 }
             }
-            Stmt::Expr(expr) => {
+            Stmt::Expr(expr, ..) => {
                 self.expression(unit, region, expr)?;
             }
-            Stmt::Return { value, span } => {
+            Stmt::Return { value, span, .. } => {
                 let value = value
                     .as_ref()
                     .map(|value| self.expression(unit, region, value))
@@ -3885,11 +3938,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     .transpose()?;
                 self.effect(unit, region, OperationKind::Return, value.as_slice(), *span)?;
             }
-            Stmt::Throw { value, span } => {
+            Stmt::Throw { value, span, .. } => {
                 let value = self.expression(unit, region, value)?;
                 self.effect(unit, region, OperationKind::Throw, &[value], *span)?;
             }
-            Stmt::Block { body, span } => {
+            Stmt::Block { body, span, .. } => {
                 let child = self.region(unit, region, *span)?;
                 self.statements(unit, child, body)?;
                 self.effect(unit, region, OperationKind::Block(child), &[], *span)?;
@@ -3899,6 +3952,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 then_branch,
                 else_branch,
                 span,
+                ..
             } => {
                 let condition = self.expression(unit, region, condition)?;
                 let yes = self.statement_region(unit, region, then_branch)?;
@@ -3917,6 +3971,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 condition,
                 body,
                 span,
+                ..
             } => {
                 let test = self.expression_region(unit, region, condition)?;
                 let body = self.statement_region(unit, region, body)?;
@@ -3935,6 +3990,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 update,
                 body,
                 span,
+                ..
             } => {
                 // The initializer's lexical cells outlive individual loop-body
                 // activations; the enclosing block owns their declarations.
@@ -3942,7 +3998,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 if let Some(initializer) = initializer {
                     match initializer {
                         ForInitializer::VarDecl(decl) => {
-                            self.statement(unit, scope, &Stmt::VarDecl(decl.clone()))?
+                            self.statement(unit, scope, &Stmt::VarDecl(decl.clone(), decl.name.id))?
                         }
                         ForInitializer::Expr(expr) => {
                             self.expression(unit, scope, expr)?;
@@ -4014,6 +4070,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 value,
                 delegate,
                 span,
+                ..
             } => {
                 let value = self.expression(unit, region, value)?;
                 let value = self.copy_value(unit, region, value, *span)?;
@@ -4027,7 +4084,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     *span,
                 )?;
             }
-            Stmt::SuperCall { args, span } => {
+            Stmt::SuperCall { args, span, .. } => {
                 let (class, this) = self.current_class.ok_or(Unsupported {
                     span: *span,
                     feature: "super outside a class constructor",
@@ -4047,7 +4104,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 match self.inherited_init(base, *span)? {
                     Some(init) => {
                         let receiver = self.load_cell(unit, region, this, *span)?;
-                        self.call_class_function(unit, region, init, receiver, args, *span)?;
+                        self.call_class_function(unit, region, init, receiver, args, &[], *span)?;
                     }
                     None if args.is_empty() => {}
                     None => return self.unsupported(*span, "super arguments without a base init"),
@@ -4058,6 +4115,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 catch,
                 finally,
                 span,
+                ..
             } => {
                 let body_region = self.region(unit, region, *span)?;
                 self.statements(unit, body_region, body)?;
@@ -4091,8 +4149,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     *span,
                 )?;
             }
-            Stmt::Break(span) => self.effect(unit, region, OperationKind::Break, &[], *span)?,
-            Stmt::Continue(span) => {
+            Stmt::Break(span, ..) => self.effect(unit, region, OperationKind::Break, &[], *span)?,
+            Stmt::Continue(span, ..) => {
                 self.effect(unit, region, OperationKind::Continue, &[], *span)?
             }
             _ => return self.unsupported(statement.span(), "statement conversion"),
@@ -4769,6 +4827,24 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span,
                     )?);
                 }
+                if self.semantics.expression_resolution(callee.id)
+                    == ExpressionResolution::Primitive(ResolvedIntrinsic::Method(
+                        crate::primitive::Intrinsic::ArrayGet,
+                    ))
+                {
+                    let ExprKind::Member { object, .. } = &callee.kind else {
+                        return self.unsupported(span, "checked indexing requires a receiver");
+                    };
+                    return self.checked_array_read(
+                        unit,
+                        region,
+                        object,
+                        &args[0].expression,
+                        ty,
+                        origin,
+                        span,
+                    );
+                }
                 if let ExprKind::Ident(name) = &callee.kind {
                     if self.class_value(*name)?.is_some() {
                         return self.unsupported(span, "a class constructor called without `new`");
@@ -4782,9 +4858,103 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         if let Some(found) = self.class_method(method.owner, Some(method.member))? {
                             // Static dispatch: the checker rejects overriding.
                             let receiver = self.expression(unit, region, object)?;
-                            return self
-                                .call_class_function(unit, region, found, receiver, args, span);
+                            let semantics = self.semantics;
+                            let method_arguments = semantics
+                                .call_instantiation(expr.id)
+                                .map_or(&[][..], |call| &call.type_arguments);
+                            return self.call_class_function(
+                                unit,
+                                region,
+                                found,
+                                receiver,
+                                args,
+                                method_arguments,
+                                span,
+                            );
                         }
+                    }
+                }
+                if let ExprKind::Member {
+                    object, property, ..
+                } = &callee.kind
+                {
+                    // Receiver functions retain an explicit receiver in shared
+                    // IR. JavaScript forms `this`; native passes parameter 0.
+                    let explicit = property.name == "call"
+                        && matches!(self.semantics.expression_type(object.id),Some(Type::Function(signature)) if signature.has_receiver());
+                    let bound = matches!(self.semantics.expression_type(callee.id),Some(Type::Function(signature)) if signature.has_receiver());
+                    if explicit || bound {
+                        let signature =
+                            self.expression_type(if explicit { object } else { callee })?;
+                        let (function, receiver) = if explicit {
+                            (self.expression(unit, region, object)?, None)
+                        } else {
+                            let place = self.place(unit, region, callee)?;
+                            let function = self.value(
+                                unit,
+                                region,
+                                OperationKind::Load(place),
+                                &[],
+                                signature,
+                                Some(callee.id),
+                                callee.span(),
+                            )?;
+                            let receiver = match self.units[unit.index()].places[place.index()] {
+                                Place::Member { receiver, .. }
+                                | Place::ClassField { receiver, .. }
+                                | Place::Index { receiver, .. } => receiver,
+                                Place::Field { base, .. } => {
+                                    let receiver_ty = self.expression_type(object)?;
+                                    self.value(
+                                        unit,
+                                        region,
+                                        OperationKind::Load(base),
+                                        &[],
+                                        receiver_ty,
+                                        Some(object.id),
+                                        object.span(),
+                                    )?
+                                }
+                                _ => {
+                                    return self.unsupported(
+                                        span,
+                                        "receiver function member has no object",
+                                    )
+                                }
+                            };
+                            (
+                                function,
+                                Some(CallReceiver::Value(self.copy_value(
+                                    unit,
+                                    region,
+                                    receiver,
+                                    object.span(),
+                                )?)),
+                            )
+                        };
+                        let target = CallTarget::Value {
+                            callee: function,
+                            invocation: Invocation::Value,
+                        };
+                        let contract = CallContract {
+                            signature: Some(signature),
+                            instantiation: None,
+                            supplied: u32::try_from(args.len() + usize::from(bound))
+                                .map_err(|_| AllocationError::Capacity)?,
+                            defaults: DefaultConvention::ApplyAtCallee,
+                        };
+                        let (kind, operands, _) = self.prepare_call_with_receiver(
+                            unit,
+                            region,
+                            target,
+                            contract,
+                            receiver,
+                            args,
+                            callee.span(),
+                        )?;
+                        let value = self.value(unit, region, kind, &operands, ty, origin, span)?;
+                        drop_vector(operands, Scratch, self.budget)?;
+                        return Ok(value);
                     }
                 }
                 let target = if let ExpressionResolution::Builtin(builtin) = resolution {
@@ -4862,7 +5032,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     ref target if host_call(&self.program, &self.units[unit.index()], target) => {
                         DefaultConvention::PreserveOmission
                     }
-                    _ => DefaultConvention::MaterializeAtCaller,
+                    _ => DefaultConvention::ApplyAtCallee,
                 };
                 if defaults == DefaultConvention::MaterializeAtCaller {
                     let parameters =
@@ -4977,14 +5147,20 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 let mut flags = self
                     .budget
                     .vector(Retained, if spread { elements.len() } else { 0 })?;
-                for element in *elements {
+                for (index, element) in elements.iter().enumerate() {
                     let (value, spreads) = match element {
                         ArrayElement::Value(value) => (value, false),
                         ArrayElement::Spread { value, .. } => (value, true),
                     };
                     let result = self.expression(unit, region, value)?;
                     let value = if spreads {
-                        result
+                        self.snapshot_spread(
+                            unit,
+                            region,
+                            result,
+                            index + 1 < elements.len(),
+                            value.span(),
+                        )?
                     } else {
                         self.copy_value(unit, region, result, value.span())?
                     };
@@ -5028,6 +5204,48 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     AllocationKind::Object(keys)
                 };
                 (self.allocation(unit, kind)?, values)
+            }
+            ExprKind::With { value, fields, .. } => {
+                let source = self.expression(unit, region, value)?;
+                // Take the snapshot before evaluating any override: those
+                // expressions can mutate the source's original storage.
+                let snapshot = self.copy_value(unit, region, source, value.span())?;
+                let cell = self.temporary_cell(unit, region, None, span, "$with", ty)?;
+                self.effect(
+                    unit,
+                    region,
+                    OperationKind::Initialize(cell),
+                    &[snapshot],
+                    span,
+                )?;
+                let base = self.push_place(unit, Place::Cell(cell))?;
+                for field in *fields {
+                    self.work(1)?;
+                    let Some(NominalMember::Field { field: member, .. }) =
+                        self.semantics.resolved_member(field.key.id)
+                    else {
+                        return self
+                            .unsupported(field.key.span, "value update lost its checked field");
+                    };
+                    let replacement = self.expression(unit, region, &field.value)?;
+                    let replacement =
+                        self.copy_value(unit, region, replacement, field.value.span())?;
+                    let place = self.push_place(
+                        unit,
+                        Place::Field {
+                            base,
+                            field: member.member,
+                        },
+                    )?;
+                    self.effect(
+                        unit,
+                        region,
+                        OperationKind::Store(place),
+                        &[replacement],
+                        field.span,
+                    )?;
+                }
+                return self.load_cell(unit, region, cell, span);
             }
             ExprKind::StructLiteral { values, .. } => {
                 let nominal = self
@@ -5206,7 +5424,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             signature: None,
             instantiation: None,
             supplied: 1,
-            defaults: DefaultConvention::MaterializeAtCaller,
+            defaults: DefaultConvention::ApplyAtCallee,
         };
         let (call, operands) = self.prepare_call_values(
             unit,
@@ -5436,6 +5654,117 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             return false;
         };
         self.program.cells[cell.index()].debug
+    }
+    /// Both operands are evaluated once, before the bounds test. Expand this
+    /// language operation here so both targets and shared facts see the same
+    /// guarded read; a negative index never observes an extra host property.
+    #[allow(clippy::too_many_arguments)]
+    fn checked_array_read(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        array: &ast::Expr<'ast, 'src>,
+        index: &ast::Expr<'ast, 'src>,
+        ty: TypeId,
+        origin: Option<ast::SourceNodeId>,
+        span: Span,
+    ) -> Result<ValueId, ConversionError> {
+        let receiver = self.expression(unit, region, array)?;
+        let key = self.expression(unit, region, index)?;
+        let integer = self.ty(&Type::Int)?;
+        let boolean = self.ty(&Type::Bool)?;
+        let zero = self.value(
+            unit,
+            region,
+            OperationKind::Constant(Constant::Integer(0)),
+            &[],
+            integer,
+            None,
+            span,
+        )?;
+        let length = self.value(
+            unit,
+            region,
+            OperationKind::Intrinsic(ResolvedIntrinsic::Property(
+                crate::primitive::Intrinsic::ArrayLength,
+            )),
+            &[receiver],
+            integer,
+            None,
+            span,
+        )?;
+        let nonnegative = self.value(
+            unit,
+            region,
+            OperationKind::Binary(BinaryOp::GreaterEq),
+            &[key, zero],
+            boolean,
+            None,
+            span,
+        )?;
+        let right = self.region(unit, region, span)?;
+        let before_end = self.value(
+            unit,
+            right,
+            OperationKind::Binary(BinaryOp::Less),
+            &[key, length],
+            boolean,
+            None,
+            span,
+        )?;
+        self.units[unit.index()].regions[right.index()].result = Some(before_end);
+        let valid = self.value(
+            unit,
+            region,
+            OperationKind::ShortCircuit {
+                kind: ShortCircuit::BooleanAnd,
+                right,
+            },
+            &[nonnegative],
+            boolean,
+            None,
+            span,
+        )?;
+        let yes = self.region(unit, region, span)?;
+        let place = self.push_place(unit, Place::Index { receiver, key })?;
+        let Type::Array(element) = self
+            .semantics
+            .expression_type(array.id)
+            .expect("checked array")
+        else {
+            return self.unsupported(span, "checked indexing requires an array");
+        };
+        let element = self.ty(element)?;
+        let found = self.value(
+            unit,
+            yes,
+            OperationKind::Load(place),
+            &[],
+            element,
+            None,
+            span,
+        )?;
+        self.units[unit.index()].regions[yes.index()].result = Some(found);
+        let no = self.region(unit, region, span)?;
+        let absent = self.value(
+            unit,
+            no,
+            OperationKind::Constant(Constant::Null),
+            &[],
+            ty,
+            None,
+            span,
+        )?;
+        self.units[unit.index()].regions[no.index()].result = Some(absent);
+        self.value(
+            unit,
+            region,
+            OperationKind::Select { yes, no },
+            &[valid],
+            ty,
+            origin,
+            span,
+        )
     }
     /// `v as? T`: the test `v is T`, then `v` viewed as `T` (`JS.assume`, no
     /// code) or null. `ty` is `T?`.
@@ -5702,7 +6031,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
                 feature: "semantic call argument capacity",
             })?,
-            defaults: DefaultConvention::MaterializeAtCaller,
+            defaults: DefaultConvention::ApplyAtCallee,
         };
         let call = self.open_call(unit, region, CallTarget::Builtin(builtin), contract, span)?;
         let mut values = self.budget.vector(Scratch, operands.len())?;
@@ -5791,7 +6120,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         preparation: Span,
     ) -> Result<(), ConversionError> {
         if contract.defaults == DefaultConvention::MaterializeAtCaller {
-            self.materialize_defaults(unit, region, contract, &mut values, preparation)?;
+            self.materialize_defaults(unit, region, call, contract, &mut values, preparation)?;
         }
         let data = &mut self.units[unit.index()];
         let start = u32::try_from(data.call_arguments.len()).map_err(|_| Unsupported {
@@ -5828,29 +6157,34 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         // A declared rest parameter (R7): a LilScript callee receives the
         // trailing arguments packed into a fresh array, so the call supplies
         // every parameter once; a host callee takes them one by one.
-        let packed_rest = match (contract.defaults, contract.signature) {
-            (DefaultConvention::MaterializeAtCaller, Some(signature)) => {
-                match &self.program.types[signature.index()] {
-                    Type::Function(signature) if signature.has_rest() => {
-                        let fixed = signature.fixed_params();
-                        let parameters = signature.params.len();
-                        let array = signature.params[fixed].ty.clone();
-                        Some((fixed - offset, parameters, self.ty(&array)?))
-                    }
-                    _ => None,
+        let effective = contract
+            .instantiation
+            .map(|id| self.units[unit.index()].call_instantiations[id.index()].signature)
+            .or(contract.signature);
+        let packed_rest = match (contract.defaults, effective) {
+            (
+                DefaultConvention::MaterializeAtCaller | DefaultConvention::ApplyAtCallee,
+                Some(signature),
+            ) => match &self.program.types[signature.index()] {
+                Type::Function(signature) if signature.has_rest() => {
+                    let fixed = signature.fixed_params();
+                    let parameters = signature.params.len();
+                    let array = signature.params[fixed].ty.clone();
+                    Some((fixed - offset, parameters, self.ty(&array)?))
                 }
-            }
+                _ => None,
+            },
             _ => None,
         };
         let contract = match packed_rest {
-            Some((_, parameters, _)) => CallContract {
+            Some((fixed, parameters, _)) if arguments.len() >= fixed => CallContract {
                 supplied: u32::try_from(parameters).map_err(|_| Unsupported {
                     span: preparation,
                     feature: "semantic call argument capacity",
                 })?,
                 ..contract
             },
-            None => contract,
+            _ => contract,
         };
         let call = self.open_call(unit, region, target, contract, preparation)?;
         let mut values = self.budget.vector(Scratch, arguments.len() + 1)?;
@@ -5935,10 +6269,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let mut flags = self
             .budget
             .vector(Retained, if spread { arguments.len() } else { 0 })?;
-        for argument in arguments {
+        for (index, argument) in arguments.iter().enumerate() {
             let result = self.expression(unit, region, &argument.expression)?;
             let value = if argument.spread {
-                result
+                self.snapshot_spread(
+                    unit,
+                    region,
+                    result,
+                    index + 1 < arguments.len(),
+                    argument.span,
+                )?
             } else {
                 self.copy_value(unit, region, result, argument.span)?
             };
@@ -5958,204 +6298,74 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         drop_vector(values, Scratch, self.budget)?;
         Ok(packed)
     }
-    /// Omitted parameters with checked defaults are evaluated by the caller
-    /// after every supplied argument, as the callee would evaluate them on
-    /// entry. A default naming an earlier parameter reuses that argument.
+    /// A spread is consumed at its source evaluation point, before later
+    /// expressions can mutate the array. The final operand can be consumed by
+    /// the enclosing allocation without an intermediate snapshot.
+    fn snapshot_spread(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        source: ValueId,
+        needed: bool,
+        span: Span,
+    ) -> Result<ValueId, ConversionError> {
+        if !needed {
+            return Ok(source);
+        }
+        let ty = self.units[unit.index()].values[source.index()].ty;
+        let mut flags = self.budget.vector(Retained, 1)?;
+        self.budget.push(Retained, &mut flags, true)?;
+        let operation = self.allocation(unit, AllocationKind::SpreadArray(flags))?;
+        self.value(unit, region, operation, &[source], ty, None, span)
+    }
+    /// Only operation-catalog defaults are caller evaluations. Source declaration
+    /// defaults are ordinary checked operations in the callee's entry prefix.
     fn materialize_defaults(
         &mut self,
         unit: UnitId,
         region: RegionId,
+        call: CallId,
         contract: CallContract,
         values: &mut Vec<CallArgument>,
         span: Span,
     ) -> Result<(), ConversionError> {
-        let Some(declared) = contract.signature else {
+        let Some(signature) = contract.signature else {
             return Ok(());
         };
-        // A generic callee's parameter types come from this call's instance.
-        let effective = contract
-            .instantiation
-            .map(|id| self.units[unit.index()].call_instantiations[id.index()].signature)
-            .unwrap_or(declared);
-        let signature = match &self.program.types[effective.index()] {
+        let signature = match &self.program.types[signature.index()] {
             Type::Function(signature) => signature.clone(),
             _ => return Ok(()),
         };
-        let declared = match &self.program.types[declared.index()] {
-            Type::Function(signature) => signature.clone(),
-            Type::GenericFunction(function) => function.signature.clone(),
-            _ => return Ok(()),
-        };
-        // Trailing parameters whose default only the callee can build (an
-        // arrow) are simply omitted; JavaScript supplies `undefined` and the
-        // guarded body applies them.
-        let mut end = signature.params.len();
-        while end > values.len()
-            && matches!(
-                declared.params[end - 1].default,
-                Some(crate::check::DefaultValue::Arrow(_))
-            )
-        {
-            end -= 1;
+        if values.len() == signature.params.len() {
+            return Ok(());
         }
-        for position in values.len()..end {
-            self.work(1)?;
-            let Some(default) = declared.params[position].default.as_ref() else {
-                return self.unsupported(span, "omitted argument without a checked default");
-            };
-            if matches!(default, crate::check::DefaultValue::Arrow(_)) {
-                return self.unsupported(span, "arrow default before a caller-evaluated default");
-            }
+        let CallTarget::Intrinsic { operation, .. } =
+            self.units[unit.index()].calls[call.index()].target
+        else {
+            return self.unsupported(span, "caller default without a catalog operation");
+        };
+        for position in values.len()..signature.params.len() {
             let ty = self.ty(&signature.params[position].ty)?;
-            let value = self.default_value(unit, region, default, ty, values, false, span)?;
+            let value = match crate::primitive::intrinsic_default(operation, position) {
+                Some(crate::check::DefaultValue::Int(value)) => Constant::Integer(value as i32),
+                Some(crate::check::DefaultValue::String(value)) => {
+                    Constant::String(self.string(value)?)
+                }
+                _ => return self.unsupported(span, "missing operation default value"),
+            };
+            let value = self.value(
+                unit,
+                region,
+                OperationKind::Constant(value),
+                &[],
+                ty,
+                None,
+                span,
+            )?;
             self.budget
                 .push(Scratch, values, CallArgument::Value(value))?;
         }
         Ok(())
-    }
-    /// `callee` is true inside the guarded body, false at a typed call site.
-    fn default_value(
-        &mut self,
-        unit: UnitId,
-        region: RegionId,
-        default: &crate::check::DefaultValue<'src>,
-        ty: TypeId,
-        values: &[CallArgument],
-        callee: bool,
-        span: Span,
-    ) -> Result<ValueId, ConversionError> {
-        use crate::check::DefaultValue;
-        let constant = match default {
-            // Converting one source arrow at every call site would redeclare
-            // its parameters. Callers omit it; the guarded body creates the
-            // closure, once per call, as JavaScript does.
-            DefaultValue::Arrow(_) if !callee => {
-                return self.unsupported(span, "arrow default evaluated by a caller");
-            }
-            DefaultValue::Arrow(source) => {
-                let expression = self
-                    .semantics
-                    .source_expression(*source)
-                    .ok_or(Unsupported {
-                        span,
-                        feature: "missing checked arrow default",
-                    })?;
-                return self.expression(unit, region, expression);
-            }
-            DefaultValue::Struct {
-                declaration,
-                values: fields,
-            } => {
-                let identity = declaration.identity;
-                let schema = self
-                    .program
-                    .structs
-                    .iter()
-                    .position(|definition| definition.identity == identity)
-                    .ok_or(Unsupported {
-                        span,
-                        feature: "struct default before its schema",
-                    })?;
-                let range = self.program.structs[schema].fields.clone();
-                if range.len() != fields.len() {
-                    return self.unsupported(span, "struct default has the wrong field count");
-                }
-                let mut operands = self.budget.vector(Scratch, fields.len())?;
-                for (offset, field) in fields.iter().enumerate() {
-                    let field_ty = self.program.fields[range.start + offset].ty;
-                    let value =
-                        self.default_value(unit, region, field, field_ty, values, callee, span)?;
-                    self.budget.push(Scratch, &mut operands, value)?;
-                }
-                let kind = self.allocation(unit, AllocationKind::Struct(identity))?;
-                let result = self.value(unit, region, kind, &operands, ty, None, span)?;
-                drop_vector(operands, Scratch, self.budget)?;
-                return Ok(result);
-            }
-            DefaultValue::NewClass { declaration, args } => {
-                let class = declaration.identity;
-                let signature = self
-                    .semantics
-                    .nominal_class(class)
-                    .and_then(|info| info.constructor.clone());
-                let mut operands = self.budget.vector(Scratch, args.len())?;
-                for (index, argument) in args.iter().enumerate() {
-                    let parameter = signature
-                        .as_ref()
-                        .and_then(|signature| signature.params.get(index))
-                        .map(|parameter| parameter.ty.clone())
-                        .ok_or(Unsupported {
-                            span,
-                            feature: "constructor default without a checked parameter",
-                        })?;
-                    let parameter = self.ty(&parameter)?;
-                    let value = self
-                        .default_value(unit, region, argument, parameter, values, callee, span)?;
-                    self.budget.push(Scratch, &mut operands, value)?;
-                }
-                let result =
-                    self.construct_class_values(unit, region, class, &operands, ty, None, span)?;
-                drop_vector(operands, Scratch, self.budget)?;
-                return Ok(result);
-            }
-            DefaultValue::Int(value) if matches!(self.program.types[ty.index()], Type::Float) => {
-                Constant::Number((*value as f64).to_bits())
-            }
-            DefaultValue::Int(value) => {
-                Constant::Integer(i32::try_from(*value).map_err(|_| Unsupported {
-                    span,
-                    feature: "integer default outside the language domain",
-                })?)
-            }
-            DefaultValue::Float(bits) => Constant::Number(*bits),
-            DefaultValue::String(text) => Constant::String(self.decoded_string(
-                text,
-                span,
-                "invalid checked default string",
-            )?),
-            DefaultValue::Bool(value) => Constant::Boolean(*value),
-            DefaultValue::Null => Constant::Null,
-            DefaultValue::Undefined => Constant::Undefined,
-            DefaultValue::Parameter(index) => {
-                let Some(CallArgument::Value(value)) = values.get(*index) else {
-                    return self.unsupported(span, "default names an unavailable parameter");
-                };
-                return self.copy_value(unit, region, *value, span);
-            }
-            DefaultValue::Symbol(symbol) => {
-                let cell =
-                    CellId::from_index(symbol.0 as usize).ok_or(AllocationError::Capacity)?;
-                self.reference(unit, cell)?;
-                let value = self.load_cell(unit, region, cell, span)?;
-                return self.copy_value(unit, region, value, span);
-            }
-            DefaultValue::Array(elements) => {
-                let element = match &self.program.types[ty.index()] {
-                    Type::Array(element) => self.ty(&element.clone())?,
-                    _ => return self.unsupported(span, "array default for a non-array parameter"),
-                };
-                let mut items = self.budget.vector(Scratch, elements.len())?;
-                for item in elements {
-                    let value =
-                        self.default_value(unit, region, item, element, values, callee, span)?;
-                    self.budget.push(Scratch, &mut items, value)?;
-                }
-                let kind = self.allocation(unit, AllocationKind::Array)?;
-                let result = self.value(unit, region, kind, &items, ty, None, span)?;
-                drop_vector(items, Scratch, self.budget)?;
-                return Ok(result);
-            }
-            _ => return self.unsupported(span, "unresolved checked default"),
-        };
-        self.value(
-            unit,
-            region,
-            OperationKind::Constant(constant),
-            &[],
-            ty,
-            None,
-            span,
-        )
     }
     fn allocation(
         &mut self,
@@ -6209,7 +6419,9 @@ fn base_class(base: &Type<'_>) -> Option<NominalId> {
 /// throws or jumps.
 fn terminates(statement: &Stmt<'_, '_>) -> bool {
     match statement {
-        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_) | Stmt::Continue(_) => true,
+        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {
+            true
+        }
         Stmt::Block { body, .. } => body.iter().any(terminates),
         Stmt::If {
             then_branch,
@@ -6224,6 +6436,6 @@ fn terminates(statement: &Stmt<'_, '_>) -> bool {
 fn declares(statement: &Stmt<'_, '_>) -> bool {
     matches!(
         statement,
-        Stmt::VarDecl(_) | Stmt::ArrayDestructure { .. } | Stmt::RecordDestructure { .. }
+        Stmt::VarDecl(_, ..) | Stmt::ArrayDestructure { .. } | Stmt::RecordDestructure { .. }
     )
 }

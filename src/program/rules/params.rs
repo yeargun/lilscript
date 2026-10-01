@@ -178,11 +178,7 @@ fn change(
     };
     if signature.params.len() != data.parameters.len()
         || signature.params.iter().any(|parameter| {
-            parameter.passing != crate::primitive::ParameterPassing::Value
-                || matches!(
-                    parameter.default,
-                    Some(crate::check::DefaultValue::Parameter(_))
-                )
+            parameter.passing != crate::primitive::ParameterPassing::Value || parameter.optional
         })
         || data.places.iter().any(|place| {
             matches!(place, Place::Cell(cell)

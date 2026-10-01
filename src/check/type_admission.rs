@@ -5,7 +5,7 @@ use super::binary_types::TypeConstructionAdmission;
 use super::type_payload::{measure_payload, Payload, PayloadError, PayloadMeasure};
 use super::type_relation::{RelationAdmission, RelationEvent};
 use super::type_substitution::SubstitutionAdmission;
-use super::{DefaultValue, FunctionParameter, FunctionSignature, FunctionType, Type};
+use super::{FunctionParameter, FunctionSignature, FunctionType, Type};
 use crate::compilation_policy::WorkKind;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use std::convert::Infallible;
@@ -82,9 +82,6 @@ impl RelationAdmission for TypeQueryAdmission<'_, '_> {
             RelationEvent::TypeEquality { left, right } => {
                 self.equality(Payload::Type(left), Payload::Type(right))
             }
-            RelationEvent::DefaultEquality { left, right } => {
-                self.equality(Payload::Default(left), Payload::Default(right))
-            }
             RelationEvent::SignatureValidation(signature) => self.work(
                 signature
                     .params
@@ -137,24 +134,6 @@ impl SubstitutionAdmission for TypeQueryAdmission<'_, '_> {
     ) -> Result<Vec<FunctionParameter<'src>>, AllocationError> {
         self.budget.vector(AllocationClass::Scratch, count)
     }
-    fn clone_default<'src>(
-        &mut self,
-        value: &DefaultValue<'src>,
-    ) -> Result<DefaultValue<'src>, AllocationError> {
-        if self.metered {
-            let measured = self.measure(Payload::Default(value))?;
-            self.budget.work(
-                WorkKind::Analysis,
-                measured
-                    .nodes
-                    .checked_mul(2)
-                    .ok_or(AllocationError::Capacity)?,
-            )?;
-            self.budget
-                .retain(AllocationClass::Scratch, measured.owned_bytes)?;
-        }
-        Ok(value.clone())
-    }
     fn signature<'src>(
         &mut self,
         value: FunctionSignature<'src>,
@@ -171,8 +150,8 @@ impl SubstitutionAdmission for TypeQueryAdmission<'_, '_> {
     }
     fn parameter_names<'src>(
         &mut self,
-        names: &[&'src str],
-    ) -> Result<Vec<&'src str>, AllocationError> {
+        names: &[crate::check::TypeParameter<'src>],
+    ) -> Result<Vec<crate::check::TypeParameter<'src>>, AllocationError> {
         self.work(names.len())?;
         let mut result = self.budget.vector(AllocationClass::Scratch, names.len())?;
         result.extend_from_slice(names);

@@ -246,7 +246,7 @@ fn value_kind(kind: &OperationKind) -> bool {
             | OperationKind::Intrinsic(_)
             | OperationKind::Closure(_)
             | OperationKind::Allocate { .. }
-            | OperationKind::IsUndefined
+            | OperationKind::IsUndefined { .. }
             | OperationKind::TypeTest(_)
             | OperationKind::Template
             | OperationKind::Call(_)

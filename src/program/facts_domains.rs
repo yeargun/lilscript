@@ -6,17 +6,17 @@
 //! unknown at most once. Optimistic closed cycles express the induction that
 //! initialized primitive storage remains primitive under primitive-only writes.
 //! This proves no initialization, effect, motion or allocation obligation.
-use super::callable_inputs::{CallObservations, CallableInputs, InputOutcome};
-use super::helper_family::HelperFamily;
-use super::record_family::{ReadOrWrite, RecordFamily};
-use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
-use super::*;
+use super::super::callable_inputs::{CallObservations, CallableInputs, InputOutcome};
+use super::super::helper_family::HelperFamily;
+use super::super::record_family::{ReadOrWrite, RecordFamily};
+use super::super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
+use super::super::*;
 use crate::compilation_contract::JavaScriptExecution;
 
 /// All backing belongs to the caller's existing scratch scope. Implementations
 /// admit capacity and relocation peaks before allocation, and drop a released
 /// Vec before releasing its charge. Admission errors unwind that same scope.
-pub(super) trait Admission {
+pub(in crate::program) trait Admission {
     type Error;
     fn work(&mut self, amount: usize) -> Result<(), Self::Error>;
     fn vector<T>(&mut self, capacity: usize) -> Result<Vec<T>, Self::Error>;
@@ -26,7 +26,7 @@ pub(super) trait Admission {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum ResultRecipe {
+pub(in crate::program) enum ResultRecipe {
     Source,
     NormalizedI32,
     Undefined,
@@ -34,11 +34,11 @@ pub(super) enum ResultRecipe {
 
 /// The selected target owner must use this same recipe when emitting the
 /// operation. A declared Int/String type is not a result conversion.
-pub(super) trait Recipes {
+pub(in crate::program) trait Recipes {
     fn result(&self, program: &Program<'_>, unit: UnitId, operation: OpId) -> ResultRecipe;
 }
 
-pub(super) struct SourceRecipes;
+pub(in crate::program) struct SourceRecipes;
 impl Recipes for SourceRecipes {
     fn result(&self, _: &Program<'_>, _: UnitId, _: OpId) -> ResultRecipe {
         ResultRecipe::Source
@@ -46,7 +46,7 @@ impl Recipes for SourceRecipes {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Subject {
+pub(in crate::program) enum Subject {
     Value { unit: UnitId, value: ValueId },
     Cell(CellId),
     RecordSlot { state: CellId, slot: u32 },
@@ -57,54 +57,54 @@ pub(super) enum Subject {
 /// discovery must have finished its complete call/environment classification
 /// before querying body domains; the body effect proof may follow the query.
 #[derive(Clone, Copy)]
-pub(super) struct DomainInputs<'a> {
+pub(in crate::program) struct DomainInputs<'a> {
     helper: Option<&'a HelperFamily>,
     records: &'a [&'a RecordFamily],
     execution: Option<JavaScriptExecution>,
 }
 impl<'a> DomainInputs<'a> {
-    pub(super) fn empty() -> Self {
+    pub(in crate::program) fn empty() -> Self {
         Self {
             helper: None,
             records: &[],
             execution: None,
         }
     }
-    pub(super) fn for_helper(helper: &'a HelperFamily) -> Self {
+    pub(in crate::program) fn for_helper(helper: &'a HelperFamily) -> Self {
         Self {
             helper: Some(helper),
             records: &[],
             execution: None,
         }
     }
-    pub(super) fn with_records(mut self, records: &'a [&'a RecordFamily]) -> Self {
+    pub(in crate::program) fn with_records(mut self, records: &'a [&'a RecordFamily]) -> Self {
         self.records = records;
         self
     }
-    pub(super) fn with_execution(mut self, execution: JavaScriptExecution) -> Self {
+    pub(in crate::program) fn with_execution(mut self, execution: JavaScriptExecution) -> Self {
         self.execution = Some(execution);
         self
     }
 }
 
 #[derive(Debug)]
-pub(super) struct Dependencies {
+pub(in crate::program) struct Dependencies {
     tables: RevisionId,
     units: Vec<(UnitId, RevisionId)>,
     cells: Vec<(CellId, RevisionId)>,
     creators: Vec<(UnitId, RevisionId)>,
 }
 impl Dependencies {
-    pub(super) fn units(&self) -> &[(UnitId, RevisionId)] {
+    pub(in crate::program) fn units(&self) -> &[(UnitId, RevisionId)] {
         &self.units
     }
-    pub(super) fn cells(&self) -> &[(CellId, RevisionId)] {
+    pub(in crate::program) fn cells(&self) -> &[(CellId, RevisionId)] {
         &self.cells
     }
-    pub(super) fn creators(&self) -> &[(UnitId, RevisionId)] {
+    pub(in crate::program) fn creators(&self) -> &[(UnitId, RevisionId)] {
         &self.creators
     }
-    pub(super) fn valid_for<A: Admission>(
+    pub(in crate::program) fn valid_for<A: Admission>(
         &self,
         program: &Program<'_>,
         uses: &UseIndex,
@@ -191,7 +191,7 @@ struct Node {
 }
 
 #[derive(Debug)]
-pub(super) struct DomainProof {
+pub(in crate::program) struct DomainProof {
     nodes: Vec<Node>,
     table: Vec<Option<usize>>,
     pending: Vec<usize>,
@@ -201,7 +201,7 @@ pub(super) struct DomainProof {
     dependencies: Dependencies,
 }
 impl DomainProof {
-    pub(super) fn build<A: Admission, R: Recipes>(
+    pub(in crate::program) fn build<A: Admission, R: Recipes>(
         program: &Program<'_>,
         uses: &UseIndex,
         roots: &[Subject],
@@ -294,10 +294,10 @@ impl DomainProof {
             }
         }
     }
-    pub(super) fn dependencies(&self) -> &Dependencies {
+    pub(in crate::program) fn dependencies(&self) -> &Dependencies {
         &self.dependencies
     }
-    pub(super) fn primitive<A: Admission>(
+    pub(in crate::program) fn primitive<A: Admission>(
         &self,
         subject: Subject,
         budget: &mut A,
@@ -306,7 +306,7 @@ impl DomainProof {
             .find(Key::Subject(subject), budget)?
             .is_some_and(|index| !self.nodes[index].unknown))
     }
-    pub(super) fn discard<A: Admission>(self, budget: &mut A) -> Result<(), A::Error> {
+    pub(in crate::program) fn discard<A: Admission>(self, budget: &mut A) -> Result<(), A::Error> {
         let Self {
             nodes,
             table,
@@ -655,21 +655,20 @@ impl DomainProof {
                     return Ok(());
                 }
                 let operands = data.operands(operation.operands).unwrap();
-                match operation.kind {
-                    OperationKind::Constant(_)
-                    | OperationKind::IntBinary(_)
-                    | OperationKind::Unary {
-                        op: UnaryOp::Not, ..
-                    }
-                    | OperationKind::Unary { integer: true, .. } => {}
-                    OperationKind::CopyValue
-                    | OperationKind::Binary(_)
-                    | OperationKind::Unary { .. } => {
+                match super::primitive_transfer(data, operation) {
+                    super::PrimitiveTransfer::Primitive => {}
+                    super::PrimitiveTransfer::Operands => {
                         for &value in operands {
                             self.value(unit, value, budget)?;
                         }
                     }
-                    OperationKind::Load(place) => match data.places[place.index()] {
+                    super::PrimitiveTransfer::Value(value) => {
+                        self.value(unit, value, budget)?;
+                    }
+                    super::PrimitiveTransfer::Place(place) => match data.places[place.index()] {
+                        Place::Value(value) => {
+                            self.value(unit, value, budget)?;
+                        }
                         Place::Cell(cell) => {
                             self.insert(Key::Subject(Subject::Cell(cell)), budget)?;
                         }
@@ -682,17 +681,17 @@ impl DomainProof {
                             }
                         }
                     },
-                    OperationKind::Select { yes, no } => {
+                    super::PrimitiveTransfer::Branches(yes, no) => {
                         self.region(unit, yes, index, budget)?;
                         self.region(unit, no, index, budget)?;
                     }
-                    OperationKind::ShortCircuit { right, .. } => {
+                    super::PrimitiveTransfer::Lazy(right) => {
                         for &value in operands {
                             self.value(unit, value, budget)?;
                         }
                         self.region(unit, right, index, budget)?;
                     }
-                    _ => self.unknown(index, budget)?,
+                    super::PrimitiveTransfer::Unknown => self.unknown(index, budget)?,
                 }
             }
             Key::Subject(Subject::Cell(cell)) => {
@@ -878,14 +877,9 @@ impl DomainProof {
                             if let Some(result) = op.result {
                                 if recipes.result(program, unit, operation) == ResultRecipe::Source
                                     && matches!(
-                                        op.kind,
-                                        OperationKind::CopyValue
-                                            | OperationKind::Binary(_)
-                                            | OperationKind::Unary {
-                                                integer: false,
-                                                op: UnaryOp::Neg
-                                            }
-                                            | OperationKind::ShortCircuit { .. }
+                                        super::primitive_transfer(data, op),
+                                        super::PrimitiveTransfer::Operands
+                                            | super::PrimitiveTransfer::Lazy(_)
                                     )
                                 {
                                     self.poison(
@@ -956,8 +950,20 @@ impl DomainProof {
                                 _ => {}
                             }
                         }
-                        ValueUse::PlaceReceiver { .. }
-                        | ValueUse::PlaceKey { .. }
+                        ValueUse::PlaceReceiver { operation, .. } => {
+                            let op = &data.operations[operation.index()];
+                            if recipes.result(program, unit, operation) == ResultRecipe::Source
+                                && matches!(super::primitive_transfer(data, op), super::PrimitiveTransfer::Value(source) if source == value)
+                            {
+                                if let Some(value) = op.result {
+                                    self.poison(
+                                        Key::Subject(Subject::Value { unit, value }),
+                                        budget,
+                                    )?;
+                                }
+                            }
+                        }
+                        ValueUse::PlaceKey { .. }
                         | ValueUse::CallCallee { .. }
                         | ValueUse::CallReceiver { .. } => {}
                     }
@@ -1078,6 +1084,57 @@ mod tests {
     }
 
     #[test]
+    fn s4_opaque_inputs_taint_value_views_in_the_shared_domain_owner() {
+        checked(
+            "extern int opaque();int value=opaque();print(value+1);",
+            |original| {
+                let mut program = original.clone();
+                let unit = program.initialization[0];
+                let mut working = program.units[unit.index()].clone().into_working();
+                let data = working.get_mut();
+                let index = data
+                    .operations
+                    .iter()
+                    .position(|op| matches!(op.kind, OperationKind::IntBinary(_)))
+                    .unwrap();
+                let operation = data.operations[index].clone();
+                let operand = data.operands(operation.operands).unwrap()[0];
+                let place = PlaceId::from_index(data.places.len()).unwrap();
+                data.places.push(Place::Value(operand));
+                data.operations[index].kind = OperationKind::Load(place);
+                data.operations[index].operands = OperandRange { start: 0, len: 0 };
+                let root = Subject::Value {
+                    unit,
+                    value: operation.result.unwrap(),
+                };
+                program.units[unit.index()] = working.freeze();
+                program.verify().unwrap();
+                let mut ledger = ledger(1_000_000);
+                let uses = UseIndex::build(&program, &mut ledger, WorkDomain::Baseline).unwrap();
+                {
+                    let mut allocation =
+                        AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
+                    let mut meter = Meter(&mut allocation);
+                    let proof = DomainProof::build(
+                        &program,
+                        &uses,
+                        &[root],
+                        DomainInputs::empty(),
+                        &SourceRecipes,
+                        &mut meter,
+                    )
+                    .unwrap();
+                    assert!(!proof.primitive(root, &mut meter).unwrap());
+                    proof.discard(&mut meter).unwrap();
+                    assert_eq!(allocation.retained_bytes(AllocationClass::Scratch), 0);
+                }
+                uses.discard(&mut ledger).unwrap();
+                assert_eq!(ledger.retained_bytes(), 0);
+            },
+        );
+    }
+
+    #[test]
     fn private_cell_cycles_have_an_inductive_domain_but_opaque_boundaries_do_not() {
         checked(
             r#"
@@ -1133,7 +1190,7 @@ mod tests {
                 let semantic = DomainProof::build(program,&uses,&roots,DomainInputs::empty(),&SourceRecipes,&mut meter).unwrap();
                 assert!(!semantic.primitive(roots[0],&mut meter).unwrap());
                 semantic.discard(&mut meter).unwrap();
-                let target = DomainProof::build(program,&uses,&roots,DomainInputs::empty(),&super::super::javascript::JavaScriptRecipes,&mut meter).unwrap();
+                let target = DomainProof::build(program,&uses,&roots,DomainInputs::empty(),&super::super::super::javascript::JavaScriptRecipes,&mut meter).unwrap();
                 assert!(target.primitive(roots[0],&mut meter).unwrap());
                 // An extern `int` result is an int32 by type (R1).
                 assert!(target.primitive(roots[1],&mut meter).unwrap());
@@ -1305,7 +1362,7 @@ mod tests {
 
     #[test]
     fn record_layout_evidence_does_not_certify_opaque_payloads() {
-        use super::super::record_family::{
+        use super::super::super::record_family::{
             self, FamilyOutcome, FamilyRequest, RECORD_FAMILY_PLAN, RECORD_FAMILY_VERSION,
         };
         for source in [

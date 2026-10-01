@@ -107,8 +107,10 @@ pub(crate) fn measure_payload<'a, 'src, E>(
         while let Some(node) = next.take().or_else(|| pending.pop()) {
             records(&mut measured, &mut scope, 1)?;
             match node {
-                Payload::Type(Type::TypeParameter(name))
-                | Payload::Default(DefaultValue::String(name)) => {
+                Payload::Type(Type::TypeParameter(parameter)) => {
+                    text(&mut measured, &mut scope, parameter.name)?;
+                }
+                Payload::Default(DefaultValue::String(name)) => {
                     text(&mut measured, &mut scope, name)?;
                 }
                 Payload::Type(
@@ -127,7 +129,7 @@ pub(crate) fn measure_payload<'a, 'src, E>(
                 Payload::Type(Type::GenericFunction(function)) => {
                     records(&mut measured, &mut scope, function.type_params.len())?;
                     for name in &function.type_params {
-                        text(&mut measured, &mut scope, name)?;
+                        text(&mut measured, &mut scope, name.name)?;
                     }
                 }
                 Payload::Signature(signature) => {
@@ -178,7 +180,7 @@ pub(crate) fn measure_payload<'a, 'src, E>(
                     Type::GenericFunction(function) => {
                         add(
                             &mut measured.owned_bytes,
-                            backing::<&str>(function.type_params.capacity())?,
+                            backing::<super::TypeParameter<'_>>(function.type_params.capacity())?,
                         )?;
                         enqueue(
                             Payload::Signature(&function.signature),
@@ -207,14 +209,6 @@ pub(crate) fn measure_payload<'a, 'src, E>(
                             &mut pending,
                             &mut scope,
                         )?;
-                        if let Some(default) = &parameter.default {
-                            enqueue(
-                                Payload::Default(default),
-                                &mut next,
-                                &mut pending,
-                                &mut scope,
-                            )?;
-                        }
                     }
                     enqueue(
                         Payload::Type(&signature.return_type),

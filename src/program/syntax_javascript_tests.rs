@@ -52,7 +52,8 @@ fn compile_program(source: &str, config: &str, plan: Plan, shared: bool) -> Stri
                     .tactic(crate::compilation_policy::TacticId::DeadCodeElimination)
                     .enabled,
                 inline: false,
-                scalar: false, native: false,
+                scalar: false,
+                native: false,
                 pristine_builtins: policy
                     .javascript_contract()
                     .unwrap()
@@ -1888,36 +1889,27 @@ fn dynamic_syntax_has_javascripts_meaning() {
     );
 }
 
-/// R7: a lambda that names its receiver or its rest is the method its
-/// adapter makes, and compiles as the adapter's spelling does.
+/// Receiver and rest syntax carries a typed contract. Legacy adapter
+/// spellings retain their arguments-object compatibility separately.
 #[test]
-fn receiver_and_rest_lambdas_compile_as_their_adapters() {
-    let header = "extern void show(JsValue value);\n";
-    let syntax = r#"
-        export JsValue methods(JsValue proto) {
-            proto.size = (this JsValue self) => self.items;
-            proto.add = (this JsValue self, JsValue item, JsValue at) => self.items.splice(at, 0, item);
-            proto.all = (this JsValue self, JsValue... items) => self.items.concat(items);
-            JsValue named = (this JsValue self) => self;
-            proto.named = named;
-            return (JsValue... values) => values;
-        }
-    "#;
-    let spelled = r#"
-        export JsValue methods(JsValue proto) {
-            proto.size = JS.method0((JsValue self) => self.items);
-            proto.add = JS.method2((JsValue self, JsValue item, JsValue at) => self.items.splice(at, 0, item));
-            proto.all = JS.methodRest((JsValue self, JsValue items) => self.items.concat(items));
-            JsValue named = JS.method0((JsValue self) => self);
-            proto.named = named;
-            return JS.staticRest((JsValue values) => values);
-        }
+fn s4_receiver_and_rest_lambdas_expose_real_arrays() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern bool isArray(JsValue value);
+        JsValue proto=object{};
+        proto.all=(this JsValue self, JsValue... values)=>{show(isArray(values));show(values.length);return values;};
+        show(proto.all(1,"two",3));
+        auto collect=(int... values)=>values;
+        show(isArray(collect()));show(collect(4,5));
     "#;
     for config in ["[javascript]\n", PRISTINE] {
+        let javascript = compile_with(source, config);
         assert_eq!(
-            compile_with(&format!("{header}{syntax}"), config),
-            compile_with(&format!("{header}{spelled}"), config),
-            "{config}"
+            run(
+                &javascript,
+                &format!("{SHOW}globalThis.isArray=Array.isArray;")
+            ),
+            "true\n3\n[1,\"two\",3]\ntrue\n[4,5]\n"
         );
     }
 }
@@ -2176,17 +2168,11 @@ fn declared_rest_parameters_take_the_trailing_arguments() {
     );
 }
 
-/// A rest parameter is last and alone with no defaults before it.
+/// The rest remains fresh when all preceding defaults are omitted.
 #[test]
-fn declared_rest_parameters_are_refused_with_defaults() {
-    let arena = bumpalo::Bump::new();
-    let syntax =
-        crate::parse_source(&arena, "int f(int a = 1, int... rest) { return a; }").unwrap();
-    let error = crate::analyze(&syntax).unwrap_err();
-    assert!(
-        format!("{error:?}").contains("takes no parameter defaults"),
-        "{error:?}"
-    );
+fn s4_declared_rest_parameters_accept_defaults() {
+    let source="int f(int a=1,int... rest){rest.push(7);return a+rest.length;}print(f());print(f());print(f(2,3));";
+    assert_eq!(run(&compile(source), ""), "2\n2\n4\n");
 }
 
 /// A method lambda's parameters may be typed (R7): trusted views of what

@@ -2681,6 +2681,7 @@ fn create_setters(
                     crate::output_budget::AllocationClass::Retained,
                     &mut module.functions,
                     Function {
+                        rest: false,
                         parameters: vec![value],
                         body,
                         arrow: true,

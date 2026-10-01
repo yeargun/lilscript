@@ -182,7 +182,7 @@ fn shared_callable_locator_uses_existing_owner_order_for_many_alias_calls() {
     struct LookupMeter {
         work: usize,
     }
-    impl super::raw_domains::Admission for LookupMeter {
+    impl super::facts::domains::Admission for LookupMeter {
         type Error = &'static str;
         fn work(&mut self, amount: usize) -> Result<(), Self::Error> {
             self.work = self.work.checked_add(amount).ok_or("work overflow")?;

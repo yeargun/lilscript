@@ -1073,12 +1073,14 @@ impl Formations<'_, '_> {
         choices: &OutputTactics,
     ) -> Result<Vec<crate::js::ChoiceSite>, CandidateError> {
         self.ledger.charge(self.domain, WorkKind::Analysis, 2)?;
-        choices.check_policy(self.policy).map_err(|error| match error {
-            crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => {
-                CandidateError::ForbiddenTactic(tactic)
-            }
-            error => CandidateError::Admission(error),
-        })?;
+        choices
+            .check_policy(self.policy)
+            .map_err(|error| match error {
+                crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => {
+                    CandidateError::ForbiddenTactic(tactic)
+                }
+                error => CandidateError::Admission(error),
+            })?;
         if choices.dead_code_elimination != self.dead_code_elimination
             || choices.target_compaction != self.target_compaction
             || choices.rules != self.rules
@@ -1619,7 +1621,10 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        crate::representation::ChoiceFamily::RecordLayout.spec().check(policy).map_err(candidate_permission)?;
+        crate::representation::ChoiceFamily::RecordLayout
+            .spec()
+            .check(policy)
+            .map_err(candidate_permission)?;
         self.check_existing_javascript_contract(policy, domain)?;
         let checkpoint = self.slots[base].checkpoint.as_ref().unwrap();
         let implementations = checkpoint.implementations.as_ref().unwrap();
@@ -1691,7 +1696,10 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        crate::representation::ChoiceFamily::ProductLayout.spec().check(policy).map_err(candidate_permission)?;
+        crate::representation::ChoiceFamily::ProductLayout
+            .spec()
+            .check(policy)
+            .map_err(candidate_permission)?;
         self.check_existing_javascript_contract(policy, domain)?;
         let checkpoint = self.slots[base].checkpoint.as_ref().unwrap();
         let implementations = checkpoint.implementations.as_ref().unwrap();
@@ -1750,7 +1758,10 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        crate::representation::ChoiceFamily::CallLayout.spec().check(policy).map_err(candidate_permission)?;
+        crate::representation::ChoiceFamily::CallLayout
+            .spec()
+            .check(policy)
+            .map_err(candidate_permission)?;
         self.check_existing_javascript_contract(policy, domain)?;
         let checkpoint = self.slots[base].checkpoint.as_ref().unwrap();
         let implementations = checkpoint.implementations.as_ref().unwrap();
@@ -1813,7 +1824,10 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        crate::representation::ChoiceFamily::InlineBody.spec().check(policy).map_err(candidate_permission)?;
+        crate::representation::ChoiceFamily::InlineBody
+            .spec()
+            .check(policy)
+            .map_err(candidate_permission)?;
         self.check_existing_javascript_contract(policy, domain)?;
         if self.local_facts.is_none() {
             return Err(CompilationFactsError::NotEnabled.into());
@@ -1928,9 +1942,15 @@ impl<'src> Compilation<'src> {
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
         use crate::representation::ChoiceFamily as Family;
-        Family::StringLiteral.spec().check(policy).map_err(candidate_permission)?;
+        Family::StringLiteral
+            .spec()
+            .check(policy)
+            .map_err(candidate_permission)?;
         if matches!(choice, StringChoice::SharedLiteral { .. }) {
-            Family::SharedString.spec().check(policy).map_err(candidate_permission)?;
+            Family::SharedString
+                .spec()
+                .check(policy)
+                .map_err(candidate_permission)?;
         }
         self.check_existing_javascript_contract(policy, domain)?;
         if self.local_facts.is_none() {
@@ -2375,7 +2395,9 @@ impl<'src> Compilation<'src> {
     ) -> Result<R, CandidateError> {
         if head_choices.property_mangling
             && (!compact
-                || !crate::representation::ChoiceFamily::PropertyNames.spec().enabled(policy))
+                || !crate::representation::ChoiceFamily::PropertyNames
+                    .spec()
+                    .enabled(policy))
         {
             return Err(CandidateError::ForbiddenTactic(
                 crate::compilation_policy::TacticId::PropertyMangling,
@@ -3030,7 +3052,9 @@ fn copy_javascript_contract(
 }
 fn candidate_permission(error: crate::compilation_policy::AdmissionError) -> CandidateError {
     match error {
-        crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => CandidateError::ForbiddenTactic(tactic),
+        crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => {
+            CandidateError::ForbiddenTactic(tactic)
+        }
         error => CandidateError::Admission(error),
     }
 }
@@ -3468,9 +3492,6 @@ fn table_bytes(
                     definition.name.capacity() as u64,
                     capacity(&definition.type_parameters)?,
                 ])?;
-                for name in &definition.type_parameters {
-                    total = sum(&[total, name.capacity() as u64])?;
-                }
             }
         }
         4 => {
@@ -3565,9 +3586,6 @@ fn table_bytes(
                     capacity(&class.base_arguments)?,
                     capacity(&class.prototype)?,
                 ])?;
-                for parameter in &class.type_params {
-                    total = sum(&[total, parameter.capacity() as u64])?;
-                }
             }
         }
         10 => {

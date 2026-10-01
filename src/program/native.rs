@@ -490,6 +490,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 cell.index()
             ))?;
         }
+        if unit.kind != UnitKind::ModuleInitialization
+            && self.plan.signatures[self.plan.signature_for_unit(id)].has_optional()
+        {
+            self.text(",size_t ls_argc")?;
+        }
         self.text(")")
     }
     fn unit(&mut self, id: UnitId) -> Result<(), NativeError> {
@@ -830,7 +835,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
             }
             OperationKind::Allocate {
-                kind: AllocationKind::Array,
+                kind: kind @ (AllocationKind::Array | AllocationKind::SpreadArray(_)),
                 ..
             } => {
                 let result = result.unwrap();
@@ -844,10 +849,21 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     result.index(),
                     args.len()
                 ))?;
-                for &value in args {
-                    self.write(format_args!("ls_array{array}_push(ls_v{},", result.index()))?;
-                    self.converted(id, value, self.plan.arrays[array])?;
-                    self.text(");\n")?;
+                for (index, &value) in args.iter().enumerate() {
+                    if matches!(kind, AllocationKind::SpreadArray(flags) if flags[index]) {
+                        let ValueStorage::Value(NativeType::Array(source)) =
+                            self.plan.units[id.index()].values[value.index()]
+                        else {
+                            unreachable!("verified spread")
+                        };
+                        let (prefix, suffix) =
+                            Self::conversion(self.plan.arrays[source], self.plan.arrays[array]);
+                        self.write(format_args!("for(size_t ls_i=0;ls_i<ls_v{}->length;ls_i++) ls_array{array}_push(ls_v{},{prefix}ls_v{}->items[ls_i]{suffix});\n",value.index(),result.index(),value.index()))?;
+                    } else {
+                        self.write(format_args!("ls_array{array}_push(ls_v{},", result.index()))?;
+                        self.converted(id, value, self.plan.arrays[array])?;
+                        self.text(");\n")?;
+                    }
                 }
             }
             OperationKind::Intrinsic(ResolvedIntrinsic::Property(intrinsic))
@@ -1010,8 +1026,12 @@ impl Emitter<'_, '_, '_, '_, '_> {
                         .expect("native plan admits runtime type tests");
                 self.type_test(id, result.unwrap(), args[0], test)?;
             }
-            OperationKind::IsUndefined => {
+            OperationKind::IsUndefined { parameter } => {
                 let result = result.unwrap().index();
+                if let Some(position) = parameter {
+                    self.write(format_args!("ls_v{result} = ls_argc <= {position};\n"))?;
+                    return Ok(());
+                }
                 match self.plan.units[id.index()].values[args[0].index()] {
                     ValueStorage::Value(NativeType::Callable(_)) => self.write(format_args!(
                         "ls_v{result} = ls_v{}.code == NULL;\n",
@@ -1350,6 +1370,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         for parameter in &parameters[args.len() + 1..] {
             self.write(format_args!(",({parameter}){{0}}"))?;
         }
+        if self.plan.signatures[signature].has_optional() {
+            self.write(format_args!(",{}", args.len() + 1))?;
+        }
         self.text(
             ");
 ",
@@ -1606,6 +1629,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     "({}){{0}}",
                     self.plan.signatures[signature].parameters[position]
                 ))?;
+            }
+        }
+        if let Some(signature) =
+            signature.filter(|_| !matches!(target, PreparedTarget::Host { .. }))
+        {
+            if self.plan.signatures[signature].has_optional() {
+                self.write(format_args!(",{}", args.len()))?;
             }
         }
         if floating {

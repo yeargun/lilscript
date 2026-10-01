@@ -3,7 +3,7 @@
 //! in the existing target Module. It never constructs another source graph.
 use super::super::callable_inputs::{CallObservations, CallableInputs, InputOutcome};
 use super::super::demand::{InlineActual, LocationCheck, PlaceLocation};
-use super::super::raw_domains::Admission;
+use super::super::facts::domains::Admission;
 use super::*;
 use crate::compilation_contract::JavaScriptExecution;
 use crate::primitive::ParameterPassing;
@@ -631,6 +631,7 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: false,
                 parameters,
                 body,
                 arrow: false,

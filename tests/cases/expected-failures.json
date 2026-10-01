@@ -3,11 +3,6 @@
   "about": "Expected case-runner failures on the one compiler (scripts/cases.mjs). Each entry names cases (an id relative to tests/, a glob, or a list), the lanes it covers (the --lanes syntax; omitted means all), why they fail, and the plan task that owns the fix (docs/migration/index.md). A failure not covered here fails the run; an entry that covers no failure any more is reported for removal. Recorded from the pre-M1 binary ~/lilscript-work/bin/pre-m1/lilscript (sha256 01c5e298...) on 2026-09-24: 29 failing cases, all harvested regressions; the 72 tests/cases programs and tests/modules pass on every lane.",
   "entries": [
     {
-      "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
-      "reason": "Name-keyed host helper: the old route lowered the extern `objectHasOwn` to Object.hasOwn by its name; the one compiler gives extern names no meaning (dropped by design), so the program throws \"objectHasOwn is not defined\". The case's prelude must declare the binding (`globalThis.objectHasOwn = Object.hasOwn`).",
-      "owner": "M1.5 (the harvested case gets a declared binding; M10.2 owns the host catalog)"
-    },
-    {
       "case": [
         "cases/regressions/irjs-dense_constructor_literals_ignore_inherited_prototype_setters-positional",
         "cases/regressions/irjs-direct_constructor_literals_preserve_named_and_positional_own_properties-positional"
@@ -33,13 +28,13 @@
     },
     {
       "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate",
-      "reason": "The test expects the inferred wrapper name 'handle'. The rule is decided (architecture §10.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6), so no lane owes 'handle'; here the struct's positional representation creates the function in an array slot, where JavaScript infers no name. The case asserts an unguaranteed name.",
+      "reason": "The test expects the inferred wrapper name 'handle'. The rule is decided (architecture \u00a710.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6), so no lane owes 'handle'; here the struct's positional representation creates the function in an array slot, where JavaScript infers no name. The case asserts an unguaranteed name.",
       "owner": "M10.14 (R6: rewrite the case to observe only what the reflected-set contract guarantees)"
     },
     {
       "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver",
       "lanes": "formation-only/*/script,formation-only/*/module",
-      "reason": "The test expects a non-empty wrapper name. The rule is decided (architecture §10.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6). Production lanes let the method carry the name JavaScript infers and pass; formation-only lanes keep the callback's exact anonymous name, which the contract also allows.",
+      "reason": "The test expects a non-empty wrapper name. The rule is decided (architecture \u00a710.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6). Production lanes let the method carry the name JavaScript infers and pass; formation-only lanes keep the callback's exact anonymous name, which the contract also allows.",
       "owner": "M10.14 (R6: rewrite the case to observe only what the reflected-set contract guarantees)"
     },
     {

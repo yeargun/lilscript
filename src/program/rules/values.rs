@@ -207,7 +207,6 @@ impl ProgramValues {
                 .is_some_and(|owner| owner.kind == UnitKind::ModuleInitialization);
             if cell.binding != CellBinding::Local
                 || written(graph, id)
-                || cell.synthetic
                 || (root && seal != Seal::Module)
                 || !primitive(program, cell.ty)
             {
@@ -359,6 +358,7 @@ impl ProgramValues {
                                     known
                                 }
                             }
+                            None => Know::Exact(StoredExact::Undefined),
                             _ => Know::Top,
                         };
                         *slot = slot.join(&argument);
@@ -563,6 +563,11 @@ fn pointwise(
 
 fn operation_inputs(data: &UnitData, operation: &Operation) -> Vec<ValueId> {
     let mut inputs = data.operands(operation.operands).unwrap_or(&[]).to_vec();
+    if let OperationKind::Load(place) = operation.kind {
+        if let Some(Place::Value(value)) = data.places.get(place.index()) {
+            inputs.push(*value);
+        }
+    }
     for region in operation.kind.child_regions() {
         inputs.extend(data.regions[region.index()].result);
     }
@@ -652,7 +657,7 @@ fn branch_refinements(
             )?;
             refinements.append(&mut nested);
         }
-        OperationKind::IsUndefined => {
+        OperationKind::IsUndefined { .. } => {
             let value = *operands.first()?;
             let Some(alternatives) = know.get(value.index())?.alternatives() else {
                 return Some(refinements);
@@ -920,6 +925,7 @@ fn evaluate(
         }
         let next = match &operation.kind {
             OperationKind::Load(place) => match data.places.get(place.index()) {
+                Some(&Place::Value(value)) => know[value.index()].clone(),
                 Some(&Place::Cell(cell)) => {
                     let storage = &program.cells[cell.index()];
                     match storage.binding {
@@ -950,7 +956,7 @@ fn evaluate(
                 }
                 _ => Know::Top,
             },
-            OperationKind::IsUndefined
+            OperationKind::IsUndefined { .. }
                 if operands
                     .first()
                     .is_some_and(|value| typed_argument(program, graph, unit, data, *value)) =>

@@ -18,7 +18,7 @@ use crate::typed_array::TypedArrayKind;
 mod aggregates;
 mod strings;
 use aggregates::copy_for_store;
-use strings::{string_units, string_value, decode_source_units};
+use strings::{decode_source_units, string_units, string_value};
 
 const DEFAULT_STEP_LIMIT: u64 = 10_000_000;
 const DEFAULT_RECURSION_LIMIT: usize = 256;
@@ -151,7 +151,8 @@ impl Value {
             Self::StringUnits(value) => Ok(String::from_utf16_lossy(value)),
             Self::Bool(value) => Ok(value.to_string()),
             Self::Struct(_) | Self::Instance(_) | Self::Map(_) | Self::Set(_) => Err(
-                InterpretError::new(span, "aggregate values cannot be printed directly")),
+                InterpretError::new(span, "aggregate values cannot be printed directly"),
+            ),
             Self::Array(_) => Err(InterpretError::new(
                 span,
                 "array value cannot be printed directly",
@@ -236,7 +237,10 @@ struct ReferenceInterpreter<'program, 'ast, 'src> {
     globals: AHashMap<SymbolId, Value>,
     frames: Vec<AHashMap<SymbolId, BindingCell>>,
     closures: Vec<RuntimeClosure<'ast, 'src>>,
-    constructors: Vec<(Rc<AggregateValue>, &'program crate::ast::ClassDecl<'ast, 'src>)>,
+    constructors: Vec<(
+        Rc<AggregateValue>,
+        &'program crate::ast::ClassDecl<'ast, 'src>,
+    )>,
     output: String,
     remaining_steps: u64,
     recursion_depth: usize,
@@ -327,7 +331,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     fn execute_stmt(&mut self, statement: &Stmt<'ast, 'src>) -> Result<Flow, InterpretError> {
         self.step(statement.span())?;
         match statement {
-            Stmt::VarDecl(declaration) => {
+            Stmt::VarDecl(declaration, ..) => {
                 self.execute_var_decl(declaration)?;
                 Ok(Flow::Next)
             }
@@ -335,6 +339,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 bindings,
                 value,
                 span,
+                ..
             } => {
                 let Value::Array(array) = self.evaluate(value)? else {
                     return Err(InterpretError::new(
@@ -365,6 +370,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 rest,
                 value,
                 span,
+                ..
             } => {
                 let Value::Record(record) = self.evaluate(value)? else {
                     return Err(InterpretError::new(
@@ -398,7 +404,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }
                 Ok(Flow::Next)
             }
-            Stmt::Expr(expression) => {
+            Stmt::Expr(expression, ..) => {
                 self.evaluate(expression)?;
                 Ok(Flow::Next)
             }
@@ -406,17 +412,17 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 Some(value) => self.evaluate(value)?,
                 None => Value::Void,
             })),
-            Stmt::Throw { value, span } => {
+            Stmt::Throw { value, span, .. } => {
                 let value = self.evaluate(value)?;
                 Err(InterpretError::new(
                     *span,
                     format!("uncaught thrown value: {value:?}"),
                 ))
             }
-            Stmt::SuperCall { args, span } => {
+            Stmt::SuperCall { args, span, .. } => {
                 self.evaluate_super(args, *span)?;
                 Ok(Flow::Next)
-            },
+            }
             Stmt::Yield { span, .. } => Err(InterpretError::new(
                 *span,
                 "generators are only available for JavaScript targets",
@@ -537,8 +543,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }
                 Ok(Flow::Next)
             }
-            Stmt::Break(_) => Ok(Flow::Break),
-            Stmt::Continue(_) => Ok(Flow::Continue),
+            Stmt::Break(_, ..) => Ok(Flow::Break),
+            Stmt::Continue(_, ..) => Ok(Flow::Continue),
         }
     }
 
@@ -612,7 +618,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let mut values = Vec::with_capacity(elements.len());
                 for element in *elements {
                     match element {
-                        ArrayElement::Value(value) => values.push(copy_for_store(self.evaluate(value)?)),
+                        ArrayElement::Value(value) => {
+                            values.push(copy_for_store(self.evaluate(value)?))
+                        }
                         ArrayElement::Spread { value, .. } => {
                             let Value::Array(spread) = self.evaluate(value)? else {
                                 return Err(InterpretError::new(
@@ -800,10 +808,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let mut output = Vec::new();
                 for part in *parts {
                     match part {
-                        TemplatePart::String(value, span) => output.extend(decode_source_units(value, *span)?),
+                        TemplatePart::String(value, span) => {
+                            output.extend(decode_source_units(value, *span)?)
+                        }
                         TemplatePart::Expr(value) => {
                             let evaluated = self.evaluate(value)?;
-                            output.extend(string_units(&evaluated).unwrap_or(evaluated.display(value.span())?.encode_utf16().collect()));
+                            output.extend(string_units(&evaluated).unwrap_or(
+                                evaluated.display(value.span())?.encode_utf16().collect(),
+                            ));
                         }
                     }
                 }
@@ -954,9 +966,31 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     "exhaustive match selected no arm",
                 ))
             }
-            Expr { kind: ExprKind::StructLiteral { name, values, span }, .. } => {
-                self.evaluate_struct(name.name, values, *span)
-            },
+            Expr {
+                kind:
+                    ExprKind::With {
+                        value,
+                        fields,
+                        span,
+                    },
+                ..
+            } => {
+                let Value::Struct(snapshot) = copy_for_store(self.evaluate(value)?) else {
+                    return Err(InterpretError::new(*span, "value update requires a struct"));
+                };
+                for field in *fields {
+                    let replacement = copy_for_store(self.evaluate(&field.value)?);
+                    snapshot
+                        .fields
+                        .borrow_mut()
+                        .insert(field.key.name.into(), replacement);
+                }
+                Ok(Value::Struct(snapshot))
+            }
+            Expr {
+                kind: ExprKind::StructLiteral { name, values, span },
+                ..
+            } => self.evaluate_struct(name.name, values, *span),
         }
     }
 
@@ -984,7 +1018,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
         if let Some(class) = self.class_declaration(name) {
             let values = self.evaluate_arguments(args)?;
-            let receiver = Rc::new(AggregateValue { name: name.into(), fields: Rc::default() });
+            let receiver = Rc::new(AggregateValue {
+                name: name.into(),
+                fields: Rc::default(),
+            });
             self.initialize_class(receiver.clone(), class, values, span)?;
             return Ok(Value::Instance(receiver));
         }
@@ -1040,10 +1077,18 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         span: Span,
     ) -> Result<Value, InterpretError> {
         match (object, property) {
-            (Value::Struct(value) | Value::Instance(value), property) => value.fields.borrow()
-                .get(property).cloned().ok_or_else(|| InterpretError::new(span, "read of an uninitialized field")),
-            (Value::Map(values), "size") => Ok(Value::Int(values.borrow().iter().flatten().count() as i32)),
-            (Value::Set(values), "size") => Ok(Value::Int(values.borrow().iter().flatten().count() as i32)),
+            (Value::Struct(value) | Value::Instance(value), property) => value
+                .fields
+                .borrow()
+                .get(property)
+                .cloned()
+                .ok_or_else(|| InterpretError::new(span, "read of an uninitialized field")),
+            (Value::Map(values), "size") => {
+                Ok(Value::Int(values.borrow().iter().flatten().count() as i32))
+            }
+            (Value::Set(values), "size") => {
+                Ok(Value::Int(values.borrow().iter().flatten().count() as i32))
+            }
             (Value::Record(record), property) => Ok(record
                 .borrow()
                 .get(property)
@@ -1116,14 +1161,21 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             ShiftLeft, ShiftRight, Sub, UnsignedShiftRight, Xor,
         };
         if op == Add && (string_units(&lhs).is_some() || string_units(&rhs).is_some()) {
-            let mut units = string_units(&lhs).unwrap_or(lhs.display(span)?.encode_utf16().collect());
+            let mut units =
+                string_units(&lhs).unwrap_or(lhs.display(span)?.encode_utf16().collect());
             units.extend(string_units(&rhs).unwrap_or(rhs.display(span)?.encode_utf16().collect()));
             return Ok(string_value(units));
         }
         if matches!(op, Less | LessEq | Greater | GreaterEq) {
             if let (Some(lhs), Some(rhs)) = (string_units(&lhs), string_units(&rhs)) {
                 let order = lhs.cmp(&rhs);
-                return Ok(Value::Bool(match op { Less => order.is_lt(), LessEq => !order.is_gt(), Greater => order.is_gt(), GreaterEq => !order.is_lt(), _ => unreachable!() }));
+                return Ok(Value::Bool(match op {
+                    Less => order.is_lt(),
+                    LessEq => !order.is_gt(),
+                    Greater => order.is_gt(),
+                    GreaterEq => !order.is_lt(),
+                    _ => unreachable!(),
+                }));
             }
         }
         match (op, lhs, rhs) {
@@ -1243,10 +1295,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
 
         let callable = self.evaluate(callee)?;
-        let mut values = Vec::with_capacity(args.len());
-        for argument in args {
-            values.push(self.evaluate(&argument.expression)?);
-        }
+        let values = self.evaluate_arguments(args)?;
         self.invoke_callable(callable, values, span)
     }
 
@@ -1256,10 +1305,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         args: &'ast [crate::ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<Value, InterpretError> {
-        let mut values = Vec::with_capacity(args.len());
-        for argument in args {
-            values.push(self.evaluate(&argument.expression)?);
-        }
+        let values = self.evaluate_arguments(args)?;
         match (builtin, values.as_slice()) {
             (BuiltinCall::MathImul, [Value::Int(left), Value::Int(right)]) => {
                 Ok(Value::Int(left.wrapping_mul(*right)))
@@ -1334,7 +1380,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     fn invoke_function(
         &mut self,
         symbol: SymbolId,
-        mut values: Vec<Value>,
+        values: Vec<Value>,
         span: Span,
     ) -> Result<Value, InterpretError> {
         let function = *self
@@ -1347,33 +1393,6 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 "async functions are only available for JavaScript targets",
             ));
         }
-        for parameter in function.params.iter().skip(values.len()) {
-            let default = parameter.default.as_ref().ok_or_else(|| {
-                InterpretError::new(
-                    parameter.span,
-                    "missing function argument without a default",
-                )
-            })?;
-            values.push(self.evaluate(default)?);
-        }
-        if values.len() != function.params.len() {
-            return Err(InterpretError::new(
-                span,
-                "function argument count mismatch",
-            ));
-        }
-        let mut frame = AHashMap::with_capacity(function.params.len());
-        for (parameter, value) in function.params.iter().zip(values) {
-            let symbol = self.symbol(&parameter.name)?;
-            let ty = self
-                .semantics
-                .binding_type(parameter.name.id)
-                .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
-            frame.insert(
-                symbol,
-                Rc::new(RefCell::new(coerce_value_to_type(value, ty))),
-            );
-        }
         let return_type = match self.semantics.binding_type(function.name.id) {
             Some(Type::Function(signature)) => signature.return_type.as_ref().clone(),
             Some(Type::GenericFunction(generic)) => generic.signature.return_type.as_ref().clone(),
@@ -1384,14 +1403,21 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 ));
             }
         };
-        self.execute_callable_frame(frame, function.body, None, function.span)
-            .map(|value| coerce_value_to_type(value, &return_type))
+        self.execute_callable_frame(
+            AHashMap::new(),
+            function.params,
+            values,
+            function.body,
+            None,
+            function.span,
+        )
+        .map(|value| coerce_value_to_type(value, &return_type))
     }
 
     fn invoke_closure(
         &mut self,
         closure: usize,
-        mut values: Vec<Value>,
+        values: Vec<Value>,
         span: Span,
     ) -> Result<Value, InterpretError> {
         let closure = self
@@ -1399,38 +1425,19 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             .get(closure)
             .cloned()
             .ok_or_else(|| InterpretError::new(span, "unknown interpreted closure"))?;
-        for parameter in closure.params.iter().skip(values.len()) {
-            let default = parameter.default.as_ref().ok_or_else(|| {
-                InterpretError::new(parameter.span, "missing closure argument without a default")
-            })?;
-            values.push(self.evaluate(default)?);
-        }
-        if values.len() != closure.params.len() {
-            return Err(InterpretError::new(span, "closure argument count mismatch"));
-        }
         let RuntimeClosure {
             params,
             body,
             captures,
             return_type,
         } = closure;
-        let mut frame = captures;
-        for (parameter, value) in params.iter().zip(values) {
-            let symbol = self.symbol(&parameter.name)?;
-            let ty = self
-                .semantics
-                .binding_type(parameter.name.id)
-                .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
-            frame.insert(
-                symbol,
-                Rc::new(RefCell::new(coerce_value_to_type(value, ty))),
-            );
-        }
         let result = match body {
             ArrowBody::Expr(expression) => {
-                self.execute_callable_frame(frame, &[], Some(expression), span)
+                self.execute_callable_frame(captures, params, values, &[], Some(expression), span)
             }
-            ArrowBody::Block(body) => self.execute_callable_frame(frame, body, None, span),
+            ArrowBody::Block(body) => {
+                self.execute_callable_frame(captures, params, values, body, None, span)
+            }
         }?;
         Ok(coerce_value_to_type(result, &return_type))
     }
@@ -1438,6 +1445,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     fn execute_callable_frame(
         &mut self,
         frame: AHashMap<SymbolId, BindingCell>,
+        params: &'ast [Param<'ast, 'src>],
+        values: Vec<Value>,
         body: &'ast [Stmt<'ast, 'src>],
         expression: Option<&'ast Expr<'ast, 'src>>,
         span: Span,
@@ -1450,11 +1459,52 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
         self.frames.push(frame);
         self.recursion_depth += 1;
-        let result = if let Some(expression) = expression {
-            self.evaluate(expression).map(Flow::Return)
-        } else {
-            self.execute_statements(body)
-        };
+        let result = (|| {
+            if values.len() > params.len()
+                && !params
+                    .last()
+                    .is_some_and(|p| p.role == crate::ast::ParamRole::Rest)
+            {
+                return Err(InterpretError::new(
+                    span,
+                    "callable argument count mismatch",
+                ));
+            }
+            let mut values = values.into_iter();
+            // Defaults execute in the callee's lexical environment, after
+            // earlier parameters are bound. Captured cells remain shared.
+            for parameter in params {
+                let value = if parameter.role == crate::ast::ParamRole::Rest {
+                    Value::Array(Rc::new(RefCell::new(
+                        values.by_ref().map(copy_for_store).collect(),
+                    )))
+                } else {
+                    match values.next() {
+                        Some(value) => value,
+                        None => self.evaluate(parameter.default.as_ref().ok_or_else(|| {
+                            InterpretError::new(
+                                parameter.span,
+                                "missing callable argument without a default",
+                            )
+                        })?)?,
+                    }
+                };
+                let symbol = self.symbol(&parameter.name)?;
+                let ty = self
+                    .semantics
+                    .binding_type(parameter.name.id)
+                    .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
+                self.frames.last_mut().expect("call frame").insert(
+                    symbol,
+                    Rc::new(RefCell::new(coerce_value_to_type(value, ty))),
+                );
+            }
+            if let Some(expression) = expression {
+                self.evaluate(expression).map(Flow::Return)
+            } else {
+                self.execute_statements(body)
+            }
+        })();
         self.recursion_depth -= 1;
         self.frames.pop();
         match result? {
@@ -1474,14 +1524,33 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         span: Span,
     ) -> Result<Value, InterpretError> {
         let receiver = self.evaluate(object)?;
+        if method == "call"
+            && matches!(self.semantics.expression_type(object.id),Some(Type::Function(signature)) if signature.has_receiver())
+        {
+            let values = self.evaluate_arguments(args)?;
+            return self.invoke_callable(receiver, values, span);
+        }
         // Resolve the callee before evaluating arguments, which may replace a
         // callable field. Class methods are looked up on the dynamic class.
         if let Value::Instance(instance) = &receiver {
             let field = instance.fields.borrow().get(method).cloned();
             let function = self.class_method(&instance.name, method);
             let values = self.evaluate_arguments(args)?;
-            if let Some(field) = field { return self.invoke_callable(field, values, span); }
-            let function = function.ok_or_else(|| InterpretError::new(span, "unknown class method"))?;
+            if let Some(field) = field {
+                let mut values = values;
+                if let Value::Callable(Callable::Closure(id)) = &field {
+                    if self.closures[*id]
+                        .params
+                        .first()
+                        .is_some_and(|parameter| parameter.role == crate::ast::ParamRole::Receiver)
+                    {
+                        values.insert(0, receiver.clone());
+                    }
+                }
+                return self.invoke_callable(field, values, span);
+            }
+            let function =
+                function.ok_or_else(|| InterpretError::new(span, "unknown class method"))?;
             return self.invoke_method(instance.clone(), function, values, span);
         }
         let mut arguments = Vec::with_capacity(args.len());
@@ -1506,7 +1575,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     Value::StringUnits(value) => !value.is_empty(),
                     Value::Bool(value) => *value,
                     Value::Null | Value::Void => false,
-                    Value::Struct(_) | Value::Instance(_) | Value::Map(_) | Value::Set(_)
+                    Value::Struct(_)
+                    | Value::Instance(_)
+                    | Value::Map(_)
+                    | Value::Set(_)
                     | Value::Array(_)
                     | Value::Record(_)
                     | Value::Buffer(_)
@@ -1517,7 +1589,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 "isArray" => matches!(receiver, Value::Array(_)),
                 "isObject" => matches!(
                     receiver,
-                    Value::Struct(_) | Value::Instance(_) | Value::Map(_) | Value::Set(_)
+                    Value::Struct(_)
+                        | Value::Instance(_)
+                        | Value::Map(_)
+                        | Value::Set(_)
                         | Value::Array(_)
                         | Value::Record(_)
                         | Value::Buffer(_)
@@ -1647,9 +1722,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let array = array.borrow();
                 let mut output = Vec::new();
                 for (index, value) in array.iter().enumerate() {
-                    if index != 0 { output.extend_from_slice(&separator); }
+                    if index != 0 {
+                        output.extend_from_slice(&separator);
+                    }
                     if !matches!(value, Value::Null) {
-                        output.extend(string_units(value).unwrap_or(value.display(span)?.encode_utf16().collect()));
+                        output.extend(
+                            string_units(value)
+                                .unwrap_or(value.display(span)?.encode_utf16().collect()),
+                        );
                     }
                 }
                 Ok(string_value(output))
@@ -1690,6 +1770,19 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     _ => unreachable!(),
                 })
             }
+            "get" => {
+                let [Value::Int(index)] = arguments.as_slice() else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array get requires one int index",
+                    ));
+                };
+                Ok(usize::try_from(*index)
+                    .ok()
+                    .and_then(|index| array.borrow().get(index).cloned())
+                    .map(copy_for_store)
+                    .unwrap_or(Value::Null))
+            }
             "concat" => {
                 let [Value::Array(other)] = arguments.as_slice() else {
                     return Err(InterpretError::new(
@@ -1722,7 +1815,11 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let start = normalize_slice_index(start, values.len());
                 let end = normalize_slice_index(end, values.len()).max(start);
                 let count = (end - start).min(values.len() - target);
-                let copied = values[start..start + count].iter().cloned().map(copy_for_store).collect::<Vec<_>>();
+                let copied = values[start..start + count]
+                    .iter()
+                    .cloned()
+                    .map(copy_for_store)
+                    .collect::<Vec<_>>();
                 values[target..target + count].clone_from_slice(&copied);
                 drop(values);
                 Ok(Value::Array(array.clone()))
@@ -2089,7 +2186,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 ..
             } => match self.evaluate(object)? {
                 Value::Struct(value) | Value::Instance(value) => Ok(RuntimePlace::RecordEntry {
-                    record: value.fields.clone(), key: property.name.to_string(),
+                    record: value.fields.clone(),
+                    key: property.name.to_string(),
                 }),
                 Value::Record(record) => Ok(RuntimePlace::RecordEntry {
                     record,
@@ -2270,7 +2368,9 @@ impl PartialEq for Flow {
 }
 
 fn values_equal(lhs: &Value, rhs: &Value) -> bool {
-    if let (Some(lhs), Some(rhs)) = (string_units(lhs), string_units(rhs)) { return lhs == rhs; }
+    if let (Some(lhs), Some(rhs)) = (string_units(lhs), string_units(rhs)) {
+        return lhs == rhs;
+    }
     match (lhs, rhs) {
         (Value::Int(lhs), Value::Int(rhs)) => lhs == rhs,
         (Value::Float(lhs), Value::Float(rhs)) => lhs == rhs,
@@ -2310,8 +2410,12 @@ fn compare_js_strings(lhs: &str, rhs: &str) -> std::cmp::Ordering {
 }
 
 fn decode_source_string(value: &str) -> Result<String, InterpretError> {
-    String::from_utf16(&decode_source_units(value, Span::default())?)
-        .map_err(|_| InterpretError::new(Span::default(), "unsupported unpaired-surrogate property key"))
+    String::from_utf16(&decode_source_units(value, Span::default())?).map_err(|_| {
+        InterpretError::new(
+            Span::default(),
+            "unsupported unpaired-surrogate property key",
+        )
+    })
 }
 
 fn record_array_index(key: &str) -> Option<u32> {
@@ -2358,7 +2462,9 @@ fn value_to_json(value: &Value, span: Span) -> Result<serde_json::Value, Interpr
                 .map(|value| value_to_json(value, span))
                 .collect::<Result<_, _>>()?,
         ),
-        Value::Struct(value) | Value::Instance(value) => value_to_json(&Value::Record(value.fields.clone()), span)?,
+        Value::Struct(value) | Value::Instance(value) => {
+            value_to_json(&Value::Record(value.fields.clone()), span)?
+        }
         Value::Map(_) | Value::Set(_) => serde_json::Value::Object(serde_json::Map::new()),
         Value::Record(record) => {
             let record = record.borrow();
@@ -2730,18 +2836,40 @@ mod tests {
             (include_str!("../tests/cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding.lil"), include_str!("../tests/cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding.out")),
             (include_str!("../tests/cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes.lil"), include_str!("../tests/cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes.out")),
         ] { assert_eq!(run(source),expected); }
-        assert_eq!(run(r#"string value="😀";string[] units=value.split("");print(units.length);print(units.join("").length);print(value.slice(0,1).charCodeAt(0));"#), "2\n2\n55357\n");
+        assert_eq!(
+            run(
+                r#"string value="😀";string[] units=value.split("");print(units.length);print(units.join("").length);print(value.slice(0,1).charCodeAt(0));"#
+            ),
+            "2\n2\n55357\n"
+        );
     }
 
     #[test]
     fn nominal_and_collection_conformance_uses_checked_in_oracles() {
         for (source, expected) in [
-            (include_str!("../tests/cases/19_class.lil"), include_str!("../tests/cases/19_class.out")),
-            (include_str!("../tests/cases/20_class_loop.lil"), include_str!("../tests/cases/20_class_loop.out")),
-            (include_str!("../tests/cases/aggregate_defaults.lil"), include_str!("../tests/cases/aggregate_defaults.out")),
-            (include_str!("../tests/cases/maps_sets.lil"), include_str!("../tests/cases/maps_sets.out")),
-            (include_str!("../tests/cases/symbol_map_keys.lil"), include_str!("../tests/cases/symbol_map_keys.out")),
-        ] { assert_eq!(run(source), expected); }
+            (
+                include_str!("../tests/cases/19_class.lil"),
+                include_str!("../tests/cases/19_class.out"),
+            ),
+            (
+                include_str!("../tests/cases/20_class_loop.lil"),
+                include_str!("../tests/cases/20_class_loop.out"),
+            ),
+            (
+                include_str!("../tests/cases/aggregate_defaults.lil"),
+                include_str!("../tests/cases/aggregate_defaults.out"),
+            ),
+            (
+                include_str!("../tests/cases/maps_sets.lil"),
+                include_str!("../tests/cases/maps_sets.out"),
+            ),
+            (
+                include_str!("../tests/cases/symbol_map_keys.lil"),
+                include_str!("../tests/cases/symbol_map_keys.out"),
+            ),
+        ] {
+            assert_eq!(run(source), expected);
+        }
     }
 
     #[test]

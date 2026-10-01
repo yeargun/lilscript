@@ -880,6 +880,7 @@ fn copy_unit(unit: &UnitData) -> Result<UnitData, PublicationError> {
         function_name: unit.function_name,
         callable_type: unit.callable_type,
         native_default_length: unit.native_default_length,
+        declared_length: unit.declared_length,
         parameters: copy_vector(&unit.parameters)?,
         captures: copy_vector(&unit.captures)?,
         entry: unit.entry,

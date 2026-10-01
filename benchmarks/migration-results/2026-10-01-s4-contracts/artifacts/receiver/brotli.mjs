@@ -1,0 +1,1 @@
+let t=class Box{constructor(o){this.amount=0;this.amount=o}total(){return((((((((((this.amount+this.amount|0)+this.amount|0)+this.amount|0)+this.amount|0)+this.amount|0)+this.amount|0)+this.amount|0)+this.amount|0)+this.amount|0)+this.amount|0)+this.amount|0}};export{t as Box};

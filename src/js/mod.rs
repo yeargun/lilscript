@@ -27,16 +27,17 @@ pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite, SiteId}
 mod declarations;
 pub(crate) mod delivery;
 mod families;
+pub(crate) use families::HeadChoices;
 pub use families::{
     ArrayPacking, Challenger, OutputFamilies, Spelling, StatementSpellings, TargetRules,
 };
-pub(crate) use families::HeadChoices;
+mod constants;
 pub mod extract;
+mod facts;
 mod literal_output;
 pub mod manifest;
 mod mentions;
 pub mod names;
-mod root_constants;
 mod scalar_objects;
 pub mod tables;
 mod typed;
@@ -45,9 +46,9 @@ pub(crate) use literal_output::{LiteralAlternative, WeakLiteralObservation};
 #[cfg(test)]
 mod imports_tests;
 mod inline;
+mod journal;
 mod private_calls;
 mod reach;
-mod journal;
 pub(crate) use journal::Journal;
 #[cfg(test)]
 mod literal_output_tests;
@@ -60,13 +61,13 @@ mod host_lowering;
 mod initializers;
 #[cfg(test)]
 mod output_policy_tests;
+mod placement;
 mod pooling;
 mod print;
-mod quiet;
 pub(crate) mod rules;
 mod simplify;
-mod statements;
 pub(crate) mod spellings;
+mod statements;
 pub(crate) use simplify::literal_array_projection;
 #[cfg(test)]
 mod tests;
@@ -814,6 +815,8 @@ impl FunctionName {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub parameters: Vec<BindingId>,
+    /// The final parameter receives a fresh array of trailing arguments.
+    pub rest: bool,
     pub body: RegionId,
     pub arrow: bool,
     pub name: FunctionName,
@@ -1052,7 +1055,7 @@ pub struct Module {
     /// by binding, the point that settles the module cell a formed binding
     /// stores; by function, the first point during which the unit a formed
     /// function runs may run. A binding or function a rule creates has
-    /// neither, and `quiet.rs` orders it by the tree alone.
+    /// neither initially; the target fact owner derives its physical initialization.
     pub(crate) settled: Vec<Option<u32>>,
     pub(crate) first_runs: Vec<Option<u32>>,
     pub regions: Vec<Region>,
@@ -3160,22 +3163,52 @@ impl Module {
         choices: &ChoiceMap,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<bool, AllocationError> {
-        use crate::representation::ChoiceAlternative;
         use crate::output_budget::AllocationClass::Retained;
-        let key = ChoiceKey { family, site: match self.bindings[binding.index()].source_symbol {
-            Some(symbol) => SiteId::Symbol(symbol.0),
-            None => SiteId::Formed(binding.index() as u32),
-        }};
+        use crate::representation::ChoiceAlternative;
+        let key = ChoiceKey {
+            family,
+            site: match self.bindings[binding.index()].source_symbol {
+                Some(symbol) => SiteId::Symbol(symbol.0),
+                None => SiteId::Formed(binding.index() as u32),
+            },
+        };
         let seed = AltId(u8::from(seed));
-        let applied = choices.get(key).filter(|choice| choice.0 <= 1).unwrap_or(seed);
-        budget.work(crate::compilation_policy::WorkKind::Analysis, self.choice_sites.len() as u64 + 1)?;
+        let applied = choices
+            .get(key)
+            .filter(|choice| choice.0 <= 1)
+            .unwrap_or(seed);
+        budget.work(
+            crate::compilation_policy::WorkKind::Analysis,
+            self.choice_sites.len() as u64 + 1,
+        )?;
         if !self.choice_sites.iter().any(|site| site.key == key) {
             let name = budget.string(Retained, &self.bindings[binding.index()].spelling)?;
-            let alternatives = budget.copy_slice(Retained, &[
-                ChoiceAlternative { alternative: AltId(0), name: "retained", saving: 0 },
-                ChoiceAlternative { alternative: AltId(1), name: alternative_name, saving },
-            ])?;
-            budget.push(Retained, &mut self.choice_sites, ChoiceSite { key, name, alternatives, seed, applied })?;
+            let alternatives = budget.copy_slice(
+                Retained,
+                &[
+                    ChoiceAlternative {
+                        alternative: AltId(0),
+                        name: "retained",
+                        saving: 0,
+                    },
+                    ChoiceAlternative {
+                        alternative: AltId(1),
+                        name: alternative_name,
+                        saving,
+                    },
+                ],
+            )?;
+            budget.push(
+                Retained,
+                &mut self.choice_sites,
+                ChoiceSite {
+                    key,
+                    name,
+                    alternatives,
+                    seed,
+                    applied,
+                },
+            )?;
         }
         Ok(applied == AltId(1))
     }

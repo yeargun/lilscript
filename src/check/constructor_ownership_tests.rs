@@ -91,20 +91,37 @@ fn repeated_construction_preserves_generic_inference_and_unrelated_member_types(
     );
     assert_eq!(plain.constructor.as_ref().unwrap().params[0].ty, Type::Int);
     let boxed = model.class_info("Box").unwrap();
-    assert_eq!(boxed.type_params, ["T"]);
-    assert_eq!(boxed.fields["value"].ty, Type::TypeParameter("T"));
+    assert_eq!(
+        boxed.type_params.iter().map(|p| p.name).collect::<Vec<_>>(),
+        ["T"]
+    );
+    assert_eq!(
+        boxed.fields["value"].ty,
+        Type::TypeParameter(boxed.type_params[0])
+    );
     assert_eq!(
         boxed.fields["nested"].ty,
-        Type::Array(Box::new(Type::Array(Box::new(Type::TypeParameter("T")))))
+        Type::Array(Box::new(Type::Array(Box::new(Type::TypeParameter(
+            boxed.type_params[0]
+        )))))
     );
     assert_eq!(
         boxed.constructor.as_ref().unwrap().params[0].ty,
-        Type::TypeParameter("T")
+        Type::TypeParameter(boxed.type_params[0])
     );
-    assert_eq!(boxed.methods["echo"].type_params, ["U"]);
+    assert_eq!(
+        boxed.methods["echo"]
+            .type_params
+            .iter()
+            .map(|p| p.name)
+            .collect::<Vec<_>>(),
+        ["U"]
+    );
     assert_eq!(
         boxed.methods["echo"].signature.return_type.as_ref(),
-        &Type::Array(Box::new(Type::Array(Box::new(Type::TypeParameter("U")))))
+        &Type::Array(Box::new(Type::Array(Box::new(Type::TypeParameter(
+            boxed.methods["echo"].type_params[0]
+        )))))
     );
 }
 
@@ -162,11 +179,7 @@ fn three_level_super_calls_preserve_substitution_and_constructor_defaults() {
         assert!(signature.accepts_arity(2));
         assert!(!signature.accepts_arity(0));
         assert!(!signature.accepts_arity(3));
-        assert_eq!(
-            signature.params[1].default,
-            Some(DefaultValue::Symbol(seed))
-        );
-        assert!(!signature_has_pending_bindings(signature));
+        assert!(signature.params[1].optional);
     }
     let (base, base_signature) = model
         .base_constructor(model.type_binding("Mid").unwrap())
@@ -174,7 +187,9 @@ fn three_level_super_calls_preserve_substitution_and_constructor_defaults() {
     assert_eq!(model.nominal_name(base), Some("Base"));
     assert_eq!(
         base_signature.params[0].ty,
-        Type::Array(Box::new(Type::Array(Box::new(Type::TypeParameter("U")))))
+        Type::Array(Box::new(Type::Array(Box::new(Type::TypeParameter(
+            model.class_info("Mid").unwrap().type_params[0]
+        )))))
     );
     let (middle, middle_signature) = model
         .base_constructor(model.type_binding("Leaf").unwrap())
@@ -184,10 +199,7 @@ fn three_level_super_calls_preserve_substitution_and_constructor_defaults() {
         middle_signature.params[0].ty,
         Type::Array(Box::new(Type::Array(Box::new(Type::Int))))
     );
-    assert_eq!(
-        middle_signature.params[1].default,
-        Some(DefaultValue::Symbol(seed))
-    );
+    assert!(middle_signature.params[1].optional);
     assert_binding_type(
         &model,
         "firstLeaf",

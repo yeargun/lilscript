@@ -889,7 +889,7 @@ fn append_document_completions(source: &str, items: &mut Vec<Value>) {
             Item::ExternGlobal(decl) => {
                 json!({ "label": decl.name.name, "kind": 6, "detail": "LilScript host global" })
             }
-            Item::Stmt(Stmt::VarDecl(decl)) => {
+            Item::Stmt(Stmt::VarDecl(decl, ..)) => {
                 json!({ "label": decl.name.name, "kind": 6, "detail": "LilScript binding" })
             }
             Item::Stmt(_) => continue,
@@ -1157,7 +1157,7 @@ fn document_symbol_result(params: &Value, documents: &HashMap<String, Document>)
                 decl.name.span,
                 Vec::new(),
             )),
-            Item::Stmt(Stmt::VarDecl(decl)) => symbols.push(document_symbol(
+            Item::Stmt(Stmt::VarDecl(decl, ..)) => symbols.push(document_symbol(
                 &document.text,
                 decl.name.name,
                 13,

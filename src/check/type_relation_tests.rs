@@ -38,7 +38,7 @@ fn corpus() -> Vec<Type<'static>> {
         Type::Null,
         Type::Void,
         Type::Dynamic,
-        Type::TypeParameter("T"),
+        Type::TypeParameter(crate::check::TypeParameter::fixture("T")),
         Type::Enum(test_enum("Number")),
         Type::Class(test_class("Number")),
         Type::Struct(StructType {
@@ -71,12 +71,13 @@ fn corpus() -> Vec<Type<'static>> {
         ]);
     }
     for ty in [Type::Int, Type::Float, Type::Dynamic] {
-        for default in [None, Some(DefaultValue::Int(3)), Some(DefaultValue::Int(4))] {
+        for optional in [false, true] {
             types.push(function(
                 vec![FunctionParameter {
+                    receiver: false,
                     ty: ty.clone(),
                     passing: ParameterPassing::Value,
-                    default,
+                    optional,
                     rest: false,
                 }],
                 Type::Float,
@@ -84,9 +85,10 @@ fn corpus() -> Vec<Type<'static>> {
         }
         types.push(function(
             vec![FunctionParameter {
+                receiver: false,
                 ty: ty.clone(),
                 passing: ParameterPassing::MutableReference,
-                default: None,
+                optional: false,
                 rest: false,
             }],
             Type::Int,
@@ -95,9 +97,10 @@ fn corpus() -> Vec<Type<'static>> {
         // of this common relation, while the checker owns their legality.
         types.push(function(
             vec![FunctionParameter {
+                receiver: false,
                 ty,
                 passing: ParameterPassing::MutableReference,
-                default: Some(DefaultValue::Int(3)),
+                optional: true,
                 rest: false,
             }],
             Type::Int,
@@ -105,16 +108,20 @@ fn corpus() -> Vec<Type<'static>> {
     }
     types.push(function(
         vec![
-            FunctionParameter::defaulted(Type::Int, DefaultValue::Int(1)),
+            FunctionParameter::optional(Type::Int),
             FunctionParameter::value(Type::Int),
         ],
         Type::Int,
     ));
     let generic = GenericFunctionType {
-        type_params: vec!["T"],
+        type_params: vec![crate::check::TypeParameter::fixture("T")],
         signature: FunctionType::new(FunctionSignature {
-            params: vec![FunctionParameter::value(Type::TypeParameter("T"))],
-            return_type: Box::new(Type::TypeParameter("T")),
+            params: vec![FunctionParameter::value(Type::TypeParameter(
+                crate::check::TypeParameter::fixture("T"),
+            ))],
+            return_type: Box::new(Type::TypeParameter(crate::check::TypeParameter::fixture(
+                "T",
+            ))),
         }),
     };
     types.push(Type::GenericFunction(generic));
@@ -158,7 +165,6 @@ enum Kind {
     TypeWork,
     Visit,
     TypeEquality,
-    DefaultEquality,
     SignatureValidation,
     ParameterPair,
 }
@@ -168,7 +174,6 @@ fn kind(event: RelationEvent<'_, '_>) -> Kind {
         RelationEvent::TypeWork(_) => Kind::TypeWork,
         RelationEvent::Visit { .. } => Kind::Visit,
         RelationEvent::TypeEquality { .. } => Kind::TypeEquality,
-        RelationEvent::DefaultEquality { .. } => Kind::DefaultEquality,
         RelationEvent::SignatureValidation(_) => Kind::SignatureValidation,
         RelationEvent::ParameterPair => Kind::ParameterPair,
     }
@@ -278,9 +283,10 @@ fn equal_invalid_signatures_keep_equality_shortcut_and_bit_defaults() {
     let invalid = || {
         function(
             vec![FunctionParameter {
+                receiver: false,
                 ty: Type::Int,
                 passing: ParameterPassing::MutableReference,
-                default: Some(DefaultValue::Float(f64::NAN.to_bits())),
+                optional: true,
                 rest: false,
             }],
             Type::Int,
@@ -299,12 +305,10 @@ fn equal_invalid_signatures_keep_equality_shortcut_and_bit_defaults() {
 #[test]
 fn admission_refusal_is_never_a_false_or_successful_type_result() {
     let parameter = |ty| FunctionParameter {
+        receiver: false,
         ty,
         passing: ParameterPassing::Value,
-        default: Some(DefaultValue::Array(vec![
-            DefaultValue::String("payload"),
-            DefaultValue::Float(f64::NAN.to_bits()),
-        ])),
+        optional: true,
         rest: false,
     };
     let (left, right) = reordered(2);
@@ -315,7 +319,6 @@ fn admission_refusal_is_never_a_false_or_successful_type_result() {
     for required in [
         Kind::Visit,
         Kind::TypeEquality,
-        Kind::DefaultEquality,
         Kind::SignatureValidation,
         Kind::ParameterPair,
     ] {
@@ -409,10 +412,9 @@ fn old_relation(expected: &Type<'_>, actual: &Type<'_>) -> bool {
                         expected.passing == actual.passing
                             && old_relation(&expected.ty, &actual.ty)
                             && old_relation(&actual.ty, &expected.ty)
-                            && expected
-                                .default
-                                .as_ref()
-                                .is_none_or(|default| actual.default.as_ref() == Some(default))
+                            && (!expected.optional || actual.optional)
+                            && expected.rest == actual.rest
+                            && expected.receiver == actual.receiver
                     })
                 && old_relation(&expected.return_type, &actual.return_type)
         }

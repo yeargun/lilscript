@@ -194,6 +194,7 @@ fn cyclic_import_read_keeps_tdz_even_when_its_payload_is_discarded() {
         vec![Statement::Evaluate(read), Statement::Return(Some(seven))];
     let function = FunctionId::new(module.functions.len());
     module.functions.push(Function {
+        rest: false,
         parameters: vec![],
         body,
         arrow: false,

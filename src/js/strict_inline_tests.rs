@@ -39,6 +39,7 @@ pub(super) fn fixture(kind: Kind, nested: bool, explicit: bool) -> Module {
     }];
     let function = FunctionId::new(module.functions.len());
     module.functions.push(Function {
+        rest: false,
         parameters,
         body,
         arrow: true,
@@ -69,6 +70,7 @@ pub(super) fn fixture(kind: Kind, nested: bool, explicit: bool) -> Module {
         let outer = binding(&mut module, root, 2, "outer");
         let function = FunctionId::new(module.functions.len());
         module.functions.push(Function {
+            rest: false,
             parameters: vec![],
             body: site,
             arrow: true,

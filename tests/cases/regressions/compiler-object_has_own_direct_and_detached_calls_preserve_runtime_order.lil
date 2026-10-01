@@ -1,6 +1,6 @@
 // Harvested from src/compiler.rs object_has_own_direct_and_detached_calls_preserve_runtime_order.
-// Note: the test's harness does not define `objectHasOwn`; the old route lowered this
-// extern by name to Object.hasOwn (its name-keyed known-host table).
+// The host fixture binds this explicit extern to Object.hasOwn. Both direct
+// and detached calls preserve receiver/key evaluation order.
 extern bool objectHasOwn(JsValue obj, string key);
 extern JsValue nextObject();
 extern string nextKey();

@@ -16,6 +16,9 @@ pub(super) use return_origin::{returned_value_origin, ReturnedValueOrigin};
 mod type_transport;
 pub(super) use type_transport::contains_nominal_product;
 
+#[path = "facts_domains.rs"]
+pub(super) mod domains;
+
 use super::*;
 use crate::compilation_policy::{
     AnalysisAttempt, AnalysisCompletion, AnalysisWorkReceipt, BudgetError, BudgetLedger, WorkDomain,
@@ -28,13 +31,15 @@ use std::mem::size_of;
 use std::sync::Arc;
 
 pub const LOCAL_FACTS_PLAN: u32 = 1;
+// Version 9 shares runtime-domain transfer with the contextual producer query.
+// Version 8 transports exact values through evaluated typed value views.
 // Version 7 takes per-operation effects from the one effects owner.
 // Version 5 distinguishes immutable struct values from reference identities.
 // Version 4 no longer invents runtime domains from source cell annotations.
 // Version 3 transfers existing exact primitive knowledge through CopyValue.
 // Version 2 introduced shared transfer and separate resource-exhaustion effects.
 // Older receipts cannot qualify this version's answers.
-pub const LOCAL_FACTS_VERSION: u32 = 7;
+pub const LOCAL_FACTS_VERSION: u32 = 9;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dependencies {
@@ -1184,11 +1189,42 @@ pub(super) fn primitive_evaluation_behavior(
     })
 }
 
-fn primitive_inputs(unit: &UnitData, operation: &Operation, domains: &[bool]) -> bool {
-    unit.operands(operation.operands)
-        .unwrap()
-        .iter()
-        .all(|value| domains.get(value.index()) == Some(&true))
+/// Source result-domain transfer, independent of the query's storage/call
+/// reach. Local facts and sparse cross-unit facts use the same operation law.
+#[derive(Clone, Copy)]
+pub(super) enum PrimitiveTransfer {
+    Primitive,
+    Operands,
+    Value(ValueId),
+    Place(PlaceId),
+    Branches(RegionId, RegionId),
+    Lazy(RegionId),
+    Unknown,
+}
+pub(super) fn primitive_transfer(unit: &UnitData, operation: &Operation) -> PrimitiveTransfer {
+    use PrimitiveTransfer as T;
+    match operation.kind {
+        OperationKind::Constant(_)
+        | OperationKind::IntBinary(_)
+        | OperationKind::Unary {
+            op: UnaryOp::Not, ..
+        }
+        | OperationKind::Unary { integer: true, .. }
+        | OperationKind::IsUndefined { .. }
+        | OperationKind::Intrinsic(ResolvedIntrinsic::Property(Intrinsic::StringLength)) => {
+            T::Primitive
+        }
+        OperationKind::CopyValue | OperationKind::Unary { .. } | OperationKind::Binary(_) => {
+            T::Operands
+        }
+        OperationKind::Load(place) => match unit.places[place.index()] {
+            Place::Value(value) => T::Value(value),
+            _ => T::Place(place),
+        },
+        OperationKind::Select { yes, no } => T::Branches(yes, no),
+        OperationKind::ShortCircuit { right, .. } => T::Lazy(right),
+        _ => T::Unknown,
+    }
 }
 /// Initializer operands of each local this unit initializes and never
 /// reassigns. For such a cell every write is an `Initialize` here, so a load
@@ -1260,27 +1296,16 @@ pub(super) fn primitive_result_domain(
     operation: &Operation,
     domains: &[bool],
 ) -> bool {
-    match operation.kind {
-        OperationKind::Constant(_)
-        | OperationKind::IntBinary(_)
-        | OperationKind::Unary {
-            op: UnaryOp::Not, ..
-        }
-        | OperationKind::Unary { integer: true, .. }
-        | OperationKind::Intrinsic(ResolvedIntrinsic::Property(Intrinsic::StringLength)) => true,
-        OperationKind::CopyValue | OperationKind::Unary { .. } | OperationKind::Binary(_) => {
-            primitive_inputs(unit, operation, domains)
-        }
-        // Source annotations are language knowledge, not a proof of the raw
-        // value in a JS cell. Parameters, host calls and replaceable methods
-        // can introduce values whose conversion invokes user code. Proving
-        // storage contents requires all producer edges and their revision
-        // dependencies; this unit-local query owns neither that evidence nor
-        // a runtime normalization at the load.
-        OperationKind::Load(place) => match unit.places[place.index()] {
-            Place::Value(value) => domains.get(value.index()) == Some(&true),
-            _ => false,
-        },
+    match primitive_transfer(unit, operation) {
+        PrimitiveTransfer::Primitive => true,
+        PrimitiveTransfer::Operands => unit
+            .operands(operation.operands)
+            .unwrap()
+            .iter()
+            .all(|value| domains.get(value.index()) == Some(&true)),
+        PrimitiveTransfer::Value(value) => domains.get(value.index()) == Some(&true),
+        // Complete producers/regions require the contextual query. Source
+        // annotations alone never certify the raw runtime contents of a cell.
         _ => false,
     }
 }
@@ -1316,7 +1341,16 @@ pub(super) fn exact(
             Some(value) => value.clone(),
             None => return unknown(),
         },
-        OperationKind::IsUndefined => match known(operands[0]) {
+        OperationKind::Load(place) if matches!(unit.places[place.index()], Place::Value(_)) => {
+            let Place::Value(value) = unit.places[place.index()] else {
+                unreachable!()
+            };
+            match known(value) {
+                Some(value) => value.clone(),
+                None => return unknown(),
+            }
+        }
+        OperationKind::IsUndefined { .. } => match known(operands[0]) {
             Some(value) => StoredExact::Boolean(matches!(value, StoredExact::Undefined)),
             None => return unknown(),
         },

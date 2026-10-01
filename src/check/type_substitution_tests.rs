@@ -16,12 +16,10 @@ fn signature(parameters: Vec<Type<'static>>, result: Type<'static>) -> FunctionT
             .into_iter()
             .enumerate()
             .map(|(index, ty)| FunctionParameter {
+                receiver: false,
                 ty,
                 passing: crate::primitive::ParameterPassing::Value,
-                default: (index == 1).then_some(DefaultValue::Array(vec![
-                    DefaultValue::String("literal-default"),
-                    DefaultValue::Int(3),
-                ])),
+                optional: index == 1,
                 rest: false,
             })
             .collect(),
@@ -43,7 +41,7 @@ fn ledger(memory: u64, work: u64) -> BudgetLedger {
 
 #[test]
 fn forward_substitution_matches_previous_checker_with_nested_types_and_union_collapse() {
-    let parameter = Type::TypeParameter("T");
+    let parameter = Type::TypeParameter(crate::check::TypeParameter::fixture("T"));
     let declaration = StructType {
         identity: NominalId::new(0, NominalKind::Struct),
         name: "Point",
@@ -53,7 +51,7 @@ fn forward_substitution_matches_previous_checker_with_nested_types_and_union_col
         Type::String,
         Type::Struct(declaration),
         parameter.clone(),
-        Type::TypeParameter("Other"),
+        Type::TypeParameter(crate::check::TypeParameter::fixture("Other")),
         Type::Dynamic,
     ];
     for _ in 0..3 {
@@ -81,9 +79,12 @@ fn forward_substitution_matches_previous_checker_with_nested_types_and_union_col
         args: vec![parameter.clone()],
     });
     corpus.push(Type::GenericFunction(GenericFunctionType {
-        type_params: vec!["U"],
+        type_params: vec![crate::check::TypeParameter::fixture("U")],
         signature: signature(
-            vec![parameter.clone(), Type::TypeParameter("U")],
+            vec![
+                parameter.clone(),
+                Type::TypeParameter(crate::check::TypeParameter::fixture("U")),
+            ],
             parameter.clone(),
         ),
     }));
@@ -92,12 +93,15 @@ fn forward_substitution_matches_previous_checker_with_nested_types_and_union_col
         Type::Struct(declaration),
         Type::Union(vec![Type::Int, Type::Float]),
     ] {
-        let substitutions = AHashMap::from_iter([("T", replacement)]);
+        let substitutions = AHashMap::from_iter([(
+            crate::check::TypeParameter::fixture("T").identity,
+            replacement,
+        )]);
         for ty in &corpus {
             let expected = old_substitute_type(ty, &substitutions);
             let actual = substitute_type_with(
                 ty,
-                &mut |name, _: &mut Unmetered| Ok(substitutions.get(name)),
+                &mut |name, _: &mut Unmetered| Ok(substitutions.get(&name)),
                 &mut Unmetered,
             )
             .unwrap();
@@ -110,10 +114,15 @@ fn forward_substitution_matches_previous_checker_with_nested_types_and_union_col
 fn admitted_callable_result_stays_live_through_exact_comparison_then_releases_scope() {
     let template = signature(
         vec![
-            Type::TypeParameter("T"),
-            Type::Array(Box::new(Type::TypeParameter("T"))),
+            Type::TypeParameter(crate::check::TypeParameter::fixture("T")),
+            Type::Array(Box::new(Type::TypeParameter(
+                crate::check::TypeParameter::fixture("T"),
+            ))),
         ],
-        Type::Union(vec![Type::TypeParameter("T"), Type::Int]),
+        Type::Union(vec![
+            Type::TypeParameter(crate::check::TypeParameter::fixture("T")),
+            Type::Int,
+        ]),
     );
     let argument = Type::Int;
     let mut budget = ledger(1_000_000, 1_000_000);
@@ -124,7 +133,8 @@ fn admitted_callable_result_stays_live_through_exact_comparison_then_releases_sc
             let result = substitute_signature_with(
                 &template,
                 &mut |name, _: &mut TypeQueryAdmission<'_, '_>| {
-                    Ok((name == "T").then_some(&argument))
+                    Ok((name == crate::check::TypeParameter::fixture("T").identity)
+                        .then_some(&argument))
                 },
                 &mut query,
             )
@@ -149,10 +159,12 @@ fn admitted_callable_result_stays_live_through_exact_comparison_then_releases_sc
 fn partial_substitution_refusals_and_unwind_release_the_same_query_owner() {
     let template = signature(
         vec![
-            Type::Array(Box::new(Type::TypeParameter("T"))),
-            Type::TypeParameter("T"),
+            Type::Array(Box::new(Type::TypeParameter(
+                crate::check::TypeParameter::fixture("T"),
+            ))),
+            Type::TypeParameter(crate::check::TypeParameter::fixture("T")),
         ],
-        Type::TypeParameter("T"),
+        Type::TypeParameter(crate::check::TypeParameter::fixture("T")),
     );
     let original = template.clone();
     let argument = Type::Record(Box::new(Type::String));
@@ -199,11 +211,11 @@ fn partial_substitution_refusals_and_unwind_release_the_same_query_owner() {
 #[test]
 fn primitive_substitution_has_no_scratch_allocation_and_never_rewrites_argument_itself() {
     let mut budget = ledger(0, 1000);
-    let argument = Type::TypeParameter("Outer");
+    let argument = Type::TypeParameter(crate::check::TypeParameter::fixture("Outer"));
     {
         let mut scope = AllocationBudget::new(Some((&mut budget, WorkDomain::Optional)));
         let result = substitute_type_with(
-            &Type::TypeParameter("T"),
+            &Type::TypeParameter(crate::check::TypeParameter::fixture("T")),
             &mut |_, _: &mut TypeQueryAdmission<'_, '_>| Ok(Some(&argument)),
             &mut TypeQueryAdmission::new(&mut scope),
         )
@@ -216,11 +228,11 @@ fn primitive_substitution_has_no_scratch_allocation_and_never_rewrites_argument_
 
 fn old_substitute_type<'src>(
     ty: &Type<'src>,
-    substitutions: &AHashMap<&'src str, Type<'src>>,
+    substitutions: &AHashMap<crate::check::TypeParameterId, Type<'src>>,
 ) -> Type<'src> {
     match ty {
         Type::TypeParameter(name) => substitutions
-            .get(name)
+            .get(&name.identity)
             .cloned()
             .unwrap_or_else(|| ty.clone()),
         Type::Array(element) => Type::Array(Box::new(old_substitute_type(element, substitutions))),
@@ -265,9 +277,10 @@ fn old_substitute_type<'src>(
                 .params
                 .iter()
                 .map(|parameter| FunctionParameter {
+                    receiver: false,
                     ty: old_substitute_type(&parameter.ty, substitutions),
                     passing: parameter.passing,
-                    default: parameter.default.clone(),
+                    optional: parameter.optional,
                     rest: false,
                 })
                 .collect(),
@@ -281,9 +294,10 @@ fn old_substitute_type<'src>(
                     .params
                     .iter()
                     .map(|parameter| FunctionParameter {
+                        receiver: false,
                         ty: old_substitute_type(&parameter.ty, substitutions),
                         passing: parameter.passing,
-                        default: parameter.default.clone(),
+                        optional: parameter.optional,
                         rest: false,
                     })
                     .collect(),

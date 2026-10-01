@@ -194,7 +194,7 @@ fn symbol_pair_work_and_deadline_refusals_preserve_rows_after_partial_reservatio
 fn rejected_symbol_publication_does_not_install_scope_or_source_bindings() {
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, "int value=7;").unwrap();
-    let Item::Stmt(Stmt::VarDecl(declaration)) = &syntax.items[0] else {
+    let Item::Stmt(Stmt::VarDecl(declaration, ..)) = &syntax.items[0] else {
         unreachable!()
     };
     for detached in [false, true] {

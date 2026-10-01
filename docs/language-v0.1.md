@@ -859,11 +859,10 @@ capture remain mutable as usual. Top-level bindings are shared globals rather
 than closure captures.
 All paths of a non-`void` function must return a value.
 
-Trailing parameters can provide scalar, typed array, struct, class-construction,
-or typed arrow defaults. Omitted arguments are materialized by the checked call
-contract before any target is chosen, so JavaScript and native calls use the
-same full-arity ABI. Reference defaults
-allocate a fresh value for every omitted call:
+Trailing parameters can provide checked expressions as defaults. The selected
+callee evaluates an omitted parameter's expression in its declaration scope,
+after evaluating the supplied arguments. Defaults can use earlier parameters
+and captured bindings. Reference defaults allocate a fresh value on each call:
 
 ```lilscript
 int scale(int value, int factor = 2) {
@@ -886,18 +885,25 @@ int apply(
 }
 ```
 
-Defaults currently accept integer, float, string, boolean, `null`, and negative
-numeric literals, recursively typed array literals, and arrows assignable to the
-declared callable type, plus typed struct literals and `new` class expressions
-whose arguments are themselves supported defaults. Default arrows are
-declaration-scoped: they may read globals but cannot capture caller locals or
-`this`. A nullable callback can also use `null` as an omitted sentinel and
-narrow it before invocation. Required parameters cannot follow defaulted
-parameters.
+Defaults cannot refer to their own parameter or a later parameter. A nullable
+callback can use `null` as an omitted sentinel and narrow it before invocation.
+Required parameters cannot follow defaulted parameters; a trailing rest
+parameter may follow them. Default expressions are declaration metadata, not
+part of function-type identity: assigning a function to another callable value
+does not replace the selected function's default.
 
-Exported JavaScript functions retain declared parameters and scalar defaults in
-their public signature, preserving omitted-call behavior and `Function.length`
-across the ESM boundary.
+Exported JavaScript functions preserve omitted-call behavior and
+`Function.length`, including the position of the first default. Native calls
+carry the supplied argument count when omission is possible.
+
+Receiver literals use `(this T self, A value) => ...`; their function type is
+`func(this: T, A)->R`. Invoke them as object members or with
+`callback.call(receiver, value)`. A receiver is excluded from `Function.length`.
+Rest parameters use `T... values` and their callable type uses `T...`; the body
+receives a fresh `T[]`. Rest parameters are also excluded from `length`. Calls
+to a rest parameter accept typed array spread, consumed before later arguments
+are evaluated. The legacy `JS.methodN`, `JS.methodRest` and `JS.staticRest`
+adapters retain their existing contracts.
 
 ### Mutable references (`ref`)
 

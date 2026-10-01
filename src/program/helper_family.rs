@@ -7,9 +7,9 @@
 
 use super::activation::StructuredDominance;
 use super::callable_inputs::{self, CallObservations, CallableInputs, InputOutcome, InputScope};
+use super::facts::domains::{Admission, DomainInputs, DomainProof, Recipes, ResultRecipe, Subject};
 use super::facts::{EvaluationBehavior, MemoryAccess, UnitFacts};
 use super::product_family::{self, ProductAccessRoot, ProductOperationKind, ReferenceAccess};
-use super::raw_domains::{Admission, DomainInputs, DomainProof, Recipes, ResultRecipe, Subject};
 use super::record_family::{self, OpRef};
 use super::uses::{CellUse, CellUseSite, UseIndex};
 use super::*;

@@ -1,5 +1,5 @@
+use super::facts::domains::Admission;
 use super::facts::{returned_value_origin, ReturnedValueOrigin};
-use super::raw_domains::Admission;
 use super::uses::UseIndex;
 use super::*;
 use crate::compilation_policy::{

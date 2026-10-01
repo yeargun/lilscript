@@ -13,9 +13,9 @@ mod functions;
 mod locations;
 #[path = "demand_products.rs"]
 mod products;
+use super::facts::domains::{DomainInputs, DomainProof, Subject};
 use super::function_layout::{FunctionLayout, ParameterLayout, ProductTransport};
 use super::implementations::ImplementationMap;
-use super::raw_domains::{DomainInputs, DomainProof, Subject};
 use super::record_family::{ReadOrWrite, RecordFamily};
 use super::string_family::{StringChoice, StringFamily};
 use super::uses::{UseIndex, ValueUse};
@@ -1169,7 +1169,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         if let Some(proof) = raw_domains {
             proof.discard(budget)?;
         }
-        super::raw_domains::Admission::release(budget, roots)?;
+        super::facts::domains::Admission::release(budget, roots)?;
         let mut stack = budget.vector(data.calls.len())?;
         for region in &data.regions {
             stack.clear();
@@ -2423,7 +2423,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             &mut pending,
             budget,
         );
-        let released = super::raw_domains::Admission::release(budget, pending);
+        let released = super::facts::domains::Admission::release(budget, pending);
         let required = required?;
         released?;
         if !required {
@@ -2848,7 +2848,7 @@ impl Drop for Budget<'_> {
     }
 }
 
-impl super::raw_domains::Admission for Budget<'_> {
+impl super::facts::domains::Admission for Budget<'_> {
     type Error = DemandError;
     fn work(&mut self, amount: usize) -> Result<(), Self::Error> {
         Budget::work(self, amount)

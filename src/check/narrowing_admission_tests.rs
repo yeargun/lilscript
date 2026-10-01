@@ -40,7 +40,7 @@ fn scope_bytes() -> u64 {
 }
 
 fn expression<'ast, 'src>(program: &Program<'ast, 'src>, item: usize) -> &'ast Expr<'ast, 'src> {
-    let Item::Stmt(Stmt::Expr(expression)) = &program.items[item] else {
+    let Item::Stmt(Stmt::Expr(expression, ..)) = &program.items[item] else {
         panic!("condition fixture")
     };
     expression

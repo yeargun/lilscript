@@ -104,7 +104,9 @@ pub(super) fn apply(
             if debug[body.index()] {
                 continue;
             }
-            let Some(candidate) = candidate(program, effects, &created, &declares, body, native, receipt) else {
+            let Some(candidate) =
+                candidate(program, effects, &created, &declares, body, native, receipt)
+            else {
                 continue;
             };
             if receivers.contains(&body)
@@ -203,7 +205,7 @@ fn candidate(
                 }
                 exit = Some(op);
             }
-            OperationKind::IsUndefined
+            OperationKind::IsUndefined { .. }
             | OperationKind::Yield { .. }
             | OperationKind::Await
             | OperationKind::SuperConstruct
@@ -274,9 +276,12 @@ fn candidate(
             return None;
         };
         let arguments = caller.arguments(site.arguments)?;
-        if (caller.module != data.module && data.captures.iter().any(|cell|
-            program.unit(program.cells[cell.index()].owner).is_none_or(|owner|
-                owner.kind != UnitKind::ModuleInitialization)))
+        if (caller.module != data.module
+            && data.captures.iter().any(|cell| {
+                program
+                    .unit(program.cells[cell.index()].owner)
+                    .is_none_or(|owner| owner.kind != UnitKind::ModuleInitialization)
+            }))
             || site.contract.instantiation.is_some()
             || arguments.len() != data.parameters.len()
             || arguments
@@ -353,12 +358,15 @@ fn candidate(
     // One proved activation needs no renewed JavaScript capture bank. Native
     // still ends its owned locals at the original call's exit. Unknown and
     // repeated activations always keep the lexical block.
-    let capture_scope = if children.is_empty() { false } else {
+    let capture_scope = if children.is_empty() {
+        false
+    } else {
         let (frequency, work) = graph.frequency(program, body);
         receipt.call_frequency_work += work as u64;
         native || frequency != super::super::call_graph::CallFrequency::AtMostOnce
     };
-    let scoped = capture_scope || declares[body.index()]
+    let scoped = capture_scope
+        || declares[body.index()]
         || forwarded
             .iter()
             .zip(&data.parameters)
@@ -666,7 +674,9 @@ fn inline(
     let caller = program.unit(site.caller).ok_or("a missing caller")?;
     let at = &caller.operations[site.operation.index()];
     let (region, span) = (at.region, at.span);
-    let result_type = at.result.filter(|&value| used(caller, value))
+    let result_type = at
+        .result
+        .filter(|&value| used(caller, value))
         .map(|value| caller.values[value.index()].ty);
     let foreign_module = caller.module != body.module;
     let arguments: Vec<ValueId> = caller
@@ -731,26 +741,47 @@ fn inline(
         cells.insert(id, editor.add_cell(clone)?);
     }
     let units = super::inline_clones::clone(editor, &candidate.children, &mut cells)?;
-    let root_bindings: Vec<_> = cells.iter().filter_map(|(&old, &new)| {
-        let original = &editor.program().cells[old.index()];
-        if original.owner != candidate.body { return None; }
-        let CellBinding::Function(unit) = original.binding else { return None };
-        units.get(&unit).copied().map(|unit| (new, unit))
-    }).collect();
+    let root_bindings: Vec<_> = cells
+        .iter()
+        .filter_map(|(&old, &new)| {
+            let original = &editor.program().cells[old.index()];
+            if original.owner != candidate.body {
+                return None;
+            }
+            let CellBinding::Function(unit) = original.binding else {
+                return None;
+            };
+            units.get(&unit).copied().map(|unit| (new, unit))
+        })
+        .collect();
     if !root_bindings.is_empty() {
         let (_, table) = editor.unit_and_cells(site.caller);
-        for (cell, unit) in root_bindings { table[cell.index()].binding = CellBinding::Function(unit); }
+        for (cell, unit) in root_bindings {
+            table[cell.index()].binding = CellBinding::Function(unit);
+        }
     }
     let result_cell = if scope.is_some() {
         if let Some(ty) = result_type {
             Some(editor.add_cell(Cell {
-                source_symbol: None, name: "inline_result".into(), ty,
-                owner: site.caller, region, declaration: span, reassigned: true,
-                observable_before_initialization: false, binding: CellBinding::Local,
-                synthetic: true, declared_pure: false, debug: false,
+                source_symbol: None,
+                name: "inline_result".into(),
+                ty,
+                owner: site.caller,
+                region,
+                declaration: span,
+                reassigned: true,
+                observable_before_initialization: false,
+                binding: CellBinding::Local,
+                synthetic: true,
+                declared_pure: false,
+                debug: false,
             })?)
-        } else { None }
-    } else { None };
+        } else {
+            None
+        }
+    } else {
+        None
+    };
     let captures: Vec<CellId> = body.captures.clone();
 
     let mut source = body.clone();
@@ -760,7 +791,10 @@ fn inline(
         }
         // Node IDs are local to the source module. The copied operation has a
         // new call-site origin; its nested callable keeps its original module.
-        if foreign_module { op.origin = None; op.span = span; }
+        if foreign_module {
+            op.origin = None;
+            op.span = span;
+        }
     }
 
     let data = editor.unit_mut(site.caller);
@@ -806,10 +840,19 @@ fn inline(
             let place = PlaceId::from_index(data.places.len()).ok_or("inline result place")?;
             data.places.push(Place::Cell(cell));
             let value = returned.ok_or("inline result has no returned value")?;
-            let (store, _) = edit::push_operation(data, OperationKind::Store(place), &[value], None, scope, span)?;
+            let (store, _) = edit::push_operation(
+                data,
+                OperationKind::Store(place),
+                &[value],
+                None,
+                scope,
+                span,
+            )?;
             inserted.push(store);
             Some(place)
-        } else { None };
+        } else {
+            None
+        };
         // The arguments are evaluated between the call's preparation and the
         // call: in the block they run at the same point, and their values
         // stay inside it, where the copy reads them.
@@ -829,17 +872,27 @@ fn inline(
         data.regions[scope.index()].operations = evaluation;
         inserted = Vec::new();
         if let Some(cell) = result_cell {
-            let (declare, _) = edit::push_operation(data, OperationKind::Declare(cell), &[], None, region, span)?;
+            let (declare, _) =
+                edit::push_operation(data, OperationKind::Declare(cell), &[], None, region, span)?;
             inserted.push(declare);
         }
         let (block, _) =
             edit::push_operation(data, OperationKind::Block(scope), &[], None, region, span)?;
         inserted.push(block);
         returned = if let Some(place) = result_place {
-            let (load, value) = edit::push_operation(data, OperationKind::Load(place), &[], result_type, region, span)?;
+            let (load, value) = edit::push_operation(
+                data,
+                OperationKind::Load(place),
+                &[],
+                result_type,
+                region,
+                span,
+            )?;
             inserted.push(load);
             value
-        } else { None };
+        } else {
+            None
+        };
     }
     let list = &mut data.regions[region.index()].operations;
     let position = list
@@ -863,10 +916,9 @@ fn inline(
         edit::detach(data, op);
     }
     // A used result has the returned value's type (`candidate`).
-    if let (Some(result), Some(returned)) = (
-        data.operations[site.operation.index()].result,
-        returned,
-    ) {
+    if let (Some(result), Some(returned)) =
+        (data.operations[site.operation.index()].result, returned)
+    {
         edit::substitute(data, result, returned);
     }
     edit::detach(data, site.operation);
@@ -875,7 +927,10 @@ fn inline(
     // and so does each unit between the caller and the cell's owner.
     for cell in captures {
         let owner = editor.program().cells[cell.index()].owner;
-        let global = editor.program().unit(owner).is_some_and(|data| data.kind == UnitKind::ModuleInitialization);
+        let global = editor
+            .program()
+            .unit(owner)
+            .is_some_and(|data| data.kind == UnitKind::ModuleInitialization);
         let mut unit = site.caller;
         while unit != owner {
             let data = editor.unit_mut(unit);
@@ -883,7 +938,9 @@ fn inline(
                 break;
             }
             data.captures.push(cell);
-            if global && data.kind == UnitKind::ModuleInitialization { break; }
+            if global && data.kind == UnitKind::ModuleInitialization {
+                break;
+            }
             unit = creators[unit.index()].ok_or("a capture has no path to its owner")?;
         }
     }

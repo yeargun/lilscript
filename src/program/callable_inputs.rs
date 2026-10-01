@@ -4,7 +4,7 @@
 //! All owned arrays use the caller's existing admission scope and must be
 //! discarded through that scope; there is no cache, evaluator or semantic copy.
 use super::call_graph::Seal;
-use super::raw_domains::Admission;
+use super::facts::domains::Admission;
 use super::record_family::OpRef;
 use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
 use super::*;

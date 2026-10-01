@@ -5,9 +5,7 @@
 //! or require re-inferring the checker's original substitution decision.
 use super::binary_types::{normalize_union_with, TypeConstructionAdmission};
 use super::type_relation::{RelationEvent, Unmetered};
-use super::{
-    DefaultValue, FunctionParameter, FunctionSignature, FunctionType, GenericFunctionType, Type,
-};
+use super::{FunctionParameter, FunctionSignature, FunctionType, GenericFunctionType, Type};
 
 /// Callable/metadata constructors used in addition to the common type builders.
 /// Every returned allocation stays charged through the surrounding query scope.
@@ -16,16 +14,14 @@ pub(crate) trait SubstitutionAdmission: TypeConstructionAdmission {
         &mut self,
         count: usize,
     ) -> Result<Vec<FunctionParameter<'src>>, Self::Error>;
-    fn clone_default<'src>(
-        &mut self,
-        value: &DefaultValue<'src>,
-    ) -> Result<DefaultValue<'src>, Self::Error>;
     fn signature<'src>(
         &mut self,
         value: FunctionSignature<'src>,
     ) -> Result<FunctionType<'src>, Self::Error>;
-    fn parameter_names<'src>(&mut self, names: &[&'src str])
-        -> Result<Vec<&'src str>, Self::Error>;
+    fn parameter_names<'src>(
+        &mut self,
+        names: &[crate::check::TypeParameter<'src>],
+    ) -> Result<Vec<crate::check::TypeParameter<'src>>, Self::Error>;
 }
 
 impl SubstitutionAdmission for Unmetered {
@@ -35,12 +31,6 @@ impl SubstitutionAdmission for Unmetered {
     ) -> Result<Vec<FunctionParameter<'src>>, Self::Error> {
         Ok(Vec::with_capacity(count))
     }
-    fn clone_default<'src>(
-        &mut self,
-        value: &DefaultValue<'src>,
-    ) -> Result<DefaultValue<'src>, Self::Error> {
-        Ok(value.clone())
-    }
     fn signature<'src>(
         &mut self,
         value: FunctionSignature<'src>,
@@ -49,8 +39,8 @@ impl SubstitutionAdmission for Unmetered {
     }
     fn parameter_names<'src>(
         &mut self,
-        names: &[&'src str],
-    ) -> Result<Vec<&'src str>, Self::Error> {
+        names: &[crate::check::TypeParameter<'src>],
+    ) -> Result<Vec<crate::check::TypeParameter<'src>>, Self::Error> {
         Ok(names.to_vec())
     }
 }
@@ -61,13 +51,16 @@ impl SubstitutionAdmission for Unmetered {
 /// substituted again; this preserves an enclosing generic binder's identity.
 pub(crate) fn substitute_type_with<'types, 'src: 'types, A: SubstitutionAdmission>(
     ty: &Type<'src>,
-    lookup: &mut impl FnMut(&str, &mut A) -> Result<Option<&'types Type<'src>>, A::Error>,
+    lookup: &mut impl FnMut(
+        crate::check::TypeParameterId,
+        &mut A,
+    ) -> Result<Option<&'types Type<'src>>, A::Error>,
     admission: &mut A,
 ) -> Result<Type<'src>, A::Error> {
     // Prepay this visit and eventual temporary-node destruction.
     admission.admit(RelationEvent::TypeWork(2))?;
     match ty {
-        Type::TypeParameter(name) => match lookup(name, admission)? {
+        Type::TypeParameter(name) => match lookup(name.identity, admission)? {
             Some(replacement) => admission.clone_type(replacement),
             None => admission.clone_type(ty),
         },
@@ -135,7 +128,10 @@ pub(crate) fn substitute_type_with<'types, 'src: 'types, A: SubstitutionAdmissio
 
 pub(crate) fn substitute_signature_with<'types, 'src: 'types, A: SubstitutionAdmission>(
     signature: &FunctionSignature<'src>,
-    lookup: &mut impl FnMut(&str, &mut A) -> Result<Option<&'types Type<'src>>, A::Error>,
+    lookup: &mut impl FnMut(
+        crate::check::TypeParameterId,
+        &mut A,
+    ) -> Result<Option<&'types Type<'src>>, A::Error>,
     admission: &mut A,
 ) -> Result<FunctionType<'src>, A::Error> {
     admission.admit(RelationEvent::TypeWork(1))?;
@@ -144,16 +140,12 @@ pub(crate) fn substitute_signature_with<'types, 'src: 'types, A: SubstitutionAdm
     for parameter in &signature.params {
         admission.admit(RelationEvent::ParameterPair)?;
         let ty = substitute_type_with(&parameter.ty, lookup, admission)?;
-        let default = parameter
-            .default
-            .as_ref()
-            .map(|value| admission.clone_default(value))
-            .transpose()?;
         // Exact parameter capacity was admitted by parameters().
         params.push(FunctionParameter {
+            receiver: parameter.receiver,
             ty,
             passing: parameter.passing,
-            default,
+            optional: parameter.optional,
             rest: parameter.rest,
         });
     }
@@ -167,7 +159,10 @@ pub(crate) fn substitute_signature_with<'types, 'src: 'types, A: SubstitutionAdm
 
 fn substitute_members<'types, 'src: 'types, A: SubstitutionAdmission>(
     members: &[Type<'src>],
-    lookup: &mut impl FnMut(&str, &mut A) -> Result<Option<&'types Type<'src>>, A::Error>,
+    lookup: &mut impl FnMut(
+        crate::check::TypeParameterId,
+        &mut A,
+    ) -> Result<Option<&'types Type<'src>>, A::Error>,
     admission: &mut A,
 ) -> Result<Vec<Type<'src>>, A::Error> {
     let mut result = Vec::new();

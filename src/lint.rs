@@ -612,7 +612,7 @@ fn lint_statements(
 fn removable_statement_span(statement: &Stmt<'_, '_>) -> Option<Span> {
     match statement {
         // Expression spans stop before their mandatory statement terminator.
-        Stmt::Expr(_) => {
+        Stmt::Expr(_, ..) => {
             let span = statement.span();
             Some(Span::new(span.start, span.end + 1))
         }
@@ -626,7 +626,7 @@ fn lint_statement(
     pending: &mut Vec<PendingDiagnostic>,
 ) {
     match statement {
-        Stmt::Expr(expression)
+        Stmt::Expr(expression, ..)
             if contains_dynamic_import(expression) && !task_chain_has_catch(expression) =>
         {
             pending.push(PendingDiagnostic {
@@ -720,6 +720,15 @@ fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
         } => entries
             .iter()
             .any(|entry| contains_dynamic_import(entry.value())),
+        Expr {
+            kind: ExprKind::With { value, fields, .. },
+            ..
+        } => {
+            contains_dynamic_import(value)
+                || fields
+                    .iter()
+                    .any(|field| contains_dynamic_import(&field.value))
+        }
         Expr {
             kind: ExprKind::StructLiteral { values, .. },
             ..
@@ -905,7 +914,9 @@ fn lint_constant_condition(
 
 fn statement_terminates(statement: &Stmt<'_, '_>) -> bool {
     match statement {
-        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_) | Stmt::Continue(_) => true,
+        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {
+            true
+        }
         Stmt::Block { body, .. } => body.last().is_some_and(statement_terminates),
         Stmt::If {
             then_branch,

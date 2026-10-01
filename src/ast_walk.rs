@@ -59,14 +59,14 @@ fn statement_expressions<'src>(
     visit: &mut impl FnMut(&Expr<'_, 'src>),
 ) {
     match statement {
-        Stmt::VarDecl(declaration) => {
+        Stmt::VarDecl(declaration, ..) => {
             if let Some(value) = &declaration.initializer {
                 expression(value, visit);
             }
         }
         Stmt::ArrayDestructure { value, .. }
         | Stmt::RecordDestructure { value, .. }
-        | Stmt::Expr(value)
+        | Stmt::Expr(value, ..)
         | Stmt::Throw { value, .. }
         | Stmt::Yield { value, .. } => expression(value, visit),
         Stmt::Return { value, .. } => {
@@ -154,7 +154,7 @@ fn statement_expressions<'src>(
             expression(iterable, visit);
             statement_expressions(body, visit);
         }
-        Stmt::Break(_) | Stmt::Continue(_) => {}
+        Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {}
     }
 }
 
@@ -184,6 +184,12 @@ pub(crate) fn expression<'src>(value: &Expr<'_, 'src>, visit: &mut impl FnMut(&E
                     RecordElement::Entry(entry) => expression(&entry.value, visit),
                     RecordElement::Spread { value, .. } => expression(value, visit),
                 }
+            }
+        }
+        ExprKind::With { value, fields, .. } => {
+            expression(value, visit);
+            for field in *fields {
+                expression(&field.value, visit);
             }
         }
         ExprKind::StructLiteral { values, .. } => {
@@ -356,7 +362,7 @@ fn statements_identifiers<'src>(
 
 fn statement_identifiers<'src>(statement: &Stmt<'_, 'src>, visitor: &mut impl FnMut(&Ident<'src>)) {
     match statement {
-        Stmt::VarDecl(declaration) => {
+        Stmt::VarDecl(declaration, ..) => {
             visitor(&declaration.name);
             if let Some(initializer) = &declaration.initializer {
                 expression_identifiers(initializer, visitor);
@@ -389,7 +395,7 @@ fn statement_identifiers<'src>(statement: &Stmt<'_, 'src>, visitor: &mut impl Fn
             }
             expression_identifiers(value, visitor);
         }
-        Stmt::Expr(expression) => expression_identifiers(expression, visitor),
+        Stmt::Expr(expression, ..) => expression_identifiers(expression, visitor),
         Stmt::Return { value, .. } => {
             if let Some(value) = value {
                 expression_identifiers(value, visitor);
@@ -483,7 +489,7 @@ fn statement_identifiers<'src>(statement: &Stmt<'_, 'src>, visitor: &mut impl Fn
             expression_identifiers(iterable, visitor);
             statement_identifiers(body, visitor);
         }
-        Stmt::Break(_) | Stmt::Continue(_) => {}
+        Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {}
     }
 }
 
@@ -517,6 +523,16 @@ fn expression_identifiers<'src>(
                     visitor(&entry.key);
                 }
                 expression_identifiers(entry.value(), visitor);
+            }
+        }
+        Expr {
+            kind: ExprKind::With { value, fields, .. },
+            ..
+        } => {
+            expression_identifiers(value, visitor);
+            for field in *fields {
+                visitor(&field.key);
+                expression_identifiers(&field.value, visitor);
             }
         }
         Expr {
@@ -700,4 +716,101 @@ fn expression_identifiers<'src>(
             ..
         } => {}
     }
+}
+
+/// Statement occurrences, including statements in nested arrow bodies. The
+/// expression walker already owns finding those bodies; the statement walk
+/// follows only control-flow children, so every occurrence is visited once.
+pub(crate) fn each_statement<'src>(
+    syntax: &ast::Program<'_, 'src>,
+    visit: &mut impl FnMut(&Stmt<'_, 'src>),
+) {
+    fn statement<'src>(node: &Stmt<'_, 'src>, visit: &mut impl FnMut(&Stmt<'_, 'src>)) {
+        visit(node);
+        match node {
+            Stmt::Block { body, .. } => {
+                for child in *body {
+                    statement(child, visit);
+                }
+            }
+            Stmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                statement(then_branch, visit);
+                if let Some(child) = else_branch {
+                    statement(child, visit);
+                }
+            }
+            Stmt::While { body, .. }
+            | Stmt::For { body, .. }
+            | Stmt::ForIn { body, .. }
+            | Stmt::ForOf { body, .. } => statement(body, visit),
+            Stmt::Try {
+                body,
+                catch,
+                finally,
+                ..
+            } => {
+                for child in *body {
+                    statement(child, visit);
+                }
+                if let Some(catch) = catch {
+                    for child in catch.body {
+                        statement(child, visit);
+                    }
+                }
+                if let Some(finally) = finally {
+                    for child in *finally {
+                        statement(child, visit);
+                    }
+                }
+            }
+            Stmt::VarDecl(..)
+            | Stmt::Expr(..)
+            | Stmt::Return { .. }
+            | Stmt::Throw { .. }
+            | Stmt::Yield { .. }
+            | Stmt::SuperCall { .. }
+            | Stmt::ArrayDestructure { .. }
+            | Stmt::RecordDestructure { .. }
+            | Stmt::Break(..)
+            | Stmt::Continue(..) => {}
+        }
+    }
+    for item in syntax.items {
+        match item {
+            Item::Stmt(node) => statement(node, visit),
+            Item::Function(function) => {
+                for node in function.body {
+                    statement(node, visit);
+                }
+            }
+            Item::Class(class) => {
+                for member in class.members {
+                    let body = match member {
+                        ClassMember::Constructor(c) => c.body,
+                        ClassMember::Method(m) => m.body,
+                        ClassMember::Field(_) => continue,
+                    };
+                    for node in body {
+                        statement(node, visit);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    each_expression(syntax, &mut |expression| {
+        if let ast::ExprKind::ArrowFunction {
+            body: ArrowBody::Block(body),
+            ..
+        } = &expression.kind
+        {
+            for node in *body {
+                statement(node, visit);
+            }
+        }
+    });
 }

@@ -21,7 +21,7 @@
 //! Test and debug builds check every rule's journal against the actual
 //! difference (`journal.rs`) and verify the tree after every round.
 
-use super::root_constants::ConstantKind;
+use super::constants::ConstantKind;
 use super::*;
 
 // The enum and its static telemetry buckets share one declaration, so adding

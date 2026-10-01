@@ -1298,7 +1298,7 @@ fn source_operations_with_one_diagnostic_span_keep_distinct_resolution() {
     let print_id = printed.id;
     let program = empty.with_items(
         &nodes,
-        arena.alloc_slice_fill_iter([Item::Stmt(Stmt::Expr(printed))]),
+        arena.alloc_slice_fill_iter([Item::Stmt(Stmt::Expr(printed, nodes.node()))]),
     );
     let semantics = crate::analyze(&program).unwrap();
     assert_eq!(
@@ -1336,7 +1336,7 @@ fn callable_source_occurrences_do_not_alias_at_the_same_span() {
     let nodes = SourceNodes::continuing(parsed.source_identity());
     let mut items = parsed.items.to_vec();
     for item in &mut items {
-        if let Item::Stmt(Stmt::VarDecl(declaration)) = item {
+        if let Item::Stmt(Stmt::VarDecl(declaration, ..)) = item {
             if let ExprKind::ArrowFunction { span, .. } =
                 &mut declaration.initializer.as_mut().unwrap().kind
             {
@@ -1727,14 +1727,16 @@ fn checked_primitive_and_collection_operations_keep_their_results() {
     let program = crate::parse_source(&arena, source).unwrap();
     let semantics = crate::analyze(&program).unwrap();
     let initializer = |index: usize| {
-        let crate::ast::Item::Stmt(crate::ast::Stmt::VarDecl(declaration)) = &program.items[index]
+        let crate::ast::Item::Stmt(crate::ast::Stmt::VarDecl(declaration, ..)) =
+            &program.items[index]
         else {
             panic!("expected variable")
         };
         declaration.initializer.as_ref().unwrap()
     };
     let printed = |index: usize| {
-        let crate::ast::Item::Stmt(crate::ast::Stmt::Expr(value)) = &program.items[index] else {
+        let crate::ast::Item::Stmt(crate::ast::Stmt::Expr(value, ..)) = &program.items[index]
+        else {
             panic!("expected print")
         };
         let crate::ast::ExprKind::Call { args, .. } = &value.kind else {
@@ -2063,12 +2065,10 @@ fn typed_record_spread_without_a_source_binding_has_valid_temporary_provenance()
     let semantics = crate::analyze(&syntax).unwrap();
     let program = from_checked_source(&syntax, &semantics).unwrap();
     program.verify().unwrap();
-    assert!(
-        program
-            .cells
-            .iter()
-            .any(|cell| cell.synthetic && cell.source_symbol.is_none())
-    );
+    assert!(program
+        .cells
+        .iter()
+        .any(|cell| cell.synthetic && cell.source_symbol.is_none()));
     compare_source_output(source, "a,b\n");
 }
 

@@ -143,7 +143,10 @@ pub(super) fn render_with_literals_admitted(
     let mut phase = budget.scope();
     let forms = match module.print_forms.as_ref() {
         Some(forms) => std::borrow::Cow::Borrowed(forms),
-        None => std::borrow::Cow::Owned(super::spellings::PrintForms::new(module, false, AllocationClass::Scratch, &mut phase).map_err(PrintError::Admission)?),
+        None => std::borrow::Cow::Owned(
+            super::spellings::PrintForms::new(module, false, AllocationClass::Scratch, &mut phase)
+                .map_err(PrintError::Admission)?,
+        ),
     };
     let mut printer = Printer {
         module,
@@ -446,17 +449,23 @@ impl<'a> Printer<'a, '_, '_> {
 
     /// Formation has already proved the scope and iteration-identity rules.
     fn loop_head(&mut self, region: RegionId, closing: bool) -> bool {
-        let Some(form) = self.forms.loops.get(region.index()).copied().flatten() else {return false;};
+        let Some(form) = self.forms.loops.get(region.index()).copied().flatten() else {
+            return false;
+        };
         self.text("for(let ");
         self.text(self.names.get(form.binding));
         self.text("=");
         self.expression(form.value, 2);
         self.text(";");
-        if let Some(condition)=form.condition {self.expression(condition,0);}
+        if let Some(condition) = form.condition {
+            self.expression(condition, 0);
+        }
         self.text(";");
-        if let Some(update)=form.update {self.expression(update,0);}
+        if let Some(update) = form.update {
+            self.expression(update, 0);
+        }
         self.text(")");
-        self.body(form.body,false,closing);
+        self.body(form.body, false, closing);
         true
     }
 
@@ -669,11 +678,7 @@ impl<'a> Printer<'a, '_, '_> {
 
     fn string_chosen(&mut self, value: &StringValue, compact: bool) {
         let quote = match value.as_unicode() {
-            Some(text)
-                if compact && text.matches('"').count() > text.matches('\'').count() =>
-            {
-                '\''
-            }
+            Some(text) if compact && text.matches('"').count() > text.matches('\'').count() => '\'',
             _ => '"',
         };
         let mut delimiter = [0; 4];
@@ -943,7 +948,10 @@ impl<'a> Printer<'a, '_, '_> {
                     if let Some(truthy) = self.observed_literal(id) {
                         self.text(if truthy { "1" } else { "0" });
                     } else {
-                        self.string_chosen(value, self.forms.quotes.get(id.index()).copied().unwrap_or(false));
+                        self.string_chosen(
+                            value,
+                            self.forms.quotes.get(id.index()).copied().unwrap_or(false),
+                        );
                     }
                 }
                 // `!0` and `!1` are the booleans, three and four bytes shorter.
@@ -1058,12 +1066,13 @@ impl<'a> Printer<'a, '_, '_> {
             } => {
                 let callee_node = &self.module.expressions[callee.index()];
                 let unbind = *invocation == Invocation::Value
-                    && (self.forms.optional[callee.index()].is_some() || match callee_node {
-                        Expr::Member { .. } => true,
-                        Expr::Host(host) => host.kind == crate::catalog::HostKind::Eval,
-                        Expr::Binding(symbol) => self.names.get(*symbol) == "eval",
-                        _ => false,
-                    });
+                    && (self.forms.optional[callee.index()].is_some()
+                        || match callee_node {
+                            Expr::Member { .. } => true,
+                            Expr::Host(host) => host.kind == crate::catalog::HostKind::Eval,
+                            Expr::Binding(symbol) => self.names.get(*symbol) == "eval",
+                            _ => false,
+                        });
                 let function_literal = matches!(callee_node, Expr::Function(_));
                 if unbind {
                     self.text("(0,");
@@ -1101,12 +1110,20 @@ impl<'a> Printer<'a, '_, '_> {
                 }
             }
             Expr::Conditional { .. } if self.forms.optional[id.index()].is_some() => {
-                let member=self.forms.optional[id.index()].unwrap();
-                let Expr::Member{object,property}=&self.module.expressions[member.index()] else{unreachable!("proved optional member")};
-                self.expression(*object,18);self.text("?.");
+                let member = self.forms.optional[id.index()].unwrap();
+                let Expr::Member { object, property } = &self.module.expressions[member.index()]
+                else {
+                    unreachable!("proved optional member")
+                };
+                self.expression(*object, 18);
+                self.text("?.");
                 match property {
-                    Property::Named(name)=>self.text(name),
-                    Property::Computed(key)=>{self.text("[");self.expression(*key,0);self.text("]");}
+                    Property::Named(name) => self.text(name),
+                    Property::Computed(key) => {
+                        self.text("[");
+                        self.expression(*key, 0);
+                        self.text("]");
+                    }
                 }
             }
             Expr::Conditional { condition, yes, no } => {
@@ -1380,6 +1397,7 @@ impl<'a> Printer<'a, '_, '_> {
         // `a=>`: one plain parameter needs no parentheses. `async a=>` would
         // need a separating space, so only a plain arrow drops them.
         let bare = function.arrow
+            && !function.rest
             && function.parameters.len() == 1
             && function.length.is_none()
             && function.suspension == Suspension::None;
@@ -1393,8 +1411,12 @@ impl<'a> Printer<'a, '_, '_> {
             if index != 0 {
                 self.text(",");
             }
+            let rest = function.rest && index + 1 == function.parameters.len();
+            if rest {
+                self.text("...");
+            }
             self.text(self.names.get(*parameter));
-            if function.length.is_some_and(|length| index >= length) {
+            if !rest && function.length.is_some_and(|length| index >= length) {
                 match defaults.get(index).copied().flatten() {
                     Some(default) => {
                         self.text("=");
@@ -1600,14 +1622,22 @@ impl<'a> Printer<'a, '_, '_> {
                 self.output.separate_word(at);
                 end(self);
             }
-            Statement::If { condition, yes, no: None }
-                if self.forms.logical_assignments[yes.index()].is_some_and(|form|form.condition==*condition) => {
-                let form=self.forms.logical_assignments[yes.index()].unwrap();
-                self.expression(form.left,18);self.text(form.op.token());self.text("=");self.expression(form.right,2);end(self);
+            Statement::If {
+                condition,
+                yes,
+                no: None,
+            } if self.forms.logical_assignments[yes.index()]
+                .is_some_and(|form| form.condition == *condition) =>
+            {
+                let form = self.forms.logical_assignments[yes.index()].unwrap();
+                self.expression(form.left, 18);
+                self.text(form.op.token());
+                self.text("=");
+                self.expression(form.right, 2);
+                end(self);
             }
             Statement::If { condition, yes, no }
-                if no.is_none()
-                    && self.logical_statement(*condition, *yes) =>
+                if no.is_none() && self.logical_statement(*condition, *yes) =>
             {
                 end(self);
             }
@@ -1726,16 +1756,29 @@ impl<'a> Printer<'a, '_, '_> {
 
     /// Render a selected logical form; legality and site selection are complete.
     fn logical_statement(&mut self, condition: ExprId, yes: RegionId) -> bool {
-        let Some(form)=self.forms.logical.get(yes.index()).copied().flatten().filter(|form|form.condition==condition) else{return false;};
-        let level=form.op.precedence();
-        let group=self.statement_needs_group(form.left,level);
-        if group {self.text("(");}
-        self.binary_operand(form.left,form.op,level);
+        let Some(form) = self
+            .forms
+            .logical
+            .get(yes.index())
+            .copied()
+            .flatten()
+            .filter(|form| form.condition == condition)
+        else {
+            return false;
+        };
+        let level = form.op.precedence();
+        let group = self.statement_needs_group(form.left, level);
+        if group {
+            self.text("(");
+        }
+        self.binary_operand(form.left, form.op, level);
         self.text(form.op.token());
-        let right=self.discarded(form.right);
-        self.binary_operand(right,form.op,level+1);
-        self.discarded_root=None;
-        if group {self.text(")");}
+        let right = self.discarded(form.right);
+        self.binary_operand(right, form.op, level + 1);
+        self.discarded_root = None;
+        if group {
+            self.text(")");
+        }
         true
     }
 

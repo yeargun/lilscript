@@ -194,6 +194,25 @@ pub(super) fn make_constant(data: &mut UnitData, operation: OpId, constant: Cons
     op.operands = OperandRange { start: 0, len: 0 };
 }
 
+/// Keep a proved value with the replaced operation's result type. A nullable
+/// value may be known present, or a selected arm may have a narrower type than
+/// its join. Replacing its ValueId would lose that checked type; an evaluated
+/// value place is the existing typed view used by source narrowing. Its input
+/// has already run and is never reloaded from mutable storage.
+/// The caller proves the runtime value is admissible at the result type.
+pub(super) fn make_value_view(
+    data: &mut UnitData,
+    operation: OpId,
+    value: ValueId,
+) -> Result<(), &'static str> {
+    let place = PlaceId::from_index(data.places.len()).ok_or("value view place capacity")?;
+    data.places.push(Place::Value(value));
+    let operation = &mut data.operations[operation.index()];
+    operation.kind = OperationKind::Load(place);
+    operation.operands = OperandRange { start: 0, len: 0 };
+    Ok(())
+}
+
 /// Makes `operation` a block of `region`, one of its child regions; the
 /// other child regions and the operands are released. A block keeps the
 /// region's lexical scope, as the branch it replaces did.

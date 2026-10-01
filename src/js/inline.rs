@@ -12,8 +12,8 @@
 //! program can observe, and `E` creates no function, so nothing captures an
 //! argument. `f` is never reassigned or exported.
 
-use super::*;
 use super::reach::Reach;
+use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 use crate::output_budget::{AllocationBudget, AllocationError};
 
@@ -138,9 +138,19 @@ impl Module {
                     }
                     if calls[binding.index()] > 1 {
                         if let Some((choices, seed)) = choice {
-                            let saving = 20i64.saturating_sub((nodes as i64).saturating_mul(calls[binding.index()].saturating_sub(1) as i64));
-                            if !module.binary_choice(binding, ChoiceFamily::ExpressionInlining,
-                                seed, "duplicate-expression", saving, choices, budget)? {
+                            let saving =
+                                20i64.saturating_sub((nodes as i64).saturating_mul(
+                                    calls[binding.index()].saturating_sub(1) as i64,
+                                ));
+                            if !module.binary_choice(
+                                binding,
+                                ChoiceFamily::ExpressionInlining,
+                                seed,
+                                "duplicate-expression",
+                                saving,
+                                choices,
+                                budget,
+                            )? {
                                 continue;
                             }
                         }
@@ -318,6 +328,7 @@ impl Module {
         if !(function.arrow || frame_free)
             || function.suspension != Suspension::None
             || function.length.is_some()
+            || function.rest
         {
             return Ok(None);
         }
@@ -644,7 +655,7 @@ impl Module {
             Expr::Object(entries) => entries.iter().all(|(key, _)| self.literal_key(key)),
             // The program's facts (M5.2's behaviour column): a call or an
             // operation that runs only the program's own code, quietly.
-            _ if self.behaviour(root).is_some_and(Behaviour::quiet) => true,
+            _ if self.operation_behaviour(root).is_some_and(Behaviour::quiet) => true,
             _ => false,
         };
         let mut children = true;
@@ -791,7 +802,8 @@ impl Module {
                     self.expressions.push(expression);
                     self.origins.push(old_origins[id.index()]);
                     if !old_spelling_nodes.is_empty() {
-                        self.spelling_nodes.push(old_spelling_nodes.get(id.index()).copied().flatten());
+                        self.spelling_nodes
+                            .push(old_spelling_nodes.get(id.index()).copied().flatten());
                     }
                     map[id.index()] = Some(new);
                 }

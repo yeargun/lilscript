@@ -350,6 +350,10 @@ impl Formation<'_, '_, '_, '_, '_> {
                         | Type::ClassInstance { .. }
                         | Type::Function(_)
                 ) && !references::is_reference(self.program, cell)
+                    && !self
+                        .program
+                        .parameter(cell)
+                        .is_some_and(|parameter| parameter.optional)
                     && !entry;
                 self.module.bindings[binding.index()].defined = defined;
                 if references::is_reference(self.program, cell) {

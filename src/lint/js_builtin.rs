@@ -52,7 +52,7 @@ pub(super) fn lint(
             Item::ExternGlobal(global) => global.name.name == "undefined",
             Item::Extern(function) => function.name.name == "undefined",
             Item::Function(function) => function.name.name == "undefined",
-            Item::Stmt(Stmt::VarDecl(declaration)) => declaration.name.name == "undefined",
+            Item::Stmt(Stmt::VarDecl(declaration, ..)) => declaration.name.name == "undefined",
             _ => false,
         });
     let mut walker = Walker {
@@ -174,7 +174,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
 
     fn statement(&mut self, statement: &Stmt<'ast, 'src>) {
         match statement {
-            Stmt::VarDecl(declaration) => {
+            Stmt::VarDecl(declaration, ..) => {
                 if let Some(initializer) = &declaration.initializer {
                     self.expr(
                         initializer,
@@ -185,7 +185,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             Stmt::ArrayDestructure { value, .. } | Stmt::RecordDestructure { value, .. } => {
                 self.expr(value, Position::ANY)
             }
-            Stmt::Expr(expression) => self.expr(
+            Stmt::Expr(expression, ..) => self.expr(
                 expression,
                 Position {
                     statement: true,
@@ -282,7 +282,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                 self.expr(iterable, Position::ANY);
                 self.statement(body);
             }
-            Stmt::Break(_) | Stmt::Continue(_) => {}
+            Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {}
         }
     }
 
@@ -388,6 +388,12 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                 for entry in *entries {
                     let dynamic = dynamic && matches!(entry, RecordElement::Entry(_));
                     self.expr(entry.value(), Position::expecting(dynamic));
+                }
+            }
+            ExprKind::With { value, fields, .. } => {
+                self.expr(value, Position::ANY);
+                for field in *fields {
+                    self.expr(&field.value, Position::ANY);
                 }
             }
             ExprKind::StructLiteral { values, .. } => {
@@ -1187,6 +1193,10 @@ fn children<'e, 'ast, 'src>(
         }
         ExprKind::RecordLiteral { entries, .. } | ExprKind::ObjectLiteral { entries, .. } => {
             stack.extend(entries.iter().map(|entry| entry.value()))
+        }
+        ExprKind::With { value, fields, .. } => {
+            stack.push(value);
+            stack.extend(fields.iter().map(|field| &field.value));
         }
         ExprKind::StructLiteral { values, .. } => stack.extend(values.iter()),
         ExprKind::ArrowFunction { body, .. } => match body {

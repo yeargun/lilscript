@@ -81,6 +81,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.write(format_args!(" ls_p{position}"))?;
             }
         }
+        if signature.has_optional() {
+            self.text(if names { ",size_t ls_argc" } else { ",size_t" })?;
+        }
         Ok(())
     }
     pub(super) fn signature_arguments(
@@ -94,6 +97,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.text(",")?;
             }
             self.write(format_args!("ls_p{position}"))?;
+        }
+        if self.plan.signatures[index].has_optional() {
+            self.text(",ls_argc")?;
         }
         Ok(())
     }

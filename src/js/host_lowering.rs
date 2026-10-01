@@ -658,6 +658,7 @@ impl Lowering<'_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             Function {
+                rest: false,
                 parameters,
                 body,
                 arrow,

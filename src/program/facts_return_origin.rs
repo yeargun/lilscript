@@ -3,7 +3,7 @@
 //! This query supplies no callable sealing, runtime-domain, purity or layout
 //! authority. Its consumer retains the body/use revisions and separately owns
 //! the exact CallableInputs scope and the original call's actual argument.
-use super::super::raw_domains::Admission;
+use super::super::facts::domains::Admission;
 use super::super::uses::{CellUse, CellUseSite, UseIndex};
 use super::super::*;
 

@@ -116,7 +116,7 @@ impl<'src> Assigned<'src> {
 
     fn statement(&mut self, statement: &Stmt<'_, 'src>, nested: bool) {
         match statement {
-            Stmt::VarDecl(declaration) => {
+            Stmt::VarDecl(declaration, ..) => {
                 if let Some(value) = &declaration.initializer {
                     self.expression(value, nested);
                 }
@@ -124,7 +124,7 @@ impl<'src> Assigned<'src> {
             Stmt::ArrayDestructure { value, .. } | Stmt::RecordDestructure { value, .. } => {
                 self.expression(value, nested)
             }
-            Stmt::Expr(expression)
+            Stmt::Expr(expression, ..)
             | Stmt::Throw {
                 value: expression, ..
             } => self.expression(expression, nested),
@@ -204,7 +204,7 @@ impl<'src> Assigned<'src> {
                 self.expression(iterable, nested);
                 self.statement(body, nested);
             }
-            Stmt::Break(_) | Stmt::Continue(_) => {}
+            Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {}
         }
     }
 
@@ -232,6 +232,12 @@ impl<'src> Assigned<'src> {
                         RecordElement::Entry(entry) => self.expression(&entry.value, nested),
                         RecordElement::Spread { value, .. } => self.expression(value, nested),
                     }
+                }
+            }
+            ExprKind::With { value, fields, .. } => {
+                self.expression(value, nested);
+                for field in *fields {
+                    self.expression(&field.value, nested);
                 }
             }
             ExprKind::StructLiteral { values, .. } => {

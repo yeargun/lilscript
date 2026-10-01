@@ -27,9 +27,9 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M3.8a | [D2](plan.md#d2) | Consumer-shakeable delivery, first half |
 | M3.8b | [D2](plan.md#d2) | Consumer-shakeable delivery, second half |
 | M3.9 | [Q2](plan.md#q2) | Caches and the decision lock |
-| M4.2 | [S4](plan.md#s4) | type parameters by id, interned types (with M4.4) |
-| M4.3 | [S4](plan.md#s4) | parameter defaults on declarations |
-| M4.4 | [S4](plan.md#s4) | statement ids, type parameters by id, interned types |
+| M4.2 | [S4](plan.md#s4) | Implemented: type-parameter identity and canonical checked types |
+| M4.3 | [S4](plan.md#s4) | Implemented: defaults evaluated in the selected declaration's scope |
+| M4.4 | [S4](plan.md#s4) | Implemented: statement ids, binder identity and canonical checked types |
 | M4.5 | [S4](plan.md#s4) | Contracts and capabilities at check time |
 | M4.6 | [S4](plan.md#s4) | one operation identity in the IR (M5.2), `hasOwnProperty.call` and effect-free constructions (M10.17) |
 | M5.1 | [Q2](plan.md#q2) | `UseIndex`, deleting `drop_unreferenced_functions` |
@@ -139,7 +139,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M9.3 / M10.4 | [S4](plan.md#s4) | Non-private callbacks retain the shared adapter until the R7 language contract supplies a replacement. |
 | M9.3 / M10.4 | [S4](plan.md#s4) | R7 owns replacing adapter rest-list `arguments` with actual rest semantics, including `.length` and variable indices. |
 | M4 / M10 | [S4](plan.md#s4) | `??=` on a place: implemented and qualified in `8ebb686d`; four carried tests enabled |
-| M4 / M10 | [S4](plan.md#s4) | generic methods; |
+| M4 / M10 | [S4](plan.md#s4) | Generic methods implemented and checked on JavaScript/native; observed generic classes remain open |
 | M4 / M10 | [S4](plan.md#s4) | an explicit `JS.undefined()` argument; |
 | M4 / M10 | [S4](plan.md#s4) | a detached `charCodeAt`. |
 | M10.14 | [G2](plan.md#g2) | Complete in G2: both wrapper-name cases explicitly select name preservation and expect anonymous adapters. |
@@ -152,7 +152,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | No owner yet | [S4](plan.md#s4) | M4.1's gaps: generic classes, D2 adapters for a published constructor's struct parameters, and an import of a name that is both a type and a constructor; |
 | No owner yet | [C1](plan.md#c1) | `pool_strings` and `pack_string_arrays` ignore their permissions; |
 | No owner yet | [D3](plan.md#d3) | katexlil keeps `src/fontMetricsData.js` for two scripts. |
-| Ledger rows owned by done tasks | [S4](plan.md#s4) | M1.5's `objectHasOwn` prelude case; |
+| Ledger rows owned by done tasks | [S4](plan.md#s4), resolved | Object.hasOwn's explicit host binding and forwarded-call contract pass eight script/module lanes; stale ledger entry removed |
 | Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | Zod ReDoS timeout remains an exact host-dependent upstream-analysis ledger entry; unchanged assertion, quiet-host C1 suite passes |
 | Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | MobX mapping committed locally at `ccccb1d`; all three affected public Jest tests pass, stale path entries removed |
 
@@ -178,4 +178,5 @@ G1 qualification found an existing **S4** blocker: frozen C3 `records-128` fails
 source-program verification with `IntBinary(Add)` after program rules in both Q1
 and G1, including with inlining or scalar replacement disabled. The 64-helper
 prefix passes; 128 fails. [Reproduction and evidence](../../benchmarks/migration-results/2026-10-01-g1-complete/README.md#existing-refusal-found-during-qualification).
-S4 must close this fact/type transport defect before V1.
+S4's contracts batch fixes the refined result view and passes the independent
+eight-input oracle under all three objectives. The source stays frozen.

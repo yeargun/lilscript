@@ -59,12 +59,20 @@ pub(super) fn verify_edition_in(
             feature: JsSyntaxFeature::NullishCoalescing,
         });
     }
-    if let Some(forms)=&module.print_forms {
-        for (feature,selected) in [
-            (JsSyntaxFeature::OptionalChain,forms.optional.iter().any(Option::is_some)),
-            (JsSyntaxFeature::LogicalAssignment,forms.logical_assignments.iter().any(Option::is_some)),
+    if let Some(forms) = &module.print_forms {
+        for (feature, selected) in [
+            (
+                JsSyntaxFeature::OptionalChain,
+                forms.optional.iter().any(Option::is_some),
+            ),
+            (
+                JsSyntaxFeature::LogicalAssignment,
+                forms.logical_assignments.iter().any(Option::is_some),
+            ),
         ] {
-            if selected && !edition.allows(feature) {return Err(OutputError::Syntax{edition,feature});}
+            if selected && !edition.allows(feature) {
+                return Err(OutputError::Syntax { edition, feature });
+            }
         }
     }
     if !edition.allows(JsSyntaxFeature::OptionalCatchBinding) {
@@ -505,6 +513,12 @@ impl Walk<'_, '_, '_> {
             .get(id.index())
             .ok_or("unknown function")?;
         self.functions[id.index()] = true;
+        if function.rest && (function.parameters.is_empty() || function.strict) {
+            return Err(
+                "invalid rest parameter or strict directive in a non-simple parameter function"
+                    .into(),
+            );
+        }
         if let Some(length) = function.length {
             // Default syntax makes the parameter list non-simple, which
             // forbids a `"use strict"` directive in the body.

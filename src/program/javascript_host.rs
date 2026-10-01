@@ -107,6 +107,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: false,
                 parameters,
                 body: inner_body,
                 // The adapter's own receiver is the host's `this`.
@@ -127,6 +128,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: false,
                 parameters: outer_parameters,
                 body: outer_body,
                 arrow: false,

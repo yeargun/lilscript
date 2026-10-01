@@ -267,7 +267,7 @@ fn archived_marked_bracket_source_runs_without_adaptation_through_common_output_
 
 #[test]
 fn verifier_rejects_missing_forged_or_inconsistent_call_contracts() {
-    let source = r#"extern int different(string value,int position=7);
+    let source = r#"extern int different(string value,int position);
         export int find(string value){return value.indexOf("x");}"#;
     checked(source, |program| {
         let (unit, call) = method_site(program);
@@ -304,13 +304,12 @@ fn verifier_rejects_missing_forged_or_inconsistent_call_contracts() {
             );
         }
     });
-    // Relabeling the supplied `3` as the omitted default `7`: a LilScript
-    // callee checks the claimed default evaluation, and a host call, which
-    // preserves omissions, has no synthesized argument to claim.
+    // Relabeling an explicit argument as omitted cannot change the retained
+    // operand count under either the callee-owned or host omission contract.
     for (source, message) in [
         (
             "int choose(int value=7){return value;}print(choose(3));",
-            "caller default evaluations disagree",
+            "callee-owned omission has synthesized arguments",
         ),
         (
             "extern int choose(int value=7);print(choose(3));",
@@ -338,9 +337,8 @@ fn verifier_rejects_missing_forged_or_inconsistent_call_contracts() {
 }
 
 #[test]
-fn caller_default_evaluations_are_verified_and_unsupported_kinds_stay_explicit() {
-    // Scalar, array and parameter defaults are evaluated by the caller after
-    // every supplied argument, and the callee still guards `undefined`.
+fn callee_default_evaluations_support_mixed_declaration_expressions() {
+    // Owned defaults are guarded callee expressions; extern omission is preserved.
     for source in [
         "int choose(int value=7){return value;}print(choose(3));print(choose());",
         "extern int choose(int value=7);print(choose());",
@@ -354,9 +352,7 @@ fn caller_default_evaluations_are_verified_and_unsupported_kinds_stay_explicit()
             .verify()
             .unwrap();
     }
-    // Struct and class defaults are evaluated by the caller too. An arrow
-    // default is applied only by the guarded callee, so a caller cannot omit
-    // it while supplying a later evaluated default.
+    // Allocation and callable defaults use the same ordered callee convention.
     for source in [
         "struct P{int x;}int read(P value=P{2}){return value.x;}print(read());",
         "class C{int x;init(int x=3){this.x=x;}}int read(C value=new C()){return value.x;}print(read());",
@@ -374,11 +370,11 @@ fn caller_default_evaluations_are_verified_and_unsupported_kinds_stay_explicit()
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source).unwrap();
     let semantics = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &semantics).unwrap();
+    program.verify().unwrap();
     assert_eq!(
-        from_checked_source(&syntax, &semantics)
-            .unwrap_err()
-            .feature,
-        "arrow default before a caller-evaluated default"
+        crate::interpreter::interpret_program(&syntax, &semantics).unwrap(),
+        "1\n"
     );
 }
 

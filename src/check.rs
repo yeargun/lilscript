@@ -18,9 +18,13 @@ use crate::span::Span;
 use crate::typed_array::TypedArrayKind;
 
 pub(crate) mod binary_types;
+pub(crate) mod capabilities;
 mod modules;
 mod struct_cycles;
 pub(crate) mod type_admission;
+mod type_identity;
+mod type_pool;
+pub use type_pool::CheckedTypeId;
 pub(crate) mod type_payload;
 pub(crate) mod type_relation;
 pub(crate) mod type_substitution;
@@ -155,6 +159,52 @@ pub enum BuiltinCall {
     JsEncodeURIComponent,
 }
 
+/// A binder is identified by its declaring module and source occurrence.
+/// Display spelling never participates in substitution or free-variable equality.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TypeParameterId {
+    pub module: u32,
+    pub declaration: SourceNodeId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TypeParameter<'src> {
+    pub identity: TypeParameterId,
+    pub name: &'src str,
+}
+impl PartialEq for TypeParameter<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.identity == other.identity
+    }
+}
+impl Eq for TypeParameter<'_> {}
+impl std::hash::Hash for TypeParameter<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.identity.hash(state);
+    }
+}
+impl fmt::Display for TypeParameter<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.name)
+    }
+}
+#[cfg(test)]
+impl<'src> TypeParameter<'src> {
+    pub(crate) fn fixture(name: &'src str) -> Self {
+        // Only hand-built type tests use this stable synthetic namespace.
+        let id = name.bytes().fold(2166136261u32, |n, b| {
+            (n ^ u32::from(b)).wrapping_mul(16777619)
+        }) & 0x7fffffff;
+        Self {
+            identity: TypeParameterId {
+                module: u32::MAX,
+                declaration: SourceNodeId::detached(id),
+            },
+            name,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type<'src> {
     Int,
@@ -199,7 +249,7 @@ pub enum Type<'src> {
         declaration: NominalType<'src>,
         args: Vec<Type<'src>>,
     },
-    TypeParameter(&'src str),
+    TypeParameter(TypeParameter<'src>),
     /// `JsValue`: the dynamic type, a JavaScript-only capability (R12,
     /// M4.2). Every host value that no declared type describes has it.
     Dynamic,
@@ -421,12 +471,15 @@ impl fmt::Display for Type<'_> {
             }
             Self::Dynamic => f.write_str("JsValue"),
             Self::Unknown => f.write_str("unknown"),
-            Self::TypeParameter(name) => f.write_str(name),
+            Self::TypeParameter(parameter) => f.write_str(parameter.name),
             Self::Function(signature) => {
                 f.write_str("function(")?;
                 for (index, parameter) in signature.params.iter().enumerate() {
                     if index != 0 {
                         f.write_str(", ")?;
+                    }
+                    if parameter.receiver {
+                        f.write_str("this ")?;
                     }
                     if parameter.passing == ParameterPassing::MutableReference {
                         f.write_str("mutable-reference ")?;
@@ -444,7 +497,7 @@ impl fmt::Display for Type<'_> {
                     if index != 0 {
                         f.write_str(", ")?;
                     }
-                    f.write_str(parameter)?;
+                    f.write_str(parameter.name)?;
                 }
                 write!(f, ">({})", Type::Function(function.signature.clone()))
             }
@@ -464,13 +517,15 @@ pub struct FunctionSignature<'src> {
     pub return_type: Box<Type<'src>>,
 }
 
-/// One parameter owns its transfer convention and optional default together
-/// with its type. Defaults never belong to mutable-reference parameters.
+/// Callable type contract. Default expressions remain on source declarations;
+/// only optionality participates in type identity and assignability.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionParameter<'src> {
+    /// The first physical parameter receives the invocation's receiver.
+    pub receiver: bool,
     pub ty: Type<'src>,
     pub passing: ParameterPassing,
-    pub default: Option<DefaultValue<'src>>,
+    pub optional: bool,
     /// A declared rest parameter (R7), the last: `ty` is the array `T[]` the
     /// body sees, and a call supplies it from its trailing arguments.
     pub rest: bool,
@@ -478,17 +533,19 @@ pub struct FunctionParameter<'src> {
 impl<'src> FunctionParameter<'src> {
     pub fn value(ty: Type<'src>) -> Self {
         Self {
+            receiver: false,
             ty,
             passing: ParameterPassing::Value,
-            default: None,
+            optional: false,
             rest: false,
         }
     }
-    pub fn defaulted(ty: Type<'src>, default: DefaultValue<'src>) -> Self {
+    pub fn optional(ty: Type<'src>) -> Self {
         Self {
+            receiver: false,
             ty,
             passing: ParameterPassing::Value,
-            default: Some(default),
+            optional: true,
             rest: false,
         }
     }
@@ -499,13 +556,31 @@ impl FunctionSignature<'_> {
     /// identities remain the source checker's separate semantic obligation.
     pub fn validate_parameters(&self) -> Result<(), &'static str> {
         let mut optional = false;
-        for parameter in &self.params {
-            if parameter.passing == ParameterPassing::MutableReference
-                && parameter.default.is_some()
+        for (index, parameter) in self.params.iter().enumerate() {
+            if parameter.receiver
+                && (index != 0
+                    || parameter.rest
+                    || parameter.optional
+                    || parameter.passing != ParameterPassing::Value)
             {
+                return Err(
+                    "a receiver is the first value parameter and has no default or rest marker",
+                );
+            }
+            if parameter.rest {
+                if index + 1 != self.params.len()
+                    || parameter.optional
+                    || parameter.passing != ParameterPassing::Value
+                    || !matches!(parameter.ty, Type::Array(_))
+                {
+                    return Err("a rest parameter is the final array parameter, passed by value without a default");
+                }
+                continue;
+            }
+            if parameter.passing == ParameterPassing::MutableReference && parameter.optional {
                 return Err("mutable-reference parameters cannot have defaults");
             }
-            if parameter.default.is_some() {
+            if parameter.optional {
                 optional = true;
             } else if optional {
                 return Err("required parameters cannot follow defaulted parameters");
@@ -537,13 +612,19 @@ impl FunctionType<'_> {
     pub fn required_params(&self) -> usize {
         self.params
             .iter()
-            .position(|parameter| parameter.default.is_some() || parameter.rest)
+            .position(|parameter| parameter.optional || parameter.rest)
             .unwrap_or(self.params.len())
     }
 
     /// The parameters a call supplies one by one: all but a rest parameter.
     pub fn fixed_params(&self) -> usize {
         self.params.len() - usize::from(self.has_rest())
+    }
+
+    pub fn has_receiver(&self) -> bool {
+        self.params
+            .first()
+            .is_some_and(|parameter| parameter.receiver)
     }
 
     pub fn has_rest(&self) -> bool {
@@ -564,21 +645,6 @@ pub enum DefaultValue<'src> {
     Null,
     /// The exact unshadowed `JS.undefined()` language primitive.
     Undefined,
-    /// A non-parameter identifier default resolved to its exact semantic
-    /// binding. Call-site lowering must never recover this from its spelling.
-    Symbol(SymbolId),
-    /// An identifier default bound to an earlier parameter of the same
-    /// callable. The index preserves binding identity through detached
-    /// function types so lowering can reuse that call's already-evaluated
-    /// actual argument rather than resolving the spelling in the caller.
-    Parameter(usize),
-    /// Declaration signatures are collected before their default expressions
-    /// are analyzed. This source occurrence is replaced with `Symbol`
-    /// before the completed semantic model is returned.
-    PendingIdentifier {
-        expression: SourceNodeId,
-        span: Span,
-    },
     /// A syntactic `JS.undefined()` candidate awaiting semantic builtin
     /// resolution. Its spelling alone is never accepted as value proof.
     PendingUndefined {
@@ -602,11 +668,18 @@ pub enum DefaultValue<'src> {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct GenericFunctionType<'src> {
-    pub type_params: Vec<&'src str>,
+    pub type_params: Vec<TypeParameter<'src>>,
     pub signature: FunctionType<'src>,
 }
+
+impl PartialEq for GenericFunctionType<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        type_identity::generic_equal(self, other)
+    }
+}
+impl Eq for GenericFunctionType<'_> {}
 
 /// The registry a nominal declaration belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -783,7 +856,7 @@ pub struct FieldInfo<'src> {
 pub struct StructInfo<'src> {
     pub declaration: StructType<'src>,
     pub module: Option<crate::module::ModuleId>,
-    pub type_params: Vec<&'src str>,
+    pub type_params: Vec<TypeParameter<'src>>,
     pub fields: IndexMap<&'src str, FieldInfo<'src>>,
     pub span: Span,
 }
@@ -795,7 +868,7 @@ pub struct ClassInfo<'src> {
     /// The module whose scope declares it (none for a single source).
     pub module: Option<crate::module::ModuleId>,
     pub name: &'src str,
-    pub type_params: Vec<&'src str>,
+    pub type_params: Vec<TypeParameter<'src>>,
     pub base: Option<Type<'src>>,
     pub fields: IndexMap<&'src str, FieldInfo<'src>>,
     pub methods: IndexMap<&'src str, MethodInfo<'src>>,
@@ -820,7 +893,7 @@ pub struct MethodInfo<'src> {
     pub member: NominalMemberId,
     /// The class that declares the method (a base, for an inherited one).
     pub owner: NominalId,
-    pub type_params: Vec<&'src str>,
+    pub type_params: Vec<TypeParameter<'src>>,
     pub signature: FunctionType<'src>,
     pub declared_pure: bool,
 }
@@ -988,6 +1061,7 @@ impl fmt::Debug for SourceInfo<'_, '_> {
 /// Canonical declarations are owned once, including all local symbols.
 #[derive(Debug, Clone, Default)]
 struct DeclarationTables<'src> {
+    types: type_pool::TypePool<'src>,
     /// Written after initialization: an assignment or a mutable reference.
     assigned_symbols: AHashSet<SymbolId>,
     /// Bindings some occurrence of which may run before the binding is
@@ -1019,7 +1093,7 @@ struct DeclarationTables<'src> {
 #[derive(Debug, Clone)]
 struct ModuleFacts<'ast, 'src> {
     source: crate::ast::SourceIdentity,
-    expression_types: Vec<Option<Type<'src>>>,
+    expression_types: Vec<Option<CheckedTypeId>>,
     source_info: Vec<SourceInfo<'ast, 'src>>,
     call_instantiations: AHashMap<SourceNodeId, CheckedCallInstantiation<'src>>,
     /// This source's type scope: every nominal name it declares or imports,
@@ -1027,11 +1101,11 @@ struct ModuleFacts<'ast, 'src> {
     type_bindings: AHashMap<&'src str, NominalId>,
     // Facts about a source node, keyed by its id (plan M4.4).
     /// An optional member's or index's present type, by the expression.
-    optional_present_types: AHashMap<SourceNodeId, Type<'src>>,
+    optional_present_types: AHashMap<SourceNodeId, CheckedTypeId>,
     /// A type test's (`is`, `as?`) target type, by the test's expression.
-    type_check_types: AHashMap<SourceNodeId, Type<'src>>,
+    type_check_types: AHashMap<SourceNodeId, CheckedTypeId>,
     /// A declaring identifier's binding.
-    binding_types: AHashMap<SourceNodeId, BindingType<'src>>,
+    binding_types: AHashMap<SourceNodeId, BindingType>,
     /// An identifier's symbol: a declaration's and every reference's.
     identifier_symbols: AHashMap<SourceNodeId, SymbolId>,
     /// An enum variant's value, by the variant's identifier (in `E.V` and
@@ -1054,9 +1128,9 @@ struct ModuleFacts<'ast, 'src> {
 // Value declarations and import aliases share the canonical symbol's payload.
 // Type-only bindings still need a type without introducing a value identity.
 #[derive(Debug, Clone)]
-enum BindingType<'src> {
+enum BindingType {
     Symbol(SymbolId),
-    Inline(Type<'src>),
+    Inline(CheckedTypeId),
 }
 
 #[cfg(test)]
@@ -1148,7 +1222,7 @@ impl<'ast, 'src> ModuleFacts<'ast, 'src> {
 
     fn from_buffers(
         source: &crate::ast::SourceIdentity,
-        expression_types: Vec<Option<Type<'src>>>,
+        expression_types: Vec<Option<CheckedTypeId>>,
         source_info: Vec<SourceInfo<'ast, 'src>>,
     ) -> Self {
         Self {
@@ -1629,10 +1703,21 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
 
 impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
     pub fn expression_type(&self, id: crate::ast::SourceNodeId) -> Option<&'view Type<'src>> {
+        self.expression_type_id(id).map(|id| self.checked_type(id))
+    }
+
+    pub fn expression_type_id(&self, id: SourceNodeId) -> Option<CheckedTypeId> {
         self.facts
             .expression_types
             .get(id.index())
-            .and_then(Option::as_ref)
+            .copied()
+            .flatten()
+    }
+    pub fn checked_type(&self, id: CheckedTypeId) -> &'view Type<'src> {
+        self.declarations.types.get(id)
+    }
+    pub(crate) fn type_count(&self) -> usize {
+        self.declarations.types.len()
     }
 
     pub fn call_instantiation(
@@ -1660,7 +1745,7 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
     pub fn binding_type(&self, node: SourceNodeId) -> Option<&'view Type<'src>> {
         Some(match self.facts.binding_types.get(&node)? {
             BindingType::Symbol(symbol) => &self.declarations.symbols[symbol.0 as usize].ty,
-            BindingType::Inline(ty) => ty,
+            BindingType::Inline(ty) => self.checked_type(*ty),
         })
     }
 
@@ -1728,11 +1813,17 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
     }
 
     pub(crate) fn type_check_type(&self, node: SourceNodeId) -> Option<&'view Type<'src>> {
-        self.facts.type_check_types.get(&node)
+        self.facts
+            .type_check_types
+            .get(&node)
+            .map(|id| self.checked_type(*id))
     }
 
     pub(crate) fn optional_present_type(&self, node: SourceNodeId) -> Option<&'view Type<'src>> {
-        self.facts.optional_present_types.get(&node)
+        self.facts
+            .optional_present_types
+            .get(&node)
+            .map(|id| self.checked_type(*id))
     }
 
     pub fn symbols(&self) -> &'view [Symbol<'src>] {
@@ -2057,7 +2148,7 @@ struct Analyzer<'check, 'budget, 'ast, 'src> {
     scopes: Vec<AHashMap<&'src str, SymbolId>>,
     narrowings: Vec<AHashMap<SymbolId, Type<'src>>>,
     return_contexts: Vec<ReturnContext<'src>>,
-    type_parameter_scopes: Vec<AHashSet<&'src str>>,
+    type_parameter_scopes: Vec<AHashMap<&'src str, TypeParameter<'src>>>,
     loop_depth: usize,
     async_depth: usize,
     callable_depth: usize,
@@ -2316,6 +2407,27 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(analyzer)
     }
 
+    fn record_type(
+        &mut self,
+        node: SourceNodeId,
+        ty: &Type<'src>,
+    ) -> Result<(), AdmittedCheckError> {
+        let id = self.declarations.types.intern(ty, self.budget)?;
+        self.facts.expression_types[node.index()] = Some(id);
+        Ok(())
+    }
+    fn record_type_binding(
+        &mut self,
+        node: SourceNodeId,
+        ty: &Type<'src>,
+    ) -> Result<(), AdmittedCheckError> {
+        let id = self.declarations.types.intern(ty, self.budget)?;
+        self.facts
+            .binding_types
+            .insert(node, BindingType::Inline(id));
+        Ok(())
+    }
+
     /// Test driver: one Analyzer through one source's phases, so admission
     /// tests can observe its frames. Compilation checks every source through
     /// the module-graph entry (`modules::analyze_modules_in`).
@@ -2342,7 +2454,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.analyze_items(program)?;
         self.declarations.mark_tested_classes();
 
-        self.finalize_parameter_default_bindings()?;
         for export in program.exports {
             let target = if let Some(target) = self.view().export_target(export.local.id) {
                 Some(target)
@@ -2384,9 +2495,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 Some(InterfaceTarget::Type(identity)) => {
                     if let Some(ty) = self.view().nominal_type(identity) {
-                        self.facts
-                            .binding_types
-                            .insert(export.local.id, BindingType::Inline(ty));
+                        self.record_type_binding(export.local.id, &ty)?;
                     }
                 }
                 None => {}
@@ -2514,7 +2623,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ),
                 _ => continue,
             };
-            let type_params = validate_type_params(type_params)?;
+            let type_params = validate_type_params(self.module, type_params)?;
 
             if let Some(&existing) = self.facts.type_bindings.get(name.name) {
                 // Several `object` declarations of one name in one scope
@@ -2551,9 +2660,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             span,
                         },
                     )?;
-                    self.facts
-                        .binding_types
-                        .insert(name.id, BindingType::Inline(Type::Struct(declaration)));
+                    self.record_type_binding(name.id, &Type::Struct(declaration))?;
                     identity
                 }
                 NominalKind::Class => {
@@ -2583,9 +2690,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         },
                     )?;
                     if !object {
-                        self.facts
-                            .binding_types
-                            .insert(name.id, BindingType::Inline(Type::Class(declaration)));
+                        self.record_type_binding(name.id, &Type::Class(declaration))?;
                     }
                     identity
                 }
@@ -2606,9 +2711,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             span,
                         },
                     )?;
-                    self.facts
-                        .binding_types
-                        .insert(name.id, BindingType::Inline(Type::Enum(declaration)));
+                    self.record_type_binding(name.id, &Type::Enum(declaration))?;
                     identity
                 }
             };
@@ -2753,7 +2856,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     self.budget,
                                 )?,
                                 owner,
-                                type_params: validate_type_params(method.type_params)?,
+                                type_params: validate_type_params(self.module, method.type_params)?,
                                 signature,
                                 declared_pure: method.declared_pure,
                             },
@@ -2766,7 +2869,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 format!("class `{}` has more than one constructor", decl.name.name),
                             ));
                         }
-                        refuse_rest_parameter(constructor_decl.params)?;
                         let mut params = Vec::with_capacity(constructor_decl.params.len());
                         for param in constructor_decl.params {
                             params
@@ -2780,6 +2882,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 "constructors do not support mutable-reference parameters",
                             ));
                         }
+                        mark_rest_parameter(constructor_decl.params, &mut params)?;
                         resolve_parameter_defaults(
                             constructor_decl.params,
                             &mut params,
@@ -2789,7 +2892,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             params,
                             return_type: Box::new(applied_class_type(
                                 declaration,
-                                &validate_type_params(decl.type_params)?,
+                                &validate_type_params(self.module, decl.type_params)?,
                             )),
                         }));
                     }
@@ -2842,9 +2945,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     .and_then(|scope| scope.get(decl.name.name))
                 {
                     self.record_identifier(decl.name.id, symbol);
-                    self.facts
-                        .binding_types
-                        .insert(decl.name.id, BindingType::Inline(Type::Class(declaration)));
+                    self.record_type_binding(decl.name.id, &Type::Class(declaration))?;
                 }
                 continue;
             }
@@ -2863,14 +2964,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     params: Vec::new(),
                     return_type: Box::new(applied_class_type(
                         declaration,
-                        &validate_type_params(decl.type_params)?,
+                        &validate_type_params(self.module, decl.type_params)?,
                     )),
                 }));
             let constructor = if decl.type_params.is_empty() {
                 Type::Function(constructor_signature)
             } else {
                 Type::GenericFunction(GenericFunctionType {
-                    type_params: validate_type_params(decl.type_params)?,
+                    type_params: validate_type_params(self.module, decl.type_params)?,
                     signature: constructor_signature,
                 })
             };
@@ -2922,7 +3023,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 "a host constructor signature cannot declare parameter defaults",
                             ));
                         }
-                        refuse_rest_parameter(constructor.params)?;
                         let mut params = Vec::with_capacity(constructor.params.len());
                         for param in constructor.params {
                             params.push(self.resolve_parameter_type(
@@ -2930,6 +3030,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 "host constructor parameter",
                             )?);
                         }
+                        mark_rest_parameter(constructor.params, &mut params)?;
                         let signature = FunctionType::new(FunctionSignature {
                             params,
                             return_type: Box::new(Type::Void),
@@ -2998,7 +3099,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     self.budget,
                                 )?,
                                 owner,
-                                type_params: validate_type_params(method.type_params)?,
+                                type_params: validate_type_params(self.module, method.type_params)?,
                                 signature: self.extern_type(method)?,
                                 declared_pure: method.declared_pure,
                             },
@@ -3201,7 +3302,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         Type::Function(signature)
                     } else {
                         Type::GenericFunction(GenericFunctionType {
-                            type_params: validate_type_params(function.type_params)?,
+                            type_params: validate_type_params(self.module, function.type_params)?,
                             signature,
                         })
                     };
@@ -3219,7 +3320,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         Type::Function(signature.clone())
                     } else {
                         Type::GenericFunction(GenericFunctionType {
-                            type_params: validate_type_params(extern_decl.type_params)?,
+                            type_params: validate_type_params(
+                                self.module,
+                                extern_decl.type_params,
+                            )?,
                             signature: signature.clone(),
                         })
                     };
@@ -3280,7 +3384,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         &mut self,
         function: &'ast FunctionDecl<'ast, 'src>,
     ) -> Result<FunctionType<'src>, AdmittedCheckError> {
-        self.check_module_defaults(function.params)?;
         self.push_type_params(function.type_params)?;
         let signature = self.function_type_in_current_scope(function);
         self.pop_type_params();
@@ -3307,17 +3410,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             params.push(self.resolve_parameter_type(&param.parameter, "parameter")?);
         }
         resolve_parameter_defaults(function.params, &mut params, &self.facts.type_bindings)?;
-        if !function.type_params.is_empty()
-            && function
-                .params
-                .last()
-                .is_some_and(|param| param.role == crate::ast::ParamRole::Rest)
-        {
-            return Err(AdmittedCheckError::new(
-                function.span,
-                "a generic function with a rest parameter is not supported yet",
-            ));
-        }
         mark_rest_parameter(function.params, &mut params)?;
         let declared_return = self.resolve_type(function.return_type, true, "return type")?;
         let return_type = if function.is_async {
@@ -3343,7 +3435,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         &mut self,
         extern_decl: &'ast ExternDecl<'ast, 'src>,
     ) -> Result<FunctionType<'src>, AdmittedCheckError> {
-        self.check_module_defaults(extern_decl.params)?;
         self.push_type_params(extern_decl.type_params)?;
         let mut params = Vec::with_capacity(extern_decl.params.len());
         for param in extern_decl.params {
@@ -3462,24 +3553,25 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             None => {}
         }
-        let parameters = constructor
+        let mut parameters = constructor
             .params
             .iter()
             .map(|param| self.resolve_parameter_type(&param.parameter, "parameter"))
             .collect::<Result<Vec<_>, _>>()?;
+        mark_rest_parameter(constructor.params, &mut parameters)?;
         self.callable_depth += 1;
         self.enter_body(assignments::Assigned::body(
             constructor.params,
             constructor.body,
         ))?;
-        self.analyze_parameter_defaults(constructor.params, &parameters)?;
         self.push_scope()?;
         let class_info = &self.declarations.classes[class.index()];
         let this = applied_class_type(class_info.declaration, &class_info.type_params);
         self.declare(constructor.this, this)?;
-        for (param, parameter) in constructor.params.iter().zip(parameters) {
-            self.declare(param.name, parameter.ty)?;
+        for (param, parameter) in constructor.params.iter().zip(&parameters) {
+            self.declare(param.name, parameter.ty.clone())?;
         }
+        self.analyze_parameter_defaults(constructor.params, &parameters)?;
         self.budget.push(
             AllocationClass::Scratch,
             &mut self.return_contexts,
@@ -3527,7 +3619,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         );
         self.callable_depth += 1;
         self.enter_body(assignments::Assigned::body(function.params, function.body))?;
-        self.analyze_parameter_defaults(function.params, &signature.params)?;
         self.push_scope()?;
 
         if let Some(class) = class {
@@ -3543,6 +3634,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     .insert(symbol, self.callable_depth);
             }
         }
+
+        self.analyze_parameter_defaults(function.params, &signature.params)?;
 
         let generator_element = if function.is_generator {
             match signature.return_type.as_ref() {
@@ -3637,112 +3730,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(())
     }
 
-    #[cfg(test)]
-    fn finalize_parameter_default_bindings(&mut self) -> Result<(), AdmittedCheckError> {
-        let source_info = &self.facts.source_info;
-        for ty in self.facts.expression_types.iter_mut().flatten() {
-            finalize_default_bindings_in_type(ty, source_info, false)?;
-        }
-        for ty in self.facts.optional_present_types.values_mut() {
-            finalize_default_bindings_in_type(ty, source_info, false)?;
-        }
-        for ty in self.facts.type_check_types.values_mut() {
-            finalize_default_bindings_in_type(ty, source_info, false)?;
-        }
-        for binding in self.facts.binding_types.values_mut() {
-            if let BindingType::Inline(ty) = binding {
-                finalize_default_bindings_in_type(ty, source_info, false)?;
-            }
-        }
-        for symbol in &mut self.declarations.symbols {
-            finalize_default_bindings_in_type(&mut symbol.ty, source_info, false)?;
-        }
-        for info in self.declarations.structs.iter_mut() {
-            for field in info.fields.values_mut() {
-                finalize_default_bindings_in_type(&mut field.ty, source_info, false)?;
-            }
-        }
-        for info in self.declarations.classes.iter_mut() {
-            if let Some(base) = &mut info.base {
-                finalize_default_bindings_in_type(base, source_info, false)?;
-            }
-            for field in info.fields.values_mut() {
-                finalize_default_bindings_in_type(&mut field.ty, source_info, false)?;
-            }
-            for method in info.methods.values_mut() {
-                finalize_default_bindings_in_signature(&mut method.signature, source_info, false)?;
-            }
-            if let Some(constructor) = &mut info.constructor {
-                finalize_default_bindings_in_signature(constructor, source_info, false)?;
-            }
-        }
-        Ok(())
-    }
-
-    /// The module checker's pass, run after each module's bodies: this
-    /// module's facts and the declarations it owns.
-    pub(crate) fn finalize_module_parameter_defaults(
-        &mut self,
-        module: crate::module::ModuleId,
-        program: &Program<'ast, 'src>,
-    ) -> Result<(), AdmittedCheckError> {
-        let source_info = &self.facts.source_info;
-        for ty in self.facts.expression_types.iter_mut().flatten() {
-            finalize_default_bindings_in_type(ty, source_info, true)?;
-        }
-        for ty in self.facts.optional_present_types.values_mut() {
-            finalize_default_bindings_in_type(ty, source_info, true)?;
-        }
-        for ty in self.facts.type_check_types.values_mut() {
-            finalize_default_bindings_in_type(ty, source_info, true)?;
-        }
-        for binding in self.facts.binding_types.values_mut() {
-            if let BindingType::Inline(ty) = binding {
-                finalize_default_bindings_in_type(ty, source_info, true)?;
-            }
-        }
-        for (index, symbol) in self.declarations.symbols.iter_mut().enumerate() {
-            if self
-                .declarations
-                .symbol_modules
-                .get(index)
-                .copied()
-                .flatten()
-                == Some(module)
-            {
-                finalize_default_bindings_in_type(&mut symbol.ty, source_info, true)?;
-            }
-        }
-        for info in self.declarations.structs.iter_mut() {
-            if info.module == Some(module) {
-                for field in info.fields.values_mut() {
-                    finalize_default_bindings_in_type(&mut field.ty, source_info, true)?;
-                }
-            }
-        }
-        for item in program.items {
-            let name = match item {
-                Item::Class(class) => class.name.name,
-                Item::ExternClass(class) => class.name.name,
-                _ => continue,
-            };
-            let Some(&identity) = self.facts.type_bindings.get(name) else {
-                continue;
-            };
-            let info = &mut self.declarations.classes[identity.index()];
-            for field in info.fields.values_mut() {
-                finalize_default_bindings_in_type(&mut field.ty, source_info, true)?;
-            }
-            for method in info.methods.values_mut() {
-                finalize_default_bindings_in_signature(&mut method.signature, source_info, true)?;
-            }
-            if let Some(constructor) = &mut info.constructor {
-                finalize_default_bindings_in_signature(constructor, source_info, true)?;
-            }
-        }
-        Ok(())
-    }
-
     fn analyze_parameter_defaults(
         &mut self,
         params: &'ast [crate::ast::Param<'ast, 'src>],
@@ -3759,14 +3746,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         params: &'ast [crate::ast::Param<'ast, 'src>],
         parameters: &[FunctionParameter<'src>],
     ) -> Result<(), AdmittedCheckError> {
-        for (param, parameter) in params.iter().zip(parameters) {
+        for (index, (param, parameter)) in params.iter().zip(parameters).enumerate() {
             let expected = &parameter.ty;
             let Some(expression) = &param.default else {
                 continue;
             };
-            if scalar_default_value(expression).is_some() {
-                continue;
-            }
             let contextual = match expression {
                 Expr {
                     kind: ExprKind::ArrayLiteral { .. },
@@ -3776,6 +3760,28 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             };
             let actual = self.analyze_expr(expression, Some(contextual))?;
             self.require_assignable(expected, &actual, expression.span())?;
+            let view = self.view();
+            let mut invalid = None;
+            crate::ast_walk::expression(expression, &mut |node| {
+                if invalid.is_none() {
+                    if let ExprKind::Ident(identifier) = &node.kind {
+                        if let Some(symbol) = view.identifier_symbol(identifier.id) {
+                            if params[index..]
+                                .iter()
+                                .any(|param| view.identifier_symbol(param.name.id) == Some(symbol))
+                            {
+                                invalid = Some(identifier.span);
+                            }
+                        }
+                    }
+                }
+            });
+            if let Some(span) = invalid {
+                return Err(AdmittedCheckError::new(
+                    span,
+                    "parameter defaults can only reference earlier parameters",
+                ));
+            }
         }
         Ok(())
     }
@@ -3785,7 +3791,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         statement: &'ast Stmt<'ast, 'src>,
     ) -> Result<(), AdmittedCheckError> {
         match statement {
-            Stmt::VarDecl(decl) => self.analyze_var_decl(decl),
+            Stmt::VarDecl(decl, ..) => self.analyze_var_decl(decl),
             Stmt::ArrayDestructure {
                 bindings, value, ..
             } => {
@@ -3837,11 +3843,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 Ok(())
             }
-            Stmt::Expr(expr) => {
+            Stmt::Expr(expr, ..) => {
                 self.analyze_expr(expr, None)?;
                 Ok(())
             }
-            Stmt::Return { value, span } => self.analyze_return(value.as_ref(), *span),
+            Stmt::Return { value, span, .. } => self.analyze_return(value.as_ref(), *span),
             Stmt::Throw { value, .. } => {
                 let thrown = self.analyze_expr(value, None)?;
                 // A thrown value can reach host code (R6).
@@ -3854,11 +3860,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 Ok(())
             }
-            Stmt::SuperCall { args, span } => self.analyze_super_call(args, *span),
+            Stmt::SuperCall { args, span, .. } => self.analyze_super_call(args, *span),
             Stmt::Yield {
                 value,
                 delegate,
                 span,
+                ..
             } => {
                 self.analyze_yield(value, *delegate, *span)?;
                 // Other code runs while the generator is suspended.
@@ -4175,7 +4182,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 self.pop_scope();
                 Ok(())
             }
-            Stmt::Break(span) | Stmt::Continue(span) => {
+            Stmt::Break(span, ..) | Stmt::Continue(span, ..) => {
                 if self.loop_depth == 0 {
                     Err(AdmittedCheckError::new(
                         *span,
@@ -4312,28 +4319,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     "cannot infer a variable type from `null`; add an explicit nullable type",
                 ));
             }
-            let mut ty = inferred;
-            // A named callable carries declaration-stable default metadata, so
-            // an inferred alias can retain its optional-call contract. Defaults
-            // originating in a computed first-class value are erased when that
-            // value enters mutable storage; otherwise a later call could cache
-            // an initializer's defaults independently of the stored callable.
-            if !matches!(
-                initializer,
-                Expr {
-                    kind: ExprKind::Ident(_),
-                    ..
-                }
-            ) {
-                strip_parameter_defaults_from_type(&mut ty);
-            }
+            let ty = inferred;
             self.declare(decl.name, ty)?;
             return Ok(());
         }
 
         let declared = self.resolve_value_type(decl.ty, "variable")?;
-        let mut binding_ty = declared.clone();
-        strip_parameter_defaults_from_type(&mut binding_ty);
+        let binding_ty = declared.clone();
         let id = if let Some(id) = self.module_binding_declarations.get(&decl.name.id).copied() {
             id
         } else {
@@ -4747,6 +4739,40 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             }
             Expr {
+                kind:
+                    ExprKind::With {
+                        value,
+                        fields,
+                        span,
+                    },
+                ..
+            } => {
+                let ty = self.analyze_expr(value, expected)?;
+                if !matches!(ty, Type::Struct(_) | Type::StructInstance { .. }) {
+                    return Err(AdmittedCheckError::new(
+                        *span,
+                        "`with` requires a struct value",
+                    ));
+                }
+                let mut seen = AHashSet::default();
+                for field in *fields {
+                    self.budget
+                        .work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                    if !seen.insert(field.key.name) {
+                        return Err(AdmittedCheckError::new(
+                            field.key.span,
+                            format!("duplicate update of field `{}`", field.key.name),
+                        ));
+                    }
+                    let field_type =
+                        self.analyze_member_type(ty.clone(), field.key, field.key.id, field.span)?;
+                    let actual = self.analyze_expr(&field.value, Some(&field_type))?;
+                    self.require_assignable(&field_type, &actual, field.value.span())?;
+                    self.record_type(field.key.id, &field_type)?;
+                }
+                ty
+            }
+            Expr {
                 kind: ExprKind::StructLiteral { name, values, span },
                 ..
             } => {
@@ -4898,16 +4924,24 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     let params = constructor
                         .as_ref()
                         .map_or(&[][..], |signature| signature.params.as_slice());
-                    let parameter_names = type_params.iter().copied().collect::<AHashSet<_>>();
+                    let parameter_names = type_params
+                        .iter()
+                        .map(|parameter| parameter.identity)
+                        .collect::<AHashSet<_>>();
                     let mut substitutions = AHashMap::default();
                     if !type_args.is_empty() {
                         let resolved = self.resolve_type_arguments(
                             class.name,
                             type_args,
-                            &type_params,
+                            type_params.len(),
                             *span,
                         )?;
-                        substitutions.extend(type_params.iter().copied().zip(resolved));
+                        substitutions.extend(
+                            type_params
+                                .iter()
+                                .map(|parameter| parameter.identity)
+                                .zip(resolved),
+                        );
                     } else if let Some(Type::ClassInstance {
                         declaration: expected_declaration,
                         args: expected_args,
@@ -4919,27 +4953,52 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             substitutions.extend(
                                 type_params
                                     .iter()
-                                    .copied()
+                                    .map(|parameter| parameter.identity)
                                     .zip(expected_args.iter().cloned()),
                             );
                         }
                     } else if type_params.is_empty() {
-                        self.resolve_type_arguments(class.name, type_args, &type_params, *span)?;
+                        self.resolve_type_arguments(
+                            class.name,
+                            type_args,
+                            type_params.len(),
+                            *span,
+                        )?;
                     }
+                    let pattern = |index: usize, spread: bool| {
+                        let fixed = constructor.as_ref().map_or(0, |sig| sig.fixed_params());
+                        let parameter = &params[index.min(fixed)];
+                        if parameter.rest && !spread {
+                            let Type::Array(element) = &parameter.ty else {
+                                unreachable!("checked rest")
+                            };
+                            element.as_ref()
+                        } else {
+                            &parameter.ty
+                        }
+                    };
                     let mut actual_args = Vec::with_capacity(args.len());
-                    for (arg, pattern) in args.iter().zip(params) {
-                        let resolved = substitute_type(&pattern.ty, &substitutions);
+                    for (index, arg) in args.iter().enumerate() {
+                        let pattern = pattern(index, arg.spread);
+                        let resolved = substitute_type(pattern, &substitutions);
                         let expected = (!contains_type_parameter(&resolved, &parameter_names))
                             .then_some(&resolved);
-                        let actual = self.analyze_value_argument(arg, expected)?;
+                        let actual = if arg.spread {
+                            if index < constructor.as_ref().unwrap().fixed_params() {
+                                return Err(spread_refusal(arg.span));
+                            }
+                            self.analyze_expr(&arg.expression, expected)?
+                        } else {
+                            self.analyze_value_argument(arg, expected)?
+                        };
                         infer_type_arguments(
-                            &pattern.ty,
+                            pattern,
                             &actual,
                             &parameter_names,
                             &mut substitutions,
                             arg.span,
                         )?;
-                        let resolved = substitute_type(&pattern.ty, &substitutions);
+                        let resolved = substitute_type(pattern, &substitutions);
                         if !contains_type_parameter(&resolved, &parameter_names) {
                             self.require_assignable(&resolved, &actual, arg.span)?;
                         }
@@ -4948,12 +5007,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     let resolved_args = type_params
                         .iter()
                         .map(|parameter| {
-                            substitutions.get(parameter).cloned().ok_or_else(|| {
-                                AdmittedCheckError::new(
-                                    *span,
-                                    format!("cannot infer type argument `{parameter}`"),
-                                )
-                            })
+                            substitutions
+                                .get(&parameter.identity)
+                                .cloned()
+                                .ok_or_else(|| {
+                                    AdmittedCheckError::new(
+                                        *span,
+                                        format!("cannot infer type argument `{parameter}`"),
+                                    )
+                                })
                         })
                         .collect::<Result<Vec<_>, _>>()?;
                     // Inferred constructor arguments cross the same unknown
@@ -4961,8 +5023,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     for argument in &resolved_args {
                         self.declarations.reflect(argument);
                     }
-                    for ((arg, pattern), actual) in args.iter().zip(params).zip(&actual_args) {
-                        let resolved = substitute_type(&pattern.ty, &substitutions);
+                    for (index, (arg, actual)) in args.iter().zip(&actual_args).enumerate() {
+                        let resolved = substitute_type(pattern(index, arg.spread), &substitutions);
                         self.require_assignable(&resolved, actual, arg.span)?;
                     }
                     if type_params.is_empty() {
@@ -5037,9 +5099,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 };
                 let member = self.analyze_member_type(*inner, *property, expr.id, *span)?;
                 self.check_member_value(expr.id, *span)?;
-                self.facts
-                    .optional_present_types
-                    .insert(expr.id, member.clone());
+                let id = self.declarations.types.intern(&member, self.budget)?;
+                self.facts.optional_present_types.insert(expr.id, id);
                 optional_result_type(member, *span)?
             }
             Expr {
@@ -5121,12 +5182,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Expr {
                 kind: ExprKind::ArrowFunction { params, body, span },
                 ..
-            } => match method_adapter(params)? {
-                Some(adapter) => {
-                    return self.analyze_method_arrow(expr, params, body, adapter, *span);
-                }
-                None => self.analyze_arrow(params, body, expected)?,
-            },
+            } => {
+                validate_parameter_roles(params)?;
+                self.analyze_arrow(params, body, expected)?
+            }
             Expr {
                 kind:
                     ExprKind::Unary {
@@ -5206,7 +5265,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 if !self.class_guard(&value_type, &target_type, *span)? {
                     validate_type_guard(&value_type, &target_type, *span)?;
                 }
-                self.facts.type_check_types.insert(expr.id, target_type);
+                let id = self.declarations.types.intern(&target_type, self.budget)?;
+                self.facts.type_check_types.insert(expr.id, id);
                 Type::Bool
             }
             Expr {
@@ -5282,9 +5342,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         format!("cannot index a value of type `{inner}`"),
                     )
                 })?;
-                self.facts
-                    .optional_present_types
-                    .insert(expr.id, element.clone());
+                let id = self.declarations.types.intern(&element, self.budget)?;
+                self.facts.optional_present_types.insert(expr.id, id);
                 optional_result_type(element, *span)?
             }
             Expr {
@@ -5459,7 +5518,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                     validate_type_guard(&source, &target, *span)?;
                 }
-                self.facts.type_check_types.insert(expr.id, target.clone());
+                let id = self.declarations.types.intern(&target, self.budget)?;
+                self.facts.type_check_types.insert(expr.id, id);
                 nullable_type(target)
             }
             Expr {
@@ -5526,7 +5586,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 crate::primitive::Intrinsic::JsTruthy,
                             ),
                         );
-                    self.facts.expression_types[expr.id.index()] = Some(Type::Bool);
+                    self.record_type(expr.id, &Type::Bool)?;
                     return Ok(Type::Bool);
                 }
                 // `string(v)` is `JS.string(v)`; `float(v)` and `number(v)` are
@@ -5633,7 +5693,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     expression: Some(target),
                     resolution: ExpressionResolution::None,
                 };
-                self.facts.expression_types[target.id.index()] = Some(Type::Dynamic);
+                self.record_type(target.id, &Type::Dynamic)?;
                 self.resolve_dynamic(expr.id, BuiltinCall::JsDelete);
                 Type::Void
             }
@@ -5653,7 +5713,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
         }
 
-        self.facts.expression_types[expr.id.index()] = Some(ty.clone());
+        self.record_type(expr.id, &ty.clone())?;
         Ok(ty)
     }
 
@@ -5793,7 +5853,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             } else {
                                 NarrowingInput::leaf(expression)
                             };
-                            self.facts.expression_types[expression.id.index()] = Some(ty.clone());
+                            self.record_type(expression.id, &ty.clone())?;
                         }
                     }
                 }
@@ -5960,7 +6020,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ));
             }
         };
-        self.facts.expression_types[expression.id.index()] = Some(ty.clone());
+        self.record_type(expression.id, &ty.clone())?;
         Ok(ty)
     }
 
@@ -6140,78 +6200,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             // evaluated, as a reference call models it.
             _ => {}
         }
-        self.facts.expression_types[member.id.index()] = Some(Type::Dynamic);
-        Ok(Type::Dynamic)
-    }
-
-    /// A lambda with a receiver or rest parameter is the method its adapter
-    /// makes (R7): `(this JsValue self, JsValue a) => …` is
-    /// `JS.method1((JsValue self, JsValue a) => …)`. Its parameters and result
-    /// are `JsValue`s, as the adapter's callback's are. The node's recorded
-    /// type is the callback's; its value is the method, a `JsValue`.
-    fn analyze_method_arrow(
-        &mut self,
-        expression: &'ast Expr<'ast, 'src>,
-        params: &'ast [crate::ast::Param<'ast, 'src>],
-        body: &'ast ArrowBody<'ast, 'src>,
-        adapter: BuiltinCall,
-        span: Span,
-    ) -> Result<Type<'src>, AdmittedCheckError> {
-        // The adapter passes JavaScript's receiver and arguments as they are:
-        // a typed parameter is a trusted view of its value (R7, Y1), which
-        // needs no code for any type but a struct. The rest parameter of a
-        // lambda is the arguments array, a `JsValue`; a function declares a
-        // typed one.
-        let mut typed = false;
-        for param in params {
-            if let Some(default) = &param.default {
-                return Err(AdmittedCheckError::new(
-                    default.span(),
-                    "a method's parameters take no defaults",
-                ));
-            }
-            let ty = self.resolve_value_type(param.parameter.ty, "method parameter")?;
-            if param.role == crate::ast::ParamRole::Rest && !is_js_value(&ty) {
-                return Err(AdmittedCheckError::new(
-                    param.parameter.ty.span,
-                    format!(
-                        "a lambda's rest parameter is the arguments array, a `JsValue`, found `{ty}`; a function declares a typed one: `T... name`"
-                    ),
-                ));
-            }
-            if crosses_by_conversion(&ty) {
-                return Err(AdmittedCheckError::new(
-                    param.parameter.ty.span,
-                    format!("a method's parameter crossing from JavaScript cannot be `{ty}` yet"),
-                ));
-            }
-            typed |= !is_js_value(&ty);
-        }
-        let actual = if typed {
-            let actual = self.analyze_arrow(params, body, None)?;
-            if let Type::Function(signature) = &actual {
-                if crosses_by_conversion(&signature.return_type) {
-                    return Err(AdmittedCheckError::new(
-                        span,
-                        format!(
-                            "a method's result crossing to JavaScript cannot be `{}` yet",
-                            signature.return_type
-                        ),
-                    ));
-                }
-            }
-            actual
-        } else {
-            let callback = Type::Function(FunctionType::new(FunctionSignature {
-                params: vec![FunctionParameter::value(Type::Dynamic); params.len()],
-                return_type: Box::new(Type::Dynamic),
-            }));
-            let actual = self.analyze_arrow(params, body, Some(&callback))?;
-            self.require_assignable(&callback, &actual, span)?;
-            actual
-        };
-        self.resolve_dynamic(expression.id, adapter);
-        self.facts.expression_types[expression.id.index()] = Some(actual);
+        self.record_type(member.id, &Type::Dynamic)?;
         Ok(Type::Dynamic)
     }
 
@@ -6241,7 +6230,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
         self.analyze_dynamic_arguments(args)?;
         self.resolve_dynamic(expression.id, BuiltinCall::JsConstruct);
-        self.facts.expression_types[expression.id.index()] = Some(Type::Dynamic);
+        self.record_type(expression.id, &Type::Dynamic)?;
         Ok(Type::Dynamic)
     }
 
@@ -6264,8 +6253,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         // A `JsValue` key would be converted twice, where JavaScript converts
         // it once.
         if let ExprKind::Index { index, .. } = &target.kind {
-            if self.facts.expression_types[index.id.index()]
-                .as_ref()
+            if self
+                .view()
+                .expression_type(index.id)
                 .is_some_and(is_js_value)
             {
                 return Err(AdmittedCheckError::new(
@@ -6277,7 +6267,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.analyze_dynamic_operand(value)?;
         self.resolve_dynamic(expression.id, BuiltinCall::JsAdd);
         self.invalidate_assigned_narrowing(target);
-        self.facts.expression_types[expression.id.index()] = Some(Type::Dynamic);
+        self.record_type(expression.id, &Type::Dynamic)?;
         Ok(Type::Dynamic)
     }
 
@@ -6661,10 +6651,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Type::Int => match property.name {
                 "toString" | "toUnsignedString" => {
                     Ok(Type::Function(FunctionType::new(FunctionSignature {
-                        params: vec![FunctionParameter::defaulted(
-                            Type::Int,
-                            DefaultValue::Int(10),
-                        )],
+                        params: vec![FunctionParameter::optional(Type::Int)],
                         return_type: Box::new(Type::String),
                     })))
                 }
@@ -6674,6 +6661,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 )),
             },
             Type::Array(element) => match property.name {
+                "get" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(Type::Int)],
+                    return_type: Box::new(nullable_type(*element)),
+                }))),
                 "map" | "filter" | "forEach" | "reduce" | "some" | "every" | "findIndex" => {
                     Err(AdmittedCheckError::new(
                         span,
@@ -6695,16 +6686,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 "includes" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: vec![
                         FunctionParameter::value(element.as_ref().clone()),
-                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(0)),
+                        FunctionParameter::optional(Type::Int),
                     ],
                     return_type: Box::new(Type::Bool),
                 }))),
                 "join" if is_stringifiable_array_element(&element) => {
                     Ok(Type::Function(FunctionType::new(FunctionSignature {
-                        params: vec![FunctionParameter::defaulted(
-                            Type::String,
-                            DefaultValue::String(","),
-                        )],
+                        params: vec![FunctionParameter::optional(Type::String)],
                         return_type: Box::new(Type::String),
                     })))
                 }
@@ -6720,7 +6708,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     params: vec![
                         FunctionParameter::value(Type::Int),
                         FunctionParameter::value(Type::Int),
-                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                        FunctionParameter::optional(Type::Int),
                     ],
                     return_type: Box::new(Type::Array(element)),
                 }))),
@@ -6730,8 +6718,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }))),
                 "slice" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: vec![
-                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(0)),
-                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                        FunctionParameter::optional(Type::Int),
+                        FunctionParameter::optional(Type::Int),
                     ],
                     return_type: Box::new(Type::Array(element)),
                 }))),
@@ -6805,14 +6793,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 "slice" | "subarray" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: vec![
                         FunctionParameter::value(Type::Int),
-                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                        FunctionParameter::optional(Type::Int),
                     ],
                     return_type: Box::new(ty),
                 }))),
                 "set" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: vec![
                         FunctionParameter::value(ty.clone()),
-                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(0)),
+                        FunctionParameter::optional(Type::Int),
                     ],
                     return_type: Box::new(Type::Void),
                 }))),
@@ -6823,11 +6811,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     Ok(Type::Function(FunctionType::new(FunctionSignature {
                         params: vec![
                             FunctionParameter::value(element),
-                            FunctionParameter::defaulted(Type::Int, DefaultValue::Int(0)),
-                            FunctionParameter::defaulted(
-                                Type::Int,
-                                DefaultValue::Int(i32::MAX as i64),
-                            ),
+                            FunctionParameter::optional(Type::Int),
+                            FunctionParameter::optional(Type::Int),
                         ],
                         return_type: Box::new(ty),
                     })))
@@ -6836,7 +6821,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     params: vec![
                         FunctionParameter::value(Type::Int),
                         FunctionParameter::value(Type::Int),
-                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                        FunctionParameter::optional(Type::Int),
                     ],
                     return_type: Box::new(ty),
                 }))),
@@ -6855,7 +6840,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 "lastIndexOf" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: vec![
                         FunctionParameter::value(Type::String),
-                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                        FunctionParameter::optional(Type::Int),
                     ],
                     return_type: Box::new(Type::Int),
                 }))),
@@ -6912,6 +6897,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             resolution: ExpressionResolution::None,
         };
         let receiver = self.analyze_expr(object, None)?;
+        if let Type::Function(signature) = &receiver {
+            if signature.has_receiver() && property.name == "call" {
+                let mut explicit = signature.clone();
+                explicit.make_mut().params[0].receiver = false;
+                let explicit = Type::Function(explicit);
+                self.record_type(member.id, &explicit)?;
+                return self.analyze_call(&explicit, args, span, expected, Some(call_node));
+            }
+        }
         let (operation, result) = match (receiver, property.name) {
             (Type::Array(element), "map") => (
                 Intrinsic::ArrayMap,
@@ -6945,16 +6939,20 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let result = self.analyze_task_call(property.name, *value, args, span)?;
                 // A host method with one checked callback; record its
                 // contract on the callee like any other checked call.
-                let callback = self.facts.expression_types[args[0].expression.id.index()]
-                    .clone()
+                let callback = self
+                    .view()
+                    .expression_type(args[0].expression.id)
+                    .cloned()
                     .ok_or_else(|| {
                         AdmittedCheckError::new(args[0].span, "task callback lost its checked type")
                     })?;
-                self.facts.expression_types[member.id.index()] =
-                    Some(Type::Function(FunctionType::new(FunctionSignature {
+                self.record_type(
+                    member.id,
+                    &Type::Function(FunctionType::new(FunctionSignature {
                         params: vec![FunctionParameter::value(callback)],
                         return_type: Box::new(result.clone()),
-                    })));
+                    })),
+                )?;
                 return Ok(result);
             }
             (Type::Dynamic, name)
@@ -6964,8 +6962,22 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             (receiver, _) => {
                 let callee =
-                    self.analyze_member_type(receiver, property, member.id, member.span())?;
-                self.facts.expression_types[member.id.index()] = Some(callee.clone());
+                    self.analyze_member_type(receiver.clone(), property, member.id, member.span())?;
+                self.record_type(member.id, &callee)?;
+                if let Type::Function(signature) = &callee {
+                    if signature.has_receiver() {
+                        self.require_assignable(&signature.params[0].ty, &receiver, object.span())?;
+                        let mut explicit = signature.clone();
+                        explicit.make_mut().params.remove(0);
+                        return self.analyze_call(
+                            &Type::Function(explicit),
+                            args,
+                            span,
+                            expected,
+                            Some(call_node),
+                        );
+                    }
+                }
                 return self.analyze_call(&callee, args, span, expected, Some(call_node));
             }
         };
@@ -6974,8 +6986,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         // later owners read the checked contract instead of re-deriving it.
         let mut params = Vec::with_capacity(args.len());
         for argument in args {
-            let ty = self.facts.expression_types[argument.expression.id.index()]
-                .clone()
+            let ty = self
+                .view()
+                .expression_type(argument.expression.id)
+                .cloned()
                 .ok_or_else(|| {
                     AdmittedCheckError::new(
                         argument.span,
@@ -6984,11 +6998,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 })?;
             params.push(FunctionParameter::value(ty));
         }
-        self.facts.expression_types[member.id.index()] =
-            Some(Type::Function(FunctionType::new(FunctionSignature {
+        self.record_type(
+            member.id,
+            &Type::Function(FunctionType::new(FunctionSignature {
                 params,
                 return_type: Box::new(result.clone()),
-            })));
+            })),
+        )?;
         self.facts.source_info[member.id.index()].resolution =
             ExpressionResolution::Primitive(ResolvedIntrinsic::Method(operation));
         Ok(result)
@@ -7286,9 +7302,20 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             self.analyze_dynamic_arguments(args)?;
             return Ok(Type::Dynamic);
         }
+        if matches!(callee, Type::Function(signature) if signature.has_receiver()) {
+            return Err(AdmittedCheckError::new(
+                span,
+                "a receiver function must be called as a member or with `.call(receiver, ...)`",
+            ));
+        }
         // A spread passes to a JavaScript function or to a declared rest
         // parameter (R7).
-        if !matches!(callee, Type::Function(signature) if signature.has_rest()) {
+        let variadic = match callee {
+            Type::Function(signature) => signature.has_rest(),
+            Type::GenericFunction(function) => function.signature.has_rest(),
+            _ => false,
+        };
+        if !variadic {
             if let Some(spread) = args.iter().find(|argument| argument.spread) {
                 return Err(spread_refusal(spread.span));
             }
@@ -7358,7 +7385,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ),
             ));
         }
-        self.require_omitted_defaults_in_scope(signature, args.len(), span)?;
         let outer_pending = self.pending_references;
         let result = (|| {
             let fixed = signature.fixed_params();
@@ -7401,78 +7427,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.pending_references = outer_pending;
         result?;
         Ok((*signature.return_type).clone())
-    }
-
-    fn require_omitted_defaults_in_scope(
-        &self,
-        signature: &FunctionType<'src>,
-        provided: usize,
-        span: Span,
-    ) -> Result<(), AdmittedCheckError> {
-        for default in signature
-            .params
-            .iter()
-            .skip(provided)
-            .filter_map(|parameter| parameter.default.as_ref())
-        {
-            self.require_default_in_scope(default, span)?;
-        }
-        Ok(())
-    }
-
-    fn require_default_in_scope(
-        &self,
-        default: &DefaultValue<'src>,
-        span: Span,
-    ) -> Result<(), AdmittedCheckError> {
-        let symbol = match default {
-            DefaultValue::Symbol(symbol) => Some(*symbol),
-            DefaultValue::PendingIdentifier { expression, .. } => {
-                match self.view().expression_resolution(*expression) {
-                    ExpressionResolution::Binding(symbol) => Some(symbol),
-                    _ => None,
-                }
-            }
-            DefaultValue::Array(values) => {
-                for value in values {
-                    self.require_default_in_scope(value, span)?;
-                }
-                None
-            }
-            DefaultValue::Struct { values, .. } => {
-                for value in values {
-                    self.require_default_in_scope(value, span)?;
-                }
-                None
-            }
-            DefaultValue::NewClass { args, .. } => {
-                for argument in args {
-                    self.require_default_in_scope(argument, span)?;
-                }
-                None
-            }
-            DefaultValue::Int(_)
-            | DefaultValue::Float(_)
-            | DefaultValue::String(_)
-            | DefaultValue::Bool(_)
-            | DefaultValue::Null
-            | DefaultValue::Undefined
-            | DefaultValue::Parameter(_)
-            | DefaultValue::PendingUndefined { .. }
-            | DefaultValue::Arrow(_) => None,
-        };
-        if symbol.is_some_and(|symbol| {
-            !self
-                .scopes
-                .iter()
-                .any(|scope| scope.values().any(|candidate| *candidate == symbol))
-        }) {
-            return Err(AdmittedCheckError::new(
-                span,
-                "parameter default depends on a local binding that is unavailable at this call site",
-            ));
-        }
-        Ok(())
     }
 
     fn analyze_static_namespace_call(
@@ -8201,11 +8155,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ),
             ));
         }
-        self.require_omitted_defaults_in_scope(&function.signature, args.len(), span)?;
         let parameters = function
             .type_params
             .iter()
-            .copied()
+            .map(|parameter| parameter.identity)
             .collect::<AHashSet<_>>();
         let mut substitutions = AHashMap::default();
         if let Some(expected_return) = expected_return {
@@ -8218,26 +8171,40 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             )?;
         }
         let mut actual_args = Vec::with_capacity(args.len());
-        for (arg, pattern) in args.iter().zip(&function.signature.params) {
-            let partially_resolved = substitute_type(&pattern.ty, &substitutions);
+        let pattern = |index: usize, spread: bool| {
+            let fixed = function.signature.fixed_params();
+            let parameter = &function.signature.params[index.min(fixed)];
+            if parameter.rest && !spread {
+                let Type::Array(element) = &parameter.ty else {
+                    unreachable!("checked rest type")
+                };
+                element.as_ref()
+            } else {
+                &parameter.ty
+            }
+        };
+        for (index, arg) in args.iter().enumerate() {
+            let pattern = pattern(index, arg.spread);
+            let partially_resolved = substitute_type(pattern, &substitutions);
             let expected = (!contains_type_parameter(&partially_resolved, &parameters))
                 .then_some(&partially_resolved);
-            let actual = self.analyze_value_argument(arg, expected)?;
-            infer_type_arguments(
-                &pattern.ty,
-                &actual,
-                &parameters,
-                &mut substitutions,
-                arg.span,
-            )?;
-            let resolved = substitute_type(&pattern.ty, &substitutions);
+            let actual = if arg.spread {
+                if index < function.signature.fixed_params() {
+                    return Err(spread_refusal(arg.span));
+                }
+                self.analyze_expr(&arg.expression, expected)?
+            } else {
+                self.analyze_value_argument(arg, expected)?
+            };
+            infer_type_arguments(pattern, &actual, &parameters, &mut substitutions, arg.span)?;
+            let resolved = substitute_type(pattern, &substitutions);
             if !contains_type_parameter(&resolved, &parameters) {
                 self.require_assignable(&resolved, &actual, arg.span)?;
             }
             actual_args.push(actual);
         }
         for parameter in &function.type_params {
-            if !substitutions.contains_key(parameter) {
+            if !substitutions.contains_key(&parameter.identity) {
                 return Err(AdmittedCheckError::new(
                     span,
                     format!("cannot infer type argument `{parameter}`"),
@@ -8246,14 +8213,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             // Until generic bodies publish an instantiated reflection summary,
             // a type parameter may be erased to JsValue in that body. Preserve
             // every concrete nominal supplied through this unknown boundary.
-            self.declarations.reflect(&substitutions[parameter]);
+            self.declarations
+                .reflect(&substitutions[&parameter.identity]);
         }
-        for ((arg, pattern), actual) in args
-            .iter()
-            .zip(&function.signature.params)
-            .zip(&actual_args)
-        {
-            let resolved = substitute_type(&pattern.ty, &substitutions);
+        for (index, (arg, actual)) in args.iter().zip(&actual_args).enumerate() {
+            let resolved = substitute_type(pattern(index, arg.spread), &substitutions);
             self.require_assignable(&resolved, actual, arg.span)?;
         }
         let Type::Function(signature) =
@@ -8268,7 +8232,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     type_arguments: function
                         .type_params
                         .iter()
-                        .map(|name| substitutions[name].clone())
+                        .map(|name| substitutions[&name.identity].clone())
                         .collect(),
                     signature: signature.clone(),
                 },
@@ -8307,7 +8271,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         body: &'ast ArrowBody<'ast, 'src>,
         expected: Option<&Type<'src>>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
-        self.check_module_defaults(params)?;
         let expected_signature = match expected {
             Some(Type::Function(signature)) => Some(signature),
             _ => None,
@@ -8362,9 +8325,25 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             } else {
                 self.resolve_value_type(param.parameter.ty, "arrow parameter")?
             };
+            let rest = param.role == crate::ast::ParamRole::Rest;
+            let ty = if rest && !param.parameter.ty.is_auto() {
+                Type::Array(Box::new(ty))
+            } else {
+                ty
+            };
+            if rest
+                && (param.default.is_some() || param.parameter.passing != ParameterPassing::Value)
+            {
+                return Err(AdmittedCheckError::new(
+                    param.span,
+                    "a rest parameter passes by value and has no default",
+                ));
+            }
             if let Some(parameter) = expected_signature.and_then(|sig| sig.params.get(index)) {
                 let expected = &parameter.ty;
-                if parameter.passing != param.parameter.passing
+                if parameter.receiver != (param.role == crate::ast::ParamRole::Receiver)
+                    || parameter.rest != rest
+                    || parameter.passing != param.parameter.passing
                     || !is_type_assignable(expected, &ty)
                     || !is_type_assignable(&ty, expected)
                 {
@@ -8388,13 +8367,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     .insert(symbol, self.callable_depth);
             }
             parameters.push(FunctionParameter {
+                receiver: param.role == crate::ast::ParamRole::Receiver,
                 ty,
                 passing: param.parameter.passing,
-                default: None,
-                rest: false,
+                optional: false,
+                rest,
             });
         }
 
+        resolve_parameter_defaults(params, &mut parameters, &self.facts.type_bindings)?;
+        self.analyze_parameter_defaults(params, &parameters)?;
         let return_type = match body {
             ArrowBody::Expr(body) => self.analyze_expr(body, None)?,
             ArrowBody::Block(statements) => {
@@ -8432,26 +8414,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
         };
         self.callable_depth -= 1;
-        self.analyze_parameter_defaults(params, &parameters)?;
         self.pending_references = outer_pending;
         self.current_reference_formals = outer_formals;
-        let global_symbols = self
-            .scopes
-            .first()
-            .into_iter()
-            .flat_map(|scope| scope.values().copied())
-            .collect::<AHashSet<_>>();
         self.constructor_classes.pop();
         self.generator_contexts.pop();
         self.pop_scope();
 
-        resolve_analyzed_parameter_defaults(
-            params,
-            &mut parameters,
-            &self.view(),
-            true,
-            &global_symbols,
-        )?;
         Ok(Type::Function(FunctionType::new(FunctionSignature {
             params: parameters,
             return_type: Box::new(return_type),
@@ -8482,9 +8450,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         context: &'static str,
     ) -> Result<FunctionParameter<'src>, AdmittedCheckError> {
         Ok(FunctionParameter {
+            receiver: false,
             ty: self.resolve_value_type(parameter.ty, context)?,
             passing: parameter.passing,
-            default: None,
+            optional: false,
             rest: false,
         })
     }
@@ -8519,7 +8488,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     Type::Map(key.clone(), value.clone())
                 } else {
                     let [key, value]: [Type<'src>; 2] = self
-                        .resolve_type_arguments("Map", type_args, &["K", "V"], span)?
+                        .resolve_type_arguments("Map", type_args, 2, span)?
                         .try_into()
                         .expect("Map arity was checked");
                     validate_collection_key(&key, span, "Map key")?;
@@ -8546,7 +8515,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     Type::Set(element.clone())
                 } else {
                     let [element]: [Type<'src>; 1] = self
-                        .resolve_type_arguments("Set", type_args, &["T"], span)?
+                        .resolve_type_arguments("Set", type_args, 1, span)?
                         .try_into()
                         .expect("Set arity was checked");
                     validate_collection_key(&element, span, "Set element")?;
@@ -8554,7 +8523,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             }
             "ArrayBuffer" | "SharedArrayBuffer" => {
-                self.resolve_type_arguments(class.name, type_args, &[], span)?;
+                self.resolve_type_arguments(class.name, type_args, 0, span)?;
                 if args.len() != 1 {
                     return Err(AdmittedCheckError::new(
                         span,
@@ -8576,7 +8545,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             name if crate::typed_array::TypedArrayKind::from_name(name).is_some() => {
                 let kind = crate::typed_array::TypedArrayKind::from_name(name)
                     .expect("typed array constructor name");
-                self.resolve_type_arguments(class.name, type_args, &[], span)?;
+                self.resolve_type_arguments(class.name, type_args, 0, span)?;
                 if args.len() != 1 {
                     return Err(AdmittedCheckError::new(
                         span,
@@ -8603,7 +8572,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 kind.as_type()
             }
             "Symbol" => {
-                self.resolve_type_arguments(class.name, type_args, &[], span)?;
+                self.resolve_type_arguments(class.name, type_args, 0, span)?;
                 if args.len() > 1 {
                     return Err(AdmittedCheckError::new(
                         span,
@@ -8620,7 +8589,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 Type::Symbol
             }
             "Regex" => {
-                self.resolve_type_arguments(class.name, type_args, &[], span)?;
+                self.resolve_type_arguments(class.name, type_args, 0, span)?;
                 let contract = crate::primitive::intrinsic_call_contract(
                     crate::primitive::ResolvedIntrinsic::Constructor(
                         crate::primitive::Intrinsic::RegexNew,
@@ -8679,7 +8648,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     .type_parameter_scopes
                     .iter()
                     .rev()
-                    .any(|scope| scope.contains(name)) =>
+                    .any(|scope| scope.contains_key(name)) =>
             {
                 if !args.is_empty() {
                     return Err(AdmittedCheckError::new(
@@ -8687,11 +8656,18 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         format!("type parameter `{name}` does not accept type arguments"),
                     ));
                 }
-                Ok(Type::TypeParameter(name))
+                Ok(Type::TypeParameter(
+                    *self
+                        .type_parameter_scopes
+                        .iter()
+                        .rev()
+                        .find_map(|scope| scope.get(name))
+                        .expect("resolved type parameter"),
+                ))
             }
             TypeKind::Named { name: "Map", args } => {
                 let [key, value]: [Type<'src>; 2] = self
-                    .resolve_type_arguments("Map", args, &["K", "V"], ty.span)?
+                    .resolve_type_arguments("Map", args, 2, ty.span)?
                     .try_into()
                     .expect("Map arity was checked");
                 validate_collection_key(&key, ty.span, "Map key")?;
@@ -8699,7 +8675,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             TypeKind::Named { name: "Set", args } => {
                 let [element]: [Type<'src>; 1] = self
-                    .resolve_type_arguments("Set", args, &["T"], ty.span)?
+                    .resolve_type_arguments("Set", args, 1, ty.span)?
                     .try_into()
                     .expect("Set arity was checked");
                 validate_collection_key(&element, ty.span, "Set element")?;
@@ -8707,7 +8683,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             TypeKind::Named { name: "Task", args } if !self.binds_aggregate_type("Task") => {
                 let [value]: [Type<'src>; 1] = self
-                    .resolve_type_arguments("Task", args, &["T"], ty.span)?
+                    .resolve_type_arguments("Task", args, 1, ty.span)?
                     .try_into()
                     .expect("Task arity was checked");
                 Ok(Type::Task(Box::new(value)))
@@ -8717,7 +8693,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 args,
             } if !self.binds_aggregate_type("Generator") => {
                 let [value]: [Type<'src>; 1] = self
-                    .resolve_type_arguments("Generator", args, &["T"], ty.span)?
+                    .resolve_type_arguments("Generator", args, 1, ty.span)?
                     .try_into()
                     .expect("Generator arity was checked");
                 Ok(Type::Generator(Box::new(value)))
@@ -8726,48 +8702,48 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 name: "ArrayBuffer",
                 args,
             } => {
-                self.resolve_type_arguments("ArrayBuffer", args, &[], ty.span)?;
+                self.resolve_type_arguments("ArrayBuffer", args, 0, ty.span)?;
                 Ok(Type::ArrayBuffer)
             }
             TypeKind::Named {
                 name: "SharedArrayBuffer",
                 args,
             } => {
-                self.resolve_type_arguments("SharedArrayBuffer", args, &[], ty.span)?;
+                self.resolve_type_arguments("SharedArrayBuffer", args, 0, ty.span)?;
                 Ok(Type::SharedArrayBuffer)
             }
             TypeKind::Named { name, args }
                 if let Some(kind) = crate::typed_array::TypedArrayKind::from_name(name) =>
             {
-                self.resolve_type_arguments(name, args, &[], ty.span)?;
+                self.resolve_type_arguments(name, args, 0, ty.span)?;
                 Ok(kind.as_type())
             }
             TypeKind::Named {
                 name: "Symbol",
                 args,
             } => {
-                self.resolve_type_arguments("Symbol", args, &[], ty.span)?;
+                self.resolve_type_arguments("Symbol", args, 0, ty.span)?;
                 Ok(Type::Symbol)
             }
             TypeKind::Named {
                 name: "Regex",
                 args,
             } => {
-                self.resolve_type_arguments("Regex", args, &[], ty.span)?;
+                self.resolve_type_arguments("Regex", args, 0, ty.span)?;
                 Ok(Type::Regex)
             }
             TypeKind::Named {
                 name: "JsValue",
                 args,
             } => {
-                self.resolve_type_arguments("JsValue", args, &[], ty.span)?;
+                self.resolve_type_arguments("JsValue", args, 0, ty.span)?;
                 Ok(Type::Dynamic)
             }
             TypeKind::Named {
                 name: "unknown",
                 args,
             } => {
-                self.resolve_type_arguments("unknown", args, &[], ty.span)?;
+                self.resolve_type_arguments("unknown", args, 0, ty.span)?;
                 Ok(Type::Unknown)
             }
             TypeKind::Named {
@@ -8775,7 +8751,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 args,
             } => {
                 let [value]: [Type<'src>; 1] = self
-                    .resolve_type_arguments("Record", args, &["$value"], ty.span)?
+                    .resolve_type_arguments("Record", args, 1, ty.span)?
                     .try_into()
                     .expect("Record arity was checked");
                 Ok(Type::Record(Box::new(value)))
@@ -8785,7 +8761,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let declaration = NominalType { identity, name };
                 match identity.kind() {
                     NominalKind::Enum => {
-                        self.resolve_type_arguments(name, args, &[], ty.span)?;
+                        self.resolve_type_arguments(name, args, 0, ty.span)?;
                         Ok(Type::Enum(
                             self.declarations.enums[identity.index()].declaration,
                         ))
@@ -8795,7 +8771,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         let declaration = info.declaration;
                         let parameters = info.type_params.clone();
                         let arguments =
-                            self.resolve_type_arguments(name, args, &parameters, ty.span)?;
+                            self.resolve_type_arguments(name, args, parameters.len(), ty.span)?;
                         if parameters.is_empty() {
                             Ok(Type::Struct(declaration))
                         } else {
@@ -8813,7 +8789,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         };
                         let parameters = info.type_params.clone();
                         let arguments =
-                            self.resolve_type_arguments(name, args, &parameters, ty.span)?;
+                            self.resolve_type_arguments(name, args, parameters.len(), ty.span)?;
                         if parameters.is_empty() {
                             Ok(Type::Class(declaration))
                         } else {
@@ -8857,17 +8833,29 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let mut resolved_params = Vec::with_capacity(params.len());
                 for param in params {
                     resolved_params.push(FunctionParameter {
-                        ty: self.resolve_value_type(param.ty, "function parameter")?,
+                        receiver: param.receiver,
+                        ty: {
+                            let ty = self.resolve_value_type(param.ty, "function parameter")?;
+                            if param.rest {
+                                Type::Array(Box::new(ty))
+                            } else {
+                                ty
+                            }
+                        },
                         passing: param.passing,
-                        default: None,
-                        rest: false,
+                        optional: false,
+                        rest: param.rest,
                     });
                 }
                 let return_type = self.resolve_type(*return_type, true, "function return")?;
-                Ok(Type::Function(FunctionType::new(FunctionSignature {
+                let signature = FunctionSignature {
                     params: resolved_params,
                     return_type: Box::new(return_type),
-                })))
+                };
+                signature
+                    .validate_parameters()
+                    .map_err(|message| AdmittedCheckError::new(ty.span, message))?;
+                Ok(Type::Function(FunctionType::new(signature)))
             }
         }
     }
@@ -8876,15 +8864,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         &self,
         name: &str,
         args: &'ast [TypeRef<'ast, 'src>],
-        parameters: &[&'src str],
+        parameter_count: usize,
         span: Span,
     ) -> Result<Vec<Type<'src>>, AdmittedCheckError> {
-        if args.len() != parameters.len() {
+        if args.len() != parameter_count {
             return Err(AdmittedCheckError::new(
                 span,
                 format!(
                     "type `{name}` expects {} type arguments, found {}",
-                    parameters.len(),
+                    parameter_count,
                     args.len()
                 ),
             ));
@@ -8911,12 +8899,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     }
 
     fn push_type_params(&mut self, params: &[Ident<'src>]) -> Result<(), AdmittedCheckError> {
-        let names = validate_type_params(params)?;
+        let names = validate_type_params(self.module, params)?;
         for parameter in params {
             if self
                 .type_parameter_scopes
                 .iter()
-                .any(|scope| scope.contains(parameter.name))
+                .any(|scope| scope.contains_key(parameter.name))
             {
                 return Err(AdmittedCheckError::new(
                     parameter.span,
@@ -8930,7 +8918,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.budget.push(
             AllocationClass::Scratch,
             &mut self.type_parameter_scopes,
-            names.into_iter().collect(),
+            names
+                .into_iter()
+                .map(|parameter| (parameter.name, parameter))
+                .collect(),
         )?;
         Ok(())
     }
@@ -9256,14 +9247,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         };
         if let NarrowingLeaf::TypeCheck { ident, test, span } = leaf {
             let symbol = self.resolve(ident)?;
-            let target = self
-                .facts
-                .type_check_types
-                .get(&test)
-                .cloned()
-                .ok_or_else(|| {
-                    AdmittedCheckError::new(span, "type guard was not analyzed before narrowing")
-                })?;
+            let target = self.view().type_check_type(test).cloned().ok_or_else(|| {
+                AdmittedCheckError::new(span, "type guard was not analyzed before narrowing")
+            })?;
             let current = self.narrowed_type(symbol.id).unwrap_or(&symbol.ty);
             let remaining = subtract_guarded_type(current, &target);
             let mut then_narrowing = empty_narrowing();
@@ -9474,16 +9460,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
     }
 
-    fn check_module_defaults(
-        &self,
-        params: &[crate::ast::Param<'ast, 'src>],
-    ) -> Result<(), AdmittedCheckError> {
-        // Module checking now admits defaults: the compiler evaluates
-        // an omitted parameter's checked default at each call site.
-        let _ = params;
-        Ok(())
-    }
-
     fn declare_foreign(
         &mut self,
         ident: Ident<'src>,
@@ -9648,7 +9624,18 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     }
 }
 
-fn validate_type_params<'src>(params: &[Ident<'src>]) -> Result<Vec<&'src str>, CheckError> {
+fn validate_type_params<'src>(
+    module: Option<usize>,
+    params: &[Ident<'src>],
+) -> Result<Vec<TypeParameter<'src>>, CheckError> {
+    let module = u32::try_from(module.unwrap_or(0)).map_err(|_| {
+        CheckError::new(
+            params
+                .first()
+                .map_or(Span { start: 0, end: 0 }, |parameter| parameter.span),
+            "source module identity capacity",
+        )
+    })?;
     let mut names = Vec::with_capacity(params.len());
     let mut seen = AHashSet::default();
     for parameter in params {
@@ -9658,7 +9645,13 @@ fn validate_type_params<'src>(params: &[Ident<'src>]) -> Result<Vec<&'src str>, 
                 format!("duplicate type parameter `{}`", parameter.name),
             ));
         }
-        names.push(parameter.name);
+        names.push(TypeParameter {
+            identity: TypeParameterId {
+                module,
+                declaration: parameter.id,
+            },
+            name: parameter.name,
+        });
     }
     Ok(names)
 }
@@ -9668,536 +9661,22 @@ fn validate_type_params<'src>(params: &[Ident<'src>]) -> Result<Vec<&'src str>, 
 fn resolve_parameter_defaults<'ast, 'src>(
     params: &[crate::ast::Param<'ast, 'src>],
     parameters: &mut [FunctionParameter<'src>],
-    scope: &AHashMap<&'src str, NominalId>,
+    _scope: &AHashMap<&'src str, NominalId>,
 ) -> Result<(), CheckError> {
     for (param, parameter) in params.iter().zip(parameters) {
-        let ty = &parameter.ty;
-        parameter.default = (|| {
-            let Some(expression) = &param.default else {
-                return Ok(None);
-            };
-            if parameter.passing == ParameterPassing::MutableReference {
-                return Err(CheckError::new(
-                    param.span,
-                    "mutable-reference parameters cannot have defaults",
-                ));
-            }
-            // `undefined` first: it is spelled as an identifier.
-            if syntactic_js_undefined_default(expression) {
-                return Ok(Some(DefaultValue::PendingUndefined {
-                    expression: expression.id,
-                    span: expression.span(),
-                }));
-            }
-            if let Expr {
-                kind: ExprKind::Ident(identifier),
-                ..
-            } = expression
-            {
-                return Ok(Some(DefaultValue::PendingIdentifier {
-                    expression: expression.id,
-                    span: identifier.span,
-                }));
-            }
-            if let Some((_, actual)) = scalar_default_value(expression) {
-                if !is_type_assignable(ty, &actual) {
-                    return Err(CheckError::new(
-                        expression.span(),
-                        format!("default value has type `{actual}`, expected `{ty}`"),
-                    ));
-                }
-            }
-            literal_default_value(expression, ty, scope)
-                .map(Some)
-                .ok_or_else(|| {
-                    CheckError::new(
-                        expression.span(),
-                        format!(
-                            "default value is not a supported literal for parameter type `{ty}`"
-                        ),
-                    )
-                })
-        })()?;
-    }
-    Ok(())
-}
-
-fn resolve_analyzed_parameter_defaults<'ast, 'src>(
-    params: &[crate::ast::Param<'ast, 'src>],
-    parameters: &mut [FunctionParameter<'src>],
-    model: &CheckedView<'_, '_, 'src>,
-    parameter_defaults_in_scope: bool,
-    global_symbols: &AHashSet<SymbolId>,
-) -> Result<(), CheckError> {
-    resolve_parameter_defaults(params, parameters, &model.facts.type_bindings)?;
-    let parameter_symbols = if parameter_defaults_in_scope {
-        params
-            .iter()
-            .filter_map(|parameter| model.identifier_symbol(parameter.name.id))
-            .collect::<AHashSet<_>>()
-    } else {
-        AHashSet::default()
-    };
-    for (index, param) in params.iter().enumerate() {
-        let Some(expression) = &param.default else {
-            continue;
-        };
-        if parameter_defaults_in_scope
-            && default_contains_arrow_capture(expression, &parameter_symbols, model)
+        parameter.optional = param.default.is_some();
+        if parameter.optional
+            && (parameter.passing == ParameterPassing::MutableReference
+                || parameter.rest
+                || parameter.receiver)
         {
             return Err(CheckError::new(
-                expression.span(),
-                "a parameter default arrow cannot capture a parameter of its containing callable",
+                param.span,
+                "a reference, rest or receiver parameter cannot have a default",
             ));
         }
-        if parameter_defaults_in_scope
-            && default_contains_non_global_arrow_capture(expression, global_symbols, model)
-        {
-            return Err(CheckError::new(
-                expression.span(),
-                "a parameter default arrow cannot capture a local binding outside its callable",
-            ));
-        }
-        if matches!(
-            parameters[index].default,
-            Some(DefaultValue::PendingUndefined { .. })
-        ) {
-            if model.builtin_call(expression.id) == Some(BuiltinCall::JsUndefined)
-                || model.dynamic_operation(expression.id) == Some(BuiltinCall::JsUndefined)
-            {
-                parameters[index].default = Some(DefaultValue::Undefined);
-                continue;
-            }
-            return Err(CheckError::new(
-                expression.span(),
-                "parameter default is not the unshadowed `JS.undefined()` primitive",
-            ));
-        }
-        let Expr {
-            kind: ExprKind::Ident(identifier),
-            ..
-        } = expression
-        else {
-            continue;
-        };
-        let ExpressionResolution::Binding(bound) = model.expression_resolution(expression.id)
-        else {
-            continue;
-        };
-        if parameter_defaults_in_scope {
-            let bound_parameter = params
-                .iter()
-                .position(|candidate| model.identifier_symbol(candidate.name.id) == Some(bound));
-            if let Some(bound_parameter) = bound_parameter {
-                if bound_parameter >= index {
-                    return Err(CheckError::new(
-                        identifier.span,
-                        "parameter defaults can only reference earlier parameters",
-                    ));
-                }
-                parameters[index].default = Some(DefaultValue::Parameter(bound_parameter));
-                continue;
-            }
-        }
-        parameters[index].default = Some(DefaultValue::Symbol(bound));
     }
     Ok(())
-}
-
-/// `JS.undefined()` or `undefined` (R12): a default the parameter keeps
-/// omitted.
-fn syntactic_js_undefined_default(expression: &Expr<'_, '_>) -> bool {
-    if matches!(
-        expression,
-        Expr {
-            kind: ExprKind::Ident(Ident {
-                name: "undefined",
-                ..
-            }),
-            ..
-        }
-    ) {
-        return true;
-    }
-    matches!(
-        expression,
-        Expr { kind: ExprKind::Call {
-            callee,
-            args,
-            ..
-        }, .. } if args.is_empty()
-            && matches!(
-                callee,
-                Expr { kind: ExprKind::Member {
-                    object,
-                    property: Ident { name: "undefined", .. },
-                    ..
-                }, .. } if matches!(object, Expr { kind: ExprKind::Ident(Ident { name: "JS", .. }), .. })
-            )
-    )
-}
-
-fn default_contains_arrow_capture(
-    expression: &Expr<'_, '_>,
-    parameter_symbols: &AHashSet<SymbolId>,
-    model: &CheckedView<'_, '_, '_>,
-) -> bool {
-    let mut arrows = Vec::new();
-    collect_default_arrows(expression, &mut arrows);
-    arrows.iter().any(|arrow| {
-        referenced_symbols(arrow, model)
-            .iter()
-            .any(|symbol| parameter_symbols.contains(symbol))
-    })
-}
-
-fn default_contains_non_global_arrow_capture(
-    expression: &Expr<'_, '_>,
-    global_symbols: &AHashSet<SymbolId>,
-    model: &CheckedView<'_, '_, '_>,
-) -> bool {
-    let mut arrows = Vec::new();
-    collect_default_arrows(expression, &mut arrows);
-    arrows.iter().any(|arrow| {
-        let span = arrow.span();
-        referenced_symbols(arrow, model).iter().any(|symbol| {
-            !global_symbols.contains(symbol)
-                && model
-                    .declarations
-                    .symbols
-                    .get(symbol.0 as usize)
-                    .is_some_and(|symbol| {
-                        symbol.span.start < span.start || symbol.span.end > span.end
-                    })
-        })
-    })
-}
-
-/// The symbols the identifiers `expression` holds resolve to.
-fn referenced_symbols(expression: &Expr<'_, '_>, model: &CheckedView<'_, '_, '_>) -> Vec<SymbolId> {
-    let mut symbols = Vec::new();
-    crate::ast_walk::expression(expression, &mut |expression| {
-        if let ExprKind::Ident(ident) = &expression.kind {
-            symbols.extend(model.identifier_symbol(ident.id));
-        }
-    });
-    symbols
-}
-
-fn collect_default_arrows<'ast, 'src>(
-    expression: &'ast Expr<'ast, 'src>,
-    arrows: &mut Vec<&'ast Expr<'ast, 'src>>,
-) {
-    match expression {
-        Expr {
-            kind: ExprKind::ArrowFunction { .. },
-            ..
-        } => arrows.push(expression),
-        Expr {
-            kind: ExprKind::ArrayLiteral { elements, .. },
-            ..
-        } => {
-            for element in *elements {
-                if let ArrayElement::Value(value) = element {
-                    collect_default_arrows(value, arrows);
-                }
-            }
-        }
-        Expr {
-            kind: ExprKind::StructLiteral { values, .. },
-            ..
-        } => {
-            for value in *values {
-                collect_default_arrows(value, arrows);
-            }
-        }
-        Expr {
-            kind: ExprKind::New { args, .. },
-            ..
-        } => {
-            for argument in *args {
-                collect_default_arrows(&argument.expression, arrows);
-            }
-        }
-        _ => {}
-    }
-}
-
-// A read-only check avoids detaching an already resolved shared signature.
-// Pending metadata is a semantic obligation, not a mutable cache flag.
-fn default_has_pending_bindings(value: &DefaultValue<'_>) -> bool {
-    match value {
-        DefaultValue::PendingIdentifier { .. } | DefaultValue::PendingUndefined { .. } => true,
-        DefaultValue::Array(values) | DefaultValue::Struct { values, .. } => {
-            values.iter().any(default_has_pending_bindings)
-        }
-        DefaultValue::NewClass { args, .. } => args.iter().any(default_has_pending_bindings),
-        _ => false,
-    }
-}
-
-fn type_has_default_matching(ty: &Type<'_>, matches: fn(&DefaultValue<'_>) -> bool) -> bool {
-    match ty {
-        Type::Array(value)
-        | Type::Record(value)
-        | Type::Set(value)
-        | Type::Task(value)
-        | Type::Generator(value)
-        | Type::Nullable(value) => type_has_default_matching(value, matches),
-        Type::Map(key, value) => {
-            type_has_default_matching(key, matches) || type_has_default_matching(value, matches)
-        }
-        Type::Union(members)
-        | Type::StructInstance { args: members, .. }
-        | Type::ClassInstance { args: members, .. } => members
-            .iter()
-            .any(|ty| type_has_default_matching(ty, matches)),
-        Type::Function(signature) => signature_has_default_matching(signature, matches),
-        Type::GenericFunction(function) => {
-            signature_has_default_matching(&function.signature, matches)
-        }
-        _ => false,
-    }
-}
-
-fn signature_has_pending_bindings(signature: &FunctionType<'_>) -> bool {
-    signature_has_default_matching(signature, default_has_pending_bindings)
-}
-
-fn signature_has_default_matching(
-    signature: &FunctionType<'_>,
-    matches: fn(&DefaultValue<'_>) -> bool,
-) -> bool {
-    signature.params.iter().any(|parameter| {
-        type_has_default_matching(&parameter.ty, matches)
-            || parameter.default.as_ref().is_some_and(matches)
-    }) || type_has_default_matching(&signature.return_type, matches)
-}
-
-fn finalize_default_bindings_in_signature<'src>(
-    signature: &mut FunctionType<'src>,
-    source_info: &[SourceInfo<'_, 'src>],
-    owned: bool,
-) -> Result<(), CheckError> {
-    if !signature_has_pending_bindings(signature) {
-        return Ok(());
-    }
-    let signature = signature.make_mut();
-    for parameter in &mut signature.params {
-        finalize_default_bindings_in_type(&mut parameter.ty, source_info, owned)?;
-        if let Some(default) = &mut parameter.default {
-            finalize_default_binding(default, source_info, owned)?;
-        }
-    }
-    finalize_default_bindings_in_type(&mut signature.return_type, source_info, owned)
-}
-
-/// `owned`: only finalize a pending default whose source entry is that exact
-/// occurrence (same span). A module finalizes the defaults it declared; a
-/// default another module owns is left for that module.
-fn finalize_default_binding<'src>(
-    default: &mut DefaultValue<'src>,
-    source_info: &[SourceInfo<'_, 'src>],
-    owned: bool,
-) -> Result<(), CheckError> {
-    if owned {
-        if let DefaultValue::PendingIdentifier { expression, span }
-        | DefaultValue::PendingUndefined { expression, span } = default
-        {
-            let same = source_info
-                .get(expression.index())
-                .and_then(|info| info.expression)
-                .is_some_and(|occurrence| occurrence.span() == *span);
-            if !same {
-                return Ok(());
-            }
-        }
-    }
-    match default {
-        DefaultValue::PendingIdentifier { expression, span } => {
-            let Some(ExpressionResolution::Binding(symbol)) = source_info
-                .get(expression.index())
-                .map(|info| info.resolution)
-            else {
-                return Err(CheckError::new(
-                    *span,
-                    "missing analyzed parameter-default binding",
-                ));
-            };
-            *default = DefaultValue::Symbol(symbol);
-        }
-        DefaultValue::PendingUndefined { expression, span } => {
-            if source_info
-                .get(expression.index())
-                .map(|info| info.resolution)
-                .is_none_or(|resolution| {
-                    !matches!(
-                        resolution,
-                        ExpressionResolution::Builtin(BuiltinCall::JsUndefined)
-                            | ExpressionResolution::Dynamic(BuiltinCall::JsUndefined)
-                    )
-                })
-            {
-                return Err(CheckError::new(
-                    *span,
-                    "parameter default is not the unshadowed `JS.undefined()` primitive",
-                ));
-            }
-            *default = DefaultValue::Undefined;
-        }
-        DefaultValue::Array(values) => {
-            for value in values {
-                finalize_default_binding(value, source_info, owned)?;
-            }
-        }
-        DefaultValue::Struct { values, .. } => {
-            for value in values {
-                finalize_default_binding(value, source_info, owned)?;
-            }
-        }
-        DefaultValue::NewClass { args, .. } => {
-            for argument in args {
-                finalize_default_binding(argument, source_info, owned)?;
-            }
-        }
-        DefaultValue::Int(_)
-        | DefaultValue::Float(_)
-        | DefaultValue::String(_)
-        | DefaultValue::Bool(_)
-        | DefaultValue::Null
-        | DefaultValue::Undefined
-        | DefaultValue::Symbol(_)
-        | DefaultValue::Parameter(_)
-        | DefaultValue::Arrow(_) => {}
-    }
-    Ok(())
-}
-
-fn finalize_default_bindings_in_type<'src>(
-    ty: &mut Type<'src>,
-    source_info: &[SourceInfo<'_, 'src>],
-    owned: bool,
-) -> Result<(), CheckError> {
-    match ty {
-        Type::Array(value)
-        | Type::Record(value)
-        | Type::Set(value)
-        | Type::Task(value)
-        | Type::Generator(value)
-        | Type::Nullable(value) => finalize_default_bindings_in_type(value, source_info, owned)?,
-        Type::Map(key, value) => {
-            finalize_default_bindings_in_type(key, source_info, owned)?;
-            finalize_default_bindings_in_type(value, source_info, owned)?;
-        }
-        Type::Union(members)
-        | Type::StructInstance { args: members, .. }
-        | Type::ClassInstance { args: members, .. } => {
-            for member in members {
-                finalize_default_bindings_in_type(member, source_info, owned)?;
-            }
-        }
-        Type::Function(signature) => {
-            finalize_default_bindings_in_signature(signature, source_info, owned)?;
-        }
-        Type::GenericFunction(function) => {
-            finalize_default_bindings_in_signature(&mut function.signature, source_info, owned)?;
-        }
-        Type::Int
-        | Type::Float
-        | Type::Enum(_)
-        | Type::String
-        | Type::Bool
-        | Type::Null
-        | Type::Void
-        | Type::ArrayBuffer
-        | Type::SharedArrayBuffer
-        | Type::Int8Array
-        | Type::Uint8Array
-        | Type::Uint8ClampedArray
-        | Type::Int16Array
-        | Type::Uint16Array
-        | Type::Int32Array
-        | Type::Uint32Array
-        | Type::Float32Array
-        | Type::Float64Array
-        | Type::Symbol
-        | Type::Regex
-        | Type::ModuleNamespace(_)
-        | Type::ModuleLoadError
-        | Type::Struct(_)
-        | Type::Class(_)
-        | Type::TypeParameter(_)
-        | Type::Dynamic
-        | Type::Unknown => {}
-    }
-    Ok(())
-}
-
-fn strip_parameter_defaults_from_type(ty: &mut Type<'_>) {
-    match ty {
-        Type::Array(value)
-        | Type::Record(value)
-        | Type::Set(value)
-        | Type::Task(value)
-        | Type::Generator(value)
-        | Type::Nullable(value) => strip_parameter_defaults_from_type(value),
-        Type::Map(key, value) => {
-            strip_parameter_defaults_from_type(key);
-            strip_parameter_defaults_from_type(value);
-        }
-        Type::Union(members)
-        | Type::StructInstance { args: members, .. }
-        | Type::ClassInstance { args: members, .. } => {
-            for member in members {
-                strip_parameter_defaults_from_type(member);
-            }
-        }
-        Type::Function(signature) => {
-            strip_parameter_defaults_from_signature(signature);
-        }
-        Type::GenericFunction(function) => {
-            strip_parameter_defaults_from_signature(&mut function.signature);
-        }
-        Type::Int
-        | Type::Float
-        | Type::Enum(_)
-        | Type::String
-        | Type::Bool
-        | Type::Null
-        | Type::Void
-        | Type::ArrayBuffer
-        | Type::SharedArrayBuffer
-        | Type::Int8Array
-        | Type::Uint8Array
-        | Type::Uint8ClampedArray
-        | Type::Int16Array
-        | Type::Uint16Array
-        | Type::Int32Array
-        | Type::Uint32Array
-        | Type::Float32Array
-        | Type::Float64Array
-        | Type::Symbol
-        | Type::Regex
-        | Type::ModuleNamespace(_)
-        | Type::ModuleLoadError
-        | Type::Struct(_)
-        | Type::Class(_)
-        | Type::TypeParameter(_)
-        | Type::Dynamic
-        | Type::Unknown => {}
-    }
-}
-
-fn strip_parameter_defaults_from_signature(signature: &mut FunctionType<'_>) {
-    if !signature_has_default_matching(signature, |_| true) {
-        return;
-    }
-    let signature = signature.make_mut();
-    for parameter in &mut signature.params {
-        parameter.default = None;
-        strip_parameter_defaults_from_type(&mut parameter.ty);
-    }
-    strip_parameter_defaults_from_type(&mut signature.return_type);
 }
 
 #[cfg(test)]
@@ -10220,150 +9699,6 @@ mod constructor_ownership_tests;
 #[path = "check/type_resolution_tests.rs"]
 mod type_resolution_tests;
 
-fn literal_default_value<'ast, 'src>(
-    expression: &Expr<'ast, 'src>,
-    expected: &Type<'src>,
-    scope: &AHashMap<&'src str, NominalId>,
-) -> Option<DefaultValue<'src>> {
-    if matches!(expression.kind, ExprKind::ArrowFunction { .. }) {
-        return matches!(expected, Type::Function(_)).then_some(DefaultValue::Arrow(expression.id));
-    }
-    if let Expr {
-        kind: ExprKind::StructLiteral { name, values, .. },
-        ..
-    } = expression
-    {
-        let declaration = nominal_default_declaration(expected, NominalKind::Struct)?;
-        if scope.get(name.name) != Some(&declaration.identity) {
-            return None;
-        }
-        return values
-            .iter()
-            .map(|value| uncontextualized_default_value(value, scope))
-            .collect::<Option<Vec<_>>>()
-            .map(|values| DefaultValue::Struct {
-                declaration,
-                values,
-            });
-    }
-    if let Expr {
-        kind: ExprKind::New { class, args, .. },
-        ..
-    } = expression
-    {
-        let declaration = nominal_default_declaration(expected, NominalKind::Class)?;
-        if scope.get(class.name) != Some(&declaration.identity) {
-            return None;
-        }
-        return args
-            .iter()
-            .map(|argument| {
-                (argument.passing == ParameterPassing::Value)
-                    .then(|| uncontextualized_default_value(&argument.expression, scope))
-                    .flatten()
-            })
-            .collect::<Option<Vec<_>>>()
-            .map(|args| DefaultValue::NewClass { declaration, args });
-    }
-    if let Expr {
-        kind: ExprKind::ArrayLiteral { elements, .. },
-        ..
-    } = expression
-    {
-        let element = expected_array_element(expected)?;
-        return elements
-            .iter()
-            .map(|element_value| match element_value {
-                ArrayElement::Value(value) => literal_default_value(value, element, scope),
-                ArrayElement::Spread { .. } => None,
-            })
-            .collect::<Option<Vec<_>>>()
-            .map(DefaultValue::Array);
-    }
-    let (value, actual) = scalar_default_value(expression)?;
-    is_type_assignable(expected, &actual).then_some(value)
-}
-
-fn uncontextualized_default_value<'ast, 'src>(
-    expression: &Expr<'ast, 'src>,
-    scope: &AHashMap<&'src str, NominalId>,
-) -> Option<DefaultValue<'src>> {
-    if let Some((value, _)) = scalar_default_value(expression) {
-        return Some(value);
-    }
-    match expression {
-        Expr {
-            kind: ExprKind::ArrayLiteral { elements, .. },
-            ..
-        } => elements
-            .iter()
-            .map(|element| match element {
-                ArrayElement::Value(value) => uncontextualized_default_value(value, scope),
-                ArrayElement::Spread { .. } => None,
-            })
-            .collect::<Option<Vec<_>>>()
-            .map(DefaultValue::Array),
-        Expr {
-            kind: ExprKind::ArrowFunction { .. },
-            ..
-        } => Some(DefaultValue::Arrow(expression.id)),
-        Expr {
-            kind: ExprKind::StructLiteral { name, values, .. },
-            ..
-        } => {
-            let identity = scope.get(name.name).copied().filter(|id| id.is_struct())?;
-            let declaration = NominalType {
-                identity,
-                name: name.name,
-            };
-            values
-                .iter()
-                .map(|value| uncontextualized_default_value(value, scope))
-                .collect::<Option<Vec<_>>>()
-                .map(|values| DefaultValue::Struct {
-                    declaration,
-                    values,
-                })
-        }
-        Expr {
-            kind: ExprKind::New { class, args, .. },
-            ..
-        } => {
-            let identity = scope.get(class.name).copied().filter(|id| id.is_class())?;
-            let declaration = NominalType {
-                identity,
-                name: class.name,
-            };
-            args.iter()
-                .map(|argument| {
-                    (argument.passing == ParameterPassing::Value)
-                        .then(|| uncontextualized_default_value(&argument.expression, scope))
-                        .flatten()
-                })
-                .collect::<Option<Vec<_>>>()
-                .map(|args| DefaultValue::NewClass { declaration, args })
-        }
-        _ => None,
-    }
-}
-
-fn nominal_default_declaration<'src>(
-    ty: &Type<'src>,
-    kind: NominalKind,
-) -> Option<NominalType<'src>> {
-    match (kind, ty) {
-        (NominalKind::Struct, Type::Struct(declaration))
-        | (NominalKind::Struct, Type::StructInstance { declaration, .. })
-        | (NominalKind::Class, Type::Class(declaration))
-        | (NominalKind::Class, Type::ClassInstance { declaration, .. }) => Some(*declaration),
-        (_, Type::Nullable(inner)) => nominal_default_declaration(inner, kind),
-        (_, Type::Union(members)) => members
-            .iter()
-            .find_map(|member| nominal_default_declaration(member, kind)),
-        _ => None,
-    }
-}
-
 fn expected_array_type<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Type<'src>> {
     match ty {
         Type::Array(_) => Some(ty),
@@ -10382,56 +9717,9 @@ fn expected_array_element<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Type<'s
     }
 }
 
-fn scalar_default_value<'ast, 'src>(
-    expression: &Expr<'ast, 'src>,
-) -> Option<(DefaultValue<'src>, Type<'src>)> {
-    match expression {
-        Expr {
-            kind: ExprKind::Int(value, _),
-            ..
-        } => Some((DefaultValue::Int(*value), Type::Int)),
-        Expr {
-            kind: ExprKind::Float(value, _),
-            ..
-        } => Some((DefaultValue::Float(value.to_bits()), Type::Float)),
-        Expr {
-            kind: ExprKind::String(value, _),
-            ..
-        } => Some((DefaultValue::String(value), Type::String)),
-        Expr {
-            kind: ExprKind::Bool(value, _),
-            ..
-        } => Some((DefaultValue::Bool(*value), Type::Bool)),
-        Expr {
-            kind: ExprKind::Null(_),
-            ..
-        } => Some((DefaultValue::Null, Type::Null)),
-        Expr {
-            kind:
-                ExprKind::Unary {
-                    op: UnaryOp::Neg,
-                    expr,
-                    ..
-                },
-            ..
-        } => match *expr {
-            Expr {
-                kind: ExprKind::Int(value, _),
-                ..
-            } => Some((DefaultValue::Int(value.wrapping_neg()), Type::Int)),
-            Expr {
-                kind: ExprKind::Float(value, _),
-                ..
-            } => Some((DefaultValue::Float((-value).to_bits()), Type::Float)),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
 fn applied_class_type<'src>(
     declaration: NominalType<'src>,
-    parameters: &[&'src str],
+    parameters: &[TypeParameter<'src>],
 ) -> Type<'src> {
     if parameters.is_empty() {
         Type::Class(declaration)
@@ -10440,7 +9728,7 @@ fn applied_class_type<'src>(
             declaration,
             args: parameters
                 .iter()
-                .map(|parameter| Type::TypeParameter(parameter))
+                .map(|parameter| Type::TypeParameter(*parameter))
                 .collect(),
         }
     }
@@ -10448,11 +9736,11 @@ fn applied_class_type<'src>(
 
 fn substitute_type<'src>(
     ty: &Type<'src>,
-    substitutions: &AHashMap<&'src str, Type<'src>>,
+    substitutions: &AHashMap<TypeParameterId, Type<'src>>,
 ) -> Type<'src> {
     match type_substitution::substitute_type_with(
         ty,
-        &mut |name, _: &mut type_relation::Unmetered| Ok(substitutions.get(name)),
+        &mut |name, _: &mut type_relation::Unmetered| Ok(substitutions.get(&name)),
         &mut type_relation::Unmetered,
     ) {
         Ok(value) => value,
@@ -10461,19 +9749,19 @@ fn substitute_type<'src>(
 }
 
 fn substitutions_for<'src>(
-    parameters: &[&'src str],
+    parameters: &[TypeParameter<'src>],
     arguments: &[Type<'src>],
-) -> AHashMap<&'src str, Type<'src>> {
+) -> AHashMap<TypeParameterId, Type<'src>> {
     parameters
         .iter()
-        .copied()
+        .map(|parameter| parameter.identity)
         .zip(arguments.iter().cloned())
         .collect()
 }
 
 fn method_callable_type<'src>(
     method: &MethodInfo<'src>,
-    substitutions: &AHashMap<&'src str, Type<'src>>,
+    substitutions: &AHashMap<TypeParameterId, Type<'src>>,
 ) -> Type<'src> {
     let signature = match substitute_type(&Type::Function(method.signature.clone()), substitutions)
     {
@@ -10490,9 +9778,9 @@ fn method_callable_type<'src>(
     }
 }
 
-fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
+fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<TypeParameterId>) -> bool {
     match ty {
-        Type::TypeParameter(name) => parameters.contains(name),
+        Type::TypeParameter(name) => parameters.contains(&name.identity),
         Type::Array(element) => contains_type_parameter(element, parameters),
         Type::Record(value) => contains_type_parameter(value, parameters),
         Type::Map(key, value) => {
@@ -10530,18 +9818,18 @@ fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
 fn infer_type_arguments<'src>(
     pattern: &Type<'src>,
     actual: &Type<'src>,
-    parameters: &AHashSet<&'src str>,
-    substitutions: &mut AHashMap<&'src str, Type<'src>>,
+    parameters: &AHashSet<TypeParameterId>,
+    substitutions: &mut AHashMap<TypeParameterId, Type<'src>>,
     span: Span,
 ) -> Result<(), CheckError> {
     match (pattern, actual) {
-        (Type::TypeParameter(name), actual) if parameters.contains(name) => {
-            if let Some(previous) = substitutions.get(name) {
+        (Type::TypeParameter(name), actual) if parameters.contains(&name.identity) => {
+            if let Some(previous) = substitutions.get(&name.identity) {
                 if is_type_assignable(previous, actual) {
                     return Ok(());
                 }
                 if is_type_assignable(actual, previous) {
-                    substitutions.insert(name, actual.clone());
+                    substitutions.insert(name.identity, actual.clone());
                 } else {
                     return Err(CheckError::new(
                         span,
@@ -10549,7 +9837,7 @@ fn infer_type_arguments<'src>(
                     ));
                 }
             } else {
-                substitutions.insert(name, actual.clone());
+                substitutions.insert(name.identity, actual.clone());
             }
         }
         (Type::Array(pattern), Type::Array(actual)) => {
@@ -10873,7 +10161,7 @@ fn count_stmt_super_calls(statement: &Stmt<'_, '_>) -> usize {
 
 fn statement_contains_loop_control(statement: &Stmt<'_, '_>, inside_loop: bool) -> bool {
     match statement {
-        Stmt::Break(_) | Stmt::Continue(_) => !inside_loop,
+        Stmt::Break(_, ..) | Stmt::Continue(_, ..) => !inside_loop,
         Stmt::Block { body, .. } => body
             .iter()
             .any(|stmt| statement_contains_loop_control(stmt, inside_loop)),
@@ -10919,7 +10207,7 @@ fn statement_contains_loop_control(statement: &Stmt<'_, '_>, inside_loop: bool) 
 
 fn statement_contains_break(statement: &Stmt<'_, '_>) -> bool {
     match statement {
-        Stmt::Break(_) => true,
+        Stmt::Break(_, ..) => true,
         Stmt::Block { body, .. } => body.iter().any(statement_contains_break),
         Stmt::If {
             then_branch,
@@ -10993,7 +10281,7 @@ fn buffer_member<'src>(
         "slice" => Ok(Type::Function(FunctionType::new(FunctionSignature {
             params: vec![
                 FunctionParameter::value(Type::Int),
-                FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                FunctionParameter::optional(Type::Int),
             ],
             return_type: Box::new(return_type),
         }))),
@@ -11170,7 +10458,9 @@ fn crosses_by_conversion(ty: &Type<'_>) -> bool {
 /// branches leave.
 fn statement_leaves(statement: &Stmt<'_, '_>) -> bool {
     match statement {
-        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_) | Stmt::Continue(_) => true,
+        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {
+            true
+        }
         Stmt::Block { body, .. } => body.last().is_some_and(statement_leaves),
         Stmt::If {
             then_branch,
@@ -11194,12 +10484,6 @@ fn mark_rest_parameter<'src>(
     else {
         return Ok(());
     };
-    if let Some(param) = params.iter().find(|param| param.default.is_some()) {
-        return Err(AdmittedCheckError::new(
-            param.span,
-            "a function with a rest parameter takes no parameter defaults",
-        ));
-    }
     if last.parameter.passing != ParameterPassing::Value {
         return Err(AdmittedCheckError::new(
             last.span,
@@ -11214,71 +10498,24 @@ fn mark_rest_parameter<'src>(
     Ok(())
 }
 
-/// A constructor's parameters are declared one by one for now.
-fn refuse_rest_parameter(params: &[crate::ast::Param<'_, '_>]) -> Result<(), AdmittedCheckError> {
-    match params
-        .iter()
-        .find(|param| param.role == crate::ast::ParamRole::Rest)
-    {
-        Some(param) => Err(AdmittedCheckError::new(
-            param.span,
-            "a constructor's rest parameter is not supported yet",
-        )),
-        None => Ok(()),
-    }
-}
-
-/// The adapter a lambda's parameter roles name (R7), if it has a receiver or
-/// a rest parameter: `JS.method<N>` for a receiver and `N` arguments,
-/// `JS.methodRest` for a receiver and the rest, `JS.staticRest` for the rest
-/// alone.
-fn method_adapter(params: &[crate::ast::Param<'_, '_>]) -> Result<Option<BuiltinCall>, CheckError> {
+/// Receiver and rest positions are syntax contracts, independent of any
+/// JavaScript adapter arity or target representation.
+fn validate_parameter_roles(params: &[crate::ast::Param<'_, '_>]) -> Result<(), CheckError> {
     use crate::ast::ParamRole;
-    let receiver = params
-        .first()
-        .is_some_and(|param| param.role == ParamRole::Receiver);
-    let rest = params
-        .last()
-        .is_some_and(|param| param.role == ParamRole::Rest);
-    if let Some(misplaced) = params
-        .iter()
-        .enumerate()
-        .find(|(index, param)| match param.role {
-            ParamRole::Value => false,
-            ParamRole::Receiver => *index != 0,
-            ParamRole::Rest => *index + 1 != params.len(),
-        })
-    {
-        return Err(CheckError::new(
-            misplaced.1.span,
-            "the receiver is the first parameter and the rest the last",
-        ));
-    }
-    let adapter = match (receiver, rest, params.len()) {
-        (false, false, _) => return Ok(None),
-        (true, true, 2) => BuiltinCall::JsMethodRest,
-        (false, true, 1) => BuiltinCall::JsStaticRest,
-        (true, false, count) if count <= 11 => match count - 1 {
-            0 => BuiltinCall::JsMethod0,
-            1 => BuiltinCall::JsMethod1,
-            2 => BuiltinCall::JsMethod2,
-            3 => BuiltinCall::JsMethod3,
-            4 => BuiltinCall::JsMethod4,
-            5 => BuiltinCall::JsMethod5,
-            6 => BuiltinCall::JsMethod6,
-            7 => BuiltinCall::JsMethod7,
-            8 => BuiltinCall::JsMethod8,
-            9 => BuiltinCall::JsMethod9,
-            _ => BuiltinCall::JsMethod10,
-        },
-        _ => {
+    for (index, param) in params.iter().enumerate() {
+        if (param.role == ParamRole::Receiver
+            && (index != 0
+                || param.default.is_some()
+                || param.parameter.passing != ParameterPassing::Value))
+            || (param.role == ParamRole::Rest && index + 1 != params.len())
+        {
             return Err(CheckError::new(
-                params[0].span,
-                "a method takes a receiver and up to ten arguments, or a receiver and the rest, or the rest alone",
-            ))
+                param.span,
+                "the receiver is the first value parameter without a default, and the rest is last",
+            ));
         }
-    };
-    Ok(Some(adapter))
+    }
+    Ok(())
 }
 
 /// The names `new` constructs as builtin types before any binding:
@@ -11533,19 +10770,23 @@ mod tests {
         assert_eq!(
             signature.params[0],
             FunctionParameter {
+                receiver: false,
                 ty: Type::Struct(model.struct_type("Point").unwrap()),
                 passing: ParameterPassing::MutableReference,
-                default: None,
+                optional: false,
                 rest: false,
             }
         );
         let Item::Function(forward) = &source.items[2] else {
             panic!("forward")
         };
-        let Stmt::Expr(Expr {
-            kind: ExprKind::Call { args, .. },
-            ..
-        }) = &forward.body[0]
+        let Stmt::Expr(
+            Expr {
+                kind: ExprKind::Call { args, .. },
+                ..
+            },
+            ..,
+        ) = &forward.body[0]
         else {
             panic!("call")
         };
@@ -11718,7 +10959,7 @@ mod tests {
             signature.params,
             vec![
                 FunctionParameter::value(Type::Int),
-                FunctionParameter::defaulted(Type::Int, DefaultValue::Int(3))
+                FunctionParameter::optional(Type::Int)
             ]
         );
         assert_eq!(signature.validate_parameters(), Ok(()));
@@ -11737,17 +10978,20 @@ mod tests {
         let reference = FunctionType::new(FunctionSignature {
             params: vec![
                 FunctionParameter {
-                    ty: Type::TypeParameter("T"),
+                    receiver: false,
+                    ty: Type::TypeParameter(crate::check::TypeParameter::fixture("T")),
                     passing: ParameterPassing::MutableReference,
-                    default: None,
+                    optional: false,
                     rest: false,
                 },
-                FunctionParameter::defaulted(Type::Int, DefaultValue::Int(3)),
+                FunctionParameter::optional(Type::Int),
             ],
-            return_type: Box::new(Type::TypeParameter("T")),
+            return_type: Box::new(Type::TypeParameter(crate::check::TypeParameter::fixture(
+                "T",
+            ))),
         });
         let mut substitutions = AHashMap::default();
-        substitutions.insert("T", Type::Int);
+        substitutions.insert(TypeParameter::fixture("T").identity, Type::Int);
         let Type::Function(reference) = substitute_type(&Type::Function(reference), &substitutions)
         else {
             panic!("function")
@@ -11757,7 +11001,7 @@ mod tests {
             reference.params[0].passing,
             ParameterPassing::MutableReference
         );
-        assert_eq!(reference.params[1].default, Some(DefaultValue::Int(3)));
+        assert!(reference.params[1].optional);
         assert_eq!(*reference.return_type, Type::Int);
         let mut value = reference.clone();
         value.make_mut().params[0].passing = ParameterPassing::Value;
@@ -11772,7 +11016,7 @@ mod tests {
         assert!(members.contains(&reference) && members.contains(&value));
         let wrapped = Type::Nullable(Box::new(Type::Array(Box::new(Type::GenericFunction(
             GenericFunctionType {
-                type_params: vec!["T"],
+                type_params: vec![crate::check::TypeParameter::fixture("T")],
                 signature: FunctionType::new(FunctionSignature {
                     params: Vec::new(),
                     return_type: Box::new(reference),
@@ -11786,10 +11030,7 @@ mod tests {
     #[test]
     fn parameter_record_validation_rejects_reference_defaults_and_required_suffixes() {
         let mut signature = FunctionSignature {
-            params: vec![FunctionParameter::defaulted(
-                Type::Int,
-                DefaultValue::Int(1),
-            )],
+            params: vec![FunctionParameter::optional(Type::Int)],
             return_type: Box::new(Type::Void),
         };
         signature.params[0].passing = ParameterPassing::MutableReference;
@@ -11803,7 +11044,7 @@ mod tests {
             signature.validate_parameters(),
             Err("required parameters cannot follow defaulted parameters")
         );
-        signature.params[0].default = None;
+        signature.params[0].optional = false;
         signature.params[0].passing = ParameterPassing::MutableReference;
         assert_eq!(signature.validate_parameters(), Ok(()));
     }
@@ -11897,8 +11138,8 @@ mod tests {
         let integer_id = integer.id;
         let string_id = string.id;
         let items = arena.alloc_slice_fill_iter([
-            Item::Stmt(Stmt::Expr(integer)),
-            Item::Stmt(Stmt::Expr(string)),
+            Item::Stmt(Stmt::Expr(integer, nodes.node())),
+            Item::Stmt(Stmt::Expr(string, nodes.node())),
         ]);
         let program = empty.with_items(&nodes, items);
         let model = analyze(&program).unwrap();
@@ -11912,90 +11153,6 @@ mod tests {
         assert!(!model.belongs_to(other.source_identity()));
         assert!(crate::interpreter::interpret_program(&other, &model).is_err());
         assert!(crate::program::from_checked_source(&other, &model).is_err());
-    }
-
-    #[test]
-    fn shared_callable_metadata_finalizes_in_each_checking_context() {
-        use super::*;
-        // Class and enum types carry their identity with their display name;
-        // M4.2 interns types by id without source lifetimes.
-        assert!(std::mem::size_of::<Type>() <= 56);
-        assert_eq!(
-            std::mem::size_of::<FunctionType>(),
-            std::mem::size_of::<usize>()
-        );
-        let span = Span { start: 10, end: 11 };
-        let nodes = crate::ast::SourceNodes::default();
-        // The identifier is a node of its own (M4.4), allocated first; the
-        // expression takes the next id.
-        let expression = nodes.expression(ExprKind::Ident(nodes.ident("defaultValue", span)));
-        let unrelated = || SourceInfo {
-            expression: None,
-            resolution: ExpressionResolution::None,
-        };
-        let pending = DefaultValue::PendingIdentifier {
-            expression: expression.id,
-            span,
-        };
-        let nested = FunctionType::new(FunctionSignature {
-            params: vec![FunctionParameter::defaulted(Type::Int, pending.clone())],
-            return_type: Box::new(Type::Int),
-        });
-        let original = FunctionType::new(FunctionSignature {
-            params: vec![FunctionParameter::value(Type::Array(Box::new(
-                Type::Function(nested),
-            )))],
-            return_type: Box::new(Type::Void),
-        });
-        let mut first = original.clone();
-        let mut second = original.clone();
-        let first_source = [
-            unrelated(),
-            SourceInfo {
-                expression: Some(&expression),
-                resolution: ExpressionResolution::Binding(SymbolId(41)),
-            },
-        ];
-        let second_source = [
-            unrelated(),
-            SourceInfo {
-                expression: Some(&expression),
-                resolution: ExpressionResolution::Binding(SymbolId(82)),
-            },
-        ];
-        finalize_default_bindings_in_signature(&mut first, &first_source, false).unwrap();
-        finalize_default_bindings_in_signature(&mut second, &second_source, false).unwrap();
-        fn default<'src>(signature: &FunctionType<'src>) -> DefaultValue<'src> {
-            let Type::Array(element) = &signature.params[0].ty else {
-                panic!("array parameter")
-            };
-            let Type::Function(nested) = element.as_ref() else {
-                panic!("callable element")
-            };
-            nested.params[0].default.clone().unwrap()
-        }
-        assert_eq!(default(&first), DefaultValue::Symbol(SymbolId(41)));
-        assert_eq!(default(&second), DefaultValue::Symbol(SymbolId(82)));
-        assert_eq!(default(&original), pending);
-        assert!(!signature_has_pending_bindings(&first));
-        assert!(!signature_has_pending_bindings(&second));
-        assert!(signature_has_pending_bindings(&original));
-        let mut stripped = Type::Function(first.clone());
-        strip_parameter_defaults_from_type(&mut stripped);
-        let Type::Function(stripped) = stripped else {
-            unreachable!()
-        };
-        let Type::Array(element) = &stripped.params[0].ty else {
-            panic!("array parameter")
-        };
-        let Type::Function(nested) = element.as_ref() else {
-            panic!("callable element")
-        };
-        assert!(nested
-            .params
-            .iter()
-            .all(|parameter| parameter.default.is_none()));
-        assert_eq!(default(&first), DefaultValue::Symbol(SymbolId(41)));
     }
 
     use bumpalo::Bump;
@@ -12041,7 +11198,7 @@ mod tests {
                 checked_ids.push(expression.id);
             }
             let mut items = prefix.items.to_vec();
-            items.push(Item::Stmt(Stmt::Expr(expression)));
+            items.push(Item::Stmt(Stmt::Expr(expression, nodes.node())));
             let items = arena.alloc_slice_fill_iter(items);
             let program = prefix.with_items(&nodes, items);
             let model = analyze(&program).unwrap();
@@ -12184,7 +11341,7 @@ mod tests {
             .unwrap()
             .id;
         // `a`'s declaring identifier (M4.4: facts are keyed by node).
-        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(declaration, ..)) = &program.items[0] else {
             unreachable!("the program starts with `int a=1;`")
         };
         let node = declaration.name.id;
@@ -12917,64 +12074,23 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_parameter_defaults() {
-        let arena = Bump::new();
-        let wrong_type =
-            parse_source(&arena, r#"int value(int input="no"){return input;}"#).unwrap();
-        let error = analyze(&wrong_type).unwrap_err();
-        assert!(error.message.contains("default value has type `string`"));
-
-        let non_literal = parse_source(&arena, "int value(int input=1+2){return input;}").unwrap();
-        let error = analyze(&non_literal).unwrap_err();
-        assert!(error
-            .message
-            .contains("not a supported literal for parameter type `int`"));
-
-        let arena = Bump::new();
-        let wrong_array = parse_source(
-            &arena,
+    fn s4_parameter_defaults_use_the_expression_checker_and_callee_scope() {
+        for source in [
+            r#"int value(int input="no"){return input;}"#,
             r#"int value(int[] input=["no"]){return input.length;}"#,
-        )
-        .unwrap();
-        let error = analyze(&wrong_array).unwrap_err();
-        assert!(error
-            .message
-            .contains("not a supported literal for parameter type `int[]`"));
-
-        let arena = Bump::new();
-        let wrong_callback = parse_source(
-            &arena,
             r#"int value(func(int)->int transform=(int input)=>"no"){return transform(1);}"#,
-        )
-        .unwrap();
-        let error = analyze(&wrong_callback).unwrap_err();
-        assert!(error.message.contains("expected `function(int) -> int`"));
-
-        let arena = Bump::new();
-        let wrong_aggregate = parse_source(
-            &arena,
             "struct Left{int value;}struct Right{int value;}int read(Left value=Right{1}){return value.value;}",
-        )
-        .unwrap();
-        let error = analyze(&wrong_aggregate).unwrap_err();
-        assert!(error
-            .message
-            .contains("not a supported literal for parameter type `Left`"));
-    }
-
-    #[test]
-    fn js_undefined_default_requires_the_unshadowed_builtin() {
+            "int f(int first=second+1,int second=2){return first;}",
+            "auto f=(int first=first+1)=>first;",
+        ] { assert!(check(source).is_err(),"{source}"); }
+        check("int value(int input=1+2){return input;}").unwrap();
         check("JsValue read(JsValue JS,JsValue value=JS.undefined()){return value;}").unwrap();
-
-        let error =
-            check("auto read=(JsValue JS,JsValue value=JS.undefined())=>value;").unwrap_err();
-        assert!(error.message.contains("undefined"), "{error}");
+        check("auto read=(JsValue JS,JsValue value=JS.undefined())=>value;").unwrap();
     }
 
     #[test]
-    fn rejects_transported_defaults_that_depend_on_local_bindings() {
-        let error = check("[1,2].map((int seed)=>(int value=seed)=>value)[1]();").unwrap_err();
-        assert!(error.message.contains("local binding"), "{error}");
+    fn accepts_callee_owned_defaults_that_depend_on_captured_bindings() {
+        check("[1,2].map((int seed)=>(int value=seed)=>value)[1]();").unwrap();
 
         check("int seed=7;int value=((int current=seed)=>current)();").unwrap();
         check("int value=((int first,int second=first)=>second)(7);").unwrap();

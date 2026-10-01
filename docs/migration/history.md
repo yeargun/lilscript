@@ -801,3 +801,28 @@ calibration. Five runtime pairs with three identity controls pass their oracle;
 steady CPU's interval is [0.9967, 1.0348], but control variation exceeds the
 predeclared 10% limit, so timing remains **inconclusive**. No full suite was rerun.
 S4 owns the pre-existing `records-128` type refusal and remaining shared contracts.
+
+## 2026-10-01: S4 identities, defaults and calling contracts batch
+
+S4 remains active. Its [contracts batch](../../benchmarks/migration-results/2026-10-01-s4-contracts/README.md)
+implements checked statement/binder identities and canonical types,
+declaration-owned default expressions, shared primitive/target binding facts,
+early native capability errors, checked array reads, value updates, generic
+methods and typed receiver/rest transport. Replaced default preparation and the
+old raw-domain/quiet/root-constant proof files were removed with their consumers.
+The remaining fact/pass audit and language contracts are explicitly open.
+
+Thirty-three S4-focused checks passed through the implementation/follow-up,
+with existing contract/admission/default groups also passing. Five affected G3
+workloads are unchanged for their independent raw/gzip/Brotli objectives. Frozen
+`records-128` passes its independent eight-input oracle under all three; its old
+refusal was a lost refined result type, so this is correctness evidence, not a
+compression comparison. There is no full-suite, fleet or CPU claim.
+
+The final batch pin is `s4-contracts-2`, SHA-256
+`36458f95ec83d67f85c2cfdca1703dc716fa6af07b8067acfd6dd77f7edc64e2`, algorithm 20,
+search 31 and walk 10. Size and record measurements belong to the separately
+retained pin 1. Pin 2 corrects a verifier refusal after extern-alias forwarding;
+all eight requested Object.hasOwn script/module lanes and its targeted call
+arity oracle pass. The initial failing report stays in evidence and the stale
+case ledger entry is removed. Q2 has not started.

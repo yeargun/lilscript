@@ -138,7 +138,7 @@ fn discover(
     let mut parameters = Vec::new();
     for (position, parameter) in signature.params.iter().enumerate() {
         budget.work(1)?;
-        if parameter.default.is_some() {
+        if parameter.optional {
             return Err(unknown(UnknownReason::CallableInterface));
         }
         if parameter.passing != ParameterPassing::Value {

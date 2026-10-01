@@ -144,7 +144,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             let Some(data) = self.program.unit(unit) else {
                 return Ok(false);
             };
-            if data.kind != UnitKind::Closure
+            if !ambient::inherits(self.program, data)
                 || data.suspension == Suspension::Generator
                 || data.constructor_of.is_some()
             {
@@ -192,7 +192,7 @@ impl Formation<'_, '_, '_, '_, '_> {
                     }
                     OperationKind::Closure(child) => {
                         if self.program.unit(child).is_some_and(|child| {
-                            ambient::inherits(child.kind)
+                            ambient::inherits(self.program, child)
                                 && child.suspension != Suspension::Generator
                         }) {
                             pending.push(child);
@@ -919,6 +919,33 @@ impl Formation<'_, '_, '_, '_, '_> {
         Ok(false)
     }
 
+    /// A source receiver lambda is a typed function with its own activation,
+    /// regardless of whether it escapes. Its receiver is not a printed formal.
+    pub(super) fn declared_method_form(
+        &mut self,
+        unit: UnitId,
+    ) -> Result<Option<MethodForm>, FormationError> {
+        let Some(data) = self.program.unit(unit) else {
+            return Ok(None);
+        };
+        let receiver=data.callable_type.is_some_and(|ty| matches!(&self.program.types[ty.index()],Type::Function(signature) if signature.has_receiver()));
+        if !receiver {
+            return Ok(None);
+        }
+        let cell = data.parameters[0];
+        let spelling = match self.activation_spelling(unit, cell)? {
+            Some(true) => Receiver::This,
+            _ => Receiver::Alias,
+        };
+        Ok(Some(MethodForm {
+            adapter: None,
+            receiver: Some((cell, spelling)),
+            list: None,
+            arrow: false,
+            exact_empty_name: false,
+        }))
+    }
+
     /// Prepare the body of `form`'s function before its context is planned:
     /// register its receiver and list spellings, and create the formals in
     /// `body`'s scope. Returns the formals. `method_aliases` follows the
@@ -1160,24 +1187,23 @@ impl Formation<'_, '_, '_, '_, '_> {
         self.finish_unit(child)?;
         let parameters = self.method_parameters(child, &form, formals)?;
         let program = self.program;
-        let length = match program
+        let length = program
             .unit(method)
-            .and_then(|data| data.callable_type)
-            .map(|ty| &program.types[ty.index()])
-        {
-            Some(Type::Function(signature)) => signature.params[1..].iter().position(|parameter| {
-                parameter.default.as_ref().is_some_and(|default| {
-                    !matches!(default, crate::check::DefaultValue::Undefined)
-                })
-            }),
-            _ => return Err(self.error(span, "prototype method signature")),
-        };
+            .and_then(|data| data.declared_length)
+            .map(|p| p as usize - 1);
         let function = js::FunctionId::try_new(self.module.functions.len())
             .ok_or(AllocationError::Capacity)?;
         self.budget.push(
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: program
+                    .unit(method)
+                    .and_then(|data| data.callable_type)
+                    .is_some_and(|ty| match &program.types[ty.index()] {
+                        Type::Function(sig) => sig.has_rest(),
+                        _ => false,
+                    }),
                 parameters,
                 body,
                 arrow: false,

@@ -11,7 +11,8 @@ const MODULE: RuleRequest = RuleRequest {
     fold: true,
     dead_code: true,
     inline: true,
-    scalar: false, native: false,
+    scalar: false,
+    native: false,
     pristine_builtins: false,
     seal: Seal::Module,
 };
@@ -19,7 +20,8 @@ const SCRIPT: RuleRequest = RuleRequest {
     fold: true,
     dead_code: true,
     inline: true,
-    scalar: false, native: false,
+    scalar: false,
+    native: false,
     pristine_builtins: false,
     seal: Seal::StructuralOnly,
 };
@@ -296,7 +298,12 @@ fn default_transport_preserves_callee_guards_and_argument_effects() {
     optimized(source, FOLD_ONLY, |program, receipt| {
         assert!(receipt.default_arguments_omitted > 0, "{receipt:?}");
         assert!(receipt.native_defaults > 0, "{receipt:?}");
-        assert!(count(program, |kind| matches!(kind, OperationKind::IsUndefined)) > 0);
+        assert!(
+            count(program, |kind| matches!(
+                kind,
+                OperationKind::IsUndefined { .. }
+            )) > 0
+        );
         // Re-entering optimization must also preserve the target-entry guard.
         let (again, _) = optimize(program.clone(), FOLD_ONLY).unwrap();
         assert_eq!(run(&again), run(program));
@@ -760,7 +767,10 @@ fn a_typed_caller_never_triggers_a_default() {
     let source = "int scale(int value, int factor = 3) { return value * factor; }\nfor (int i = 0; i < 2; i++) {\n  print(scale(i));\n  print(scale(i, 5));\n}\n";
     optimized(source, MODULE, |program, receipt| {
         assert_eq!(
-            count(program, |kind| matches!(kind, OperationKind::IsUndefined)),
+            count(program, |kind| matches!(
+                kind,
+                OperationKind::IsUndefined { .. }
+            )),
             0,
             "{receipt:?}"
         );
@@ -795,7 +805,10 @@ fn a_default_only_the_callee_builds_still_applies() {
     let source = "int offset = 2;\nint apply(int value, func(int)->int transform = (int current) => current + offset) {\n  return transform(value);\n}\nprint(apply(5));\nprint(apply(5, (int current) => current - 1));\n";
     optimized(source, MODULE, |program, receipt| {
         assert_eq!(
-            count(program, |kind| matches!(kind, OperationKind::IsUndefined)),
+            count(program, |kind| matches!(
+                kind,
+                OperationKind::IsUndefined { .. }
+            )),
             1,
             "{receipt:?}"
         );
@@ -915,11 +928,18 @@ fn a_signature_changes_for_every_function_that_shares_it() {
     // first parameter unread, so both keep it: one shape stays one shape.
     // `spare` has its signature to itself, and loses its unread parameter.
     let source = "int left(int a, int b) {\n  if (a > b) { return a; }\n  return b;\n}\nint right(int a, int b) {\n  if (b > 2) { return 1; }\n  return b;\n}\nbool spare(bool unused, float value) {\n  if (value > 1.5) { return true; }\n  return false;\n}\nfor (int i = 0; i < 4; i++) {\n  print(left(i, 2));\n  print(right(i, i));\n  print(spare(true, 1.0 * i));\n  print(spare(false, 2.0));\n}\n";
-    optimized(source, RuleRequest { inline: false, ..MODULE }, |program, receipt| {
-        assert_eq!(signature(program, "left"), (2, false), "{receipt:?}");
-        assert_eq!(signature(program, "right"), (2, false), "{receipt:?}");
-        assert_eq!(signature(program, "spare"), (1, false), "{receipt:?}");
-    });
+    optimized(
+        source,
+        RuleRequest {
+            inline: false,
+            ..MODULE
+        },
+        |program, receipt| {
+            assert_eq!(signature(program, "left"), (2, false), "{receipt:?}");
+            assert_eq!(signature(program, "right"), (2, false), "{receipt:?}");
+            assert_eq!(signature(program, "spare"), (1, false), "{receipt:?}");
+        },
+    );
 }
 
 /// An `int` is its own ToInt32: `x | 0` and the other identities with 0 are
@@ -986,4 +1006,236 @@ print(first(0));";
     optimized(source, MODULE, |_, receipt| {
         assert!(receipt.unreachable_operations >= 1, "{receipt:?}");
     });
+}
+
+#[test]
+fn s4_known_nonnull_folds_keep_the_refined_result_type() {
+    // The 199 literal exposed this failure in the much larger records-128
+    // corpus; helper count was incidental. Exported inputs remain unknown.
+    let source = r#"
+        export int compute(int value){
+            Record<int> item=record{count:value,offset:199,mask:713282};
+            int saved=item.count??0;item.count=saved+(item.offset??0);
+            return (item.count??0)^((item.mask??0)+331773)^saved;
+        }
+        print(compute(-11));print(compute(0));print(compute(31));
+    "#;
+    for scalar in [false, true] {
+        optimized(
+            source,
+            RuleRequest {
+                scalar,
+                ..FOLD_ONLY
+            },
+            |_, receipt| {
+                assert!(receipt.folded_branches > 0, "{receipt:?}");
+            },
+        );
+    }
+}
+
+#[test]
+fn s4_short_circuit_typed_views_preserve_lazy_effects_and_widening() {
+    let source = r#"
+        int fallback(){print(99);return 9;}
+        export int choose(int n){int? present=199;return n+(present??fallback());}
+        export JsValue widen(){JsValue missing=null;return missing??123;}
+        print(choose(7));print(widen());
+    "#;
+    optimized(source, FOLD_ONLY, |_, receipt| {
+        assert!(receipt.folded_branches > 0, "{receipt:?}");
+    });
+}
+
+#[test]
+fn s4_defaults_belong_to_the_selected_callee_and_keep_fresh_values() {
+    let cases=[
+        ("auto make=(int seed)=>(int value=seed)=>value;auto f=make(7);print(f());print(f(0));print(((int a,int b=a)=>b)(8));", "7\n0\n8\n"),
+        ("int apply(func(int)->int f=(int x)=>x,int bias=1){return f(bias);}print(apply());", "1\n"),
+        ("int first(int x=3){return x;}int second(int x=9){return x;}auto alias=first;print(alias());alias=second;print(alias());print(alias(0));", "3\n9\n0\n"),
+        ("auto a=(int x=3)=>x;auto b=(int x=7)=>x;auto f=a;print(f());f=b;print(f());print(f(0));", "3\n7\n0\n"),
+        ("int take(int[] xs=[4]){int x=xs[0];xs[0]=99;return x;}print(take());print(take());", "4\n4\n"),
+        ("int seed=3;int take(int x=seed){return x;}print(take());seed=9;print(take());", "3\n9\n"),
+    ];
+    for (source, expected) in cases {
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        let checked = crate::analyze(&syntax).unwrap();
+        let program = from_checked_source(&syntax, &checked).unwrap();
+        assert_eq!(
+            crate::interpreter::interpret_program(&syntax, &checked).unwrap(),
+            expected,
+            "{source}"
+        );
+        assert_eq!(run(&program), expected, "{source}");
+        let (program, _) = optimize(program, MODULE).unwrap();
+        program.verify().unwrap();
+        assert_eq!(run(&program), expected, "{source}");
+    }
+}
+
+#[test]
+fn s4_checked_reads_and_value_updates_preserve_snapshot_and_evaluation_order() {
+    for (source, expected) in [
+        ("int[] xs=[4,8];int calls=0;int[] array(){calls+=1;return xs;}int key(int n){calls+=10;return n;}print(array().get(key(-1))??99);print(array().get(key(1))??99);print(array().get(key(2))??99);print(calls);int?[] ys=[null,7];print(ys.get(0)??3);print(ys.get(1)??3);", "99\n8\n99\n33\n3\n7\n"),
+        ("struct Point{int x;int y;}Point p=Point{1,2};int change(){p.y=99;return 7;}Point q=p with {x:change()};q.x=8;print(p.x);print(p.y);print(q.x);print(q.y);Point r=q with {y:6,x:5};print(r.x);print(r.y);print(q.y);", "1\n99\n8\n2\n5\n6\n2\n"),
+        (r#"class Box<T>{T value;init(T x){this.value=x;}U second<U>(U x){return x;}T first<U>(U x){return this.value;}}Box<int> b=new Box<int>(7);print(b.second(3));print(b.second("word"));print(b.first(false));"#, "3\nword\n7\n"),
+    ] {
+        let arena=bumpalo::Bump::new();
+        let syntax=crate::parse_source(&arena,source).unwrap();
+        let checked=crate::analyze(&syntax).unwrap();
+        assert_eq!(crate::interpreter::interpret_program(&syntax,&checked).unwrap(),expected);
+        let program=from_checked_source(&syntax,&checked).unwrap();
+        assert_eq!(run(&program),expected);
+        for scalar in [false,true] {
+            let (optimized,_)=optimize(program.clone(),RuleRequest{scalar,..MODULE}).unwrap();
+            optimized.verify().unwrap();assert_eq!(run(&optimized),expected,"{source}");
+        }
+    }
+}
+
+#[test]
+fn s4_constructor_fields_run_before_declaration_defaults() {
+    for (source, expected) in [
+        ("int order=0;class Default{init(){order=order*10+2;}}int field(){order=order*10+1;return 0;}class C{int x=field();init(Default d=new Default()){order=order*10+3;}}C value=new C();print(order);", "123\n"),
+        ("int order=0;class Default{init(){order=order*10+2;}}int field(){order=order*10+1;return 0;}export constructor C;class C{int x=field();init(Default d=new Default()){order=order*10+3;}}C value=new C();print(order);", "123\n"),
+    ] {
+        let arena=bumpalo::Bump::new();let syntax=crate::parse_source(&arena,source).unwrap();
+        let checked=crate::analyze(&syntax).unwrap();
+        assert_eq!(crate::interpreter::interpret_program(&syntax,&checked).unwrap(),expected);
+        let program=from_checked_source(&syntax,&checked).unwrap();
+        assert_eq!(run(&program),expected);
+        let (program,_)=optimize(program,MODULE).unwrap();assert_eq!(run(&program),expected);
+    }
+}
+
+#[test]
+fn s4_variadic_values_keep_typed_arrays_and_call_contracts() {
+    for source in [
+        "int sum(int first,int... rest){int result=first;for(int i=0;i<rest.length;i++){result+=rest[i];}return result;}func(int,int...)->int f=sum;print(f(2));print(f(2,3,4));int[] xs=[5,6];print(f(2,...xs));",
+        "auto sum=(int first,int... rest)=>{int result=first;for(int i=0;i<rest.length;i++){result+=rest[i];}return result;};func(int,int...)->int f=sum;print(f(2));print(f(2,3,4));int[] xs=[5,6];print(f(2,...xs));",
+        "int sum<T>(T tag,int... rest){int result=2;for(int i=0;i<rest.length;i++){result+=rest[i];}return result;}print(sum(false));print(sum(false,3,4));int[] xs=[5,6];print(sum(false,...xs));",
+    ] {
+        let arena=bumpalo::Bump::new();let syntax=crate::parse_source(&arena,source).unwrap();
+        let checked=crate::analyze(&syntax).unwrap();let program=from_checked_source(&syntax,&checked).unwrap();
+        assert_eq!(crate::interpreter::interpret_program(&syntax,&checked).unwrap(),"2\n9\n13\n");
+        assert_eq!(run(&program),"2\n9\n13\n");
+        let (program,_)=optimize(program,MODULE).unwrap();program.verify().unwrap();assert_eq!(run(&program),"2\n9\n13\n");
+    }
+}
+
+#[test]
+fn s4_spread_consumption_precedes_later_mutations() {
+    let source="int[] xs=[1,2];int mutate(){xs[0]=9;return 3;}int sum(int... values){return values[0]*100+values[1]*10+values[2];}print(sum(...xs,mutate()));xs[0]=1;int[] ys=[...xs,mutate()];print(ys[0]);print(xs[0]);";
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let checked = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &checked).unwrap();
+    assert_eq!(
+        crate::interpreter::interpret_program(&syntax, &checked).unwrap(),
+        "123\n1\n9\n"
+    );
+    assert_eq!(run(&program), "123\n1\n9\n");
+    let (program, _) = optimize(program, MODULE).unwrap();
+    assert_eq!(run(&program), "123\n1\n9\n");
+}
+
+#[test]
+fn s4_frozen_records_128_matches_the_independent_calibration_oracle() {
+    use sha2::{Digest, Sha256};
+    let frozen = include_str!("../../../benchmarks/calibration/corpus/records-128.lil");
+    let manifest: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../benchmarks/calibration/corpus/manifest.json"
+    ))
+    .unwrap();
+    let row = manifest["workloads"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["id"] == "records-128")
+        .unwrap();
+    assert_eq!(
+        format!("{:x}", Sha256::digest(frozen.as_bytes())),
+        row["source_sha256"].as_str().unwrap()
+    );
+    let mut source = frozen.to_owned();
+    for input in row["inputs"].as_array().unwrap() {
+        let input = if input.as_i64() == Some(i32::MIN as i64) {
+            "(-2147483647-1)".to_owned()
+        } else {
+            input.to_string()
+        };
+        source.push_str(&format!("print(probe({input}));"));
+    }
+    let expected = row["expected"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| format!("{value}\n"))
+        .collect::<String>();
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, &source).unwrap();
+    let checked = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &checked).unwrap();
+    let (program, _) = optimize(
+        program,
+        RuleRequest {
+            scalar: true,
+            ..MODULE
+        },
+    )
+    .unwrap();
+    program.verify().unwrap();
+    assert_eq!(run(&program), expected);
+}
+
+#[test]
+fn s4_receiver_functions_are_typed_and_accept_rest_without_adapter_limits() {
+    for (source,expected) in [
+        ("auto add=(this int self,int first,int... rest)=>{int total=self+first;for(int i=0;i<rest.length;i++){total+=rest[i];}return total;};func(this:int,int,int...)->int f=add;print(f.call(7,2));int[] xs=[3,4];print(f.call(7,2,...xs));", "9\n16\n"),
+        ("class Box{int value;func(this:Box,int...)->int f;init(int x){this.value=x;this.f=(this Box self,int... values)=>{int sum=self.value;for(int i=0;i<values.length;i++){sum+=values[i];}return sum;};}}Box b=new Box(7);print(b.f(2,3));func(this:Box,int...)->int detached=b.f;print(detached.call(b,4));", "12\n11\n"),
+        ("int captured=3;auto add=(this int self,int a,int b,int c,int d,int e,int f,int g,int h,int i,int j,int k)=>self+a+k+captured;print(add.call(7,1,2,3,4,5,6,7,8,9,10,11));", "22\n"),
+    ] {
+        let arena=bumpalo::Bump::new();let syntax=crate::parse_source(&arena,source).unwrap();
+        let checked=crate::analyze(&syntax).unwrap();
+        assert_eq!(crate::interpreter::interpret_program(&syntax,&checked).unwrap(),expected);
+        let program=from_checked_source(&syntax,&checked).unwrap();assert_eq!(run(&program),expected);
+        let (program,_)=optimize(program,MODULE).unwrap();program.verify().unwrap();assert_eq!(run(&program),expected);
+    }
+}
+
+#[test]
+fn s4_defaults_and_constructor_rest_keep_omission_and_fresh_arrays() {
+    let source="int sum(int first=7,int... rest){int n=first;for(int i=0;i<rest.length;i++){n+=rest[i];}return n;}print(sum());print(sum(2,3,4));class Box{int value;init(int first=7,int... rest){this.value=first;for(int i=0;i<rest.length;i++){this.value+=rest[i];}}}Box a=new Box();int[] xs=[3,4];Box b=new Box(2,...xs);print(a.value);print(b.value);auto f=(int first=7,int... rest)=>first+rest.length;print(f());print(f(2,3,4));";
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let checked = crate::analyze(&syntax).unwrap();
+    let expected = "7\n9\n7\n9\n7\n4\n";
+    assert_eq!(
+        crate::interpreter::interpret_program(&syntax, &checked).unwrap(),
+        expected
+    );
+    let program = from_checked_source(&syntax, &checked).unwrap();
+    assert_eq!(run(&program), expected);
+    let (program, _) = optimize(program, MODULE).unwrap();
+    program.verify().unwrap();
+    assert_eq!(run(&program), expected);
+}
+
+#[test]
+fn s4_default_expressions_execute_in_the_callee_and_capture_earlier_parameters() {
+    let source="int calls=0;int next(){calls+=1;return calls;}int read(int first=next(),func()->int get=()=>first){return get();}print(read());print(read(9));print(calls);auto make=(int seed)=>{auto f=(int n=seed+next(),func()->int get=()=>n)=>get();return f;};auto f=make(10);print(f());print(f());print(calls);";
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let checked = crate::analyze(&syntax).unwrap();
+    let expected = "1\n9\n1\n12\n13\n3\n";
+    assert_eq!(
+        crate::interpreter::interpret_program(&syntax, &checked).unwrap(),
+        expected
+    );
+    let program = from_checked_source(&syntax, &checked).unwrap();
+    assert_eq!(run(&program), expected);
+    let (program, _) = optimize(program, MODULE).unwrap();
+    program.verify().unwrap();
+    assert_eq!(run(&program), expected);
 }

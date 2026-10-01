@@ -38,6 +38,7 @@ fn fixture() -> (Module, BindingId) {
         .push(Statement::Return(Some(value)));
     let function = FunctionId::new(module.functions.len());
     module.functions.push(Function {
+        rest: false,
         parameters: vec![],
         body,
         arrow: false,

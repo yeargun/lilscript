@@ -12,9 +12,10 @@ mod old;
 fn function(passing: ParameterPassing, default: Option<DefaultValue<'static>>) -> Type<'static> {
     Type::Function(FunctionType::new(FunctionSignature {
         params: vec![FunctionParameter {
+            receiver: false,
             ty: Type::Int,
             passing,
-            default,
+            optional: default.is_some(),
             rest: false,
         }],
         return_type: Box::new(Type::String),
@@ -42,7 +43,7 @@ fn corpus() -> Vec<Type<'static>> {
         Type::Null,
         Type::Void,
         Type::Dynamic,
-        Type::TypeParameter("T"),
+        Type::TypeParameter(crate::check::TypeParameter::fixture("T")),
         Type::Class(test_class("Object")),
         Type::Class(test_class("Other")),
         Type::Enum(test_enum("Choice")),
@@ -89,10 +90,14 @@ fn corpus() -> Vec<Type<'static>> {
             ])),
         ),
         Type::GenericFunction(GenericFunctionType {
-            type_params: vec!["T"],
+            type_params: vec![crate::check::TypeParameter::fixture("T")],
             signature: FunctionType::new(FunctionSignature {
-                params: vec![FunctionParameter::value(Type::TypeParameter("T"))],
-                return_type: Box::new(Type::TypeParameter("T")),
+                params: vec![FunctionParameter::value(Type::TypeParameter(
+                    crate::check::TypeParameter::fixture("T"),
+                ))],
+                return_type: Box::new(Type::TypeParameter(crate::check::TypeParameter::fixture(
+                    "T",
+                ))),
             }),
         }),
     ];

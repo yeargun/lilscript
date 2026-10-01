@@ -50,7 +50,7 @@ fn checked_value_parameters_retain_each_primitive_default_and_supplied_arity() {
             assert!(signature.params.iter().all(|parameter| {
                 parameter.ty == Type::Int
                     && parameter.passing == ParameterPassing::Value
-                    && parameter.default.is_none()
+                    && !parameter.optional
             }));
             let method = program
                 .units()
@@ -75,9 +75,9 @@ fn checked_value_parameters_retain_each_primitive_default_and_supplied_arity() {
             assert_eq!(method.contract.supplied, 1);
             assert_eq!(signature.params.len(), 2);
             assert_eq!(signature.params[0].passing, ParameterPassing::Value);
-            assert!(signature.params[0].default.is_none());
+            assert!(!signature.params[0].optional);
             assert_eq!(signature.params[1].passing, ParameterPassing::Value);
-            assert!(signature.params[1].default.is_some());
+            assert!(signature.params[1].optional);
             assert_eq!(signature.required_params(), 1);
             assert!(signature.accepts_arity(1) && signature.accepts_arity(2));
             assert!(!signature.accepts_arity(0) && !signature.accepts_arity(3));
@@ -115,7 +115,7 @@ fn reference_defaults_and_required_after_default_records_are_invalid() {
             let ty = named_type(&program, "consume");
             change_signature(&mut program, ty, |signature| {
                 signature.params[0].passing = ParameterPassing::MutableReference;
-                signature.params[0].default = Some(DefaultValue::Int(1));
+                signature.params[0].optional = true;
             });
             let Type::Function(signature) = &program.types[ty.index()] else {
                 unreachable!()
@@ -130,7 +130,7 @@ fn reference_defaults_and_required_after_default_records_are_invalid() {
         |mut program| {
             let ty = named_type(&program, "consume");
             change_signature(&mut program, ty, |signature| {
-                signature.params[0].default = Some(DefaultValue::Int(1));
+                signature.params[0].optional = true;
             });
             let Type::Function(signature) = &program.types[ty.index()] else {
                 unreachable!()
@@ -177,7 +177,7 @@ fn unused_deep_parameter_records_are_validated_and_failed_adoption_releases_stor
         checked("print(1);", |mut program| {
             let malformed = Type::Function(FunctionType::new(FunctionSignature {
                 params: vec![
-                    FunctionParameter::defaulted(Type::Int, DefaultValue::Int(1)),
+                    FunctionParameter::optional(Type::Int),
                     FunctionParameter::value(Type::Int),
                 ],
                 return_type: Box::new(Type::Int),
@@ -240,9 +240,10 @@ fn well_formed_unused_reference_types_do_not_claim_executable_place_arguments() 
     checked("print(1);", |mut program| {
         let reference = Type::Function(FunctionType::new(FunctionSignature {
             params: vec![FunctionParameter {
+                receiver: false,
                 ty: Type::Int,
                 passing: ParameterPassing::MutableReference,
-                default: None,
+                optional: false,
                 rest: false,
             }],
             return_type: Box::new(Type::Int),

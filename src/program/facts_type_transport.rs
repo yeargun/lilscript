@@ -1,7 +1,7 @@
 //! A borrowed structural question about nominal transport, not runtime presence.
 //! A false answer supplies no primitive-domain or callable-sealing authority.
 //! The caller owns/reuses the admitted branch buffer; no type graph is retained.
-use super::super::raw_domains::Admission;
+use super::super::facts::domains::Admission;
 use super::super::Type;
 
 pub(in crate::program) fn contains_nominal_product<'types, 'src, A: Admission>(

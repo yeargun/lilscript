@@ -2,7 +2,7 @@
 //! Each check uses the actual destination/interface. This is not a second
 //! provenance graph: unsupported erasure is rejected where source knowledge
 //! would otherwise disappear, before a later JsValue use can expose backing.
-use super::super::raw_domains::Admission;
+use super::super::facts::domains::Admission;
 use super::*;
 
 impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
@@ -223,7 +223,9 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 match self.member_declared_type(context, place)? {
                     Some(declared) => declared,
                     None => {
-                        return Err(self.error(span, "value-struct storage requires an ABI adapter"));
+                        return Err(
+                            self.error(span, "value-struct storage requires an ABI adapter")
+                        );
                     }
                 }
             }

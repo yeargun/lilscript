@@ -52,21 +52,13 @@ fn leaf_and_single_child_payloads_need_no_heap_workspace() {
 }
 
 #[test]
-fn signature_defaults_names_and_actual_vector_capacities_share_one_walk() {
-    let mut defaults = Vec::with_capacity(11);
-    defaults.extend([
-        DefaultValue::String("default-text"),
-        DefaultValue::NewClass {
-            declaration: test_class("Created"),
-            args: vec![DefaultValue::String("argument")],
-        },
-    ]);
-    let default_capacity = defaults.capacity();
+fn signature_contract_names_and_actual_vector_capacities_share_one_walk() {
     let mut parameters = Vec::with_capacity(7);
     parameters.push(FunctionParameter {
+        receiver: false,
         ty: Type::Record(Box::new(Type::Class(test_class("Stored")))),
         passing: ParameterPassing::Value,
-        default: Some(DefaultValue::Array(defaults)),
+        optional: true,
         rest: false,
     });
     let parameter_capacity = parameters.capacity();
@@ -87,23 +79,12 @@ fn signature_defaults_names_and_actual_vector_capacities_share_one_walk() {
         })
         .unwrap();
         assert_eq!(signatures, 1);
-        let nested_arguments = match signature.params[0].default.as_ref().unwrap() {
-            DefaultValue::Array(values) => match &values[1] {
-                DefaultValue::NewClass { args, .. } => args.capacity(),
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        };
         let expected = size_of::<FunctionSignature<'_>>()
             + 2 * size_of::<usize>()
             + parameter_capacity * size_of::<FunctionParameter<'_>>()
-            + 2 * size_of::<Type<'_>>()
-            + (default_capacity + nested_arguments) * size_of::<DefaultValue<'_>>();
+            + 2 * size_of::<Type<'_>>();
         assert_eq!(measured.owned_bytes, expected as u64);
-        assert_eq!(
-            measured.text_bytes,
-            ("default-text".len() + "Created".len() + "argument".len() + "Stored".len()) as u64
-        );
+        assert_eq!(measured.text_bytes, "Stored".len() as u64);
         assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
     }
     assert_eq!(ledger.retained_bytes(), 0);
@@ -114,9 +95,10 @@ fn signature_defaults_names_and_actual_vector_capacities_share_one_walk() {
 fn admission_and_visitor_refusals_drop_branch_workspace_before_return() {
     let invalid = Type::Function(FunctionType::new(FunctionSignature {
         params: vec![FunctionParameter {
+            receiver: false,
             ty: Type::Int,
             passing: ParameterPassing::MutableReference,
-            default: Some(DefaultValue::Int(1)),
+            optional: (Some(DefaultValue::Int(1))).is_some(),
             rest: false,
         }],
         return_type: Box::new(Type::Int),

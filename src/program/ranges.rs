@@ -544,6 +544,7 @@ impl Ranges<'_, '_> {
                     operand(0).binary(binary, right)
                 }
                 OperationKind::Load(place) => match data.places[place.index()] {
+                    Place::Value(value) => self.value(value),
                     Place::Cell(cell) => match self.ordinal(cell) {
                         Some(ordinal) => state[ordinal].unwrap_or(by_type),
                         None => by_type,
@@ -641,9 +642,10 @@ impl Forward for Ranges<'_, '_> {
     }
 
     fn expression_result(&self, unit: &UnitData, operation: OpId, state: &Self::State) {
-        if let (Some(result), Some(facts)) =
-            (unit.operations[operation.index()].result, self.result(operation, state))
-        {
+        if let (Some(result), Some(facts)) = (
+            unit.operations[operation.index()].result,
+            self.result(operation, state),
+        ) {
             self.values.borrow_mut()[result.index()] = facts;
         }
     }

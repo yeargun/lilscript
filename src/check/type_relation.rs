@@ -3,9 +3,9 @@
 //! Invariant is exactly assignability in both directions. Carrying that mode
 //! through invariant children avoids evaluating the same symmetric requirement
 //! twice at every Array or callable-parameter layer. No relation answer survives
-//! the query, and existing Type/DefaultValue equality remains authoritative.
+//! the query, and checked type equality remains authoritative.
 
-use super::{DefaultValue, FunctionSignature, Type};
+use super::{FunctionSignature, Type};
 use std::convert::Infallible;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -15,7 +15,7 @@ pub(crate) enum RelationMode {
 }
 
 /// Admission occurs before the named work. Equality events must admit the
-/// potentially deep existing equality operation, including names and defaults;
+/// potentially deep existing equality operation, including nested type payloads;
 /// a single unit charge is not generally its cost. SignatureValidation admits
 /// the existing parameter-record scan. ParameterPair admits one paired record.
 #[derive(Clone, Copy, Debug)]
@@ -31,10 +31,6 @@ pub(crate) enum RelationEvent<'a, 'src> {
     TypeEquality {
         left: &'a Type<'src>,
         right: &'a Type<'src>,
-    },
-    DefaultEquality {
-        left: &'a DefaultValue<'src>,
-        right: &'a DefaultValue<'src>,
     },
     SignatureValidation(&'a FunctionSignature<'src>),
     ParameterPair,
@@ -66,6 +62,17 @@ pub(crate) fn type_equal_with<A: RelationAdmission>(
 ) -> Result<bool, A::Error> {
     admission.admit(RelationEvent::TypeEquality { left, right })?;
     Ok(left == right)
+}
+
+/// Canonical storage equality retains binder identities, unlike generic
+/// assignability's alpha-equivalence across independent declarations.
+pub(crate) fn storage_equal_with<A: RelationAdmission>(
+    left: &Type<'_>,
+    right: &Type<'_>,
+    admission: &mut A,
+) -> Result<bool, A::Error> {
+    admission.admit(RelationEvent::TypeEquality { left, right })?;
+    Ok(super::type_identity::storage_equal(left, right))
 }
 
 /// A refused check is an error, never an incompatible type result. The caller
@@ -224,21 +231,17 @@ fn functions<A: RelationAdmission>(
     }
     for (expected, actual) in expected.params.iter().zip(&actual.params) {
         admission.admit(RelationEvent::ParameterPair)?;
-        if expected.passing != actual.passing
+        if expected.receiver != actual.receiver
+            || expected.passing != actual.passing
             || !relate(&expected.ty, &actual.ty, RelationMode::Invariant, admission)?
         {
             return Ok(false);
         }
-        match (&expected.default, &actual.default) {
-            (Some(left), Some(right)) => {
-                admission.admit(RelationEvent::DefaultEquality { left, right })?;
-                if left != right {
-                    return Ok(false);
-                }
-            }
-            (Some(_), None) => return Ok(false),
-            (None, Some(_)) if mode == RelationMode::Invariant => return Ok(false),
-            _ => {}
+        if expected.rest != actual.rest
+            || (expected.optional && !actual.optional)
+            || (mode == RelationMode::Invariant && expected.optional != actual.optional)
+        {
+            return Ok(false);
         }
     }
     relate(&expected.return_type, &actual.return_type, mode, admission)

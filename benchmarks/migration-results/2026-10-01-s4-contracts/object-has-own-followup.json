@@ -1,0 +1,1027 @@
+{
+ "schema": 1,
+ "kind": "lilscript-case-runner",
+ "started": "2026-10-01T04:16:03.139Z",
+ "completed": "2026-10-01T04:16:03.538Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "0001e352d61e13a03e7ab4f5105d7f3b2b59fb38",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/s4-contracts-2/lilscript",
+  "path": "/home/azureuser/lilscript-work/evidence/s4-object-has-own2/bin/lilscript-36458f95ec83d67f",
+  "sha256": "36458f95ec83d67f85c2cfdca1703dc716fa6af07b8067acfd6dd77f7edc64e2",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/evidence/s4-object-has-own2/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "node": {
+  "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+  "version": "v20.19.0"
+ },
+ "cc": {
+  "path": "/usr/bin/cc",
+  "flags": [
+   "-std=c11",
+   "-O2",
+   "-fno-fast-math",
+   "-ffp-contract=off"
+  ],
+  "defaultFlags": [
+   "-O2"
+  ],
+  "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+ },
+ "scrubbedEnvironment": [],
+ "tactics": {
+  "source": "--print-policy",
+  "ids": [
+   "dead-code-elimination",
+   "constant-folding",
+   "inlining",
+   "scalar-replacement",
+   "call-specialization",
+   "helper-sharing",
+   "target-compaction",
+   "statement-spellings",
+   "declaration-order",
+   "receiver-aliases",
+   "identifier-mangling",
+   "property-mangling",
+   "string-pooling",
+   "string-array-packing",
+   "startup-reconstruction",
+   "recurring-reconstruction",
+   "naming-search",
+   "naming-compaction",
+   "representation-joints",
+   "naming-alphabet"
+  ]
+ },
+ "ledger": {
+  "path": null,
+  "sha256": null,
+  "entries": 0
+ },
+ "masks": [
+  {
+   "id": "host-prelude",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "a .host.js prelude defines externs in a JavaScript realm",
+   "lifts": null
+  },
+  {
+   "id": "module-probe",
+   "targets": [
+    "module"
+   ],
+   "why": "a .module-probe.mjs imports the ES module's exports",
+   "lifts": null
+  },
+  {
+   "id": "JsValue",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: JsValue is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "import extern",
+   "targets": [
+    "module"
+   ],
+   "why": "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports",
+   "lifts": null
+  },
+  {
+   "id": "extern",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: C rejects host declarations",
+   "lifts": "M11.3 (externs per target)"
+  },
+  {
+   "id": "export",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "the entry's exports are a module ABI; C has none yet",
+   "lifts": "M11.8 (a C library ABI)"
+  },
+  {
+   "id": "JS namespace",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: C rejects the JS.* operations",
+   "lifts": null
+  },
+  {
+   "id": "async",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: native rejects async functions and tasks",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "exceptions",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: native rejects exceptions",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "Regex",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: native rejects Regex",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "generator",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: native rejects generators",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "object literal",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: object {} is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "JSON.parse",
+   "targets": [
+    "script",
+    "module"
+   ],
+   "why": "language-v0.1: JSON.parse returns JsValue",
+   "lifts": null
+  }
+ ],
+ "lanes": [
+  {
+   "id": "formation-only/raw/script",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "2b9e7f3975117b6d7dec202c0f25f977c3ca94d911c84f5edbf6f993486509e8",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/module",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "ad66c36cda77cdac10b053ee0e341d85658fee9b30fc2c9acc7052654a7ded9f",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "production/brotli/script",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n",
+   "policyFingerprint": "1b76e15768c3558b22847eb2b372cd415a80ac124d562d7a33fec2c62bc250ec",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/brotli/module",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n",
+   "policyFingerprint": "6a469ad75b60fdd63e0b600db8048975499432a9e17eb74577cbbdee202998bc",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/gzip/script",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n",
+   "policyFingerprint": "1a45e1aeb2b3d35d4ebee6db29a076a46dbde97d9101179c293bf74f15ad5407",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/gzip/module",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n",
+   "policyFingerprint": "659d44bbb1a9c0794b76e7a26f0e82a30615cb63dfff0a8fb43d06d585371abe",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/raw/script",
+   "mode": "production",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n",
+   "policyFingerprint": "ff1e59a9b06ce0a844943bbc9fbc1d6313bd4507a0d74f5b64e43dd9c9720898",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/raw/module",
+   "mode": "production",
+   "codec": "raw",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n",
+   "policyFingerprint": "4e6e208e2f7ddefd0d80c7098e5baed419cbb6cf47b7310a3600f39e24610b10",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  }
+ ],
+ "cases": [
+  {
+   "id": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "digest": "fd3db23c6ccb2844057beb4ae1fe4216fca7bd0f26beca3ad29c51bd69d850f8",
+   "features": [
+    "host-prelude",
+    "JsValue",
+    "extern"
+   ]
+  }
+ ],
+ "summary": {
+  "formation-only/raw/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 241,
+   "rawTotal": 241
+  },
+  "formation-only/raw/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 230,
+   "rawTotal": 230
+  },
+  "production/brotli/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 119,
+   "brotli11Total": 72
+  },
+  "production/brotli/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 108,
+   "brotli11Total": 66
+  },
+  "production/gzip/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 119,
+   "gzip9Total": 89
+  },
+  "production/gzip/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 108,
+   "gzip9Total": 78
+  },
+  "production/raw/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 119,
+   "rawTotal": 119
+  },
+  "production/raw/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 108,
+   "rawTotal": 108
+  }
+ },
+ "unexpected": 0,
+ "staleLedgerEntries": [],
+ "narrowableLedgerEntries": [],
+ "unknownLedgerCases": [],
+ "results": [
+  {
+   "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "lane": "formation-only/raw/script",
+   "compileMs": 4,
+   "artifact": {
+    "path": "lanes/formation-only_raw_script/cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order.js",
+    "bytes": 241,
+    "sha256": "9c913901219ca2bc5d2cce969df1c4a464a70da0abf392b825230719f11d43ae",
+    "raw": 241,
+    "gzip9": 170,
+    "brotli11": 149
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "lane": "formation-only/raw/module",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_module/cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order.mjs",
+    "bytes": 230,
+    "sha256": "8457ab2bd940a029274a75518a50838d3d989c5ca9824bd23db7ba669e5767c3",
+    "raw": 230,
+    "gzip9": 161,
+    "brotli11": 152
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "lane": "production/brotli/script",
+   "compileMs": 10,
+   "artifact": {
+    "path": "lanes/production_brotli_script/cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order.js",
+    "bytes": 119,
+    "sha256": "2efa6af8dc78500d3d82204e79ca3b76d738dc9cc917eb94fcb38f049a3ea859",
+    "raw": 119,
+    "gzip9": 89,
+    "brotli11": 72
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 116,
+    "judged": 4,
+    "pruned": 0,
+    "passes": 5,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 1,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 2,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 3,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 4,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 5,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 6,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 7,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 8,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 9,
+      "size": 73,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 10,
+      "size": 72,
+      "sha256": "2efa6af8dc78500d3d82204e79ca3b76d738dc9cc917eb94fcb38f049a3ea859"
+     },
+     {
+      "level": 11,
+      "size": 72,
+      "sha256": "2efa6af8dc78500d3d82204e79ca3b76d738dc9cc917eb94fcb38f049a3ea859"
+     },
+     {
+      "level": 12,
+      "size": 72,
+      "sha256": "2efa6af8dc78500d3d82204e79ca3b76d738dc9cc917eb94fcb38f049a3ea859"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "lane": "production/brotli/module",
+   "compileMs": 9,
+   "artifact": {
+    "path": "lanes/production_brotli_module/cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order.mjs",
+    "bytes": 108,
+    "sha256": "eb830f486969b14cd2e16ce159ddb4832b84071b59dbc0096f0ea3070f5d9170",
+    "raw": 108,
+    "gzip9": 78,
+    "brotli11": 66
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 116,
+    "judged": 4,
+    "pruned": 0,
+    "passes": 5,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 1,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 2,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 3,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 4,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 5,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 6,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 7,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 8,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 9,
+      "size": 76,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 10,
+      "size": 66,
+      "sha256": "eb830f486969b14cd2e16ce159ddb4832b84071b59dbc0096f0ea3070f5d9170"
+     },
+     {
+      "level": 11,
+      "size": 66,
+      "sha256": "eb830f486969b14cd2e16ce159ddb4832b84071b59dbc0096f0ea3070f5d9170"
+     },
+     {
+      "level": 12,
+      "size": 66,
+      "sha256": "eb830f486969b14cd2e16ce159ddb4832b84071b59dbc0096f0ea3070f5d9170"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "lane": "production/gzip/script",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/production_gzip_script/cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order.js",
+    "bytes": 119,
+    "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938",
+    "raw": 119,
+    "gzip9": 89,
+    "brotli11": 73
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 2,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 1,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 2,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 3,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 4,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 5,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 6,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 7,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 8,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 9,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 10,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 11,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 12,
+      "size": 89,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "lane": "production/gzip/module",
+   "compileMs": 8,
+   "artifact": {
+    "path": "lanes/production_gzip_module/cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order.mjs",
+    "bytes": 108,
+    "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96",
+    "raw": 108,
+    "gzip9": 78,
+    "brotli11": 76
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 2,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 1,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 2,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 3,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 4,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 5,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 6,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 7,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 8,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 9,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 10,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 11,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 12,
+      "size": 78,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "lane": "production/raw/script",
+   "compileMs": 7,
+   "artifact": {
+    "path": "lanes/production_raw_script/cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order.js",
+    "bytes": 119,
+    "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938",
+    "raw": 119,
+    "gzip9": 89,
+    "brotli11": 73
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 2,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 1,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 2,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 3,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 4,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 5,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 6,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 7,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 8,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 9,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 10,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 11,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     },
+     {
+      "level": 12,
+      "size": 119,
+      "sha256": "4d093af4c28e5547fd5daa32f73bf9abc499fc2b7e492d21d7406793b5135938"
+     }
+    ]
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+   "lane": "production/raw/module",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/production_raw_module/cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order.mjs",
+    "bytes": 108,
+    "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96",
+    "raw": 108,
+    "gzip9": 78,
+    "brotli11": 76
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 2,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 1,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 2,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 3,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 4,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 5,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 6,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 7,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 8,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 9,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 10,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 11,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     },
+     {
+      "level": 12,
+      "size": 108,
+      "sha256": "8aba87e4b20022b1dc90cf58bcaed6bc1a3e171f7553389c5d92b08b9eb7ad96"
+     }
+    ]
+   },
+   "reused": true,
+   "state": "pass"
+  }
+ ]
+}

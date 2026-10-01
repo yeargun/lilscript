@@ -519,7 +519,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
 
             return self
                 .parse_var_decl_after_name(ty, name)
-                .map(|decl| Item::Stmt(Stmt::VarDecl(decl)));
+                .map(|decl| Item::Stmt(Stmt::VarDecl(decl, self.source.node())));
         }
 
         if declared_pure || is_async || is_generator || !region.is_default() {
@@ -675,6 +675,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             let value = self.parse_expression()?;
             let semi = self.expect_semicolon()?;
             return Ok(Stmt::Throw {
+                id: self.source.node(),
                 value,
                 span: start.merge(semi.span),
             });
@@ -689,6 +690,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             let (args, _) = self.parse_args_after_open()?;
             let semi = self.expect_semicolon()?;
             return Ok(Stmt::SuperCall {
+                id: self.source.node(),
                 args,
                 span: start.merge(semi.span),
             });
@@ -700,6 +702,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             let value = self.parse_expression()?;
             let semi = self.expect_semicolon()?;
             return Ok(Stmt::Yield {
+                id: self.source.node(),
                 value,
                 delegate,
                 span: start.merge(semi.span),
@@ -713,7 +716,11 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
             return self
                 .parse_block_after_open()
-                .map(|(body, span)| Stmt::Block { body, span });
+                .map(|(body, span)| Stmt::Block {
+                    id: self.source.node(),
+                    body,
+                    span,
+                });
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::If)) {
@@ -740,13 +747,13 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         if self.match_kind(|kind| matches!(kind, TokenKind::Break)) {
             let start = self.previous_span();
             let semi = self.expect_semicolon()?;
-            return Ok(Stmt::Break(start.merge(semi.span)));
+            return Ok(Stmt::Break(start.merge(semi.span), self.source.node()));
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Continue)) {
             let start = self.previous_span();
             let semi = self.expect_semicolon()?;
-            return Ok(Stmt::Continue(start.merge(semi.span)));
+            return Ok(Stmt::Continue(start.merge(semi.span), self.source.node()));
         }
 
         if self.check(|kind| matches!(kind, TokenKind::Auto))
@@ -768,12 +775,14 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         if self.looks_like_typed_binding()? {
             let ty = self.parse_type()?;
             let name = self.expect_ident("expected variable name")?;
-            return self.parse_var_decl_after_name(ty, name).map(Stmt::VarDecl);
+            return self
+                .parse_var_decl_after_name(ty, name)
+                .map(|decl| Stmt::VarDecl(decl, self.source.node()));
         }
 
         let expr = self.parse_expression()?;
         self.expect_semicolon()?;
-        Ok(Stmt::Expr(expr))
+        Ok(Stmt::Expr(expr, self.source.node()))
     }
 
     fn parse_try_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
@@ -835,6 +844,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             |(_, span)| *span,
         );
         Ok(Stmt::Try {
+            id: self.source.node(),
             body,
             catch,
             finally: finally.map(|(body, _)| body),
@@ -887,6 +897,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let value = self.parse_expression()?;
         let semi = self.expect_semicolon()?;
         Ok(Stmt::ArrayDestructure {
+            id: self.source.node(),
             bindings: bindings.into_bump_slice(),
             value,
             span: start.merge(semi.span),
@@ -964,6 +975,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let value = self.parse_expression()?;
         let semi = self.expect_semicolon()?;
         Ok(Stmt::RecordDestructure {
+            id: self.source.node(),
             bindings: bindings.into_bump_slice(),
             rest,
             value,
@@ -1237,6 +1249,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         if self.check(|kind| matches!(kind, TokenKind::Semicolon)) {
             let semi = self.expect_semicolon()?;
             return Ok(Stmt::Return {
+                id: self.source.node(),
                 value: None,
                 span: start.merge(semi.span),
             });
@@ -1245,6 +1258,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let value = self.parse_expression()?;
         let semi = self.expect_semicolon()?;
         Ok(Stmt::Return {
+            id: self.source.node(),
             value: Some(value),
             span: start.merge(semi.span),
         })
@@ -1273,6 +1287,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         };
         let end = else_branch.map_or_else(|| then_branch.span(), |branch| branch.span());
         Ok(Stmt::If {
+            id: self.source.node(),
             condition,
             then_branch,
             else_branch,
@@ -1293,6 +1308,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         )?;
         let body = admission::alloc(self.arena, self.admission, self.parse_statement()?)?;
         Ok(Stmt::While {
+            id: self.source.node(),
             condition,
             span: start.merge(body.span()),
             body,
@@ -1333,6 +1349,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 )?;
                 let body = admission::alloc(self.arena, self.admission, self.parse_statement()?)?;
                 return Ok(Stmt::ForIn {
+                    id: self.source.node(),
                     key_type: ty,
                     key: name,
                     object,
@@ -1366,6 +1383,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 )?;
                 let body = admission::alloc(self.arena, self.admission, self.parse_statement()?)?;
                 return Ok(Stmt::ForOf {
+                    id: self.source.node(),
                     element_type: ty,
                     element: name,
                     value,
@@ -1409,6 +1427,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             ));
         }
         Ok(Stmt::For {
+            id: self.source.node(),
             initializer,
             condition,
             update,
@@ -1797,6 +1816,41 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let mut expr = self.parse_primary_expression()?;
 
         loop {
+            if self.match_kind(|kind| matches!(kind, TokenKind::Ident("with"))) {
+                self.expect(
+                    |kind| matches!(kind, TokenKind::LBrace),
+                    "expected `{` after `with`",
+                )?;
+                let mut fields = BumpVec::new_in(self.arena, self.admission);
+                while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
+                    let key =
+                        self.expect_property_ident("expected a field name in value update")?;
+                    self.expect(
+                        |kind| matches!(kind, TokenKind::Colon),
+                        "expected `:` after field name",
+                    )?;
+                    let value = self.parse_expression()?;
+                    fields.push(RecordEntry {
+                        span: key.span.merge(value.span()),
+                        key,
+                        value,
+                    })?;
+                    if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
+                        break;
+                    }
+                }
+                let close = self.expect(
+                    |kind| matches!(kind, TokenKind::RBrace),
+                    "expected `}` after value update",
+                )?;
+                let value = admission::alloc(self.arena, self.admission, expr)?;
+                expr = self.source.expression(ExprKind::With {
+                    value,
+                    fields: fields.into_bump_slice(),
+                    span: value.span().merge(close.span),
+                });
+                continue;
+            }
             if self.match_kind(|kind| matches!(kind, TokenKind::QuestionDot)) {
                 if self.match_kind(|kind| matches!(kind, TokenKind::LBracket)) {
                     let index = self.parse_expression()?;
@@ -2534,12 +2588,19 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         &mut self,
         named: bool,
     ) -> Result<ParameterType<'arena, 'src>, AdmittedParseError> {
+        let receiver = !named && self.match_kind(|kind| matches!(kind, TokenKind::Ident("this")));
+        if receiver {
+            self.match_kind(|kind| matches!(kind, TokenKind::Colon));
+        }
         let modifier = self
             .reference_parameter_at(self.cursor, named)?
             .then(|| self.advance().expect("checked reference parameter").span);
         let ty = self.parse_type()?;
+        let rest = !named && self.match_kind(|kind| matches!(kind, TokenKind::Ellipsis));
         Ok(ParameterType {
+            receiver,
             ty,
+            rest,
             passing: if modifier.is_some() {
                 ParameterPassing::MutableReference
             } else {
@@ -2635,6 +2696,12 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 };
                 if !matches!(kind, TokenKind::RParen) {
                     loop {
+                        if matches!(self.lookahead_kind(index)?, Some(TokenKind::Ident("this"))) {
+                            index += 1;
+                            if matches!(self.lookahead_kind(index)?, Some(TokenKind::Colon)) {
+                                index += 1;
+                            }
+                        }
                         if self.reference_parameter_at(index, false)? {
                             index += 1;
                         }
@@ -2642,6 +2709,9 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                             return Ok(None);
                         };
                         index = end;
+                        if matches!(self.lookahead_kind(index)?, Some(TokenKind::Ellipsis)) {
+                            index += 1;
+                        }
                         let Some(kind) = self.lookahead_kind(index)? else {
                             return Ok(None);
                         };
@@ -2991,7 +3061,7 @@ fn exported_item_name<'src>(item: &Item<'_, 'src>) -> Option<Ident<'src>> {
         Item::Function(decl) => Some(decl.name),
         Item::Extern(decl) => Some(decl.name),
         Item::ExternGlobal(decl) => Some(decl.name),
-        Item::Stmt(Stmt::VarDecl(decl)) => Some(decl.name),
+        Item::Stmt(Stmt::VarDecl(decl, ..)) => Some(decl.name),
         Item::Stmt(_) => None,
     }
 }
@@ -3014,7 +3084,7 @@ mod tests {
         let initializer = |source: &'static str| {
             let program =
                 parse_source(&arena, source).unwrap_or_else(|error| panic!("{source}: {error:?}"));
-            let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
+            let Item::Stmt(Stmt::VarDecl(declaration, ..)) = &program.items[0] else {
                 panic!("{source}: expected a declaration");
             };
             declaration.initializer.clone().expect("an initializer")
@@ -3124,26 +3194,32 @@ mod tests {
         let program = parse_source(&arena, "delete o.k; typeof = 1; delete = typeof;").unwrap();
         assert!(matches!(
             &program.items[0],
-            Item::Stmt(Stmt::Expr(Expr {
-                kind: ExprKind::DynamicUnary {
-                    op: DynamicUnaryOp::Delete,
-                    ..
-                },
-                ..
-            }))
-        ));
-        assert!(matches!(
-            &program.items[2],
-            Item::Stmt(Stmt::Expr(Expr {
-                kind: ExprKind::Assignment {
-                    value: Expr {
-                        kind: ExprKind::Ident(_),
+            Item::Stmt(Stmt::Expr(
+                Expr {
+                    kind: ExprKind::DynamicUnary {
+                        op: DynamicUnaryOp::Delete,
                         ..
                     },
                     ..
                 },
                 ..
-            }))
+            ))
+        ));
+        assert!(matches!(
+            &program.items[2],
+            Item::Stmt(Stmt::Expr(
+                Expr {
+                    kind: ExprKind::Assignment {
+                        value: Expr {
+                            kind: ExprKind::Ident(_),
+                            ..
+                        },
+                        ..
+                    },
+                    ..
+                },
+                ..
+            ))
         ));
         // A lambda names its receiver first and its rest last (R7);
         // declarations take neither.
@@ -3170,10 +3246,13 @@ mod tests {
         let arena = Bump::new();
         let source = "f(ref x.field,ref ref,ref,ref(a),ref (a),ref[a],ref.field);";
         let program = parse_source(&arena, source).unwrap();
-        let Item::Stmt(Stmt::Expr(Expr {
-            kind: ExprKind::Call { args, .. },
-            ..
-        })) = &program.items[0]
+        let Item::Stmt(Stmt::Expr(
+            Expr {
+                kind: ExprKind::Call { args, .. },
+                ..
+            },
+            ..,
+        )) = &program.items[0]
         else {
             panic!("call statement")
         };
@@ -3242,7 +3321,7 @@ mod tests {
             function.params[3].parameter.ty.kind,
             TypeKind::Named { name: "ref", .. }
         ));
-        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(declaration, ..)) = &program.items[1] else {
             panic!("function type")
         };
         let TypeKind::Function { params, .. } = declaration.ty.kind else {
@@ -3270,7 +3349,7 @@ mod tests {
     fn contextual_reference_records_cover_arrows_constructors_and_super() {
         let arena = Bump::new();
         let program = parse_source(&arena, "auto callback=(ref int value)=>value;auto x=new Box(ref value);class Box{init(int x){super(ref x);}}").unwrap();
-        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(declaration, ..)) = &program.items[0] else {
             panic!("arrow")
         };
         let ExprKind::ArrowFunction { params, .. } = declaration.initializer.as_ref().unwrap().kind
@@ -3281,7 +3360,7 @@ mod tests {
             params[0].parameter.passing,
             ParameterPassing::MutableReference
         );
-        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(declaration, ..)) = &program.items[1] else {
             panic!("new")
         };
         let ExprKind::New { args, .. } = declaration.initializer.as_ref().unwrap().kind else {
@@ -3426,7 +3505,7 @@ mod tests {
             "Record<int> values=record{alpha:1,\"beta-key\":2,};",
         )
         .unwrap();
-        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(declaration, ..)) = &program.items[0] else {
             panic!("expected record declaration");
         };
         let Some(Expr {
@@ -3452,7 +3531,7 @@ mod tests {
         )
         .unwrap();
 
-        let Item::Stmt(Stmt::VarDecl(array)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(array, ..)) = &program.items[1] else {
             panic!("expected array declaration");
         };
         let Some(Expr {
@@ -3464,7 +3543,7 @@ mod tests {
         };
         assert!(matches!(elements[1], ArrayElement::Spread { .. }));
 
-        let Item::Stmt(Stmt::VarDecl(record)) = &program.items[3] else {
+        let Item::Stmt(Stmt::VarDecl(record, ..)) = &program.items[3] else {
             panic!("expected record declaration");
         };
         let Some(Expr {
@@ -3521,7 +3600,10 @@ mod tests {
 
         assert_eq!(program.items.len(), 2);
         assert!(matches!(&program.items[0], Item::Struct(_)));
-        assert!(matches!(&program.items[1], Item::Stmt(Stmt::VarDecl(_))));
+        assert!(matches!(
+            &program.items[1],
+            Item::Stmt(Stmt::VarDecl(_, ..))
+        ));
     }
 
     #[test]
@@ -3599,7 +3681,7 @@ mod tests {
             "int value=1;int first=++value*2;int second=value--; ",
         )
         .unwrap();
-        let Item::Stmt(Stmt::VarDecl(first)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(first, ..)) = &program.items[1] else {
             panic!("expected first declaration");
         };
         assert!(matches!(
@@ -3610,7 +3692,7 @@ mod tests {
                 ..
             }, .. }) if matches!(lhs, Expr { kind: ExprKind::Update { prefix: true, op: UpdateOp::Increment, .. }, .. })
         ));
-        let Item::Stmt(Stmt::VarDecl(second)) = &program.items[2] else {
+        let Item::Stmt(Stmt::VarDecl(second, ..)) = &program.items[2] else {
             panic!("expected second declaration");
         };
         assert!(matches!(
@@ -3630,7 +3712,10 @@ mod tests {
     fn parses_first_class_function_types() {
         let arena = Bump::new();
         let program = parse_source(&arena, "func(int)->int twice=(int x)=>x*2;").unwrap();
-        assert!(matches!(&program.items[0], Item::Stmt(Stmt::VarDecl(_))));
+        assert!(matches!(
+            &program.items[0],
+            Item::Stmt(Stmt::VarDecl(_, ..))
+        ));
     }
 
     #[test]
@@ -3642,14 +3727,14 @@ mod tests {
         )
         .unwrap();
 
-        let Item::Stmt(Stmt::VarDecl(transforms)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(transforms, ..)) = &program.items[0] else {
             panic!("expected callback array declaration");
         };
         assert!(matches!(
             transforms.ty.kind,
             TypeKind::Array(element) if matches!(element.kind, TypeKind::Function { .. })
         ));
-        let Item::Stmt(Stmt::VarDecl(first)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(first, ..)) = &program.items[1] else {
             panic!("expected callback declaration");
         };
         assert!(matches!(first.ty.kind, TypeKind::Function { .. }));
@@ -3808,7 +3893,7 @@ int result=from(3);"#,
             panic!("expected exported function");
         };
         assert_eq!(function.name.name, "from");
-        let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(binding, ..)) = &program.items[1] else {
             panic!("expected variable declaration");
         };
         assert!(matches!(
@@ -3837,7 +3922,7 @@ int result=from(3);"#,
             panic!("expected generic class");
         };
         assert_eq!(class.type_params[0].name, "T");
-        let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[2] else {
+        let Item::Stmt(Stmt::VarDecl(binding, ..)) = &program.items[2] else {
             panic!("expected applied class binding");
         };
         assert!(matches!(
@@ -3851,7 +3936,7 @@ int result=from(3);"#,
         let arena = Bump::new();
         let program = parse_source(&arena, "string? label=null;int?[] values=[null,1];").unwrap();
 
-        let Item::Stmt(Stmt::VarDecl(label)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(label, ..)) = &program.items[0] else {
             panic!("expected nullable binding");
         };
         assert!(matches!(label.ty.kind, TypeKind::Nullable(_)));
@@ -3862,7 +3947,7 @@ int result=from(3);"#,
                 ..
             })
         ));
-        let Item::Stmt(Stmt::VarDecl(values)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(values, ..)) = &program.items[1] else {
             panic!("expected nullable array binding");
         };
         assert!(matches!(
@@ -3879,7 +3964,7 @@ int result=from(3);"#,
             "number total=1;number scale(number value){return value*2;}",
         )
         .unwrap();
-        let Item::Stmt(Stmt::VarDecl(total)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(total, ..)) = &program.items[0] else {
             panic!("expected number binding");
         };
         assert!(matches!(total.ty.kind, TypeKind::Float));
@@ -3899,7 +3984,7 @@ int result=from(3);"#,
         )
         .unwrap();
 
-        let Item::Stmt(Stmt::VarDecl(value)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(value, ..)) = &program.items[1] else {
             panic!("expected coalesced variable declaration");
         };
         assert!(matches!(
@@ -3912,10 +3997,13 @@ int result=from(3);"#,
                 ..
             })
         ));
-        let Item::Stmt(Stmt::Expr(Expr {
-            kind: ExprKind::Assignment { op, .. },
-            ..
-        })) = &program.items[2]
+        let Item::Stmt(Stmt::Expr(
+            Expr {
+                kind: ExprKind::Assignment { op, .. },
+                ..
+            },
+            ..,
+        )) = &program.items[2]
         else {
             panic!("expected nullish assignment expression");
         };
@@ -3930,7 +4018,7 @@ int result=from(3);"#,
             "int[]? values=null;int? length=values?.length;int? first=values?.[0];",
         )
         .unwrap();
-        let Item::Stmt(Stmt::VarDecl(length)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(length, ..)) = &program.items[1] else {
             panic!("expected optional member binding");
         };
         assert!(matches!(
@@ -3940,7 +4028,7 @@ int result=from(3);"#,
                 ..
             })
         ));
-        let Item::Stmt(Stmt::VarDecl(first)) = &program.items[2] else {
+        let Item::Stmt(Stmt::VarDecl(first, ..)) = &program.items[2] else {
             panic!("expected optional index binding");
         };
         assert!(matches!(
@@ -3958,11 +4046,11 @@ int result=from(3);"#,
         let program =
             parse_source(&arena, "string|int value=1;(string|int)[] values=[value];").unwrap();
 
-        let Item::Stmt(Stmt::VarDecl(value)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(value, ..)) = &program.items[0] else {
             panic!("expected union binding");
         };
         assert!(matches!(value.ty.kind, TypeKind::Union(members) if members.len() == 2));
-        let Item::Stmt(Stmt::VarDecl(values)) = &program.items[1] else {
+        let Item::Stmt(Stmt::VarDecl(values, ..)) = &program.items[1] else {
             panic!("expected union array binding");
         };
         assert!(matches!(
@@ -4006,7 +4094,7 @@ int result=from(3);"#,
             "auto task=import(\"./feature\");task.then((auto module)=>module.run());",
         )
         .unwrap();
-        let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(binding, ..)) = &program.items[0] else {
             panic!("expected dynamic import binding");
         };
         assert!(matches!(
@@ -4092,7 +4180,7 @@ int result=from(3);"#,
             "JsValue callback=JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j)=>j);",
         )
         .unwrap();
-        let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[0] else {
+        let Item::Stmt(Stmt::VarDecl(binding, ..)) = &program.items[0] else {
             panic!("expected adapter binding");
         };
         let Some(Expr {
@@ -4159,22 +4247,28 @@ int result=from(3);"#,
             .items
             .iter()
             .filter_map(|item| match item {
-                Item::Stmt(Stmt::VarDecl(VarDecl {
-                    initializer:
-                        Some(Expr {
-                            kind: ExprKind::Member { property, .. },
-                            ..
-                        }),
-                    ..
-                }))
-                | Item::Stmt(Stmt::VarDecl(VarDecl {
-                    initializer:
-                        Some(Expr {
-                            kind: ExprKind::OptionalMember { property, .. },
-                            ..
-                        }),
-                    ..
-                })) => Some(property.name),
+                Item::Stmt(Stmt::VarDecl(
+                    VarDecl {
+                        initializer:
+                            Some(Expr {
+                                kind: ExprKind::Member { property, .. },
+                                ..
+                            }),
+                        ..
+                    },
+                    ..,
+                ))
+                | Item::Stmt(Stmt::VarDecl(
+                    VarDecl {
+                        initializer:
+                            Some(Expr {
+                                kind: ExprKind::OptionalMember { property, .. },
+                                ..
+                            }),
+                        ..
+                    },
+                    ..,
+                )) => Some(property.name),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -4191,14 +4285,17 @@ int result=from(3);"#,
         assert!(
             matches!(&class.members[1], ClassMember::Field(field) if field.name.name == "async")
         );
-        let Item::Stmt(Stmt::VarDecl(VarDecl {
-            initializer:
-                Some(Expr {
-                    kind: ExprKind::RecordLiteral { entries, .. },
-                    ..
-                }),
-            ..
-        })) = &program.items[8]
+        let Item::Stmt(Stmt::VarDecl(
+            VarDecl {
+                initializer:
+                    Some(Expr {
+                        kind: ExprKind::RecordLiteral { entries, .. },
+                        ..
+                    }),
+                ..
+            },
+            ..,
+        )) = &program.items[8]
         else {
             panic!("expected record declaration");
         };

@@ -23,7 +23,7 @@ enum PrimitiveOperation {
         op: crate::ast::UnaryOp,
         integer: bool,
     },
-    IsUndefined,
+    IsUndefined(Option<u32>),
     Intrinsic(crate::primitive::ResolvedIntrinsic),
 }
 
@@ -121,7 +121,8 @@ fn plan(program: &Program<'_>, effects: &ProgramEffects, unit: UnitId) -> Vec<Re
             uses[value.index()] = uses[value.index()].saturating_add(1);
         }
         Ok(())
-    }).expect("verified program occurrences");
+    })
+    .expect("verified program occurrences");
     let mut replacements = Vec::new();
     let mut replaced = vec![false; data.operations.len()];
     let arguments_free = super::super::defaults::arguments_free(program, unit);
@@ -222,7 +223,8 @@ fn plan(program: &Program<'_>, effects: &ProgramEffects, unit: UnitId) -> Vec<Re
                     // reuse a literal or an immutable cell read here: an
                     // arbitrary producer would need another snapshot when
                     // later branches still read/write the original cell.
-                    let definition = &data.operations[data.values[value.index()].definition.index()];
+                    let definition =
+                        &data.operations[data.values[value.index()].definition.index()];
                     let reusable = match definition.kind {
                         OperationKind::Constant(_) => true,
                         OperationKind::Load(place) => match data.places[place.index()] {
@@ -247,7 +249,10 @@ fn plan(program: &Program<'_>, effects: &ProgramEffects, unit: UnitId) -> Vec<Re
             // call can otherwise create a snapshot or hide a useful inline
             // boundary even when the storage itself stays immutable.
             if operation.kind.child_regions().next().is_some()
-                || matches!(operation.kind, OperationKind::PrepareCall(_) | OperationKind::Call(_))
+                || matches!(
+                    operation.kind,
+                    OperationKind::PrepareCall(_) | OperationKind::Call(_)
+                )
             {
                 reaching.clear();
                 loaded.clear();
@@ -289,7 +294,10 @@ fn plan(program: &Program<'_>, effects: &ProgramEffects, unit: UnitId) -> Vec<Re
                         && !storage.stored
                         && !storage.referenced
                         && (classes.value(unit, result).primitive()
-                            || matches!(program.ty(binding.ty), Some(Type::Int | Type::Float | Type::Bool | Type::Enum(_))))
+                            || matches!(
+                                program.ty(binding.ty),
+                                Some(Type::Int | Type::Float | Type::Bool | Type::Enum(_))
+                            ))
                     {
                         if let Some(&with) = loaded.get(&cell) {
                             if data.values[with.index()].ty == data.values[result.index()].ty
@@ -389,7 +397,7 @@ fn primitive(kind: &OperationKind) -> Option<PrimitiveOperation> {
         OperationKind::IntBinary(operation) => PrimitiveOperation::Int(operation),
         OperationKind::Binary(operation) => PrimitiveOperation::Binary(operation),
         OperationKind::Unary { op, integer } => PrimitiveOperation::Unary { op, integer },
-        OperationKind::IsUndefined => PrimitiveOperation::IsUndefined,
+        OperationKind::IsUndefined { parameter } => PrimitiveOperation::IsUndefined(parameter),
         OperationKind::Intrinsic(operation) => PrimitiveOperation::Intrinsic(operation),
         _ => return None,
     })

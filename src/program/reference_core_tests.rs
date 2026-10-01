@@ -1,8 +1,8 @@
 //! Prepared locations share one call owner and remain observable aliases.
 use super::demand::{DemandMode, DemandPlan};
+use super::facts::domains::{Admission, DomainInputs, DomainProof, SourceRecipes, Subject};
 use super::facts::{self, EvaluationBehavior};
 use super::publication::{CheckpointLimit, Compilation, PlacePatch, UnitPatch};
-use super::raw_domains::{Admission, DomainInputs, DomainProof, SourceRecipes, Subject};
 use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
 use super::*;
 use crate::compilation_contract::JavaScriptExecution;

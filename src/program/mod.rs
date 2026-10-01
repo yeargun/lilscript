@@ -8,16 +8,13 @@
 //! JavaScript formation moves to `crate::js` in M8, native to `src/native/` in M11.
 
 mod activation;
+mod aggregates;
 mod ambient;
 mod artifact_provenance;
 mod artifacts;
 pub mod call_graph;
 mod callable_inputs;
 mod cell_ssa;
-mod aggregates;
-mod physical_storage;
-#[cfg(test)]
-mod physical_storage_tests;
 mod classes;
 mod dataflow;
 mod defaults;
@@ -39,6 +36,9 @@ mod native_memory;
 mod native_plan;
 mod native_runtime;
 mod native_string_runtime;
+mod physical_storage;
+#[cfg(test)]
+mod physical_storage_tests;
 mod private_fields;
 #[cfg(test)]
 mod product_demand_tests;
@@ -51,7 +51,6 @@ mod product_javascript_tests;
 mod product_publication_tests;
 pub mod publication;
 pub(crate) mod ranges;
-mod raw_domains;
 mod record_family;
 mod rewrite_lineage;
 pub(crate) mod rules;
@@ -208,6 +207,8 @@ pub struct UnitData {
     /// This is target-boundary metadata: the program keeps its explicit
     /// default operations, and native lowering ignores it.
     pub native_default_length: Option<u32>,
+    /// First declaration default affecting observable JavaScript length.
+    pub declared_length: Option<u32>,
     pub parameters: Vec<CellId>,
     pub captures: Vec<CellId>,
     pub entry: RegionId,
@@ -238,8 +239,10 @@ pub enum Suspension {
 /// Whether a call reaches host code, which applies its own parameter
 /// defaults and can observe how many arguments it received: an extern
 /// function, or a method of a host object (an extern class instance or a
-/// `JsValue`). Such a call preserves omitted arguments; a LilScript callee's
-/// omitted defaults are evaluated by its caller instead.
+/// `JsValue`). Such a call preserves omitted arguments. A source callee also
+/// receives the supplied count and applies its declaration's defaults itself.
+/// This classification describes direct syntax, not the identity of an aliased
+/// function value after forwarding.
 pub(crate) fn host_call(program: &Program<'_>, data: &UnitData, target: &CallTarget) -> bool {
     match *target {
         CallTarget::Value { callee, .. } => {
@@ -286,6 +289,7 @@ impl UnitData {
             function_name: None,
             callable_type: None,
             native_default_length: None,
+            declared_length: None,
             parameters: Vec::new(),
             captures: Vec::new(),
             entry: RegionId::from_index(0).unwrap(),
@@ -578,7 +582,7 @@ pub struct StructDefinition {
     /// Original declaration owner; source identity is borrowed through modules.
     pub module: ModuleId,
     pub span: Span,
-    pub type_parameters: Vec<String>,
+    pub type_parameters: Vec<crate::check::TypeParameterId>,
     /// Declaration-order fields, including members never accessed locally.
     pub fields: std::ops::Range<usize>,
 }
@@ -607,7 +611,7 @@ pub struct ClassDefinition {
     /// The class's own type parameters, and its base's type arguments in
     /// terms of them (empty for a non-generic base): an upcast of an
     /// instance substitutes these up the chain.
-    pub type_params: Vec<String>,
+    pub type_params: Vec<crate::check::TypeParameterId>,
     pub base_arguments: Vec<TypeId>,
     /// An extern class's host constructor, as its checked function type:
     /// what `super(...)` of a subclass calls. Internal classes have none.
@@ -957,9 +961,12 @@ pub enum OperationKind {
     Throw,
     Break,
     Continue,
-    /// Whether a parameter arrived as `undefined` (omitted by a host or an
-    /// erased caller), so its checked default applies. Never true natively.
-    IsUndefined,
+    /// Whether the operand is `undefined`. Declaration guards also retain the
+    /// parameter ordinal so native calls can transport omission independently
+    /// of the initialized parameter's value representation.
+    IsUndefined {
+        parameter: Option<u32>,
+    },
     /// `value is T` on a union or nullable: the target's runtime test
     /// (`typeof` for primitives and functions, `Array.isArray` for arrays).
     TypeTest(TypeId),

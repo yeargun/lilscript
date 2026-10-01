@@ -208,7 +208,7 @@ pub(super) fn apply(
                     .is_some_and(|condition| {
                         matches!(
                             data.operations[data.values[condition.index()].definition.index()].kind,
-                            OperationKind::IsUndefined
+                            OperationKind::IsUndefined { .. }
                         )
                     })
             {
@@ -224,16 +224,34 @@ pub(super) fn apply(
                     result,
                     yields,
                 } => {
-                    edit::splice(data, cells, unit, op, region);
                     let yields = resolve(&substituted, yields);
-                    edit::substitute(data, result, yields);
-                    substituted.insert(result, yields);
+                    let parent = data.operations[op.index()].region;
+                    let position = data.regions[parent.index()]
+                        .operations
+                        .iter()
+                        .position(|found| *found == op)
+                        .ok_or("selected operation missing")?;
+                    let kept = data.regions[region.index()].operations.len();
+                    edit::splice(data, cells, unit, op, region);
+                    if data.values[result.index()].ty == data.values[yields.index()].ty {
+                        edit::substitute(data, result, yields);
+                        substituted.insert(result, yields);
+                    } else {
+                        edit::make_value_view(data, op, yields)?;
+                        data.regions[parent.index()]
+                            .operations
+                            .insert(position + kept, op);
+                    }
                 }
                 Fold::Replace { op, result, with } => {
-                    edit::detach(data, op);
                     let with = resolve(&substituted, with);
-                    edit::substitute(data, result, with);
-                    substituted.insert(result, with);
+                    if data.values[result.index()].ty == data.values[with.index()].ty {
+                        edit::detach(data, op);
+                        edit::substitute(data, result, with);
+                        substituted.insert(result, with);
+                    } else {
+                        edit::make_value_view(data, op, with)?;
+                    }
                 }
             }
             receipt.folded_branches += 1;
@@ -440,6 +458,8 @@ fn value(
         && values
             .exact(unit, result)
             .is_some_and(|known| !matches!(known, StoredExact::String(_)));
+    let value_view = matches!(operation.kind, OperationKind::Load(place)
+        if matches!(data.places.get(place.index()), Some(Place::Value(_))));
     if !matches!(
         operation.kind,
         OperationKind::IntBinary(_)
@@ -449,6 +469,7 @@ fn value(
             | OperationKind::Call(_)
             | OperationKind::Intrinsic(_)
     ) && !root_scalar
+        && !value_view
         || (behaviors[op.index()].requires_evaluation() && !values.evaluated_call(unit, op))
     {
         return None;

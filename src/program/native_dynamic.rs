@@ -250,6 +250,16 @@ static {} {name}_code(void *environment",
                 );
                 self.write(format_args!(",{prefix}ls_p{position}{suffix}"))?;
             }
+            if self.plan.signatures[from].has_optional() {
+                if self.plan.signatures[to].has_optional() {
+                    self.text(",ls_argc")?;
+                } else {
+                    self.write(format_args!(
+                        ",{}",
+                        self.plan.signatures[to].parameters.len()
+                    ))?;
+                }
+            }
             self.write(format_args!(
                 "){suffix};\n}}\n\
 static ls_callable{to} ls_adapt{from}_{to}(ls_callable{from} inner) {{\n\

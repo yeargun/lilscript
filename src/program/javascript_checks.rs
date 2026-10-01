@@ -151,6 +151,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: false,
                 parameters,
                 body,
                 arrow: false,
@@ -385,6 +386,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: false,
                 parameters,
                 body,
                 arrow: false,
@@ -436,7 +438,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             let Some(parameter) = signature.params.get(index) else {
                 continue;
             };
-            if parameter.default.is_some()
+            if parameter.optional
                 || parameter.passing != crate::primitive::ParameterPassing::Value
                 || self.unbound_cells.contains(&cell)
                 || self.activation_cells.contains(&cell)

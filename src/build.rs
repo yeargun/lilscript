@@ -366,10 +366,14 @@ impl Frontend {
         if policies.is_empty() {
             return None;
         }
-        let permitted = |tactic: TacticId| policies.iter().all(|policy| {
-            tactic.spec().producer_enabled(
-                crate::compilation_policy::TacticProducer::SharedRules, policy)
-        });
+        let permitted = |tactic: TacticId| {
+            policies.iter().all(|policy| {
+                tactic.spec().producer_enabled(
+                    crate::compilation_policy::TacticProducer::SharedRules,
+                    policy,
+                )
+            })
+        };
         let seal = self
             .javascript
             .as_ref()
@@ -712,8 +716,12 @@ impl<'src> CheckedSourceSession<'src> {
             .map(|report| serde_json::to_value(report).unwrap_or(Value::Null))
             .map_err(|error| ServiceError::output("javascript", error))?;
         let counters = search.counters();
-        let report = search_report(resolved_request, counters,
-            search.stopped().map(|error| format!("{error:?}")), terminal);
+        let report = search_report(
+            resolved_request,
+            counters,
+            search.stopped().map(|error| format!("{error:?}")),
+            terminal,
+        );
         let selected = objectives
             .iter()
             .map(|codec| {
@@ -930,7 +938,10 @@ impl<'src> CheckedSourceSession<'src> {
             let (semantic, ownership_transfers) = self
                 .compilation
                 .with_qualified_native_artifact(&artifact, |view| {
-                    (semantic_report(Some(view.snapshot), Some(view.meaning), view.rewrites), view.ownership_transfers)
+                    (
+                        semantic_report(Some(view.snapshot), Some(view.meaning), view.rewrites),
+                        view.ownership_transfers,
+                    )
                 })
                 .map_err(|error| ServiceError::new("native metadata", error))?;
             let cost = json!({"c_bytes":artifact.c_bytes(), "header_bytes":artifact.header_bytes(),
@@ -1332,6 +1343,16 @@ fn check_source_frontend<'src>(
                 &syntax,
                 &mut AllocationBudget::new(Some((ledger, domain))),
                 |semantics, budget| -> Result<_, ServiceError> {
+                    if frontend.native.is_some() {
+                        crate::check::capabilities::native(
+                            &syntax,
+                            semantics.view(),
+                            Some(0),
+                            frontend.options.preserve_root_exports,
+                            budget,
+                        )
+                        .map_err(|error| native_check_error("<source>", source, error))?;
+                    }
                     frontend.phases["check_ns"] = json!(nanos(phase));
                     budget
                         .work(WorkKind::Analysis, source.len() as u64)
@@ -1472,6 +1493,22 @@ fn check_path_frontend<'src, T>(
                 &modules,
                 &mut AllocationBudget::new(Some((ledger, domain))),
                 |semantics, budget| -> Result<_, ServiceError> {
+                    if frontend.native.is_some() {
+                        for (module, source) in syntax.iter().enumerate() {
+                            let input = &modules.modules[module];
+                            crate::check::capabilities::native(
+                                source,
+                                semantics.view(module).expect("checked source"),
+                                Some(module),
+                                frontend.options.preserve_root_exports
+                                    && semantics.roots().contains(&module),
+                                budget,
+                            )
+                            .map_err(|error| {
+                                native_check_error(&input.path, input.source, error)
+                            })?;
+                        }
+                    }
                     frontend.phases["check_ns"] = json!(nanos(phase));
                     budget
                         .work(WorkKind::Analysis, bytes)
@@ -1988,3 +2025,17 @@ mod delivery_tests;
 #[cfg(test)]
 #[path = "build_objective_tests.rs"]
 mod objective_tests;
+
+fn native_check_error(
+    path: impl AsRef<Path>,
+    source: &str,
+    error: AdmittedCheckError,
+) -> ServiceError {
+    match error {
+        AdmittedCheckError::Semantic(error) => ServiceError::module(
+            "check",
+            ModuleError::new(path.as_ref(), source, error.span, error.message),
+        ),
+        AdmittedCheckError::Resources(error) => ServiceError::resources("check resources", error),
+    }
+}

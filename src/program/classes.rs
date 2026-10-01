@@ -259,7 +259,7 @@ fn transfer(
             op: U::Neg,
         } => Class::NUMBER,
         OperationKind::Unary { op: U::Not, .. }
-        | OperationKind::IsUndefined
+        | OperationKind::IsUndefined { .. }
         | OperationKind::TypeTest(_) => Class::BOOLEAN,
         OperationKind::Unary { .. } if all() => Class::NUMBER,
         OperationKind::Binary(

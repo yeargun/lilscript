@@ -75,6 +75,7 @@ fn forwarding_invalidates_mentions_when_a_moved_closure_adds_a_capture() {
     module.regions[body.index()].statements = vec![Statement::Return(Some(read))];
     let function = FunctionId::new(module.functions.len());
     module.functions.push(Function {
+        rest: false,
         parameters: vec![],
         body,
         arrow: true,

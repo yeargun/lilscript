@@ -8,9 +8,8 @@
 //! left unread is pruned later with the other unused ones; an exported one
 //! stays for its importers.
 //!
-//! Source-root facts are already consumed by shared rules. Layouts and
-//! inlining can subsequently create new literal bindings; Q1/S4 own replacing
-//! this physical-storage proof once those choices publish equivalent facts.
+//! Source facts are consumed by shared program rules; physical storage created
+//! by layouts and inlining is described by the shared target binding owner.
 //!
 //! A number, boolean, `null` or `undefined` moves by rule, whatever the
 //! objective (Closure's `InlineVariables` for immutable values): a few
@@ -21,7 +20,7 @@
 //! larger (the plan record names them). Whether a literal repeated where it
 //! stands is better read through a new name is the pooling family's choice
 //! (Closure's `AliasStrings`).
-use super::quiet::Owner;
+use super::facts::Owner;
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 
@@ -45,35 +44,8 @@ impl Module {
     ) -> Result<usize, AllocationError> {
         let frames = self.frames(budget)?;
         let order = self.order(&frames, budget)?;
-        let mut values: Vec<Option<(usize, ExprId)>> = vec![None; self.bindings.len()];
-        let mut any = false;
-        for (index, statement) in self.regions[self.root.index()]
-            .statements
-            .iter()
-            .enumerate()
-        {
-            budget.work(Analysis, 1)?;
-            let Statement::Let {
-                binding,
-                value: Some(value),
-            } = *statement
-            else {
-                continue;
-            };
-            if order.written(binding) || self.observed(value) {
-                continue;
-            }
-            if let Expr::Literal(literal) = &self.expressions[value.index()] {
-                if matches!(literal, Literal::String(_)) != (kind == ConstantKind::String) {
-                    continue;
-                }
-                values[binding.index()] = Some((index, value));
-                any = true;
-            }
-        }
-        if !any {
-            return Ok(0);
-        }
+        // The binding owner includes representation-created roots and is
+        // rebuilt after edits; this transform adds no value/order proof.
         let owners = self.expression_owners(budget)?;
         self.with_reach_tree(budget, |module, reach, budget| {
             let mut rewrites = Vec::new();
@@ -82,9 +54,14 @@ impl Module {
                 let Expr::Binding(binding) = module.expressions[id.index()] else {
                     continue;
                 };
-                let Some((declared, value)) = values[binding.index()] else {
+                let Some((declared, value)) = order.literal(binding) else {
                     continue;
                 };
+                if !matches!(&module.expressions[value.index()],Expr::Literal(literal)
+                    if matches!(literal,Literal::String(_)) == (kind == ConstantKind::String))
+                {
+                    continue;
+                }
                 let initialized = match owners[id.index()] {
                     Some(Owner::Root(at)) => at > declared,
                     Some(Owner::Function(function)) => order.initialized_in(binding, function),

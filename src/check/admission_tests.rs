@@ -30,13 +30,35 @@ fn ledger(work: u64, memory: u64) -> BudgetLedger {
 
 fn fact_bytes(source: &crate::ast::SourceIdentity) -> u64 {
     (source.len()
-        * (std::mem::size_of::<Option<Type<'_>>>() + std::mem::size_of::<SourceInfo<'_, '_>>()))
-        as u64
+        * (std::mem::size_of::<Option<CheckedTypeId>>()
+            + std::mem::size_of::<SourceInfo<'_, '_>>())) as u64
 }
 
 fn small_declaration_bytes() -> u64 {
     (4 * (std::mem::size_of::<Symbol<'_>>()
         + std::mem::size_of::<Option<crate::module::ModuleId>>())) as u64
+}
+
+fn interface_type_bytes() -> u64 {
+    let mut pool = type_pool::TypePool::default();
+    let mut budget = AllocationBudget::new(None);
+    for ty in [
+        Type::Int,
+        Type::Void,
+        Type::Function(FunctionType::new(FunctionSignature {
+            params: vec![],
+            return_type: Box::new(Type::Int),
+        })),
+    ] {
+        pool.intern(&ty, &mut budget).unwrap();
+    }
+    pool.storage_bytes()
+}
+fn int_type_bytes() -> u64 {
+    let mut pool = type_pool::TypePool::default();
+    pool.intern(&Type::Int, &mut AllocationBudget::new(None))
+        .unwrap();
+    pool.storage_bytes()
 }
 
 fn base_scope_bytes() -> u64 {
@@ -151,12 +173,22 @@ impl ModuleStorage {
     }
 
     fn checked_live(&self) -> u64 {
-        self.live() + small_declaration_bytes()
+        // The interface fixture interns int, void and its one shared ()->int
+        // signature. The source tables now contain only compact identities.
+        self.live() + small_declaration_bytes() + interface_type_bytes()
     }
 
     fn checked_peak(&self) -> u64 {
         self.schedule_peak()
-            .max(self.checked_live() + simple_function_frame_peak())
+            // Only int is interned while a function body owns its frame;
+            // the call signature and void arrive later in the root body.
+            .max(
+                self.live()
+                    + small_declaration_bytes()
+                    + int_type_bytes()
+                    + simple_function_frame_peak(),
+            )
+            .max(self.checked_live())
     }
 }
 
@@ -173,7 +205,8 @@ fn admitted_source_tables_match_the_original_model_and_release_after_callback() 
         })
         .unwrap();
     let live_facts = live_facts_for_test();
-    let bytes = fact_bytes(syntax.source_identity()) + small_declaration_bytes();
+    let bytes =
+        fact_bytes(syntax.source_identity()) + small_declaration_bytes() + interface_type_bytes();
     let mut ledger = ledger(WORK, SENTINEL + bytes + simple_function_frame_peak());
     let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
     with_single_analyzer(&syntax, &mut budget, |model, budget| {
@@ -259,7 +292,7 @@ fn source_refusals_cover_both_fixed_arrays_without_releasing_parent_storage() {
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, "int value=7;print(value);").unwrap();
     let nodes = syntax.source_identity().len() as u64;
-    let first_bytes = nodes * std::mem::size_of::<Option<Type<'_>>>() as u64;
+    let first_bytes = nodes * std::mem::size_of::<Option<CheckedTypeId>>() as u64;
     for (work, memory, expected, peak) in [
         (
             WORK,
@@ -338,20 +371,23 @@ fn callback_error_panic_and_deadline_drop_checker_before_scope_release() {
     let mut ledger = ledger(WORK, MEMORY);
     let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
     let result =
-        with_analyzed_source(&syntax, &mut budget, |_, _| Err::<(), _>("client refusal")).unwrap();
+        with_single_analyzer(&syntax, &mut budget, |_, _| Err::<(), _>("client refusal")).unwrap();
     assert_eq!(result, Err("client refusal"));
     assert_eq!(live_facts_for_test(), live_facts);
     let failure = catch_unwind(AssertUnwindSafe(|| {
-        let _ = with_analyzed_source(&syntax, &mut budget, |_, budget| {
+        let _ = with_single_analyzer(&syntax, &mut budget, |_, budget| {
             assert_eq!(live_facts_for_test(), live_facts + 1);
             assert_eq!(
                 budget.retained_bytes(AllocationClass::Scratch),
-                fact_bytes(syntax.source_identity()) + small_declaration_bytes()
+                fact_bytes(syntax.source_identity()) + small_declaration_bytes() + int_type_bytes()
             );
             panic!("injected checker client panic");
         });
     }));
-    assert!(failure.is_err());
+    assert_eq!(
+        failure.unwrap_err().downcast_ref::<&str>(),
+        Some(&"injected checker client panic")
+    );
     assert_eq!(live_facts_for_test(), live_facts);
     assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
     budget.with_ledger(|owner| {
@@ -360,7 +396,7 @@ fn callback_error_panic_and_deadline_drop_checker_before_scope_release() {
             .0
             .set_deadline_elapsed_for_test(std::time::Duration::from_millis(100_000));
     });
-    let error = with_analyzed_source(&syntax, &mut budget, |_, _| ()).unwrap_err();
+    let error = with_single_analyzer(&syntax, &mut budget, |_, _| ()).unwrap_err();
     assert_eq!(
         error,
         AdmittedCheckError::Resources(AllocationError::Budget(BudgetError::DeadlineExceeded))
@@ -409,6 +445,7 @@ fn parser_checker_and_lower_use_one_ledger_through_detached_prepared_output() {
                         + backing
                         + fact_bytes(syntax.source_identity())
                         + small_declaration_bytes()
+                        + model.declarations.types.storage_bytes()
                 );
             });
             crate::program::from_checked_source_admitted(&syntax, model, budget)
@@ -663,7 +700,7 @@ fn module_declaration_refusals_keep_canonical_owner_attribution_and_parent_stora
         );
         assert_eq!(
             budget.retained_bytes(AllocationClass::Scratch),
-            storage.live() + 2 * (symbols + owners)
+            storage.live() + 2 * (symbols + owners) + int_type_bytes()
         );
     })
     .unwrap();
@@ -766,6 +803,30 @@ fn module_graph_schedule_and_late_interface_work_refusals_keep_actual_attributio
     )
     .unwrap();
     let total = successful.work_used(WorkDomain::Baseline);
+    let pool_work = Cell::new(0);
+    with_analyzed_modules(
+        &programs,
+        &modules,
+        &mut AllocationBudget::new(None),
+        |checked, _| {
+            // Reproduce the fixture's ordered type publications under a separate
+            // ledger; equal types pay lookup/equality, new ones pay ownership.
+            let mut meter = ledger(WORK, MEMORY);
+            let mut budget = AllocationBudget::new(Some((&mut meter, WorkDomain::Baseline)));
+            let mut pool = type_pool::TypePool::default();
+            for module in checked.initialization_order() {
+                let view = checked.view(*module).unwrap();
+                for id in view.facts.expression_types.iter().flatten() {
+                    pool.intern(view.checked_type(*id), &mut budget).unwrap();
+                }
+            }
+            drop(pool);
+            drop(budget);
+            pool_work.set(meter.work_used(WorkDomain::Baseline));
+        },
+    )
+    .unwrap();
+    let total = total - pool_work.get();
     let graph_work = (modules.modules.len()
         + modules
             .modules
@@ -798,7 +859,8 @@ fn module_graph_schedule_and_late_interface_work_refusals_keep_actual_attributio
     let analyzer_work = 4 * 3 * 4 + 2 * 2 + 2 * (2 + 6 + 2 + 2) + binary_work + scan_work;
     let body_work = 3 * 4 + 2 * (2 + 6 + 2 + 2) + binary_work + scan_work;
     let registration_peak = storage.schedule_peak().max(
-        storage.checked_live()
+        storage.live()
+            + small_declaration_bytes()
             + base_scope_bytes()
             + 4 * std::mem::size_of::<AHashSet<&str>>() as u64,
     );

@@ -86,7 +86,7 @@ fn assigns(body: &[Stmt<'_, '_>], name: &str) -> bool {
 
 fn statement_assigns(statement: &Stmt<'_, '_>, name: &str) -> bool {
     match statement {
-        Stmt::Expr(expression) => expression_assigns(expression, name),
+        Stmt::Expr(expression, ..) => expression_assigns(expression, name),
         Stmt::Block { body, .. } => assigns(body, name),
         Stmt::If {
             then_branch,

@@ -8,7 +8,7 @@
 //! the nominal's top-level fields; nested products remain packed values.
 use super::activation::StructuredDominance;
 use super::callable_inputs::{CallObservations, CallableInputs, InputOutcome, InputScope};
-use super::raw_domains::Admission;
+use super::facts::domains::Admission;
 use super::record_family::OpRef;
 use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
 use super::*;
@@ -848,7 +848,7 @@ impl<'p, 'src> Proof<'p, 'src> {
         }
         // Only an ordinary function owns the view changed by its formals.
         // Closure bodies inherit an enclosing activation's arguments instead.
-        if !super::ambient::inherits(self.data(body)?.kind) {
+        if !super::ambient::inherits(self.program, self.data(body)?) {
             self.add(Key::Ambient(body), budget)?;
         }
         Ok(index)
@@ -1935,7 +1935,7 @@ impl<'p, 'src> Proof<'p, 'src> {
         }
         for &(_, child) in uses.closures() {
             budget.work(1)?;
-            if super::ambient::inherits(self.data(child)?.kind) {
+            if super::ambient::inherits(self.program, self.data(child)?) {
                 self.add(Key::Ambient(child), budget)?;
             }
         }

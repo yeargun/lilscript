@@ -13,7 +13,9 @@ fn config(extra: &str) -> ProjectConfig {
 
 #[test]
 fn s3_product_call_copies_preserve_waiting_values_and_mutation_snapshots() {
-    let settings = config("[policy.tactics]\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'");
+    let settings = config(
+        "[policy.tactics]\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'",
+    );
     for (source, expected) in [
         ("struct P{int x;int y;}int offset(int n){return n+5;}int sum(P p){return p.x+p.y;}P p=P{2,3};print(offset(p.x)+sum(p));", "12\n"),
         ("struct P{int x;int y;}P p=P{1,2};int change(){p.x=9;return 3;}int read(P q,int n){return q.x+q.y+n;}print(read(p,change()));print(p.x);", "6\n9\n"),
@@ -589,15 +591,39 @@ fn finite_values_and_default_transport_obey_toml_in_both_targets() {
             let config: ProjectConfig = toml::from_str(&format!(
                 "objective.codecs='{codec}'\neffort.level=13\n[policy.tactics]\nconstant-folding='{permission}'\ninlining='off'\ncall-specialization='off'"
             )).unwrap();
-            let result = compile_source(&source, &config, ServiceOptions {
-                target: ServiceTarget::All, ..ServiceOptions::default()
-            }).unwrap();
+            let result = compile_source(
+                &source,
+                &config,
+                ServiceOptions {
+                    target: ServiceTarget::All,
+                    ..ServiceOptions::default()
+                },
+            )
+            .unwrap();
             let receipt = &result.report()["phases_ns"]["rules"];
-            for field in ["set_folds", "default_arguments_omitted", "forwarded_definitions"] {
-                assert_eq!(receipt[field].as_u64().unwrap() > 0, permission == "on", "{field}: {receipt}");
+            for field in [
+                "set_folds",
+                "default_arguments_omitted",
+                "forwarded_definitions",
+            ] {
+                assert_eq!(
+                    receipt[field].as_u64().unwrap() > 0,
+                    permission == "on",
+                    "{field}: {receipt}"
+                );
             }
             let expected = "true\ntrue\n0\nnull\n0\n7\n1\nnull\n1\n7\n1\n2\n";
-            assert_eq!(execute_javascript(result.javascript(config.objective.codecs[0]).unwrap().javascript(), "", ""), expected);
+            assert_eq!(
+                execute_javascript(
+                    result
+                        .javascript(config.objective.codecs[0])
+                        .unwrap()
+                        .javascript(),
+                    "",
+                    ""
+                ),
+                expected
+            );
             assert_eq!(execute_native(result.native_c().unwrap()), expected);
         }
     }
@@ -615,12 +641,30 @@ fn folded_nullable_literals_keep_the_native_tagged_representation() {
         int? absent=maybe(false,8);
         print(integer);print(floating);print(boolean);print(text);print(empty);print(absent);
     "#;
-    let result = compile_source(source, &config(""), ServiceOptions {
-        target: ServiceTarget::All, ..ServiceOptions::default()
-    }).unwrap();
-    assert!(result.report()["phases_ns"]["rules"]["folded_calls"].as_u64().unwrap() > 0);
+    let result = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            target: ServiceTarget::All,
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    assert!(
+        result.report()["phases_ns"]["rules"]["folded_calls"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
     let expected = "7\n-0\ntrue\nliteral\n\nnull\n";
-    assert_eq!(execute_javascript(result.javascript(Objective::Brotli).unwrap().javascript(), "", ""), expected);
+    assert_eq!(
+        execute_javascript(
+            result.javascript(Objective::Brotli).unwrap().javascript(),
+            "",
+            ""
+        ),
+        expected
+    );
     assert_eq!(execute_native(result.native_c().unwrap()), expected);
 }
 
@@ -795,7 +839,8 @@ fn service_reports_unsupported_permissions_separately_from_policy_identity() {
         .iter()
         .any(|value| value.as_str().unwrap().contains("recurring-reconstruction")));
     assert!(report["javascript_policy"].get("diagnostics").is_none());
-    let tactic = &report["javascript_policy"]["tactics"][TacticId::RecurringReconstruction as usize];
+    let tactic =
+        &report["javascript_policy"]["tactics"][TacticId::RecurringReconstruction as usize];
     assert_eq!(tactic["state"]["permission"], "on");
     assert_eq!(tactic["available"], false);
     assert_eq!(tactic["state"]["enabled"], false);
@@ -1074,7 +1119,8 @@ fn searched_nullish_assignment_preserves_stores_and_value_copies_at_each_syntax_
                 let configured: ProjectConfig = toml::from_str(&format!(
                     "objective.codecs='{codec}'\n[javascript]\necmascript='{floor}'\n[policy.tactics]\ntarget-compaction='{permission}'"
                 )).unwrap();
-                let compiled = compile_source(source, &configured, ServiceOptions::default()).unwrap();
+                let compiled =
+                    compile_source(source, &configured, ServiceOptions::default()).unwrap();
                 check_scores(&compiled);
                 let objective = match codec {
                     "raw" => Objective::Raw,
@@ -1082,15 +1128,25 @@ fn searched_nullish_assignment_preserves_stores_and_value_copies_at_each_syntax_
                     _ => Objective::Brotli,
                 };
                 let javascript = compiled.javascript(objective).unwrap().javascript();
-                if floor == "es2015" { assert!(!javascript.contains("??"), "{javascript}"); }
-                assert_eq!(execute_javascript(javascript, "", r#"
+                if floor == "es2015" {
+                    assert!(!javascript.contains("??"), "{javascript}");
+                }
+                assert_eq!(
+                    execute_javascript(
+                        javascript,
+                        "",
+                        r#"
                     const events=[], values=new Proxy([null,0],{
                         get:(a,k)=>{events.push('get:'+k);return a[k]},
                         set:(a,k,v)=>{events.push('set:'+k+':'+v);a[k]=v;return true}
                     });
                     console.log(library.fill(values,0),library.fill(values,1),library.fill(values,0));
                     console.log(events.join(','));console.log(library.copies());
-                "#), "7 0 7\nget:0,set:0:7,get:1,get:0\n435\n", "{codec}/{floor}/{permission}");
+                "#
+                    ),
+                    "7 0 7\nget:0,set:0:7,get:1,get:0\n435\n",
+                    "{codec}/{floor}/{permission}"
+                );
             }
         }
     }
@@ -1166,9 +1222,8 @@ fn stable_rule_scheduling_preserves_searched_artifacts_and_behavior() {
         }
     "#;
     for codec in ["raw", "gzip", "brotli"] {
-        let configured: ProjectConfig = toml::from_str(&format!(
-            "objective.codecs='{codec}'\neffort.level=13"
-        )).unwrap();
+        let configured: ProjectConfig =
+            toml::from_str(&format!("objective.codecs='{codec}'\neffort.level=13")).unwrap();
         let objective = match codec {
             "raw" => Objective::Raw,
             "gzip" => Objective::Gzip,
@@ -1197,22 +1252,45 @@ fn check_service_diagnoses_detached_primitive_methods_before_target_selection() 
         "string? value=null;auto method=value?.charCodeAt;",
     ] {
         let error = check_source(source, &ProjectConfig::default()).unwrap_err();
-        assert!(error.message.contains("called through its receiver"), "{error}");
+        assert!(
+            error.message.contains("called through its receiver"),
+            "{error}"
+        );
         for target in [ServiceTarget::JavaScript, ServiceTarget::Native] {
-            let error = compile_source(source, &ProjectConfig::default(), ServiceOptions {
-                target, ..ServiceOptions::default()
-            }).unwrap_err();
-            assert!(error.message.contains("called through its receiver"), "{error}");
+            let error = compile_source(
+                source,
+                &ProjectConfig::default(),
+                ServiceOptions {
+                    target,
+                    ..ServiceOptions::default()
+                },
+            )
+            .unwrap_err();
+            assert!(
+                error.message.contains("called through its receiver"),
+                "{error}"
+            );
         }
     }
-    check_source("extern JsValue object;auto method=object.method;", &ProjectConfig::default()).unwrap();
-    check_source("struct Holder{func(int)->int callback;}Holder h=Holder{(int v)=>v+1};\
-        auto callback=h.callback;print(callback(2));", &ProjectConfig::default()).unwrap();
+    check_source(
+        "extern JsValue object;auto method=object.method;",
+        &ProjectConfig::default(),
+    )
+    .unwrap();
+    check_source(
+        "struct Holder{func(int)->int callback;}Holder h=Holder{(int v)=>v+1};\
+        auto callback=h.callback;print(callback(2));",
+        &ProjectConfig::default(),
+    )
+    .unwrap();
 }
 
 #[test]
 fn searched_local_read_order_is_independently_judged_and_reports_its_veto() {
-    let parameters = (0..60).map(|index| format!("int input{index}")).collect::<Vec<_>>().join(",");
+    let parameters = (0..60)
+        .map(|index| format!("int input{index}"))
+        .collect::<Vec<_>>()
+        .join(",");
     let expression = ["input59"; 8].join("+");
     let source = format!("export int hot({parameters}){{return {expression};}}");
     for codec in ["raw", "gzip", "brotli"] {
@@ -1222,21 +1300,34 @@ fn searched_local_read_order_is_independently_judged_and_reports_its_veto() {
                  naming-search='{}'\nnaming-alphabet='off'\ntarget-compaction='off'\n\
                  inlining='off'\ncall-specialization='off'\nconstant-folding='off'",
                 if allowed { "on" } else { "off" }
-            )).unwrap();
+            ))
+            .unwrap();
             let compiled = compile_source(&source, &configured, ServiceOptions::default()).unwrap();
             check_scores(&compiled);
-            let objective = match codec { "raw" => Objective::Raw, "gzip" => Objective::Gzip, _ => Objective::Brotli };
+            let objective = match codec {
+                "raw" => Objective::Raw,
+                "gzip" => Objective::Gzip,
+                _ => Objective::Brotli,
+            };
             let artifact = compiled.javascript(objective).unwrap();
             assert_eq!(execute_javascript(artifact.javascript(), "",
                 "console.log(library.hot(...Array.from({length:60},(_,i)=>i)),library.hot.name,library.hot.length);"),
                 "472 hot 60\n");
             let report = compiled.report();
-            let objectives = report["search"]["terminal"]["objectives"].as_array().unwrap();
+            let objectives = report["search"]["terminal"]["objectives"]
+                .as_array()
+                .unwrap();
             let trials = objectives[0]["joint_trials"].as_array().unwrap();
-            let local = trials.iter().filter(|trial| trial["name"] == "naming:local-read-order").collect::<Vec<_>>();
+            let local = trials
+                .iter()
+                .filter(|trial| trial["name"] == "naming:local-read-order")
+                .collect::<Vec<_>>();
             assert!(!local.is_empty(), "{report}");
             if allowed {
-                assert!(local.iter().any(|trial| matches!(trial["outcome"].as_str(), Some("kept" | "rejected" | "identical"))));
+                assert!(local.iter().any(|trial| matches!(
+                    trial["outcome"].as_str(),
+                    Some("kept" | "rejected" | "identical")
+                )));
                 if codec == "raw" {
                     assert_eq!(artifact.details["output"]["local_read_order"], true);
                 }
@@ -1252,7 +1343,11 @@ fn searched_local_read_order_is_independently_judged_and_reports_its_veto() {
 fn searched_private_properties_are_independent_and_preserve_each_objective_winner() {
     let source = include_str!("program/fixtures/private-fields.lil");
     for codec in ["raw", "gzip", "brotli"] {
-        let objective = match codec { "raw" => Objective::Raw, "gzip" => Objective::Gzip, _ => Objective::Brotli };
+        let objective = match codec {
+            "raw" => Objective::Raw,
+            "gzip" => Objective::Gzip,
+            _ => Objective::Brotli,
+        };
         let mut sizes = Vec::new();
         for permission in ["off", "on"] {
             let configured: ProjectConfig = toml::from_str(&format!(
@@ -1261,12 +1356,23 @@ fn searched_private_properties_are_independent_and_preserve_each_objective_winne
             let compiled = compile_source(source, &configured, ServiceOptions::default()).unwrap();
             check_scores(&compiled);
             let artifact = compiled.javascript(objective).unwrap();
-            assert_eq!(execute_javascript(artifact.javascript(), "",
-                "const a=library.make(2),b=library.make(10);console.log(a(3),b(1),a(-2));"), "15 21 13\n");
+            assert_eq!(
+                execute_javascript(
+                    artifact.javascript(),
+                    "",
+                    "const a=library.make(2),b=library.make(10);console.log(a(3),b(1),a(-2));"
+                ),
+                "15 21 13\n"
+            );
             sizes.push(artifact.sizes.get(objective).unwrap());
             let report = compiled.report();
-            let trials = report["search"]["terminal"]["objectives"][0]["joint_trials"].as_array().unwrap();
-            let properties = trials.iter().filter(|t| t["name"] == "properties:private-fields").collect::<Vec<_>>();
+            let trials = report["search"]["terminal"]["objectives"][0]["joint_trials"]
+                .as_array()
+                .unwrap();
+            let properties = trials
+                .iter()
+                .filter(|t| t["name"] == "properties:private-fields")
+                .collect::<Vec<_>>();
             // One protected final trial, plus any deferred combinations.
             assert!(!properties.is_empty(), "{report}");
             if permission == "off" {
@@ -1287,7 +1393,14 @@ fn searched_private_properties_are_independent_and_preserve_each_objective_winne
         check_scores(&compiled);
         let artifact = compiled.javascript(Objective::Raw).unwrap();
         assert_eq!(artifact.details["output"]["property_mangling"], expected);
-        assert_eq!(execute_javascript(artifact.javascript(), "", "console.log(library.make(2)(3));"), "15\n");
+        assert_eq!(
+            execute_javascript(
+                artifact.javascript(),
+                "",
+                "console.log(library.make(2)(3));"
+            ),
+            "15\n"
+        );
     }
 }
 
@@ -2681,4 +2794,98 @@ fn an_application_scripts_roots_are_the_programs_own() {
         "(()=>{console.log(0);})();",
         "{javascript}"
     );
+}
+
+#[test]
+fn s4_native_capabilities_are_reported_before_lowering_with_source_spans() {
+    for (source, part) in [
+        ("int prefix=1;JsValue value=3;print(value);", "JsValue"),
+        (
+            "int prefix=1;Record<int> value=record{x:3};print(value.x??0);",
+            "native records",
+        ),
+        (
+            "int prefix=1;try{print(prefix);}finally{print(2);}",
+            "native exceptions",
+        ),
+        (
+            "int prefix=1;export int answer(){return prefix;}",
+            "native exported ABI",
+        ),
+    ] {
+        for target in [ServiceTarget::Native, ServiceTarget::All] {
+            let error = compile_source(
+                source,
+                &ProjectConfig::default(),
+                ServiceOptions {
+                    target,
+                    ..ServiceOptions::default()
+                },
+            )
+            .unwrap_err();
+            assert_eq!(error.phase, "check", "{error:?}");
+            assert!(error.message.contains(part), "{error:?}");
+            let diagnostic = error.diagnostic.expect("source-owned capability error");
+            assert!(
+                diagnostic.span.start > 0 && diagnostic.span.end > diagnostic.span.start,
+                "{diagnostic:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn s4_variadic_exports_use_real_rest_arrays_and_reflected_length() {
+    let source="export int sum(int first,int... rest){int result=first;for(int i=0;i<rest.length;i++){result+=rest[i];}return result;}export auto read=(int... rest)=>rest.length;";
+    let result = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            objectives: Some(Objectives::All),
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
+            "console.log(library.sum.length,library.sum(2),library.sum(2,3,4),library.read.length,library.read(),library.read(1,2,3));"),"1 2 9 0 0 3\n");
+    }
+}
+
+#[test]
+fn s4_forwarded_host_alias_preserves_omission_and_explicit_argument_order() {
+    let source = "extern int choose(int value=7);extern int next();export int run(){auto alias=choose;int a=alias();int b=alias(next());return a+b;}";
+    let result = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            objectives: Some(Objectives::All),
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),
+            "let events=[];globalThis.choose=function(x){events.push(['choose',arguments.length,x]);return arguments.length?x:10;};globalThis.next=()=>{events.push(['next']);return 3;};",
+            "console.log(library.run());console.log(JSON.stringify(events));"),
+            "13\n[[\"choose\",0,null],[\"next\"],[\"choose\",1,3]]\n");
+    }
+}
+
+#[test]
+fn s4_receiver_and_class_rest_exports_preserve_public_calling_conventions() {
+    let source="export constructor Box;class Box{int value;init(int x=7,int... values){this.value=x;for(int i=0;i<values.length;i++){this.value+=values[i];}}int sum(int first=2,int... values){int n=this.value+first;for(int i=0;i<values.length;i++){n+=values[i];}return n;}}export auto add=(this int self,int first=2,int... values)=>{int n=self+first;for(int i=0;i<values.length;i++){n+=values[i];}return n;};";
+    let result = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            objectives: Some(Objectives::All),
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
+            "const a=new library.Box(),b=new library.Box(1,2,3);console.log(library.Box.length,a.value,b.value,a.sum.length,a.sum(),a.sum(1,2,3),library.add.length,library.add.call(7),library.add.call(7,1,2,3));"),"0 7 6 0 9 13 0 9 13\n");
+    }
 }

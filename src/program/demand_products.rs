@@ -1,7 +1,7 @@
 //! Product components use the existing context, storage-writer and demand
 //! worklists. These sparse indexes select physical recipes; the original SSA,
 //! Place DAG and family witnesses remain the only semantic graph.
-use super::super::raw_domains::{Recipes, ResultRecipe};
+use super::super::facts::domains::{Recipes, ResultRecipe};
 use super::*;
 
 #[derive(Debug)]

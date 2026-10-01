@@ -410,7 +410,9 @@ fn verify_tables(
                     .source_symbol
                     .is_some_and(|symbol| symbol.0 as usize == index)
         } else {
-            // A synthetic parameter is an implicit constructor's instance.
+            // Cloned callable bodies retain every parameter's checked source
+            // identity. The owning signature and exact ordinal are validated
+            // below; generated local storage may have no source identity.
             cell.synthetic
                 && match cell.source_symbol {
                     Some(symbol) => (symbol.0 as usize) < checked_cells,
@@ -418,7 +420,7 @@ fn verify_tables(
                 }
                 && matches!(
                     cell.binding,
-                    CellBinding::Local | CellBinding::Function(_) | CellBinding::Parameter(0)
+                    CellBinding::Local | CellBinding::Function(_) | CellBinding::Parameter(_)
                 )
         };
         if !identity
@@ -505,8 +507,7 @@ fn verify_tables(
             let mut name_work = 1;
             work(&mut parameters, definition.type_parameters.len())?;
             for name in &definition.type_parameters {
-                names.push(name.as_str());
-                name_work = name_work.max(name.len().saturating_add(1));
+                names.push(*name);
             }
             if !scratch::unique(&mut names, &mut parameters, name_work, Ord::cmp)? {
                 return fail("invalid nominal definition identity");
@@ -585,6 +586,12 @@ fn verify_units(
             (UnitKind::Function | UnitKind::Closure, Some(name))
                 if name.index() < program.strings.len() => {}
             _ => return fail("invalid callable creation name"),
+        }
+        if unit
+            .declared_length
+            .is_some_and(|length| length as usize >= unit.parameters.len())
+        {
+            return fail("invalid declared function length");
         }
         if unit.native_default_length.is_some_and(|length| {
             unit.kind == UnitKind::ModuleInitialization || length as usize >= unit.parameters.len()
@@ -951,7 +958,7 @@ fn verify_units(
                             (Some(1), false)
                         }
                         OperationKind::CopyValue | OperationKind::Unary { .. } => (Some(1), true),
-                        OperationKind::IsUndefined => (Some(1), true),
+                        OperationKind::IsUndefined { .. } => (Some(1), true),
                         OperationKind::TypeTest(target) => {
                             if target.index() >= program.types.len() {
                                 return fail("type test has a dangling target");
@@ -1784,7 +1791,23 @@ fn verify_types(
                         class_assignable(program, declared, result.unwrap(), &mut query)?
                     })
                 }
-                Place::Value(_) | Place::Field { .. } => {
+                Place::Value(_) => {
+                    let declared = places[place.index()].ty.ok_or("missing value place type")?;
+                    // A checked value view either preserves/refines an existing
+                    // type, or widens a selected branch to its original join.
+                    // It never makes an immutable SSA value writable.
+                    expect(
+                        !writing
+                            && (class_assignable(program, declared, result.unwrap(), &mut query)?
+                                || class_assignable(
+                                    program,
+                                    result.unwrap(),
+                                    declared,
+                                    &mut query,
+                                )?),
+                    )
+                }
+                Place::Field { .. } => {
                     let declared = places[place.index()].ty.ok_or("missing value place type")?;
                     expect(if writing {
                         places[place.index()].writable
@@ -1799,7 +1822,27 @@ fn verify_types(
         OperationKind::CopyValue => {
             expect(type_matches(result, Some(operand(0)), &mut query)? && !operand(0).is_void())
         }
-        OperationKind::IsUndefined => {
+        OperationKind::IsUndefined { parameter } => {
+            if let Some(position) = parameter {
+                let cell = *unit
+                    .parameters
+                    .get(*position as usize)
+                    .ok_or("default guard parameter position")?;
+                let optional = program.parameter(cell).is_some_and(|parameter| {
+                    parameter.optional
+                        || (parameter.rest
+                            && unit.parameters[..*position as usize].iter().any(|cell| {
+                                program
+                                    .parameter(*cell)
+                                    .is_some_and(|parameter| parameter.optional)
+                            }))
+                });
+                if !optional {
+                    return Err(
+                        "default guard requires an optional parameter or its trailing rest".into(),
+                    );
+                }
+            }
             expect(matches!(result, Some(Type::Bool)) && !operand(0).is_void())
         }
         OperationKind::TypeTest(target) => expect(
@@ -2168,22 +2211,38 @@ fn verify_types(
                 CallTarget::Intrinsic { operation, .. } => operation
                     .call_default_convention()
                     .ok_or("prepared intrinsic has no call convention")?,
+                CallTarget::Value { .. } | CallTarget::Reference { .. }
+                    if matches!(
+                        site.contract.defaults,
+                        DefaultConvention::ApplyAtCallee | DefaultConvention::PreserveOmission
+                    ) =>
+                {
+                    // Both preserve the caller's actual argument count. The
+                    // selected value owns any default evaluation, including
+                    // a host function reached through a source alias. Value
+                    // forwarding must not change this checked contract merely
+                    // by making the foreign declaration directly visible.
+                    site.contract.defaults
+                }
                 ref target if super::host_call(program, unit, target) => {
                     DefaultConvention::PreserveOmission
                 }
-                _ => DefaultConvention::MaterializeAtCaller,
+                _ => DefaultConvention::ApplyAtCallee,
             };
             if site.contract.defaults != convention || supplied > arguments.len() {
                 return Err("call argument convention disagrees with its target".into());
             }
             if omitted != 0
-                && (convention != DefaultConvention::MaterializeAtCaller
+                && (convention != DefaultConvention::ApplyAtCallee
                     || !matches!(site.target, CallTarget::Value { .. }))
             {
                 return Err("target argument omission requires an owned materialized call".into());
             }
             if convention == DefaultConvention::PreserveOmission && supplied != arguments.len() {
                 return Err("preserved omission has synthesized arguments".into());
+            }
+            if convention == DefaultConvention::ApplyAtCallee && supplied != arguments.len() {
+                return Err("callee-owned omission has synthesized arguments".into());
             }
             // MaterializeAtCaller: arguments past `supplied` are the omitted
             // parameters' checked defaults, evaluated by the caller.
@@ -2373,14 +2432,13 @@ fn verify_types(
                 // shared forward substitution. No inverse signature matching.
                 let substituted = substitute_signature_with(
                     &function.signature,
-                    &mut |name: &str, query: &mut TypeQueryAdmission<'_, '_>| {
+                    &mut |name: crate::check::TypeParameterId,
+                          query: &mut TypeQueryAdmission<'_, '_>| {
                         for (parameter, &argument) in
                             function.type_params.iter().zip(&instance.arguments)
                         {
                             query.work(1)?;
-                            query.work(parameter.len())?;
-                            query.work(name.len())?;
-                            if *parameter == name {
+                            if parameter.identity == name {
                                 return Ok(Some(&program.types[argument.index()]));
                             }
                         }
@@ -2428,40 +2486,31 @@ fn verify_types(
                 query.work(signature.params.len())?;
                 Ok(signature.accepts_arity(supplied)
                     && match convention {
-                        // Omitted trailing arrow defaults are applied by the
-                        // guarded callee; every other omission is evaluated.
                         DefaultConvention::MaterializeAtCaller => {
-                            arguments.len() <= signature.params.len()
-                                && arguments.len() >= supplied
-                                && signature.params[arguments.len()..].iter().all(|parameter| {
-                                    matches!(
-                                        parameter.default,
-                                        Some(crate::check::DefaultValue::Arrow(_))
-                                    )
-                                })
+                            arguments.len() == signature.params.len()
                         }
-                        DefaultConvention::PreserveOmission => arguments.len() == supplied,
+                        DefaultConvention::ApplyAtCallee | DefaultConvention::PreserveOmission => {
+                            arguments.len() == supplied
+                        }
                     })
             };
             if convention == DefaultConvention::MaterializeAtCaller && supplied < arguments.len() {
                 // Arguments past `supplied` claim to be the omitted
                 // parameters' checked defaults. Each must be exactly that
                 // evaluation, or a forged count could relabel real arguments.
-                let declared = match callee_type {
-                    Type::Function(signature) => &signature.params,
-                    Type::GenericFunction(function) => &function.signature.params,
-                    _ => return Err("caller default evaluations need a callable signature".into()),
+                let CallTarget::Intrinsic { operation, .. } = site.target else {
+                    return Err("caller default evaluations need a catalog operation".into());
                 };
                 for position in supplied..arguments.len() {
                     query.work(1)?;
                     let CallArgument::Value(value) = arguments[position] else {
                         return Err("caller default evaluations must be values".into());
                     };
-                    let Some(default) = declared.get(position).and_then(|p| p.default.as_ref())
+                    let Some(default) = crate::primitive::intrinsic_default(operation, position)
                     else {
                         return Err("caller default evaluations need a checked default".into());
                     };
-                    if !materialized_default(unit, default, value, arguments) {
+                    if !materialized_default(unit, &default, value, arguments) {
                         return Err(
                             "caller default evaluations disagree with the checked defaults".into(),
                         );
@@ -2606,7 +2655,7 @@ fn materialized_default(
     unit: &UnitData,
     default: &crate::check::DefaultValue<'_>,
     value: ValueId,
-    arguments: &[CallArgument],
+    _arguments: &[CallArgument],
 ) -> bool {
     use crate::check::DefaultValue;
     let definition = |value: ValueId| {
@@ -2642,13 +2691,6 @@ fn materialized_default(
         }
         (DefaultValue::Null, OperationKind::Constant(Constant::Null))
         | (DefaultValue::Undefined, OperationKind::Constant(Constant::Undefined)) => true,
-        (DefaultValue::Parameter(index), _) => {
-            matches!(arguments.get(*index), Some(CallArgument::Value(earlier)) if *earlier == value)
-        }
-        (DefaultValue::Symbol(symbol), OperationKind::Load(place)) => matches!(
-            unit.places.get(place.index()),
-            Some(Place::Cell(cell)) if cell.index() == symbol.0 as usize
-        ),
         (
             DefaultValue::Array(_),
             OperationKind::Allocate {
@@ -2744,16 +2786,7 @@ fn host_constructor_parameters<'program, 'src>(
             .params
             .iter()
             .skip(receiver)
-            .map(|parameter| {
-                (
-                    &parameter.ty,
-                    receiver == 1
-                        && matches!(
-                            parameter.default,
-                            Some(crate::check::DefaultValue::Arrow(_))
-                        ),
-                )
-            })
+            .map(|parameter| (&parameter.ty, receiver == 1 && parameter.optional))
             .collect(),
     ))
 }
@@ -2845,12 +2878,13 @@ fn class_assignable(
                 for &argument in &class.base_arguments {
                     next.push(crate::check::type_substitution::substitute_type_with(
                         &program.types[argument.index()],
-                        &mut |name: &str, query: &mut TypeQueryAdmission<'_, '_>| {
+                        &mut |name: crate::check::TypeParameterId,
+                              query: &mut TypeQueryAdmission<'_, '_>| {
                             query.work(class.type_params.len())?;
                             Ok(class
                                 .type_params
                                 .iter()
-                                .position(|parameter| parameter == name)
+                                .position(|parameter| *parameter == name)
                                 .and_then(|index| args.get(index)))
                         },
                         query,

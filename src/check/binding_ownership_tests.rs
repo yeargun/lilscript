@@ -94,10 +94,10 @@ fn declare_and_detached_binding_move_existing_nested_payloads_without_cloning() 
     }
     let arena = bumpalo::Bump::new();
     let program = crate::parse_source(&arena, "int first=1;int second=2;").unwrap();
-    let Item::Stmt(Stmt::VarDecl(first)) = &program.items[0] else {
+    let Item::Stmt(Stmt::VarDecl(first, ..)) = &program.items[0] else {
         unreachable!()
     };
-    let Item::Stmt(Stmt::VarDecl(second)) = &program.items[1] else {
+    let Item::Stmt(Stmt::VarDecl(second, ..)) = &program.items[1] else {
         unreachable!()
     };
     let mut facts = ModuleFacts::new(program.source_identity());
@@ -161,7 +161,7 @@ fn nominal_only_binding_nodes_preserve_inline_types_without_value_symbols() {
         assert!(model.identifier_symbol(node).is_none());
         assert_eq!(model.binding_type(node), Some(&Type::Struct(nominal)));
         assert!(
-            matches!(model.facts.binding_types.get(&node), Some(BindingType::Inline(Type::Struct(value))) if *value == nominal)
+            matches!(model.facts.binding_types.get(&node), Some(BindingType::Inline(id)) if matches!(model.view().checked_type(*id),Type::Struct(value) if *value == nominal))
         );
     }
     let value = model
@@ -207,10 +207,8 @@ fn finalized_defaults_and_model_clones_resolve_bindings_against_their_own_symbol
         let Type::Function(copied) = canonical_binding(&clone, symbol.node) else {
             unreachable!()
         };
-        assert_eq!(original.params[0].default, Some(DefaultValue::Symbol(seed)));
-        assert_eq!(copied.params[0].default, Some(DefaultValue::Symbol(seed)));
-        assert!(!signature_has_pending_bindings(original));
-        assert!(!signature_has_pending_bindings(copied));
+        assert!(original.params[0].optional);
+        assert!(copied.params[0].optional);
         assert!(!std::ptr::eq(
             model.binding_type(symbol.node).unwrap(),
             clone.binding_type(symbol.node).unwrap()
@@ -232,15 +230,15 @@ fn finalized_defaults_and_model_clones_resolve_bindings_against_their_own_symbol
 #[test]
 fn canonical_binding_entry_does_not_enlarge_the_existing_type_map_payload() {
     assert!(
-        std::mem::size_of::<BindingType<'_>>() <= std::mem::size_of::<Type<'_>>(),
+        std::mem::size_of::<BindingType>() <= std::mem::size_of::<Type<'_>>(),
         "binding entry {} bytes exceeds previous Type payload {} bytes",
-        std::mem::size_of::<BindingType<'_>>(),
+        std::mem::size_of::<BindingType>(),
         std::mem::size_of::<Type<'_>>()
     );
     assert!(
-        std::mem::size_of::<(Span, BindingType<'_>)>() <= std::mem::size_of::<(Span, Type<'_>)>(),
+        std::mem::size_of::<(Span, BindingType)>() <= std::mem::size_of::<(Span, Type<'_>)>(),
         "binding row {} bytes exceeds previous type row {} bytes",
-        std::mem::size_of::<(Span, BindingType<'_>)>(),
+        std::mem::size_of::<(Span, BindingType)>(),
         std::mem::size_of::<(Span, Type<'_>)>()
     );
 }

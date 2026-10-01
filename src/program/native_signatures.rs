@@ -20,6 +20,12 @@ pub(in crate::program) struct NativeSignature<'program, 'src> {
     ty: &'program Type<'src>,
 }
 
+impl NativeSignature<'_, '_> {
+    pub(in crate::program) fn has_optional(&self) -> bool {
+        self.source.params.iter().any(|p| p.optional)
+    }
+}
+
 struct Frame<'program, 'src> {
     ty: &'program Type<'src>,
     values: Vec<NativeType>,

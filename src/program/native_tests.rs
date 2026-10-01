@@ -725,3 +725,92 @@ fn escaped_scalar_closure_executes_after_its_factory_returns() {
 
 #[path = "native_closure_tests.rs"]
 mod closure_tests;
+
+#[test]
+fn s4_optimized_nullable_views_keep_native_unboxing() {
+    let arena = bumpalo::Bump::new();
+    let source="int choose(int n){int? present=199;return n+(present??9);}for(int i=0;i<7;i+=1){print(choose(i));}";
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let semantics = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &semantics).unwrap();
+    let (program, _) = super::rules::optimize(
+        program,
+        super::rules::RuleRequest {
+            fold: true,
+            dead_code: true,
+            inline: false,
+            scalar: false,
+            native: true,
+            pristine_builtins: false,
+            seal: super::call_graph::Seal::Module,
+        },
+    )
+    .unwrap();
+    program.verify().unwrap();
+    let mut compiler = compilation(WORK, MEMORY);
+    let source = compiler
+        .adopt_checked(program, WorkDomain::Baseline)
+        .unwrap();
+    let c = emit_native(&mut compiler, source);
+    compile_and_execute(&c, "199\n200\n201\n202\n203\n204\n205\n", "s4-typed-view");
+    assert_eq!(compiler.finish().retained_bytes(), 0);
+}
+
+#[test]
+fn s4_native_defaults_distinguish_omission_from_zero_and_follow_aliases() {
+    let source="int first(int x=3){return x;}int second(int x=9){return x;}auto alias=first;print(alias());alias=second;print(alias());print(alias(0));auto local=(int x=4)=>x;print(local());print(local(0));";
+    checked(source, WORK, |compilation, source| {
+        let c = emit_native(compilation, source);
+        compile_and_execute(&c, "3\n9\n0\n4\n0\n", "s4-native-defaults");
+    });
+}
+
+#[test]
+fn s4_native_captured_and_earlier_parameter_defaults() {
+    checked("auto make=(int seed)=>(int value=seed)=>value;auto f=make(7);print(f());print(f(0));print(((int a,int b=a)=>b)(8));",WORK,|compilation,source| {
+        let c=emit_native(compilation,source);
+        compile_and_execute(&c,"7\n0\n8\n","s4-captured-defaults");
+    });
+}
+
+#[test]
+fn s4_native_checked_reads_value_updates_and_generic_methods() {
+    for (source, expected) in [
+        ("int[] xs=[4,8];print(xs.get(-1)??99);print(xs.get(1)??99);print(xs.get(2)??99);int?[] ys=[null,7];print(ys.get(0)??3);print(ys.get(1)??3);", "99\n8\n99\n3\n7\n"),
+        ("struct Point{int x;int y;}Point p=Point{1,2};int change(){p.y=99;return 7;}Point q=p with {x:change()};q.x=8;print(p.x);print(p.y);print(q.x);print(q.y);", "1\n99\n8\n2\n"),
+        (r#"class Box<T>{T value;init(T x){this.value=x;}U second<U>(U x){return x;}T first<U>(U x){return this.value;}}Box<int> b=new Box<int>(7);print(b.second(3));print(b.second("word"));print(b.first(false));"#, "3\nword\n7\n"),
+    ] {
+        checked(source,WORK,|compilation,source| {
+            let c=emit_native(compilation,source);
+            compile_and_execute(&c,expected,"s4-value-contracts");
+        });
+    }
+}
+
+#[test]
+fn s4_native_variadic_values_keep_typed_arrays_and_call_contracts() {
+    checked("auto sum=(int first,int... rest)=>{int result=first;for(int i=0;i<rest.length;i++){result+=rest[i];}return result;};func(int,int...)->int f=sum;print(f(2));print(f(2,3,4));int[] xs=[5,6];print(f(2,...xs));",WORK,|compilation,source| {
+        let c=emit_native(compilation,source);compile_and_execute(&c,"2\n9\n13\n","s4-native-rest");
+    });
+}
+
+#[test]
+fn s4_native_receiver_functions_and_spread_snapshots() {
+    checked("auto add=(this int self,int first,int... rest)=>{int total=self+first;for(int i=0;i<rest.length;i++){total+=rest[i];}return total;};func(this:int,int,int...)->int f=add;print(f.call(7,2));int[] xs=[3,4];int mutate(){xs[0]=9;return 5;}print(f.call(7,2,...xs,mutate()));",WORK,|compilation,source| {
+        let c=emit_native(compilation,source);compile_and_execute(&c,"9\n21\n","s4-native-receiver");
+    });
+}
+
+#[test]
+fn s4_native_defaults_and_constructor_rest() {
+    checked("int sum(int first=7,int... rest){int n=first;for(int i=0;i<rest.length;i++){n+=rest[i];}return n;}print(sum());print(sum(2,3,4));class Box{int value;init(int first=7,int... rest){this.value=first;for(int i=0;i<rest.length;i++){this.value+=rest[i];}}}Box a=new Box();int[] xs=[3,4];Box b=new Box(2,...xs);print(a.value);print(b.value);auto f=(int first=7,int... rest)=>first+rest.length;print(f());print(f(2,3,4));",WORK,|compilation,source| {
+        let c=emit_native(compilation,source);compile_and_execute(&c,"7\n9\n7\n9\n7\n4\n","s4-native-rest-defaults");
+    });
+}
+
+#[test]
+fn s4_native_callee_default_expressions_and_parameter_captures() {
+    checked("int calls=0;int next(){calls+=1;return calls;}int read(int first=next(),func()->int get=()=>first){return get();}print(read());print(read(9));print(calls);auto make=(int seed)=>{auto f=(int n=seed+next(),func()->int get=()=>n)=>get();return f;};auto f=make(10);print(f());print(f());print(calls);",WORK,|compilation,source| {
+        let c=emit_native(compilation,source);compile_and_execute(&c,"1\n9\n1\n12\n13\n3\n","s4-native-default-expressions");
+    });
+}

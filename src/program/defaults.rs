@@ -31,7 +31,7 @@ pub(super) fn entry_literals(data: &UnitData) -> Vec<Option<Constant>> {
         else {
             break;
         };
-        if !matches!(test.kind, OperationKind::IsUndefined)
+        if !matches!(test.kind, OperationKind::IsUndefined { .. })
             || load.result.is_none()
             || data.operands(test.operands) != load.result.as_ref().map(std::slice::from_ref)
             || test.result.is_none()
@@ -100,7 +100,7 @@ pub(super) fn arguments_free(program: &Program<'_>, body: UnitId) -> bool {
             if let OperationKind::Closure(child) = operation.kind {
                 if program
                     .unit(child)
-                    .is_some_and(|data| ambient::inherits(data.kind))
+                    .is_some_and(|data| ambient::inherits(program, data))
                 {
                     pending.push(child);
                 }
@@ -168,7 +168,7 @@ fn omission(
 ) -> Option<u32> {
     let data = program.unit(unit)?;
     let site = &data.calls[call.index()];
-    if site.contract.defaults != DefaultConvention::MaterializeAtCaller
+    if site.contract.defaults != DefaultConvention::ApplyAtCallee
         || site.contract.instantiation.is_some()
         || !matches!(
             site.target,

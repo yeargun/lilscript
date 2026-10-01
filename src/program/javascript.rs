@@ -116,14 +116,14 @@ fn load_result_recipe(
 }
 
 pub(super) struct JavaScriptRecipes;
-impl super::raw_domains::Recipes for JavaScriptRecipes {
+impl super::facts::domains::Recipes for JavaScriptRecipes {
     fn result(
         &self,
         program: &Program<'_>,
         unit: UnitId,
         operation: OpId,
-    ) -> super::raw_domains::ResultRecipe {
-        use super::raw_domains::ResultRecipe;
+    ) -> super::facts::domains::ResultRecipe {
+        use super::facts::domains::ResultRecipe;
         let data = program.unit(unit).unwrap();
         let operation = &data.operations[operation.index()];
         // An `int` result is an int32 by type (R1), with no code.
@@ -614,12 +614,24 @@ fn form_head(
     let reference_plan = references::Plan::new();
     let storage = if compact && rules.scalar_replacement && !program.structs.is_empty() {
         match uses {
-            Some(uses) => super::physical_storage::StorageProofs::build(program, uses, super::call_graph::Seal::from_execution(contract.execution), super::physical_storage::StorageDemand::Products, &mut phase)?,
+            Some(uses) => super::physical_storage::StorageProofs::build(
+                program,
+                uses,
+                super::call_graph::Seal::from_execution(contract.execution),
+                super::physical_storage::StorageDemand::Products,
+                &mut phase,
+            )?,
             None => super::physical_storage::StorageProofs::default(),
         }
-    } else { super::physical_storage::StorageProofs::default() };
-    let private_fields =
-        super::private_fields::Plan::new(program, preserved_properties, contract.assumptions.pristine_builtins, &mut phase)?;
+    } else {
+        super::physical_storage::StorageProofs::default()
+    };
+    let private_fields = super::private_fields::Plan::new(
+        program,
+        preserved_properties,
+        contract.assumptions.pristine_builtins,
+        &mut phase,
+    )?;
     let mut records = phase.vector(AllocationClass::Scratch, demand.records().len())?;
     for family in demand.records() {
         phase.work(WorkKind::Render, 1)?;
@@ -803,14 +815,14 @@ fn form_head(
                     let receiver = usize::from(
                         program
                             .unit(unit)
-                            .is_some_and(|data| data.constructor_of.is_some()),
+                            .is_some_and(|data| data.constructor_of.is_some())
+                            || signature.has_receiver(),
                     );
                     // A `JS.undefined()` default needs no syntax: absence is it.
-                    let first = signature.params[receiver..].iter().position(|parameter| {
-                        parameter.default.as_ref().is_some_and(|default| {
-                            !matches!(default, crate::check::DefaultValue::Undefined)
-                        })
-                    });
+                    let first = program
+                        .unit(unit)
+                        .and_then(|data| data.declared_length)
+                        .map(|position| position as usize - receiver);
                     if let Some(first) = first {
                         formation.work(formation.unit_functions.len())?;
                         let mut formed = false;
@@ -987,7 +999,10 @@ fn form_head(
             })
         });
     let mut module = module;
-    module.identify_spelling_sites(u8::from(head.int32_hints) | (u8::from(head.property_mangling) << 1), &mut phase)?;
+    module.identify_spelling_sites(
+        u8::from(head.int32_hints) | (u8::from(head.property_mangling) << 1),
+        &mut phase,
+    )?;
     phase.finish_retained()?;
     Ok(FormedHead {
         module,
@@ -1062,7 +1077,7 @@ fn form_tail(
         Ok(_) => {
             module.form_spelling_choices(families, rules, choices, frames_hidden, year, budget)?;
             Ok(module)
-        },
+        }
         Err(error) => {
             drop(module);
             Err(error.into())
@@ -1251,9 +1266,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let mut proof_work = 0;
         loop {
             let definition = data.values[source.index()].definition;
-            if !matches!(data.operations[definition.index()].kind, OperationKind::CopyValue) { break; }
-            if self.demand.product_for_value(semantic, source).is_some() { return Ok(None); }
-            source = data.operands(data.operations[definition.index()].operands).unwrap()[0];
+            if !matches!(
+                data.operations[definition.index()].kind,
+                OperationKind::CopyValue
+            ) {
+                break;
+            }
+            if self.demand.product_for_value(semantic, source).is_some() {
+                return Ok(None);
+            }
+            source = data
+                .operands(data.operations[definition.index()].operands)
+                .unwrap()[0];
             proof_work += 1;
         }
         let definition = data.values[source.index()].definition;
@@ -2243,17 +2267,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 (family, binding),
             )?;
         }
-        let lexical_owner = if ambient::inherits(self.program.units[unit.index()].data().kind) {
-            self.plan(parent.ok_or_else(|| {
-                self.error(
-                    Span::default(),
-                    "source closure without a lexical activation",
-                )
-            })?)
-            .lexical_owner
-        } else {
-            context
-        };
+        let lexical_owner =
+            if ambient::inherits(self.program, self.program.units[unit.index()].data()) {
+                self.plan(parent.ok_or_else(|| {
+                    self.error(
+                        Span::default(),
+                        "source closure without a lexical activation",
+                    )
+                })?)
+                .lexical_owner
+            } else {
+                context
+            };
         self.drop_scratch(expression_regions)?;
         self.drop_scratch(pending)?;
         self.contexts[context.index()] = Some(FormationContext {
@@ -3727,6 +3752,56 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         }
     }
 
+    /// A strict directive cannot occur in a rest-parameter function. A
+    /// zero-argument lexical factory supplies strictness without changing
+    /// the callable's receiver, parameter array, name or reflected length.
+    fn rest_strict_frame(
+        &mut self,
+        function: js::FunctionId,
+        needed: bool,
+        factory: Option<js::RegionId>,
+    ) -> Result<js::Expr, FormationError> {
+        if !needed {
+            if let Some(factory) = factory {
+                let inner = self.module.functions[function.index()].body;
+                let scope = self.module.regions[inner.index()].scope;
+                self.module.scopes[scope.index()] =
+                    self.module.scopes[self.module.regions[factory.index()].scope.index()];
+            }
+            return Ok(js::Expr::Function(function));
+        }
+        let body = factory.ok_or_else(|| {
+            self.error(
+                Span::default(),
+                "strict rest factory scope was not reserved",
+            )
+        })?;
+        let value = self.expression(js::Expr::Function(function))?;
+        self.statement(body, js::Statement::Return(Some(value)))?;
+        let factory = js::FunctionId::try_new(self.module.functions.len())
+            .ok_or(AllocationError::Capacity)?;
+        self.budget.push(
+            AllocationClass::Retained,
+            &mut self.module.functions,
+            js::Function {
+                parameters: Vec::new(),
+                rest: false,
+                body,
+                arrow: true,
+                name: js::FunctionName::Unobserved,
+                strict: true,
+                length: None,
+                suspension: js::Suspension::None,
+            },
+        )?;
+        let callee = self.expression(js::Expr::Function(factory))?;
+        Ok(js::Expr::Call {
+            callee,
+            arguments: Vec::new(),
+            invocation: Invocation::Value,
+        })
+    }
+
     fn call(
         &mut self,
         unit: ContextId,
@@ -3758,16 +3833,62 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 .count();
             arguments.truncate(arguments.len().saturating_sub(inert));
         }
+        // Source IR transports one fresh rest array; the public JavaScript
+        // convention accepts trailing arguments. Native keeps the packed ABI.
+        let signature = contract
+            .instantiation
+            .map(|id| self.data(unit).call_instantiations[id.index()].signature)
+            .or(contract.signature);
+        let receiver = signature.is_some_and(|id| matches!(&self.program.types[id.index()],Type::Function(signature) if signature.has_receiver()));
+        let rest = signature.is_some_and(|id| match &self.program.types[id.index()] {
+            Type::Function(signature) => signature.has_rest(),
+            Type::GenericFunction(function) => function.signature.has_rest(),
+            _ => false,
+        });
+        let complete = signature.is_some_and(|id| match &self.program.types[id.index()] {
+            Type::Function(signature) => arguments.len() == signature.params.len(),
+            Type::GenericFunction(function) => arguments.len() == function.signature.params.len(),
+            _ => false,
+        });
+        if rest && complete && contract.defaults != DefaultConvention::PreserveOmission {
+            let packed = arguments
+                .pop()
+                .ok_or_else(|| self.error(span, "packed rest argument is missing"))?;
+            // The shared ABI's fresh array is only argument transport here.
+            // Its literal elements can be passed directly: the JavaScript
+            // callee creates the one observable rest array, in the same order.
+            if let js::Expr::Array(elements) = &self.module.expressions[packed.index()] {
+                let elements = self.budget.copy_slice(AllocationClass::Scratch, elements)?;
+                for element in &elements {
+                    self.append(&mut arguments, *element)?;
+                }
+                self.drop_scratch(elements)?;
+            } else {
+                let spread = self.expression(js::Expr::Spread(packed))?;
+                self.append(&mut arguments, spread)?;
+            }
+        }
         let node = match self.data(unit).calls[call.index()].target.clone() {
             CallTarget::Value { callee, invocation } => {
                 if invocation == Invocation::DirectEval {
                     return Err(self.error(span, "semantic JavaScript direct eval contract"));
                 }
-                let callee = self.value(unit, callee)?;
+                let mut callee = self.value(unit, callee)?;
+                if receiver {
+                    let property = js::Property::Named(self.text("call")?);
+                    callee = self.expression(js::Expr::Member {
+                        object: callee,
+                        property,
+                    })?;
+                }
                 js::Expr::Call {
                     callee,
                     arguments,
-                    invocation,
+                    invocation: if receiver {
+                        Invocation::Reference
+                    } else {
+                        invocation
+                    },
                 }
             }
             CallTarget::Reference { place } => {
@@ -4394,7 +4515,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let value = self.carrier_value(unit, cell, value)?;
                 js::Expr::Assign { target, value }
             }
-            OperationKind::IsUndefined => {
+            OperationKind::IsUndefined { .. } => {
                 let left = self.value(unit, operands[0])?;
                 let right = self.literal(js::Literal::Undefined)?;
                 js::Expr::Binary {
@@ -4442,6 +4563,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 for &argument in &operands[1..] {
                     let argument = self.value(unit, argument)?;
                     self.append(&mut arguments, argument)?;
+                }
+                if let Type::Function(signature) =
+                    &self.program.types[self.data(unit).values[operands[0].index()].ty.index()]
+                {
+                    if signature.has_rest() && arguments.len() + 1 == signature.params.len() {
+                        let last = arguments.last_mut().unwrap();
+                        *last = self.expression(js::Expr::Spread(*last))?;
+                    }
                 }
                 js::Expr::Construct { callee, arguments }
             }
@@ -4788,16 +4917,36 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     return Ok(None);
                 }
                 let region = self.plan(unit).regions[operation.region.index()];
-                let body = self
-                    .module
-                    .region_in(self.module.regions[region.index()].scope, self.budget)?;
+                let rest_scope = self
+                    .program
+                    .unit(created)
+                    .filter(|data| data.constructor_of.is_none())
+                    .and_then(|data| data.callable_type)
+                    .is_some_and(|ty| match &self.program.types[ty.index()] {
+                        Type::Function(signature) => signature.has_rest(),
+                        Type::GenericFunction(generic) => generic.signature.has_rest(),
+                        _ => false,
+                    });
+                let parent = self.module.regions[region.index()].scope;
+                let rest_factory = if rest_scope {
+                    Some(self.module.region_in(parent, self.budget)?)
+                } else {
+                    None
+                };
+                let parent = rest_factory
+                    .map_or(parent, |factory| self.module.regions[factory.index()].scope);
+                let body = self.module.region_in(parent, self.budget)?;
                 let child = self
                     .demand
                     .child(unit, operation_id)
                     .ok_or_else(|| self.error(operation.span, "missing callable demand context"))?;
                 // An adapter's private callback is the adapter's result: a
                 // method, its own function (law P1).
-                let method = self.adapter_method_form(unit, operation_id)?;
+                let declared_method = self.declared_method_form(created)?;
+                let method = match declared_method {
+                    Some(form) => Some(form),
+                    None => self.adapter_method_form(unit, operation_id)?,
+                };
                 let formals = match &method {
                     Some(form) => self.begin_method(body, form)?,
                     None => Vec::new(),
@@ -4938,7 +5087,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         length = Some(0);
                     }
                 }
-                let strict = self.plan(child).strict_frame;
+                let strict = self.plan(child).strict_frame || declared_method.is_some();
                 if self.default_transport
                     && length.is_none()
                     && method.is_none()
@@ -4952,7 +5101,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         .native_default_length
                         .map(|value| value as usize);
                 }
-                if strict && self.plan(child).observes_activation {
+                if strict && self.plan(child).observes_activation && declared_method.is_none() {
                     // Strictness would change this frame's `this`/`arguments`.
                     return Err(self.error(
                         operation.span,
@@ -4966,10 +5115,24 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 if constructor_of.is_some() && !instance_this {
                     parameters.remove(0);
                 }
+                if declared_method.is_some() {
+                    length = self
+                        .data(child)
+                        .declared_length
+                        .map(|length| length.saturating_sub(1) as usize);
+                }
+                let rest = self.data(child).callable_type.is_some_and(|id| {
+                    match &self.program.types[id.index()] {
+                        Type::Function(signature) => signature.has_rest(),
+                        Type::GenericFunction(function) => function.signature.has_rest(),
+                        _ => false,
+                    }
+                });
                 self.budget.push(
                     AllocationClass::Retained,
                     &mut self.module.functions,
                     js::Function {
+                        rest,
                         parameters,
                         body,
                         arrow: arrow && constructor_of.is_none(),
@@ -4978,7 +5141,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         } else {
                             name
                         },
-                        strict: strict && constructor_of.is_none(),
+                        strict: strict && constructor_of.is_none() && !rest,
                         length,
                         suspension,
                     },
@@ -4993,7 +5156,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 if let Some(result) = operation.result.filter(|_| private_cell.is_some()) {
                     if let Some(cell) = private_cell {
                         let _ = result;
-                        let value = self.expression(js::Expr::Function(function))?;
+                        let node =
+                            self.rest_strict_frame(function, rest && strict, rest_factory)?;
+                        let value = self.expression(node)?;
                         let binding = self.cell_binding(unit, cell)?;
                         let region = self.plan(unit).regions[operation.region.index()];
                         self.statement(
@@ -5014,7 +5179,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         function,
                         operation.span,
                     )?,
-                    None => js::Expr::Function(function),
+                    None => self.rest_strict_frame(function, rest && strict, rest_factory)?,
                 }
             }
             _ => {
@@ -5109,6 +5274,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: false,
                 parameters: Vec::new(),
                 body,
                 arrow: true,
@@ -5234,6 +5400,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             let value = self.reference(parameter)?;
             self.append(&mut arguments, value)?;
         }
+        if signature.has_rest() {
+            let last = arguments.last_mut().unwrap();
+            *last = self.expression(js::Expr::Spread(*last))?;
+        }
         let callee = self.cell(unit, cell)?;
         let call = self.expression(js::Expr::Call {
             callee,
@@ -5241,18 +5411,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             invocation: Invocation::Value,
         })?;
         self.statement(body, js::Statement::Return(Some(call)))?;
-        let length = signature.params[1..].iter().position(|parameter| {
-            parameter
-                .default
-                .as_ref()
-                .is_some_and(|default| !matches!(default, crate::check::DefaultValue::Undefined))
-        });
+        let length = program
+            .unit(method)
+            .and_then(|data| data.declared_length)
+            .map(|p| p as usize - 1);
         let function = js::FunctionId::try_new(self.module.functions.len())
             .ok_or(AllocationError::Capacity)?;
         self.budget.push(
             AllocationClass::Retained,
             &mut self.module.functions,
             js::Function {
+                rest: signature.has_rest(),
                 parameters,
                 body,
                 arrow: false,
@@ -5454,6 +5623,27 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     for &argument in operands {
                         let argument = self.value(unit, argument)?;
                         self.append(&mut arguments, argument)?;
+                    }
+                    let base = self
+                        .data(unit)
+                        .constructor_of
+                        .and_then(|class| self.program.class(class))
+                        .and_then(|class| class.base)
+                        .and_then(|base| self.program.class(base));
+                    let signature = base.and_then(|base| {
+                        base.constructor
+                            .or_else(|| base.value.map(|cell| self.program.cells[cell.index()].ty))
+                    });
+                    if let Some(Type::Function(signature)) =
+                        signature.map(|ty| &self.program.types[ty.index()])
+                    {
+                        let receiver = usize::from(base.is_some_and(|base| !base.external));
+                        if signature.has_rest()
+                            && arguments.len() + receiver == signature.params.len()
+                        {
+                            let last = arguments.last_mut().unwrap();
+                            *last = self.expression(js::Expr::Spread(*last))?;
+                        }
                     }
                     let call = self.expression(js::Expr::SuperCall { arguments })?;
                     let instance = self.data(unit).parameters[0];

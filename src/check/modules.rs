@@ -399,7 +399,7 @@ fn declaration_phase<'ast, 'src>(
     }
     let mut aliases = InterfaceGraph::new(programs, &checked, &locals)?;
     aliases.propagate();
-    aliases.install_types(programs, &mut checked)?;
+    aliases.install_types(programs, &mut checked, budget)?;
     // `export constructor C` publishes the class its module's scope names.
     for (module, program) in programs.iter().enumerate() {
         for export in program.exports {
@@ -527,14 +527,13 @@ fn signature_phase<'ast, 'src, S>(
         let registration = (|| {
             analyzer.declare_functions(program)?;
             for item in program.items {
-                let Item::Stmt(Stmt::VarDecl(decl)) = item else {
+                let Item::Stmt(Stmt::VarDecl(decl, ..)) = item else {
                     continue;
                 };
                 if decl.ty.is_auto() {
                     continue;
                 }
                 let mut ty = analyzer.resolve_value_type(decl.ty, "module binding")?;
-                strip_parameter_defaults_from_type(&mut ty);
                 let symbol = analyzer.declare(decl.name, ty)?;
                 analyzer.initialization.bindings.insert(
                     symbol,
@@ -626,7 +625,7 @@ fn body_phase<'ast, 'src>(
         .map_err(|error| resource(module, error))?;
         analyzer.scopes[0] = std::mem::take(&mut scopes[module]);
         for item in program.items {
-            if let Item::Stmt(Stmt::VarDecl(decl)) = item {
+            if let Item::Stmt(Stmt::VarDecl(decl, ..)) = item {
                 if !decl.ty.is_auto() {
                     let symbol = analyzer.facts.identifier_symbols[&decl.name.id];
                     analyzer
@@ -637,7 +636,6 @@ fn body_phase<'ast, 'src>(
         }
         analyzer
             .analyze_items(program)
-            .and_then(|()| analyzer.finalize_module_parameter_defaults(module, program))
             .map_err(|error| AdmittedModuleCheckError { module, error })?;
         let mut inferred_exports = Vec::new();
         for &(owner, index) in &inferred {
@@ -937,7 +935,7 @@ fn preflight_source<'ast, 'src>(
             // its target's boundary rules.
             Item::Extern(decl) => declare(decl.name, false)?,
             Item::ExternGlobal(decl) => declare(decl.name, false)?,
-            Item::Stmt(Stmt::VarDecl(decl)) => declare(decl.name, decl.ty.is_auto())?,
+            Item::Stmt(Stmt::VarDecl(decl, ..)) => declare(decl.name, decl.ty.is_auto())?,
             Item::Stmt(Stmt::ArrayDestructure { bindings, .. }) => {
                 for binding in *bindings {
                     if let ArrayBinding::Name(name) | ArrayBinding::Rest(name) = binding {
@@ -1174,7 +1172,8 @@ impl<'src> InterfaceGraph<'src> {
         &self,
         programs: &[Program<'ast, 'src>],
         checked: &mut CheckedModules<'ast, 'src>,
-    ) -> Result<(), ModuleCheckError> {
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AdmittedModuleCheckError> {
         for (module, program) in programs.iter().enumerate() {
             for import in program.imports {
                 for specifier in import.specifiers {
@@ -1188,6 +1187,11 @@ impl<'src> InterfaceGraph<'src> {
                         .view(module)
                         .and_then(|view| view.nominal_type(identity))
                         .expect("an interface names a declared nominal");
+                    let ty = checked
+                        .declarations
+                        .types
+                        .intern(&ty, budget)
+                        .map_err(|error| resource(module, error))?;
                     let facts = &mut checked.facts[module];
                     if facts
                         .type_bindings
@@ -1198,7 +1202,8 @@ impl<'src> InterfaceGraph<'src> {
                             module,
                             specifier.local.span,
                             format!("duplicate module type binding `{}`", specifier.local.name),
-                        ));
+                        )
+                        .into());
                     }
                     facts
                         .binding_types
@@ -1329,6 +1334,11 @@ impl<'src> InterfaceGraph<'src> {
                         }
                         .nominal_type(identity)
                         .expect("an interface names a declared nominal");
+                        let ty = checked
+                            .declarations
+                            .types
+                            .intern(&ty, budget)
+                            .map_err(|error| resource(module, error))?;
                         // A class declaration's own name keeps its
                         // constructor binding.
                         checked.facts[module]

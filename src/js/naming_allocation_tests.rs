@@ -6,7 +6,8 @@ use crate::compilation_policy::{
 use crate::output_budget::RetainedCharge;
 
 fn policy() -> ResolvedPolicy {
-    toml::from_str::<crate::config::ProjectConfig>("[policy.tactics]\nnaming-compaction='on'").unwrap()
+    toml::from_str::<crate::config::ProjectConfig>("[policy.tactics]\nnaming-compaction='on'")
+        .unwrap()
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,
         })
@@ -58,6 +59,7 @@ fn fixture() -> Module {
         .push(Statement::Return(Some(read)));
     let function = FunctionId::new(0);
     module.functions.push(Function {
+        rest: false,
         parameters: vec![parameter],
         body,
         arrow: false,
@@ -107,7 +109,14 @@ fn local_read_order_shortens_hot_locals_without_capturing_or_renaming_other_scop
     let mut sum = module.expression(Expr::Binding(BindingId::new(0)), None);
     for _ in 0..8 {
         let read = module.expression(Expr::Binding(hot), None);
-        sum = module.expression(Expr::Binary { op: Binary::Add, left: sum, right: read }, None);
+        sum = module.expression(
+            Expr::Binary {
+                op: Binary::Add,
+                left: sum,
+                right: read,
+            },
+            None,
+        );
     }
     module.regions[body.index()].statements = vec![Statement::Return(Some(sum))];
     // An unrelated sibling keeps its binding spellings even though the first
@@ -117,22 +126,39 @@ fn local_read_order_shortens_hot_locals_without_capturing_or_renaming_other_scop
         source_symbol: Some(SymbolId(100)),
         scope: module.regions[sibling_body.index()].scope,
         spelling: "siblingInput".into(),
-        pinned: false, class: None, defined: false,
+        pinned: false,
+        class: None,
+        defined: false,
     });
     let sibling = module.binding(Binding {
-        source_symbol: Some(SymbolId(101)), scope: ScopeId::new(0),
-        spelling: "sibling".into(), pinned: false, class: None, defined: false,
+        source_symbol: Some(SymbolId(101)),
+        scope: ScopeId::new(0),
+        spelling: "sibling".into(),
+        pinned: false,
+        class: None,
+        defined: false,
     });
     let read = module.expression(Expr::Binding(sibling_local), None);
     module.regions[sibling_body.index()].statements = vec![Statement::Return(Some(read))];
     let function = FunctionId::new(module.functions.len());
     module.functions.push(Function {
-        parameters: vec![sibling_local], body: sibling_body, arrow: false,
-        name: FunctionName::Exact("sibling".into()), strict: false,
-        length: None, suspension: Suspension::None,
+        rest: false,
+        parameters: vec![sibling_local],
+        body: sibling_body,
+        arrow: false,
+        name: FunctionName::Exact("sibling".into()),
+        strict: false,
+        length: None,
+        suspension: Suspension::None,
     });
-    module.regions[0].statements.push(Statement::Function { binding: sibling, function });
-    module.exports.push(Export { binding: sibling, name: "sibling".into() });
+    module.regions[0].statements.push(Statement::Function {
+        binding: sibling,
+        function,
+    });
+    module.exports.push(Export {
+        binding: sibling,
+        name: "sibling".into(),
+    });
     let original = Plan::new(Style::Scoped);
     let mut local = original.clone();
     local.local_read_order = true;
@@ -145,8 +171,14 @@ fn local_read_order_shortens_hot_locals_without_capturing_or_renaming_other_scop
     for unchanged in [BindingId::new(0), BindingId::new(1), sibling, sibling_local] {
         assert_eq!(before.get(unchanged), after.get(unchanged));
     }
-    let compact_seed = Plan { compact_order: true, ..original.clone() };
-    let compact_frequency = Plan { compact_order: true, ..local.clone() };
+    let compact_seed = Plan {
+        compact_order: true,
+        ..original.clone()
+    };
+    let compact_frequency = Plan {
+        compact_order: true,
+        ..local.clone()
+    };
     let first = basis.names_in(&compact_seed, &mut budget).unwrap();
     let second = basis.names_in(&compact_frequency, &mut budget).unwrap();
     assert!(second.get(hot).len() < first.get(hot).len());
@@ -160,17 +192,32 @@ fn local_read_order_shortens_hot_locals_without_capturing_or_renaming_other_scop
     assert!(code.len() < old_code.len());
     let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));console.log(m.read(...Array.from({{length:60}},(_,i)=>i)),m.read.name,m.read.length,m.sibling(23));", serde_json::to_string(&code).unwrap());
     let actual = std::process::Command::new("node")
-        .args(["--input-type=module", "-e", &script]).output().unwrap();
-    assert!(actual.status.success(), "{}", String::from_utf8_lossy(&actual.stderr));
-    assert_eq!(String::from_utf8(actual.stdout).unwrap(), "479 readState 60 23\n");
+        .args(["--input-type=module", "-e", &script])
+        .output()
+        .unwrap();
+    assert!(
+        actual.status.success(),
+        "{}",
+        String::from_utf8_lossy(&actual.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(actual.stdout).unwrap(),
+        "479 readState 60 23\n"
+    );
     for setting in ["identifier-mangling", "naming-search"] {
         let config: crate::config::ProjectConfig =
             toml::from_str(&format!("[policy.tactics]\n{setting}='off'")).unwrap();
-        let disabled = config.resolve_policy(CompilationRequest::JavaScript {
-            preserve_root_exports: true,
-        }).unwrap();
+        let disabled = config
+            .resolve_policy(CompilationRequest::JavaScript {
+                preserve_root_exports: true,
+            })
+            .unwrap();
         assert!(local.check_policy(&disabled).is_err());
-        assert!(module.prepare_output_with_policy(&disabled).unwrap().render(&local).is_err());
+        assert!(module
+            .prepare_output_with_policy(&disabled)
+            .unwrap()
+            .render(&local)
+            .is_err());
     }
 }
 
@@ -534,42 +581,119 @@ fn g1_compact_names_skip_dead_slots_and_keep_public_reflection_and_captures() {
     // Allocate holes before the late live declaration; dead pins must not
     // reserve its one-character spelling either.
     for n in 0..80 {
-        module.binding(Binding { source_symbol: None, scope, spelling: if n == 0 { "b".into() } else { format!("dead{n}") }, pinned: n == 0, class: None, defined: false });
+        module.binding(Binding {
+            source_symbol: None,
+            scope,
+            spelling: if n == 0 {
+                "b".into()
+            } else {
+                format!("dead{n}")
+            },
+            pinned: n == 0,
+            class: None,
+            defined: false,
+        });
     }
-    let live = module.binding(Binding { source_symbol: None, scope, spelling: "lateLive".into(), pinned: false, class: None, defined: false });
+    let live = module.binding(Binding {
+        source_symbol: None,
+        scope,
+        spelling: "lateLive".into(),
+        pinned: false,
+        class: None,
+        defined: false,
+    });
     let initial = module.expression(Expr::Literal(Literal::Number(5.0)), None);
     let read = module.expression(Expr::Binding(live), None);
     let state = module.expression(Expr::Binding(BindingId::new(0)), None);
-    let sum = module.expression(Expr::Binary { op: Binary::Add, left: state, right: read }, None);
+    let sum = module.expression(
+        Expr::Binary {
+            op: Binary::Add,
+            left: state,
+            right: read,
+        },
+        None,
+    );
     let body = module.functions[0].body;
-    module.regions[body.index()].statements = vec![Statement::Let { binding: live, value: Some(initial) }, Statement::Return(Some(sum))];
+    module.regions[body.index()].statements = vec![
+        Statement::Let {
+            binding: live,
+            value: Some(initial),
+        },
+        Statement::Return(Some(sum)),
+    ];
     let dead_body = module.region(ScopeId::new(0));
-    module.functions.push(Function { parameters: vec![], body: dead_body, arrow: false,
-        name: FunctionName::Exact("a".into()), strict: false, length: None, suspension: Suspension::None });
+    module.functions.push(Function {
+        rest: false,
+        parameters: vec![],
+        body: dead_body,
+        arrow: false,
+        name: FunctionName::Exact("a".into()),
+        strict: false,
+        length: None,
+        suspension: Suspension::None,
+    });
     let mut budget = AllocationBudget::new(None);
     let verified = verify::verify_in(&module, &mut budget).unwrap();
     let basis = Basis::new_in(&module, &verified, &mut budget).unwrap();
-    let legacy = Plan { self_named: true, ..Plan::new(Style::Scoped) };
-    let compact = Plan { compact_order: true, ..legacy.clone() };
+    let legacy = Plan {
+        self_named: true,
+        ..Plan::new(Style::Scoped)
+    };
+    let compact = Plan {
+        compact_order: true,
+        ..legacy.clone()
+    };
     let old = basis.names_in(&legacy, &mut budget).unwrap();
     let new = basis.names_in(&compact, &mut budget).unwrap();
     assert!(old.get(live).len() > new.get(live).len());
     assert_eq!(new.get(BindingId::new(0)), "a");
     assert_eq!(new.get(module.functions[0].parameters[0]), "b");
     assert_ne!(new.get(BindingId::new(0)), new.get(live));
-    let code = module.prepare_output_with_policy(&policy()).unwrap().render(&compact).unwrap();
+    let code = module
+        .prepare_output_with_policy(&policy())
+        .unwrap()
+        .render(&compact)
+        .unwrap();
     let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));console.log(m.read(0),m.read.name,m.read.length);", serde_json::to_string(&code).unwrap());
-    let actual = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
-    assert!(actual.status.success(), "{}", String::from_utf8_lossy(&actual.stderr));
+    let actual = std::process::Command::new("node")
+        .args(["--input-type=module", "-e", &script])
+        .output()
+        .unwrap();
+    assert!(
+        actual.status.success(),
+        "{}",
+        String::from_utf8_lossy(&actual.stderr)
+    );
     assert_eq!(actual.stdout, b"12 readState 1\n");
     for setting in ["identifier-mangling", "naming-search", "naming-compaction"] {
-        let config: crate::config::ProjectConfig = toml::from_str(&format!("[policy.tactics]\n{setting}='off'")).unwrap();
-        let off = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
-        assert!(module.prepare_output_with_policy(&off).unwrap().render(&compact).is_err());
+        let config: crate::config::ProjectConfig =
+            toml::from_str(&format!("[policy.tactics]\n{setting}='off'")).unwrap();
+        let off = config
+            .resolve_policy(CompilationRequest::JavaScript {
+                preserve_root_exports: true,
+            })
+            .unwrap();
+        assert!(module
+            .prepare_output_with_policy(&off)
+            .unwrap()
+            .render(&compact)
+            .is_err());
     }
-    let config: crate::config::ProjectConfig = toml::from_str("[policy.tactics]\nnaming-alphabet='off'\nnaming-compaction='on'").unwrap();
-    let off = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
-    assert_eq!(module.prepare_output_with_policy(&off).unwrap().render(&compact).unwrap(), code);
+    let config: crate::config::ProjectConfig =
+        toml::from_str("[policy.tactics]\nnaming-alphabet='off'\nnaming-compaction='on'").unwrap();
+    let off = config
+        .resolve_policy(CompilationRequest::JavaScript {
+            preserve_root_exports: true,
+        })
+        .unwrap();
+    assert_eq!(
+        module
+            .prepare_output_with_policy(&off)
+            .unwrap()
+            .render(&compact)
+            .unwrap(),
+        code
+    );
 }
 
 #[test]
@@ -581,12 +705,18 @@ fn g1_compact_order_tracks_printed_owners_not_binding_arena_order() {
     let mut budget = AllocationBudget::new(None);
     let structure = verify::verify_in(&module, &mut budget).unwrap();
     let basis = Basis::new_in(&module, &structure, &mut budget).unwrap();
-    let plan = Plan { compact_order: true, ..Plan::new(Style::Scoped) };
+    let plan = Plan {
+        compact_order: true,
+        ..Plan::new(Style::Scoped)
+    };
     let names = basis.names_in(&plan, &mut budget).unwrap();
     assert_eq!(names.get(BindingId::new(1)), "a");
     assert_eq!(names.get(BindingId::new(0)), "b");
     assert_eq!(names.get(BindingId::new(2)), "a"); // reuses the noncaptured root name
-    assert_eq!(basis.compact_in(&mut budget).unwrap().printed, [BindingId::new(1), BindingId::new(2), BindingId::new(0)]);
+    assert_eq!(
+        basis.compact_in(&mut budget).unwrap().printed,
+        [BindingId::new(1), BindingId::new(2), BindingId::new(0)]
+    );
 }
 
 #[test]
@@ -597,7 +727,16 @@ fn g1_full_continuation_alphabet_is_unique_at_every_length_boundary() {
         let len = encode_name(index, Alphabet::default(), true, &mut bytes);
         let name = std::str::from_utf8(&bytes[..len]).unwrap().to_owned();
         assert!(!name.as_bytes()[0].is_ascii_digit());
-        assert_eq!(len, if index < 54 { 1 } else if index < 54 + 54 * 64 { 2 } else { 3 });
+        assert_eq!(
+            len,
+            if index < 54 {
+                1
+            } else if index < 54 + 54 * 64 {
+                2
+            } else {
+                3
+            }
+        );
         assert!(seen.insert(name));
     }
     assert!(seen.contains("a0") && seen.contains("_9"));
@@ -613,30 +752,85 @@ fn g1_compact_names_preserve_direct_eval_and_import_bindings() {
         let body = module.functions[0].body;
         let returned = if eval {
             let callee = module.expression(Expr::Host("eval".into()), None);
-            let code = module.expression(Expr::Literal(Literal::String("retainedState+unusedInput".into())), None);
-            module.expression(Expr::Call { callee, arguments: vec![code], invocation: Invocation::DirectEval }, None)
+            let code = module.expression(
+                Expr::Literal(Literal::String("retainedState+unusedInput".into())),
+                None,
+            );
+            module.expression(
+                Expr::Call {
+                    callee,
+                    arguments: vec![code],
+                    invocation: Invocation::DirectEval,
+                },
+                None,
+            )
         } else {
-            let imported = module.binding(Binding { source_symbol: None, scope: ScopeId::new(0), spelling: "importedValue".into(), pinned: false, class: None, defined: false });
-            module.imports.push(Import { source: "data:text/javascript,export const publicAmount=12".into(), imported: "publicAmount".into(), binding: imported });
+            let imported = module.binding(Binding {
+                source_symbol: None,
+                scope: ScopeId::new(0),
+                spelling: "importedValue".into(),
+                pinned: false,
+                class: None,
+                defined: false,
+            });
+            module.imports.push(Import {
+                source: "data:text/javascript,export const publicAmount=12".into(),
+                imported: "publicAmount".into(),
+                binding: imported,
+            });
             module.expression(Expr::Binding(imported), None)
         };
         module.regions[body.index()].statements = vec![Statement::Return(Some(returned))];
-        let plan = Plan { compact_order: true, ..Plan::new(Style::Scoped) };
-        let code = module.prepare_output_with_policy(&policy()).unwrap().render(&plan).unwrap();
+        let plan = Plan {
+            compact_order: true,
+            ..Plan::new(Style::Scoped)
+        };
+        let code = module
+            .prepare_output_with_policy(&policy())
+            .unwrap()
+            .render(&plan)
+            .unwrap();
         let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));console.log(m.read(5));", serde_json::to_string(&code).unwrap());
-        let actual = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
-        assert!(actual.status.success(), "{code}: {}", String::from_utf8_lossy(&actual.stderr));
+        let actual = std::process::Command::new("node")
+            .args(["--input-type=module", "-e", &script])
+            .output()
+            .unwrap();
+        assert!(
+            actual.status.success(),
+            "{code}: {}",
+            String::from_utf8_lossy(&actual.stderr)
+        );
         assert_eq!(actual.stdout, b"12\n");
     }
 }
 
 #[test]
 fn g1_compact_permission_starts_at_fourteen_and_accepts_an_explicit_thirteen_override() {
-    for (level, mode, expected) in [(13,"auto",false),(14,"auto",true),(13,"on",true),(15,"off",false)] {
-        let config: crate::config::ProjectConfig = toml::from_str(&format!("effort.level={level}\n[policy.tactics]\nnaming-compaction='{mode}'")).unwrap();
-        let resolved = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
-        assert_eq!(crate::representation::ChoiceFamily::NameAllocation.spec().enabled(&resolved), expected);
-        let plan = Plan { compact_order: true, ..Plan::new(Style::Scoped) };
+    for (level, mode, expected) in [
+        (13, "auto", false),
+        (14, "auto", true),
+        (13, "on", true),
+        (15, "off", false),
+    ] {
+        let config: crate::config::ProjectConfig = toml::from_str(&format!(
+            "effort.level={level}\n[policy.tactics]\nnaming-compaction='{mode}'"
+        ))
+        .unwrap();
+        let resolved = config
+            .resolve_policy(CompilationRequest::JavaScript {
+                preserve_root_exports: true,
+            })
+            .unwrap();
+        assert_eq!(
+            crate::representation::ChoiceFamily::NameAllocation
+                .spec()
+                .enabled(&resolved),
+            expected
+        );
+        let plan = Plan {
+            compact_order: true,
+            ..Plan::new(Style::Scoped)
+        };
         assert_eq!(plan.check_policy(&resolved).is_ok(), expected);
     }
 }
@@ -646,38 +840,107 @@ fn g1_compact_names_visit_class_constructors_and_prototype_methods() {
     let mut module = fixture();
     let mut function = |parameter_name: &str, constructor: bool| {
         let body = module.region(ScopeId::new(0));
-        let parameter = module.binding(Binding { source_symbol: None,
-            scope: module.regions[body.index()].scope, spelling: parameter_name.into(),
-            pinned: false, class: None, defined: false });
+        let parameter = module.binding(Binding {
+            source_symbol: None,
+            scope: module.regions[body.index()].scope,
+            spelling: parameter_name.into(),
+            pinned: false,
+            class: None,
+            defined: false,
+        });
         let argument = module.expression(Expr::Binding(parameter), None);
         let state = module.expression(Expr::Binding(BindingId::new(0)), None);
-        let sum = module.expression(Expr::Binary { op: Binary::Add, left: state, right: argument }, None);
+        let sum = module.expression(
+            Expr::Binary {
+                op: Binary::Add,
+                left: state,
+                right: argument,
+            },
+            None,
+        );
         if constructor {
             let this = module.expression(Expr::This, None);
-            let field = module.expression(Expr::Member { object: this, property: Property::Named("value".into()) }, None);
-            let set = module.expression(Expr::Assign { target: field, value: sum }, None);
-            module.regions[body.index()].statements.push(Statement::Evaluate(set));
+            let field = module.expression(
+                Expr::Member {
+                    object: this,
+                    property: Property::Named("value".into()),
+                },
+                None,
+            );
+            let set = module.expression(
+                Expr::Assign {
+                    target: field,
+                    value: sum,
+                },
+                None,
+            );
+            module.regions[body.index()]
+                .statements
+                .push(Statement::Evaluate(set));
         } else {
-            module.regions[body.index()].statements.push(Statement::Return(Some(sum)));
+            module.regions[body.index()]
+                .statements
+                .push(Statement::Return(Some(sum)));
         }
         let id = FunctionId::new(module.functions.len());
-        module.functions.push(Function { parameters: vec![parameter], body, arrow: false,
-            name: FunctionName::Unobserved, strict: false, length: None, suspension: Suspension::None });
+        module.functions.push(Function {
+            rest: false,
+            parameters: vec![parameter],
+            body,
+            arrow: false,
+            name: FunctionName::Unobserved,
+            strict: false,
+            length: None,
+            suspension: Suspension::None,
+        });
         id
     };
     let constructor = function("constructorInput", true);
     let method = function("methodInput", false);
-    let class = module.expression(Expr::Class { name: "Box".into(), base: None,
-        constructor: Some(constructor), methods: vec![("read".into(), method)] }, None);
-    let binding = module.binding(Binding { source_symbol: None, scope: ScopeId::new(0),
-        spelling: "classValue".into(), pinned: false, class: None, defined: false });
+    let class = module.expression(
+        Expr::Class {
+            name: "Box".into(),
+            base: None,
+            constructor: Some(constructor),
+            methods: vec![("read".into(), method)],
+        },
+        None,
+    );
+    let binding = module.binding(Binding {
+        source_symbol: None,
+        scope: ScopeId::new(0),
+        spelling: "classValue".into(),
+        pinned: false,
+        class: None,
+        defined: false,
+    });
     module.reserved.push("Box".into());
-    module.regions[0].statements.push(Statement::Let { binding, value: Some(class) });
-    module.exports.push(Export { binding, name: "Box".into() });
-    let compact = Plan { compact_order: true, ..Plan::new(Style::Scoped) };
-    let code = module.prepare_output_with_policy(&policy()).unwrap().render(&compact).unwrap();
+    module.regions[0].statements.push(Statement::Let {
+        binding,
+        value: Some(class),
+    });
+    module.exports.push(Export {
+        binding,
+        name: "Box".into(),
+    });
+    let compact = Plan {
+        compact_order: true,
+        ..Plan::new(Style::Scoped)
+    };
+    let code = module
+        .prepare_output_with_policy(&policy())
+        .unwrap()
+        .render(&compact)
+        .unwrap();
     let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));const box=new m.Box(5);console.log(box.value,box.read(3),m.Box.name,m.Box.length,box.read.length);", serde_json::to_string(&code).unwrap());
-    let actual = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
-    assert!(actual.status.success(), "{code}: {}", String::from_utf8_lossy(&actual.stderr));
+    let actual = std::process::Command::new("node")
+        .args(["--input-type=module", "-e", &script])
+        .output()
+        .unwrap();
+    assert!(
+        actual.status.success(),
+        "{code}: {}",
+        String::from_utf8_lossy(&actual.stderr)
+    );
     assert_eq!(actual.stdout, b"12 10 Box 1 1\n");
 }

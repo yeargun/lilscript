@@ -2,7 +2,7 @@ use super::*;
 use crate::ast::BinaryOp;
 use crate::check::binary_types::{checked_binary_type_with, BinaryTypeError};
 use crate::check::type_relation::{is_type_assignable_with, type_equal_with};
-use crate::check::{DefaultValue, FunctionParameter, FunctionSignature, FunctionType};
+use crate::check::{FunctionParameter, FunctionSignature, FunctionType};
 use crate::compilation_policy::{
     BudgetError, BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain,
 };
@@ -44,18 +44,24 @@ fn primitive_queries_charge_work_without_allocating_payload_workspace() {
 }
 
 #[test]
-fn repeated_named_and_default_equality_pays_each_queried_payload() {
+fn repeated_type_equality_pays_each_queried_payload() {
     let name = "n".repeat(2048);
-    let default = DefaultValue::Array(vec![DefaultValue::String(&name); 5]);
+    let ty = Type::Union(vec![
+        Type::Class(crate::check::NominalType {
+            identity: crate::check::NominalId::new(0, crate::check::NominalKind::Class),
+            name: &name,
+        });
+        5
+    ]);
     let mut ledger = new_ledger(1_000_000, 1_000_000);
     let first;
     {
         let mut scope = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
         let mut query = TypeQueryAdmission::new(&mut scope);
         query
-            .admit(RelationEvent::DefaultEquality {
-                left: &default,
-                right: &default,
+            .admit(RelationEvent::TypeEquality {
+                left: &ty,
+                right: &ty,
             })
             .unwrap();
     }
@@ -65,9 +71,9 @@ fn repeated_named_and_default_equality_pays_each_queried_payload() {
         let mut scope = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
         let mut query = TypeQueryAdmission::new(&mut scope);
         query
-            .admit(RelationEvent::DefaultEquality {
-                left: &default,
-                right: &default,
+            .admit(RelationEvent::TypeEquality {
+                left: &ty,
+                right: &ty,
             })
             .unwrap();
     }
@@ -75,9 +81,9 @@ fn repeated_named_and_default_equality_pays_each_queried_payload() {
     let mut limited = new_ledger(1_000_000, first - 1);
     {
         let mut scope = AllocationBudget::new(Some((&mut limited, WorkDomain::Optional)));
-        let result = TypeQueryAdmission::new(&mut scope).admit(RelationEvent::DefaultEquality {
-            left: &default,
-            right: &default,
+        let result = TypeQueryAdmission::new(&mut scope).admit(RelationEvent::TypeEquality {
+            left: &ty,
+            right: &ty,
         });
         assert!(matches!(
             result,
@@ -197,10 +203,7 @@ fn query_vector_denial_and_unwind_preserve_charge_ownership() {
 #[test]
 fn unmetered_verification_uses_plain_results_and_shared_function_clones() {
     let source = Type::Function(FunctionType::new(FunctionSignature {
-        params: vec![FunctionParameter::defaulted(
-            Type::Int,
-            DefaultValue::Array(vec![DefaultValue::Int(1); 8]),
-        )],
+        params: vec![FunctionParameter::optional(Type::Int)],
         return_type: Box::new(Type::Int),
     }));
     let mut scope = AllocationBudget::new(None);

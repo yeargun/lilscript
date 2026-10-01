@@ -39,6 +39,7 @@ fn fixture(captured: bool, initializer: Initializer) -> Module {
         module.regions[getter.index()].statements = vec![Statement::Return(Some(field))];
         let function = FunctionId::new(module.functions.len());
         module.functions.push(Function {
+            rest: false,
             parameters: vec![],
             body: getter,
             arrow: true,
@@ -118,6 +119,7 @@ fn fixture(captured: bool, initializer: Initializer) -> Module {
         .push(Statement::Return(Some(field)));
     let function = FunctionId::new(module.functions.len());
     module.functions.push(Function {
+        rest: false,
         parameters: if matches!(initializer, Initializer::Parameter) {
             vec![other]
         } else {

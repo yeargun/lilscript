@@ -1,5 +1,5 @@
 //! Callable input facts must work before choosing an inline representation.
-use super::raw_domains::{Admission, DomainInputs, DomainProof, SourceRecipes, Subject};
+use super::facts::domains::{Admission, DomainInputs, DomainProof, SourceRecipes, Subject};
 use super::uses::UseIndex;
 use super::*;
 use crate::compilation_contract::JavaScriptExecution;

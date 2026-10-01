@@ -384,7 +384,7 @@ pub(super) fn operation_effects(
                 Effects::from_behavior(EvaluationBehavior::COERCION)
             }
         }
-        Op::Constant(_) | Op::IsUndefined => Effects::NONE,
+        Op::Constant(_) | Op::IsUndefined { .. } => Effects::NONE,
         // `typeof` never throws; `Array.isArray` throws on a revoked proxy.
         Op::TypeTest(target) => {
             match crate::primitive::runtime_type_test(&ctx.program.types[target.index()]) {
@@ -1516,7 +1516,7 @@ fn value_transfer(
     );
     match &operation.kind {
         Op::Constant(Constant::Integer(_)) => integer,
-        Op::Constant(_) | Op::IsUndefined | Op::TypeTest(_) | Op::Template => primitive,
+        Op::Constant(_) | Op::IsUndefined { .. } | Op::TypeTest(_) | Op::Template => primitive,
         Op::IntBinary(_) | Op::Unary { integer: true, .. } => integer,
         Op::Unary { .. } => primitive,
         Op::Binary(BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish) => {

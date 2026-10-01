@@ -89,14 +89,14 @@ impl<'src> Walk<'_, '_, 'src> {
 
     fn statement(&mut self, statement: &Stmt<'_, 'src>) {
         match statement {
-            Stmt::VarDecl(declaration) => {
+            Stmt::VarDecl(declaration, ..) => {
                 if let Some(value) = &declaration.initializer {
                     self.expression(value);
                 }
             }
             Stmt::ArrayDestructure { value, .. }
             | Stmt::RecordDestructure { value, .. }
-            | Stmt::Expr(value)
+            | Stmt::Expr(value, ..)
             | Stmt::Throw { value, .. }
             | Stmt::Yield { value, .. } => self.expression(value),
             Stmt::Return { value, .. } => {
@@ -190,7 +190,7 @@ impl<'src> Walk<'_, '_, 'src> {
                 self.expression(iterable);
                 self.statement(body);
             }
-            Stmt::Break(_) | Stmt::Continue(_) => {}
+            Stmt::Break(_, ..) | Stmt::Continue(_, ..) => {}
         }
     }
 
@@ -218,6 +218,12 @@ impl<'src> Walk<'_, '_, 'src> {
                         RecordElement::Entry(entry) => self.expression(&entry.value),
                         RecordElement::Spread { value, .. } => self.expression(value),
                     }
+                }
+            }
+            ExprKind::With { value, fields, .. } => {
+                self.expression(value);
+                for field in *fields {
+                    self.expression(&field.value);
                 }
             }
             ExprKind::StructLiteral { values, .. } => {

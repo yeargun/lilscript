@@ -946,8 +946,7 @@ fn validate_hosts(
         };
         for parameter in &signature.params {
             work(budget, 1)?;
-            if parameter.passing != crate::primitive::ParameterPassing::Value
-                || parameter.default.is_some()
+            if parameter.passing != crate::primitive::ParameterPassing::Value || parameter.optional
             {
                 return Err(error("native host passing/default ABI"));
             }
@@ -2023,18 +2022,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         self.helpers.require(Helper::ClosureRuntime);
         Ok(true)
     }
-    /// A call may stop early only before trailing callable parameters whose
-    /// default is an arrow: the callee builds those itself.
-    pub(super) fn omits_only_arrow_defaults(&self, signature: usize, supplied: usize) -> bool {
+    /// Omission follows the checked arity contract; the native ABI also passes
+    /// the supplied count so a callee can distinguish absence from a zero value.
+    pub(super) fn accepts_omission(&self, signature: usize, supplied: usize) -> bool {
         let signature = &self.signatures[signature];
         supplied <= signature.parameters.len()
-            && (supplied..signature.parameters.len()).all(|position| {
-                matches!(signature.parameters[position], NativeType::Callable(_))
-                    && matches!(
-                        signature.source.params[position].default,
-                        Some(crate::check::DefaultValue::Arrow(_))
-                    )
-            })
+            && signature.source.params[supplied..]
+                .iter()
+                .all(|p| p.optional || p.rest)
     }
     /// The interned array whose elements are strings, if any.
     pub(super) fn string_array(&self) -> Option<usize> {
@@ -2272,16 +2267,25 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 )
             }
             OperationKind::Allocate {
-                kind: AllocationKind::Array,
+                kind: kind @ (AllocationKind::Array | AllocationKind::SpreadArray(_)),
                 ..
             } => {
                 let Some(Stored(NativeType::Array(array))) = result else {
                     return Err(error("native array construction representation"));
                 };
-                for &argument in operands {
+                for (index, &argument) in operands.iter().enumerate() {
                     work(budget, 1)?;
+                    let spread = matches!(kind, AllocationKind::SpreadArray(flags) if flags[index]);
+                    let actual = if spread {
+                        let Stored(NativeType::Array(source)) = value(argument) else {
+                            return Err(error("native array spread representation"));
+                        };
+                        Stored(self.arrays[source])
+                    } else {
+                        value(argument)
+                    };
                     expect(
-                        self.compatible(Stored(self.arrays[array]), value(argument)),
+                        self.compatible(Stored(self.arrays[array]), actual),
                         "native array element value",
                     )?;
                 }
@@ -2539,20 +2543,28 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 // a preserved omission would need `undefined`.
                 expect(
                     site.contract.supplied as usize == arguments.len()
-                        || site.contract.defaults == DefaultConvention::MaterializeAtCaller,
+                        || matches!(
+                            site.contract.defaults,
+                            DefaultConvention::MaterializeAtCaller
+                                | DefaultConvention::ApplyAtCallee
+                        ),
                     "native omitted arguments",
                 )?;
                 match plan.calls[call.index()] {
                     PreparedTarget::Function(function) => {
                         expect(
-                            site.contract.defaults == DefaultConvention::MaterializeAtCaller,
+                            matches!(
+                                site.contract.defaults,
+                                DefaultConvention::MaterializeAtCaller
+                                    | DefaultConvention::ApplyAtCallee
+                            ),
                             "native direct call defaults",
                         )?;
                         let target = self.program.unit(function).unwrap();
                         let signature = self.signature_for_unit(function);
                         expect(
                             target.parameters.len() == arguments.len()
-                                || self.omits_only_arrow_defaults(signature, arguments.len()),
+                                || self.accepts_omission(signature, arguments.len()),
                             "native direct call arity",
                         )?;
                         for (&parameter, &argument) in target.parameters.iter().zip(arguments) {
@@ -2593,10 +2605,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             arguments.len() == self.signatures[signature].parameters.len();
                         expect(
                             match site.contract.defaults {
-                                DefaultConvention::MaterializeAtCaller => {
-                                    complete
-                                        || self
-                                            .omits_only_arrow_defaults(signature, arguments.len())
+                                DefaultConvention::MaterializeAtCaller
+                                | DefaultConvention::ApplyAtCallee => {
+                                    complete || self.accepts_omission(signature, arguments.len())
                                 }
                                 DefaultConvention::PreserveOmission => {
                                     complete
@@ -3040,7 +3051,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
             // Only an omitted arrow default arrives as the empty callable;
             // every other default was evaluated by the caller.
-            OperationKind::IsUndefined => expect(
+            OperationKind::IsUndefined { .. } => expect(
                 operands.len() == 1 && result == Some(Stored(Bool)),
                 "native undefined test",
             ),
