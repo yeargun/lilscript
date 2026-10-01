@@ -43,12 +43,14 @@ export const CODECS = ["brotli", "gzip", "raw"];
 export const TARGETS = {
   script: { flag: "js", extension: "js", javascript: true },
   module: { flag: "js-module", extension: "mjs", javascript: true },
+  cjs: { flag: "js-module", format: "cjs", extension: "cjs", javascript: true },
+  bare: { flag: "js", format: "bare", extension: "js", javascript: true },
   c: { flag: "c", extension: "c", javascript: false },
 };
 export const LANES = MODES.flatMap((mode) => CODECS.flatMap((codec) => Object.keys(TARGETS).map((target) => ({
   id: `${mode}/${codec}/${target}`, mode, codec, target, parts: [mode, codec, target],
 }))));
-const JAVASCRIPT = ["script", "module"];
+const JAVASCRIPT = ["script", "module", "cjs", "bare"];
 
 // The per-target feature mask, declared once. A case using a feature is run
 // only on the listed targets and reported as masked on the others. Detection is
@@ -57,7 +59,7 @@ const JAVASCRIPT = ["script", "module"];
 // linkage); every other feature counts in any module the entry imports.
 export const FEATURES = [
   { id: "host-prelude", targets: JAVASCRIPT, why: "a .host.js prelude defines externs in a JavaScript realm" },
-  { id: "module-probe", targets: ["module"], why: "a .module-probe.mjs imports the ES module's exports" },
+  { id: "module-probe", targets: ["module", "cjs"], why: "a .module-probe.mjs reads the library export surface" },
   { id: "JsValue", targets: JAVASCRIPT, pattern: /\bJsValue\b/, why: "language-v0.1: JsValue is JavaScript-only" },
   { id: "import extern", targets: ["module"], pattern: /\bimport\s+extern\b/, why: "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports" },
   { id: "extern", targets: JAVASCRIPT, pattern: /\bextern\b/, why: "language-v0.1: C rejects host declarations", lifts: "M11.3 (externs per target)" },
@@ -378,10 +380,10 @@ export async function runCases(options) {
   // lists; the list comes from the compiler, so the lane follows its registry.
   const probeSource = join(work, "policy-probe.lil");
   writeFileSync(probeSource, "print(1);\n");
-  const printPolicy = async (config, target) => {
+  const printPolicy = async (config, target, format) => {
     const path = join(work, "policy-probe.toml");
     writeFileSync(path, config);
-    const result = await run(compiler.path, [probeSource, "--config", path, "--target", target, "--print-policy"], { env: compilerEnv, cwd: work });
+    const result = await run(compiler.path, [probeSource, "--config", path, "--target", target, ...(format ? ["--format", format] : []), "--print-policy"], { env: compilerEnv, cwd: work });
     try {
       return result.status === 0 ? JSON.parse(result.stdout) : { error: headLines(result.stderr, 3) };
     } catch {
@@ -398,7 +400,7 @@ export async function runCases(options) {
   const laneRecords = [];
   for (const lane of lanes) {
     const config = composeConfig(lane, tactics, null, options.level ?? null);
-    const policy = await printPolicy(config, TARGETS[lane.target].flag);
+    const policy = await printPolicy(config, TARGETS[lane.target].flag, TARGETS[lane.target].format);
     const record = { id: lane.id, mode: lane.mode, codec: lane.codec, target: lane.target, config };
     if (policy.error) record.policyError = policy.error;
     else {
@@ -449,7 +451,7 @@ export async function runCases(options) {
     // A production JavaScript build reports its walk (M3.5): the counts per
     // batch (architecture §13.7) and the replay check's stops.
     const explain = lane.mode === "production" && target.javascript;
-    const compile = await run(compiler.path, [item.source, "--target", target.flag, "--config", config, "--output", artifact, ...(explain ? ["--explain", "json"] : [])], {
+    const compile = await run(compiler.path, [item.source, "--target", target.flag, ...(target.format ? ["--format", target.format] : []), "--config", config, "--output", artifact, ...(explain ? ["--explain", "json"] : [])], {
       env: compilerEnv, cwd: repository, timeoutMs: 300_000,
     });
     row.compileMs = compile.ms;
@@ -486,13 +488,13 @@ export async function runCases(options) {
       let runner;
       if (item.probe) {
         runner = `${base}.run.mjs`;
-        program = `${prelude}const m = await import(${JSON.stringify(pathToFileURL(artifact).href)});\n`
+        program = `${prelude}${lane.target === "cjs" ? `const {createRequire}=await import("node:module");const m=createRequire(import.meta.url)(${JSON.stringify(artifact)});` : `const m=await import(${JSON.stringify(pathToFileURL(artifact).href)});`}\n`
           + `const { default: probe } = await import(${JSON.stringify(pathToFileURL(item.probe).href)});\n`
           + "await probe(m);\n";
       } else {
         // One file: the prelude, then the compiled program, in one realm. The
         // script lane runs as CommonJS, as the harvest's verifiers did.
-        runner = `${base}.run.${lane.target === "script" ? "cjs" : "mjs"}`;
+        runner = `${base}.run.${["script", "bare", "cjs"].includes(lane.target) ? "cjs" : "mjs"}`;
         program = `${item.strict ? '"use strict";\n' : ""}${prelude}${bytes.toString("utf8")}\n`;
       }
       const key = sha256([lane.target, runner.slice(runner.lastIndexOf(".")), program, item.probe ? sha256File(item.probe) : ""].join("\0"));

@@ -279,7 +279,7 @@ render_batch = 8
 diversity_interval = 4
 
 [target.javascript]
-format = "auto"               # libraries: esm; application scripts: iife; explicit bare for an embedding
+format = "auto"               # auto | esm | cjs | iife | umd | bare
 
 [delivery]
 mode = "single"               # single | split | preserve-modules
@@ -290,6 +290,13 @@ preload = "none"              # none | entry | all
 host_modules = "external"     # external | auto | embed
 request_bytes = 0             # declared cost per file an entry loads beyond its first
 depth_bytes = 0               # declared cost per static import level beyond the first
+# global = "Library"            # required for library IIFE/UMD
+# global_binding = "var"        # var | property (global object assignment)
+# es_module_marker = "if-default" # if-default | always | never
+# exports = "named"             # named live properties | default (settled sole default)
+# default_interop = "node"      # node (whole foreign provider) | es-module (.default)
+# [delivery.globals]            # IIFE/UMD foreign specifier = dotted global path
+# provider = "Provider"
 
 [delivery.entries]            # entry name = source, relative to this file
 # index = "src/index.lil"
@@ -1101,6 +1108,7 @@ program, all entries together, before any file boundary is chosen.
   name are refused.
 - `preload = "entry"` preloads the lazily loaded files an entry can load, and
   `all` every lazily loaded file; the emitted guard is inert outside browsers.
+  Module preloading requires ESM; CommonJS uses `none`.
 - `host_modules` decides whether the relative JavaScript or TypeScript modules
   that `import extern` declarations name are imported from their specifiers
   (`external`), carried when every one can be delivered (`auto`), or carried
@@ -1118,10 +1126,50 @@ program, all entries together, before any file boundary is chosen.
 - Explicit `bare` delivers unwrapped application code for an embedding that
   owns its private root scope. It retains the same private-root contract; it
   does not publish globals or make their names stable. `esm` requires module
-  execution; `iife` and `bare` currently require a closed application without
-  static foreign imports. Embedded host modules remain supported.
-- Library-global IIFE/UMD and CommonJS exports are still D1 work. Unsupported
-  containers are refused, never emitted as mislabeled ESM.
+  execution. Classic IIFE/bare applications may carry embedded host modules.
+- `cjs` writes CommonJS files (`.cjs` by default), including shared and lazy
+  chunks. Exports are live enumerable getters, installed before module requests;
+  imported bindings stay live property reads. Imported function calls retain
+  unbound receiver semantics. Library functions remain strict; a container does
+  not create a new source `arguments` object. Static cycles follow the delivery
+  planner's initialization rules; preserve-modules cycle completion belongs to
+  the placement work, not a different CommonJS evaluation convention.
+- Library `iife` and `umd` require `delivery.global`. IIFE publishes the named
+  namespace; UMD selects CommonJS, AMD, then browser global publication. These
+  containers require single-file delivery. Several entries require `[name]` or
+  `[index]` in the global name, such as `Library_[index]`, so their namespaces
+  cannot silently replace one another. Every foreign dependency needs a
+  `globals` map under `[delivery]` for the browser branch, for example
+  `provider = "Vendor.Provider"`. The provider's exports retain live reads.
+  Use `global_binding = "var"` for a script binding or `"property"` for an
+  assignment on the global object when embedding the file. Namespace publication
+  can replace an existing binding/property; choose its name as part of the API.
+- `exports = "named"` is the default namespace surface. `"default"` publishes
+  the value directly only for an entry with one settled default export; later
+  reassignment requires named live exports and is diagnosed. This control can
+  remove namespace-access overhead for a default-only CommonJS consumer, but
+  changes that consumer's import convention. It is a delivery contract, not a
+  size heuristic or an automatic effort setting.
+- `es_module_marker` controls the non-enumerable CommonJS interoperability marker:
+  `"if-default"` (default), `"always"`, or `"never"`. It adds bytes where enabled.
+  A source export named `__esModule` requires `"never"`; the marker never replaces
+  a source export. Direct-default publication does not need a namespace marker.
+- `default_interop` specifies the foreign provider's default-import convention
+  in script containers: `"node"` (default) reads the whole provider object/value;
+  `"es-module"` reads its `.default` property. Use the latter for a compiled
+  namespace or AMD/browser provider with that surface. This explicit choice
+  avoids guessing from a user-controlled `__esModule` property. Internal links
+  always follow the compiler's live namespace convention. ESM uses native imports.
+- Container/global/import settings participate in policy identity, replay and
+  complete artifact scoring. They apply at every effort, including zero. Wrapper
+  and getter costs are real bytes and runtime operations; select ESM when the
+  consumer can use its native module interface. A format never runs a separate
+  post-minifier or borrows another objective's winner.
+- `[path]` encodes non-filename UTF-8 bytes and literal percent signs injectively;
+  ESM URLs encode those physical percent signs again. CommonJS uses file paths.
+  Manifest source labels are relative to the primary entry, including sibling
+  source trees. Stale cleanup understands manifests v2–v4 and removes only listed
+  regular files within the output directory, excluding current files and links.
 
 The old `[bundle]` table translates before the file is read: `mode`, `preload`
 and `host_modules` move to `[delivery]` (with a warning to rename them);

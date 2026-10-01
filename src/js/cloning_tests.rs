@@ -192,6 +192,9 @@ fn payloads() -> Vec<(&'static str, Module)> {
                     naming: vec![],
                     preload: crate::config::PreloadPolicy::None,
                     format: crate::config::JavaScriptFormat::Esm,
+                    container: crate::compilation_policy::ContainerContract {
+                        global:Some(text.clone()),globals:vec![(text.clone(),text.clone())],..Default::default()
+                    },
                     request_bytes: 0,
                     depth_bytes: 0,
                 })

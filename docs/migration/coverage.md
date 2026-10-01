@@ -17,7 +17,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M2.15 | [C3](plan.md#c3), complete | Medium generic corpus, per-objective pruning audit, leave-one-family-out analysis and compile-work baseline |
 | M3.1 | [C1](plan.md#c1) | Configuration contract; remaining format producers belong to D1, instrumentation to Q2 and runtime evidence to C2 |
 | M3.2 | [C1](plan.md#c1) | Family registry; new producers register permissions within their owning milestone |
-| M3.3b | [D1](plan.md#d1) | Formats (work in progress: `~/lilscript-work/portwork/m3.3b-wip.patch`) |
+| M3.3b | [D1](plan.md#d1), complete | CJS/library-IIFE/UMD/bare and manifest contracts; [evidence](d1-acceptance.md) |
 | M3.3c | [D2](plan.md#d2) | Facts and choices |
 | M3.3d | [D2](plan.md#d2) | Lazy effects and cycles |
 | M3.3e | [D3](plan.md#d3) | Ports, with M12.2 for motionlil |
@@ -112,11 +112,11 @@ The wording in this table identifies the previous checklist item; it is not a cl
 
 | Previous owner | Owner now | Item |
 |---|---|---|
-| Y5c / M3.3b | [D1](plan.md#d1) | the IIFE default for application scripts; |
-| Y5c / M3.3b | [D1](plan.md#d1) | delivery cases (script and CJS lanes) in the case runner; |
-| Y5c / M3.3b | [D1](plan.md#d1) | `bare` for scripts; |
-| Y5c / M3.3b | [D1](plan.md#d1) | the manifest's module names, `[path]` escaping, stale v2 manifests and `bundle.cost`; |
-| Y5c / M3.3b | [D1](plan.md#d1) | comparing each delivered file with its part of the tree. |
+| Y5c / M3.3b | [D1](plan.md#d1), complete | the IIFE default for application scripts; |
+| Y5c / M3.3b | [D1](plan.md#d1), complete | delivery cases (script and CJS lanes) in the case runner; |
+| Y5c / M3.3b | [D1](plan.md#d1), complete | `bare` for scripts; |
+| Y5c / M3.3b | [D1](plan.md#d1), complete | the manifest's module names, `[path]` escaping, stale v2 manifests and `bundle.cost`; |
+| Y5c / M3.3b | [D1](plan.md#d1), complete | comparing each delivered file with its part of the tree. |
 | M3.3c | [D2](plan.md#d2) | interfaces escaping at the one `END`; |
 | M3.3c | [D2](plan.md#d2) | `RootRow::completes`; |
 | M3.3c | [D2](plan.md#d2) | `single` with several entries. |
@@ -158,7 +158,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 
 The three M9.3/M10.4 rows above follow their actual dependencies: the [archived A1 diagnosis](../old-history/migration/history.md) identifies receiver aliasing as a spelling choice and the other two as R7 language changes. S3 private direct-call optimization does not authorize changing those adapter contracts.
 
-All 43 carried-item entries from the snapshot are represented above. C3 records the missing historical A1 CPU pair as a limitation and establishes a current baseline rather than inventing old measurements. D1 inspects the existing `~/lilscript-work/portwork/m3.3b-wip.patch` before continuing the format work.
+All 43 carried-item entries from the snapshot are represented above. C3 records the missing historical A1 CPU pair as a limitation and establishes a current baseline rather than inventing old measurements. D1 inspected the old format groundwork and replaced it with the admitted, scored container implementation.
 
 ## Compatibility and historical aliases
 

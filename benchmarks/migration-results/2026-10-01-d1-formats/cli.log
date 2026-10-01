@@ -1,0 +1,18 @@
+
+running 1 test
+test objective_tests::d1_cli_cjs_delivers_exact_files_and_uses_cjs_extension ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.20s
+
+
+running 1 test
+test objective_tests::d1_manifest_labels_are_relative_to_the_primary_entry_and_cost_names_its_leaf ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+
+running 1 test
+test objective_tests::d1_v2_stale_cleanup_preserves_unlisted_files_and_external_paths ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+

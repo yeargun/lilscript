@@ -430,6 +430,7 @@ impl delivery::DeliveryPlan {
             })?,
             preload: self.preload,
             format: self.format,
+            container: self.container.clone_in(budget)?,
             request_bytes: self.request_bytes,
             depth_bytes: self.depth_bytes,
         })

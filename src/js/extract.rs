@@ -212,8 +212,8 @@ impl<'a> Output<'a> {
             .map_err(|error| match error {
                 print::PrintError::Admission(error) => OutputError::Admission(error),
                 print::PrintError::ByteLimit => OutputError::ByteLimit,
-                print::PrintError::Container => {
-                    OutputError::Invalid("unsupported output container")
+                print::PrintError::Container(reason) => {
+                    OutputError::Invalid(reason)
                 }
             })
         })();
@@ -292,7 +292,7 @@ impl<'a> Output<'a> {
         literals: LiteralOutput,
         limit: usize,
         owner: Owner,
-        mut file: impl FnMut(String, String) -> T,
+        mut file: impl FnMut(String, String, print::PlannedStructure) -> T,
     ) -> Result<
         (
             Vec<T>,
@@ -332,7 +332,7 @@ impl<'a> Output<'a> {
             render.retained_phase(|render| {
                 let print_all = |file_names: &[String],
                                  budget: &mut AllocationBudget<'_>|
-                 -> Result<Vec<String>, OutputError> {
+                 -> Result<Vec<print::PlannedText>, OutputError> {
                     let mut texts = budget.vector(Retained, delivery.files.len())?;
                     let mut used = 0usize;
                     for file in 0..delivery.files.len() {
@@ -353,8 +353,8 @@ impl<'a> Output<'a> {
                         .map_err(|error| match error {
                             print::PrintError::Admission(error) => OutputError::Admission(error),
                             print::PrintError::ByteLimit => OutputError::ByteLimit,
-                            print::PrintError::Container => {
-                                OutputError::Invalid("unsupported output container")
+                            print::PrintError::Container(reason) => {
+                                OutputError::Invalid(reason)
                             }
                         })?;
                         used = used
@@ -372,7 +372,7 @@ impl<'a> Output<'a> {
                             let provisional = delivery.file_names_in(None, Scratch, budget)?;
                             let texts = print_all(&provisional, budget)?;
                             let hashes = content_hashes(delivery, &texts, budget)?;
-                            drop_strings(texts, Retained, budget)?;
+                            drop_planned_texts(texts, Retained, budget)?;
                             drop_strings(provisional, Scratch, budget)?;
                             Ok::<_, OutputError>(hashes)
                         },
@@ -407,9 +407,9 @@ impl<'a> Output<'a> {
                 for (name, code) in file_names.into_iter().zip(texts) {
                     bytes = bytes
                         .checked_add(name.capacity() as u64)
-                        .and_then(|sum| sum.checked_add(code.capacity() as u64))
+                        .and_then(|sum| sum.checked_add(code.code.capacity() as u64))
                         .ok_or(AllocationError::Capacity)?;
-                    files.push(file(name, code));
+                    files.push(file(name, code.code, code.structure));
                 }
                 render.release(Retained, containers)?;
                 render.work(WorkKind::Render, 0)?;
@@ -440,6 +440,7 @@ impl Module {
                 .is_some_and(|source| self.carried.iter().any(|carried| carried == source))
         });
         if imported
+            && policy.delivery().is_none_or(|delivery| delivery.format != crate::config::JavaScriptFormat::Cjs)
             && policy.javascript_contract().is_some_and(|contract| {
                 contract.execution != crate::compilation_contract::JavaScriptExecution::Module
             })
@@ -532,8 +533,8 @@ impl Module {
     fn check_container(&self, format: crate::config::JavaScriptFormat) -> Result<(), OutputError> {
         use crate::config::JavaScriptFormat as F;
         match format {
-            F::Auto | F::Cjs => Err("unresolved or unsupported output container".into()),
-            F::Iife | F::Bare if !self.exports.is_empty() || self.delivery.is_some() => Err(
+            F::Auto => Err("unresolved output container".into()),
+            F::Bare if !self.exports.is_empty() || self.delivery.is_some() => Err(
                 "a private script container cannot publish exports or a module file plan".into(),
             ),
             _ => Ok(()),
@@ -566,6 +567,12 @@ fn drop_strings(
     budget.release(class, bytes)
 }
 
+fn drop_planned_texts(values:Vec<print::PlannedText>,class:AllocationClass,budget:&mut AllocationBudget<'_>) -> Result<(),AllocationError> {
+    let bytes=crate::output_budget::vector_bytes(&values)?;
+    for value in values {let capacity=value.code.capacity() as u64;drop(value);budget.release(class,capacity)?;}
+    budget.release(class,bytes)
+}
+
 /// Each file's hex SHA-256 over its text printed with provisional names and
 /// over the texts of every file it can load, statically, with `import()`
 /// or by preloading, in plan order (esbuild's content hash). Any change to a
@@ -573,7 +580,7 @@ fn drop_strings(
 /// is, and cycles through `import()` need no special case.
 fn content_hashes(
     plan: &delivery::DeliveryPlan,
-    texts: &[String],
+    texts: &[print::PlannedText],
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<String>, OutputError> {
     use sha2::{Digest, Sha256};

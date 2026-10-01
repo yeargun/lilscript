@@ -7,13 +7,14 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is complete** under its [acceptance contract](q3-acceptance.md). **Q4 is complete** under its [acceptance contract](q4-acceptance.md). **D1 is the sole active milestone**.
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is complete** under its [acceptance contract](q3-acceptance.md). **Q4 is complete** under its [acceptance contract](q4-acceptance.md). **D1 is complete** under its [acceptance contract](d1-acceptance.md). **D2 is the sole active milestone**.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Complete **D1**: CJS/library-IIFE/UMD/bare delivery and manifest contracts.
-Then follow **D2 → D3 → N1 → N2 → V1 → V2**.
+Complete **D2**: consumer shakeability, initialization/placement, lazy effects and
+cycles, host modules, source maps and public const product graphs.
+Then follow **D3 → N1 → N2 → V1 → V2**.
 
 Q2's safe reuse boundaries are qualified. Per-module elaboration remains
 explicitly assigned to D3's shared graph/session integration. Arbitrary
@@ -49,7 +50,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [Q2](plan.md#q2) Reuse | Qualified dirty dependencies, shared/changed-site formation, persistent reuse and counted owners; scope correction explicit |
 | [x] | [Q3](plan.md#q3) Search policy | Independent objective priors/estimates, bounded assignment evidence, protected effort and deterministic file workers complete |
 | [x] | [Q4](plan.md#q4) Data | Checked const/define evaluation, static schemas, owned helpers and measured eager/lazy encodings complete within the acceptance scope |
-| [~] | [D1](plan.md#d1) Formats | CJS/library-IIFE/UMD and remaining manifests |
+| [x] | [D1](plan.md#d1) Formats | CJS/library-IIFE/UMD/bare, live linkage and exact manifest delivery complete |
 | [~] | [D2](plan.md#d2) Consumers | Shakeability, placement, lazy effects/cycles, host modules and source maps |
 | [~] | [D3](plan.md#d3) Integration | Remaining graph consumers and compiler-written port builds; independent TOML/API/CLI objective sets implemented |
 | [ ] | [V1](plan.md#v1) Qualification | Maintained/held-out size and runtime gaps, independently per objective |

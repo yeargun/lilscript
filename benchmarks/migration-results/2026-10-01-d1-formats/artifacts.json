@@ -1,0 +1,484 @@
+{
+  "algorithm": 66,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/d1-formats-1/lilscript",
+    "sha256": "5a00a14dc4761dbd87598912949640316dad1e619233c11dd6e6724d2dc0fade"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+    "sha256": "34bc6627675906f8431892630b5e91fc4cc9f1e03ce15e9716025aa551e5c823"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "fixtures": {
+    "application.lil": "15f5fe83d06eab3c445bfe7e06bc9f95e91a7878ad04bfd87024b450e18f2814",
+    "library.lil": "846fc125b2a8c3ef32e11ccd767167195d6344193a63a9ae84da06d0c9e15fb9"
+  },
+  "rows": [
+    {
+      "fixture": "library-esm",
+      "objective": "raw",
+      "config_sha256": "b1db47dfc9004f06edc022a20e66441c78b728d3b6aa72e0a4a8d5dea99eacab",
+      "exit_code": 0,
+      "wall_seconds": 0.02342314101406373,
+      "cpu_seconds": 0.022952,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "025db1c5563dd1a2cb2fd7211a7e7c1dcdaec78d9d96bbe0884461b1046f42a1",
+          "raw": 368,
+          "gzip9": 260,
+          "brotli11": 226
+        }
+      ],
+      "bytes": 368,
+      "judged": 11,
+      "oracle": true,
+      "manifest_sha256": "761d8014e0b579aa2a3149af54f59e2f0724534d115a6ed29bcdf04b257d75b0",
+      "explanation_sha256": "b57a98e18bf30ba7761ae833f5a24558b9d5cf831a7ddce906ab17210a47a7ab"
+    },
+    {
+      "fixture": "library-cjs",
+      "objective": "raw",
+      "config_sha256": "c92ea19a485eeecfe9e01c92f1c4c20cd372c926a673b71c8c09ffe4aad26b6a",
+      "exit_code": 0,
+      "wall_seconds": 0.024096371984342113,
+      "cpu_seconds": 0.023818,
+      "files": [
+        {
+          "name": "main.cjs",
+          "sha256": "4e6e1d097534b9e1fbf3d44c03342d8043b610cc71aa6acc02c64bbc1d24133a",
+          "raw": 669,
+          "gzip9": 338,
+          "brotli11": 295
+        }
+      ],
+      "bytes": 669,
+      "judged": 9,
+      "oracle": true,
+      "manifest_sha256": "8253403cff5772d2dab455cfa9c3355005e08276b2688321505514d6a37f83a1",
+      "explanation_sha256": "9ee160072d5202a91ae1e827a7b618c0884a8da2d2219e5d1555d942e34020fc"
+    },
+    {
+      "fixture": "library-iife",
+      "objective": "raw",
+      "config_sha256": "d2000ee16df34b53a79c693161a1345c003f9a993cb0a2ef7023890bfc794126",
+      "exit_code": 0,
+      "wall_seconds": 0.02354817499872297,
+      "cpu_seconds": 0.02327600000000002,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "e1936a1c5eb5e1ad95017396112d7346a4096a1143f43d37c155d42a9a9f2d94",
+          "raw": 693,
+          "gzip9": 352,
+          "brotli11": 318
+        }
+      ],
+      "bytes": 693,
+      "judged": 9,
+      "oracle": true,
+      "manifest_sha256": "ae5c96a567c0c82be5b864cf7a39a98025995bda9f531888eec0088caa6c0399",
+      "explanation_sha256": "a033df621689c85f5f583f7f62a18cdd01aa63f7485651be690eae071d618400"
+    },
+    {
+      "fixture": "library-umd",
+      "objective": "raw",
+      "config_sha256": "75b65b79c964d56e5a15bbfb8474960fc6f71c19242ee101c284fc5b834c8d44",
+      "exit_code": 0,
+      "wall_seconds": 0.023383785999612883,
+      "cpu_seconds": 0.023074000000000032,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "152bcf596e055fca095a8bf73f86648ea86ddd2ce7e423428fc5d45f3a9d25fc",
+          "raw": 914,
+          "gzip9": 430,
+          "brotli11": 366
+        }
+      ],
+      "bytes": 914,
+      "judged": 9,
+      "oracle": true,
+      "manifest_sha256": "e67ddca5131f741473d1791ddaa035510b340212499214e1ac20463b71d151e5",
+      "explanation_sha256": "9722642493f2cf67ea278c39c81da95ba2af29b8d4863c58751190d0c1ba3f6f"
+    },
+    {
+      "fixture": "application-iife",
+      "objective": "raw",
+      "config_sha256": "d2000ee16df34b53a79c693161a1345c003f9a993cb0a2ef7023890bfc794126",
+      "exit_code": 0,
+      "wall_seconds": 0.012707071000477299,
+      "cpu_seconds": 0.012428000000000022,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "747515a2e4f8c0fda305b42ecc8d265d5b2231195a695491b1454156d0c7637c",
+          "raw": 77,
+          "gzip9": 83,
+          "brotli11": 69
+        }
+      ],
+      "bytes": 77,
+      "judged": 6,
+      "oracle": true,
+      "manifest_sha256": "6db9a5eed1aa01fecf3cdb227b4d98d44d4894280bb4febefef641f444431fed",
+      "explanation_sha256": "19f4ac258479b650b526d9fdac2575f90e8ba6326b60a262fce2524c76113585"
+    },
+    {
+      "fixture": "application-bare",
+      "objective": "raw",
+      "config_sha256": "42172bc3e3120c99a8e27999f9a94d70f0743bc8e073fdc96b4a0375cf661d91",
+      "exit_code": 0,
+      "wall_seconds": 0.012616070016520098,
+      "cpu_seconds": 0.01225699999999999,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "7ad3c9c3459a886bcb0adb40c48712b27816c59d198ad8f513b18392ab3996b1",
+          "raw": 66,
+          "gzip9": 73,
+          "brotli11": 59
+        }
+      ],
+      "bytes": 66,
+      "judged": 6,
+      "oracle": true,
+      "manifest_sha256": "74cebd0864323f963f6aacc361d263312023dd7b5445a86d49bd0b476cfc9946",
+      "explanation_sha256": "a7cd81d675b7c7ddd5d648895486dd36751ec62d6b98de5d306740a58f1363fc"
+    },
+    {
+      "fixture": "application-cjs",
+      "objective": "raw",
+      "config_sha256": "c92ea19a485eeecfe9e01c92f1c4c20cd372c926a673b71c8c09ffe4aad26b6a",
+      "exit_code": 0,
+      "wall_seconds": 0.015882189996773377,
+      "cpu_seconds": 0.015413999999999999,
+      "files": [
+        {
+          "name": "main.cjs",
+          "sha256": "68ba83210d05661eeaa1d19a3f06fe191c7524cce9357ddf7e480ba9db10a9fd",
+          "raw": 116,
+          "gzip9": 120,
+          "brotli11": 90
+        }
+      ],
+      "bytes": 116,
+      "judged": 6,
+      "oracle": true,
+      "manifest_sha256": "599a5e8a8940a3731393ccf6c994e0eaa8397721ee5bf10ef95286725c25caa2",
+      "explanation_sha256": "b1ddc3b0bae2e1cfc27d59a719ed1af01daef95477a69ddb7e206534ad3dcb8a"
+    },
+    {
+      "fixture": "library-esm",
+      "objective": "gzip",
+      "config_sha256": "88c6801e07944f2e32eba82707e3dbc3e0048fb0cdd03d135412b9aa42b1c702",
+      "exit_code": 0,
+      "wall_seconds": 0.016554889996768907,
+      "cpu_seconds": 0.016258999999999996,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "59ca8e5be757eaed4339fa032065ca07711849583bfa7552b94f2336f64f23c6",
+          "raw": 368,
+          "gzip9": 253,
+          "brotli11": 225
+        }
+      ],
+      "bytes": 253,
+      "judged": 5,
+      "oracle": true,
+      "manifest_sha256": "c88f0e990782884081feecc492fb58d83b2627a5a31ffdad6034e999340d1482",
+      "explanation_sha256": "d026a2b8fd5aa34c8d52c2d771ac8e5facd99232ec15d2a61b5ac9fa16af7e1a"
+    },
+    {
+      "fixture": "library-cjs",
+      "objective": "gzip",
+      "config_sha256": "dce77cc3115410aace7986de2547d81e86b3e60ff73a7b08b82f88cf398ed6d7",
+      "exit_code": 0,
+      "wall_seconds": 0.024319991003721952,
+      "cpu_seconds": 0.024034999999999994,
+      "files": [
+        {
+          "name": "main.cjs",
+          "sha256": "863202577a15eb3bffe68fa984c1b48ad1cf3e61927378a0fe759df25f77e52d",
+          "raw": 669,
+          "gzip9": 329,
+          "brotli11": 299
+        }
+      ],
+      "bytes": 329,
+      "judged": 7,
+      "oracle": true,
+      "manifest_sha256": "ca36087e4cb4c4e816cdef5aaee385cfbd370b4b5c257b3ee5b952361a18102e",
+      "explanation_sha256": "4c3eb25b0ffac579a75cfcb0498dac807cdb5471b0c0914a665e75c71cb124a2"
+    },
+    {
+      "fixture": "library-iife",
+      "objective": "gzip",
+      "config_sha256": "09d0c726bb1fe0339df574664cd0b6e7d6f911a36f42823bd4b7fae5178278f1",
+      "exit_code": 0,
+      "wall_seconds": 0.020144727983279154,
+      "cpu_seconds": 0.019878,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "833c0549154cc8e1e7235691ff368a4efae29fce94688baa54ba2dcda25853ae",
+          "raw": 702,
+          "gzip9": 343,
+          "brotli11": 300
+        }
+      ],
+      "bytes": 343,
+      "judged": 3,
+      "oracle": true,
+      "manifest_sha256": "c3746e129ad7188e546056f1ded8f00d4ccf6b5b7a37bbd4fa15013d5afc047c",
+      "explanation_sha256": "4c80f29659fae82152951b7a4360e47c3bdcc45028dbc0c371c63c736da6f304"
+    },
+    {
+      "fixture": "library-umd",
+      "objective": "gzip",
+      "config_sha256": "fb541c149b04c28eea941091f20bc7ec94892ab9f0f147230b338fc805e29353",
+      "exit_code": 0,
+      "wall_seconds": 0.027280577982310206,
+      "cpu_seconds": 0.02698800000000002,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "0626a2f24cd10a66b6b0f51cdbaf056e11598a5844563a029502bfb52dc4d75c",
+          "raw": 926,
+          "gzip9": 422,
+          "brotli11": 360
+        }
+      ],
+      "bytes": 422,
+      "judged": 7,
+      "oracle": true,
+      "manifest_sha256": "b0dfc9d9c9b65f152748b77ff6bf056127ebe7c66bd0c709151019347cbd6bb4",
+      "explanation_sha256": "a374835195fdd256087c19fa88e6e1c3c5d7373962ddaf8b116a35dafa96dc81"
+    },
+    {
+      "fixture": "application-iife",
+      "objective": "gzip",
+      "config_sha256": "09d0c726bb1fe0339df574664cd0b6e7d6f911a36f42823bd4b7fae5178278f1",
+      "exit_code": 0,
+      "wall_seconds": 0.01198859402211383,
+      "cpu_seconds": 0.011672000000000016,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "747515a2e4f8c0fda305b42ecc8d265d5b2231195a695491b1454156d0c7637c",
+          "raw": 77,
+          "gzip9": 83,
+          "brotli11": 69
+        }
+      ],
+      "bytes": 83,
+      "judged": 6,
+      "oracle": true,
+      "manifest_sha256": "2eee1e16181d4cb15417f07883f9970994279e5cf85c632ec5938d4e9e32e204",
+      "explanation_sha256": "15330973691f024d0869ed9394780a625ac74f8a8ae87f1682db0938be98e2fd"
+    },
+    {
+      "fixture": "application-bare",
+      "objective": "gzip",
+      "config_sha256": "e45a02eb90475c41d07e294759f993fbade0ea6df19628ecc7a7d20928cf7af8",
+      "exit_code": 0,
+      "wall_seconds": 0.011646643019048497,
+      "cpu_seconds": 0.011322999999999972,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "7ad3c9c3459a886bcb0adb40c48712b27816c59d198ad8f513b18392ab3996b1",
+          "raw": 66,
+          "gzip9": 73,
+          "brotli11": 59
+        }
+      ],
+      "bytes": 73,
+      "judged": 6,
+      "oracle": true,
+      "manifest_sha256": "cfd30ed803a58aa80435a60dbb8405d9bbe6a00c6ecb580ec1404ec1e46944a4",
+      "explanation_sha256": "f5334fef434dd24297cf9728aaaeab360a16ecfd130a99ed5308cd36e531f99a"
+    },
+    {
+      "fixture": "application-cjs",
+      "objective": "gzip",
+      "config_sha256": "dce77cc3115410aace7986de2547d81e86b3e60ff73a7b08b82f88cf398ed6d7",
+      "exit_code": 0,
+      "wall_seconds": 0.014542839984642342,
+      "cpu_seconds": 0.014243000000000033,
+      "files": [
+        {
+          "name": "main.cjs",
+          "sha256": "71c0abb0425081871eac223f964c70f67ac186144f01ea7274ef13cd5183d965",
+          "raw": 116,
+          "gzip9": 118,
+          "brotli11": 90
+        }
+      ],
+      "bytes": 118,
+      "judged": 2,
+      "oracle": true,
+      "manifest_sha256": "af01798196ef07ecc65de4eb73068c8791517910b2bc4582055df8ceba836063",
+      "explanation_sha256": "518bbb846e5720cc4d85ad5334d953e473163896777800f76a0838ec2c61f7b2"
+    },
+    {
+      "fixture": "library-esm",
+      "objective": "brotli",
+      "config_sha256": "c638bcdfa1d6eae2e36291a89713927dd5c4c9ef0301b15f3259e3acdd5452f6",
+      "exit_code": 0,
+      "wall_seconds": 0.05854974000249058,
+      "cpu_seconds": 0.05818999999999998,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "273f81448763cf6304b49b5f8944e32cfa4fbbdeb99645d7a18b75a6d54e7632",
+          "raw": 402,
+          "gzip9": 257,
+          "brotli11": 214
+        }
+      ],
+      "bytes": 214,
+      "judged": 45,
+      "oracle": true,
+      "manifest_sha256": "132572c92b68aa7a0a74402dfb4b254c5388083be0f8f6ead8bc3ab2acc22c69",
+      "explanation_sha256": "0c2072aab45fe0a64fcb553345b2580d77e961f11a4c3332b81cf317fba23614"
+    },
+    {
+      "fixture": "library-cjs",
+      "objective": "brotli",
+      "config_sha256": "039183f867c5a31a081ddad1b77fc54d33ccac2e5d06bb33f52dc8e322bf4015",
+      "exit_code": 0,
+      "wall_seconds": 0.051187525008572266,
+      "cpu_seconds": 0.05082599999999998,
+      "files": [
+        {
+          "name": "main.cjs",
+          "sha256": "8d7b13a6b6a1207825cafc19a43505ccc61f66792bbf7d427dc4c8ee3c9e7be1",
+          "raw": 690,
+          "gzip9": 329,
+          "brotli11": 286
+        }
+      ],
+      "bytes": 286,
+      "judged": 27,
+      "oracle": true,
+      "manifest_sha256": "31b44e6363c7809ebe6828eb541a047c8e0946ca46f76f420a8932115d75d57a",
+      "explanation_sha256": "ecc9d91c49a80ae13c0c8fa63dcff9c033d06c3987240a509a361045fd36935c"
+    },
+    {
+      "fixture": "library-iife",
+      "objective": "brotli",
+      "config_sha256": "e14aa73ad1492cc17c9c063b18dc4b16ad4479138d0822cea7fe3542ac19687f",
+      "exit_code": 0,
+      "wall_seconds": 0.06293062900658697,
+      "cpu_seconds": 0.06255300000000001,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "7c5d66ff5e94d5f40a1f7da457da28b702192cad4d1f34c536673a46863026f8",
+          "raw": 705,
+          "gzip9": 346,
+          "brotli11": 296
+        }
+      ],
+      "bytes": 296,
+      "judged": 35,
+      "oracle": true,
+      "manifest_sha256": "0ddde3cb5b351393e11e39d8a209228d44785c0a354604869076763d1d823138",
+      "explanation_sha256": "11228a76cf032cede0c8a202b507e19773830b305dc0ed8a9c0cc26be4c5bf70"
+    },
+    {
+      "fixture": "library-umd",
+      "objective": "brotli",
+      "config_sha256": "674e817eab495fcae8f688191fd79bdf963e096e5f78d951704bc7c884fcc48b",
+      "exit_code": 0,
+      "wall_seconds": 0.05435587198007852,
+      "cpu_seconds": 0.05397699999999994,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "02fbadc02e028c079ac7656082a20dedfe4477472152c7382e983331ceef7c20",
+          "raw": 935,
+          "gzip9": 422,
+          "brotli11": 357
+        }
+      ],
+      "bytes": 357,
+      "judged": 24,
+      "oracle": true,
+      "manifest_sha256": "f4ad6542680239a080d6489ff9d53b307b8c5dd59caa2212039a02b685723360",
+      "explanation_sha256": "4684e2518364e6ce238eb0072a59566d9f88bc931aace48f10202f84be7e7057"
+    },
+    {
+      "fixture": "application-iife",
+      "objective": "brotli",
+      "config_sha256": "e14aa73ad1492cc17c9c063b18dc4b16ad4479138d0822cea7fe3542ac19687f",
+      "exit_code": 0,
+      "wall_seconds": 0.01584523101337254,
+      "cpu_seconds": 0.015548999999999952,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "3fa55f2f9cf90f20bc2ed7bfe14f0b261508f2d6f4863ec466a5d68cdaaeedf5",
+          "raw": 79,
+          "gzip9": 85,
+          "brotli11": 67
+        }
+      ],
+      "bytes": 67,
+      "judged": 13,
+      "oracle": true,
+      "manifest_sha256": "2a650a6d2ef3de703ab80e4293f7e4d8d51be32e8080f8dfed3e6b6bebcfc224",
+      "explanation_sha256": "ed91052d765eff5390652b8a3d2c290a30039230641f4d4ddd18edc090cf9e2d"
+    },
+    {
+      "fixture": "application-bare",
+      "objective": "brotli",
+      "config_sha256": "560f72d5ac7bc67727b3aa24d05e97595bce4abffe0363b87fefc31d3ba1d576",
+      "exit_code": 0,
+      "wall_seconds": 0.018907820020103827,
+      "cpu_seconds": 0.018598999999999977,
+      "files": [
+        {
+          "name": "main.js",
+          "sha256": "7ad3c9c3459a886bcb0adb40c48712b27816c59d198ad8f513b18392ab3996b1",
+          "raw": 66,
+          "gzip9": 73,
+          "brotli11": 59
+        }
+      ],
+      "bytes": 59,
+      "judged": 12,
+      "oracle": true,
+      "manifest_sha256": "7902f5f434775af84e4fe1bfe1834cd9c2d1a71a39888a25fe67de6f9c596dc1",
+      "explanation_sha256": "7affeb8fbafec02c7e5f66d8cb028a4fd697ff8ac7a80b675cc57f88a2e8c06e"
+    },
+    {
+      "fixture": "application-cjs",
+      "objective": "brotli",
+      "config_sha256": "039183f867c5a31a081ddad1b77fc54d33ccac2e5d06bb33f52dc8e322bf4015",
+      "exit_code": 0,
+      "wall_seconds": 0.019745969999348745,
+      "cpu_seconds": 0.019445000000000046,
+      "files": [
+        {
+          "name": "main.cjs",
+          "sha256": "2468a5aabd2c648d03ccbfa7249182a7c61fded334fc7ba6a1955b74dd34a4c0",
+          "raw": 118,
+          "gzip9": 120,
+          "brotli11": 85
+        }
+      ],
+      "bytes": 85,
+      "judged": 13,
+      "oracle": true,
+      "manifest_sha256": "c21faff4a08e3a132ebdeb664224d6485378d9dfc5c7747090e546981e7296cb",
+      "explanation_sha256": "7f69c6f01a0e55d363a1b6bcd5e2b60a7515c20c3bce440dbf1017d61c253850"
+    }
+  ],
+  "complete": true
+}

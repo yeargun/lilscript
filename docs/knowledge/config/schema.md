@@ -13,6 +13,7 @@ Source contracts are independent of target, effort and optional tactics.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
+| `const_evaluation` | `ConstEvaluation` |  | Required exact evaluation limits; independent of optimization effort. |
 | `enum_abi` | `EnumAbiContract` |  | `explicit` requires an ABI declaration before an enum can be observed by host/string/JSON operations. |
 | `char_code_at` | `CharCodeAtContract` |  | `legacy` returns an int32, using zero outside the UTF-16 string. |
 | `absence` | `AbsenceContract` |  | `legacy` preserves the migration-era null-normalized internal values. |
@@ -100,6 +101,7 @@ Physical reuse of compilation and compression.
 |---|---|---|---|
 | `build_reuse` | `bool` | `true` | Reuse completed builds when directory is set (default true). |
 | `normalization_reuse` | `bool` | `true` | Reuse stable local normalization proofs (default true). |
+| `formation_reuse` | `bool` | `true` | Reuse completed family tails inside a candidate (default true). |
 | `codec_reuse` | `bool` | `true` | Reuse exact-byte codec receipts across artifacts (default true). |
 | `directory` | `Option<PathBuf>` | `None` | Optional persistent cache directory, relative to this config file. |
 
@@ -134,7 +136,13 @@ Saved complete JavaScript assignments, re-proved and re-judged in the terminal w
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `mode` | `DeliveryMode` | `DeliveryMode::Single` | How the program is placed in files: `single` (one file per entry), `split` (files shared by the entries that load them) or `preserve-modules` (a file per source module). |
+| `global` | `Option<String>` | `None` | IIFE/UMD namespace, with optional [name]/[index] entry placeholders. |
+| `global_binding` | `GlobalBinding` | `GlobalBinding::default()` | See [configuration.md](../../configuration.md). |
+| `globals` | `BTreeMap<String, String>` | `BTreeMap::new()` | See [configuration.md](../../configuration.md). |
+| `es_module_marker` | `EsModuleMarker` | `EsModuleMarker::default()` | See [configuration.md](../../configuration.md). |
+| `exports` | `CjsExports` | `CjsExports::default()` | See [configuration.md](../../configuration.md). |
+| `default_interop` | `DefaultInterop` | `DefaultInterop::default()` | See [configuration.md](../../configuration.md). |
+| `mode` | `DeliveryMode` | `DeliveryMode::Single` | Single file per entry, shared files, or preserved source modules. |
 | `entries` | `BTreeMap<String, PathBuf>` | `BTreeMap::new()` | Entry name to source path, relative to this file. |
 | `entry_names` | `Option<String>` | `None` | Entry file names, a template over `[name]` (entry), `[index]` (plan position), `[hash:N]` (content hash), `[path]` (source module path) and `[ext]`; `[name].[ext]` when unset. |
 | `chunk_names` | `Option<String>` | `None` | Names of the other files (shared, lazily loaded, internal): `[index].[ext]` for a library, `[hash:8].[ext]` for an application. |
@@ -192,6 +200,8 @@ Fixed deterministic scheduling choices.
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `codec_schedule` | `CodecSchedule` | `CodecSchedule::Staged` | See [configuration.md](../../configuration.md). |
+| `protect_effort` | `bool` | `true` | Complete lower effort checkpoints before a changed frontier, retaining their qualified winners. |
+| `objective_prior` | `TacticPermission` | `TacticPermission::Auto` | Additional objective-calibrated start after the ordinary incumbent: auto at 14, on at 13, off never. |
 | `proxy_pruning` | `ProxyPruning` | `ProxyPruning::On` | Terminal proxy rejection: `on` (default), `audit` (also measure rejected moves) or `off` (judge every reached move exactly). |
 | `deferred_naming_starts` | `TacticPermission` | `TacticPermission::Auto` | Revisit pruned naming starts: `auto` from effort 14, `on` from 13, `off` never. |
 | `deferred_naming_polish` | `bool` | `true` | Refine admitted deferred starts with local naming and permitted private-field choices. |
@@ -222,7 +232,7 @@ Version 3 requires explicit `on` for runtime reconstruction at every effort. Omi
 | `string-pooling` | on; JavaScript only | StructuralSearch, OutputFamilies | — | Neutral | Share repeated literal strings or numbers through bindings and honor authored @pool regions. Introduces bindings and reads; repetitive literal bytes can already compress well. An authored pool admits its decoded string values even for one live use, at every effort and objective; it may increase raw or compressed size. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every JavaScript route and diagnoses conflicting source pins. Native string constants already share immutable payloads without an optional transformation. |
 | `string-array-packing` | version 3: off; version 2: startup at 16; JavaScript only | OutputFamilies | — | Neutral, Startup, Recurring | Represent string arrays as delimited text decoded with split under pristine-builtins assumptions. Can save bytes while adding decoding and allocations. Version 3 requires explicit on, including callable sites; legacy auto permits startup sites at effort 16 only. Off vetoes packing at all levels. |
 | `startup-reconstruction` | version 3: off; version 2: startup at 16; JavaScript only | JavaScriptFormation | — | Neutral, Startup | Permit constant-table encodings with startup decoders. Trades startup CPU/storage for possible delivery savings and extra search. Version 3 requires explicit on at every effort; legacy auto grants it at 16. Does not permit recurring decoding or string-array packing. |
-| `recurring-reconstruction` | unavailable; JavaScript only | none | — | Neutral, Recurring | Compatibility name for recurring table reconstruction; no implementation is currently available. Explicit on reports unavailable. String-array-packing owns its own callable-site risk and is not enabled by this flag. |
+| `recurring-reconstruction` | off; JavaScript only | JavaScriptFormation | `startup-reconstruction` | Neutral, Recurring | Offer cached first-access decoding for private immutable tables used only through computed lookups. Default off at every effort; explicit on and startup-reconstruction on are both required. Adds a cache check and helper call per lookup; saves unused-table allocation and delays decoding to first use. Full helpers/lookup bytes are judged. Publication, aliases, enumeration and mutation exclude the alternative. String-array-packing has its own permission. |
 | `naming-search` | on; JavaScript only | Naming | `identifier-mangling` | Neutral | Explore lexical allocation styles, name reuse and local refinements under the selected objective. Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration. The separately controlled naming-compaction alternative skips dead bindings and uses printed order/full identifier continuations; the prior result remains eligible. Off keeps the baseline allocator. |
 | `naming-compaction` | on; JavaScript only | Naming | `identifier-mangling`, `naming-search` | Neutral | Try live printed-order allocation without dead identifier reservations. Automatic from 14; explicit on enables the final trial at 13. Useful after binding deletion or large-scope rewrites, with full identifier continuation characters. Adds rendering/codec work without runtime work; qualification found no byte gain on the initial small and medium cohorts. Off preserves other naming strategies and the prior allocator. |
 | `representation-joints` | on; JavaScript only | OutputFamilies | `target-compaction` | Neutral | Explore bounded combinations of per-site representations whose individual moves may lose. Automatic from effort 14; explicit on enables it earlier. Adds formation and exact-codec work for possibly tiny gains. Off preserves individual choices, whole-family defaults and canonical rollback; selected families still need their own runtime permissions. |

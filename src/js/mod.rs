@@ -69,6 +69,7 @@ mod output_policy_tests;
 mod placement;
 mod pooling;
 mod print;
+pub(crate) use print::PlannedStructure;
 pub(crate) use print::number_spelling_length;
 pub(crate) mod rules;
 mod simplify;

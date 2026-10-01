@@ -169,3 +169,15 @@ fn every_module_the_printer_spells_differently_is_one_structure() {
     )
     .unwrap();
 }
+
+#[test]
+fn d1_each_planned_file_refuses_a_different_statement_partition() {
+    let module=program(2);
+    let first=planned_core_digest(&module,&[0,1],&[],&[],false,false);
+    admit(&first,"f();if(c){g();h();}",true).unwrap();
+    assert!(admit(&first,"f();if(c){g()}h();",true).is_err());
+    assert!(admit(&first,"f();",true).is_err());
+    let second=planned_core_digest(&module,&[2],&[],&[],false,false);
+    admit(&second,"k((1+2)*3,true,void 0);",true).unwrap();
+    assert!(admit(&second,"k(1+2*3,true,void 0);",true).is_err());
+}

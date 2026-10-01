@@ -220,6 +220,20 @@ pub(crate) fn specifier_in(
     Ok(out)
 }
 
+/// Physical escaped filenames contain literal percent signs. ESM resolves a
+/// URL, so its specifier must encode those signs once more; require uses paths.
+pub(crate) fn url_specifier_in(path: String, class: crate::output_budget::AllocationClass,
+    budget: &mut crate::output_budget::AllocationBudget<'_>) -> Result<String, crate::output_budget::AllocationError> {
+    if !path.contains('%') {return Ok(path);}
+    let mut out=String::new();
+    for part in path.split_inclusive('%') {
+        if let Some(prefix)=part.strip_suffix('%') {
+            budget.push_str(class,&mut out,prefix)?;budget.push_str(class,&mut out,"%25")?;
+        } else {budget.push_str(class,&mut out,part)?;}
+    }
+    let bytes=path.capacity() as u64;drop(path);budget.release(class,bytes)?;Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

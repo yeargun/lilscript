@@ -1,0 +1,14 @@
+library-esm raw 368 0.023
+library-cjs raw 669 0.024
+library-iife raw 693 0.023
+library-umd raw 914 0.023
+application-iife raw 77 0.012
+application-bare raw 66 0.012
+Traceback (most recent call last):
+  File "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-d1-formats/qualify.py", line 52, in <module>
+    for format in ['iife','bare','cjs']:qualify(format,objective,True)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-d1-formats/qualify.py", line 37, in qualify
+    p,_=run([node,'--input-type=module','-e',script]);assert p.returncode==0 and p.stdout==expected,(p.stderr,p.stdout,code)
+                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('file:///home/azureuser/lilscript/[eval1]:1\n(($e,$r,$o)=>{let a=3;for(let b=0;b<4;++b)a=a+b|0;console.log(a);console.log(2);return $e})(exports,require,Object);\n                                                                                            ^\n\nReferenceError: exports is not defined in ES module scope\n    at file:///home/azureuser/lilscript/[eval1]:1:93\n    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)\n    at async ModuleLoader.eval (node:internal/modules/esm/loader:217:24)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)\n\nNode.js v20.19.0\n', '', '(($e,$r,$o)=>{let a=3;for(let b=0;b<4;++b)a=a+b|0;console.log(a);console.log(2);return $e})(exports,require,Object);')

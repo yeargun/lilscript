@@ -292,7 +292,7 @@ fn q2_rendered_bundle_owns_names_layout_and_files_and_refusals_keep_only_naming_
                 LiteralOutput::Original,
                 usize::MAX,
                 7u32,
-                |name, code| (name, code),
+                |name, code, _| (name, code),
             )
             .unwrap();
         let bytes = files.iter().fold(
@@ -317,7 +317,7 @@ fn q2_rendered_bundle_owns_names_layout_and_files_and_refusals_keep_only_naming_
                     LiteralOutput::Original,
                     limit,
                     7u32,
-                    |name, code| (name, code)
+                    |name, code, _| (name, code)
                 ),
                 Err(OutputError::ByteLimit)
             ));

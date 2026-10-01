@@ -342,6 +342,7 @@ pub struct DeliveryPlan {
     pub naming: Vec<FileName>,
     pub preload: crate::config::PreloadPolicy,
     pub format: crate::config::JavaScriptFormat,
+    pub container: crate::compilation_policy::ContainerContract,
     pub request_bytes: u64,
     pub depth_bytes: u64,
 }
@@ -3452,7 +3453,13 @@ pub(crate) fn plan(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Option<DeliveryPlan>, OutputError> {
     let statics = graph.statics();
-    if statics == 0 || (statics == 1 && contract.mode == DeliveryMode::Single) {
+    if statics>1 && matches!(contract.format,crate::config::JavaScriptFormat::Iife|crate::config::JavaScriptFormat::Umd)
+        && contract.container.global.as_ref().is_none_or(|name|!name.contains("[name]")&&!name.contains("[index]")) {
+        return Err(OutputError::Invalid("several global entries require [name] or [index] in delivery.global"));
+    }
+    let simple_container=matches!(contract.format,crate::config::JavaScriptFormat::Esm|crate::config::JavaScriptFormat::Bare)
+        || (!contract.library && contract.format==crate::config::JavaScriptFormat::Iife);
+    if statics==0 || (statics==1 && contract.mode==DeliveryMode::Single && simple_container) {
         return Ok(None);
     }
     let lazy_files = contract.mode != DeliveryMode::Single && dynamic_import;
@@ -3672,6 +3679,7 @@ fn finish_plan(
         naming,
         preload: contract.preload,
         format: contract.format,
+        container: contract.container.clone_in(budget)?,
         request_bytes: contract.request_bytes,
         depth_bytes: contract.depth_bytes,
     })

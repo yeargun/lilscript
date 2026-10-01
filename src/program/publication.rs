@@ -897,7 +897,9 @@ fn prepare_delivery_in(
     if let Some(contract) = policy.delivery() {
         let entries = semantic.program.entries().len();
         if module.delivery.is_none()
-            && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single)
+            && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single
+                || matches!(contract.format, crate::config::JavaScriptFormat::Cjs | crate::config::JavaScriptFormat::Umd)
+                || (contract.library && contract.format == crate::config::JavaScriptFormat::Iife))
         {
             let dynamic_import = policy.javascript_contract().is_some_and(|language| {
                 language
@@ -3320,6 +3322,13 @@ fn copy_javascript_contract(
             })
             .transpose()
     };
+    let mut globals = Vec::new();
+    globals.try_reserve_exact(delivery.container.globals.len()).map_err(|_|CandidateError::AllocationFailed)?;
+    for (key,value) in &delivery.container.globals {
+        let mut key_copy=String::new(); key_copy.try_reserve_exact(key.len()).map_err(|_|CandidateError::AllocationFailed)?;key_copy.push_str(key);
+        let mut value_copy=String::new(); value_copy.try_reserve_exact(value.len()).map_err(|_|CandidateError::AllocationFailed)?;value_copy.push_str(value);
+        globals.push((key_copy,value_copy));
+    }
     Ok(CompilationContract::JavaScript {
         language: *language,
         preserved_properties: names,
@@ -3327,6 +3336,9 @@ fn copy_javascript_contract(
             entry_names: copy(&delivery.entry_names)?,
             chunk_names: copy(&delivery.chunk_names)?,
             module_names: copy(&delivery.module_names)?,
+            container: crate::compilation_policy::ContainerContract {
+                global:copy(&delivery.container.global)?,globals,..delivery.container
+            },
             ..*delivery
         },
     })

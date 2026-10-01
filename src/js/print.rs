@@ -92,7 +92,7 @@ pub(super) fn render(module: &Module, names: &Names) -> String {
 pub(crate) enum PrintError {
     Admission(AllocationError),
     ByteLimit,
-    Container,
+    Container(&'static str),
 }
 
 pub(super) fn render_bounded(
@@ -104,7 +104,7 @@ pub(super) fn render_bounded(
     render_admitted(module, names, limit, &mut budget).map_err(|error| match error {
         PrintError::ByteLimit => "render exceeds candidate byte budget".into(),
         PrintError::Admission(error) => format!("render admission failed: {error:?}"),
-        PrintError::Container => "unsupported output container".into(),
+        PrintError::Container(reason) => reason.into(),
     })
 }
 
@@ -162,6 +162,9 @@ pub(super) fn render_with_literals_admitted(
         },
         discarded_root: None,
         lazy: &[],
+        container: None,
+        root_activation: true,
+        planned_structure: None,
     };
     let wrapped = format == crate::config::JavaScriptFormat::Iife;
     if wrapped {
@@ -218,9 +221,13 @@ fn hosted(hosts: Option<(&crate::host_modules::HostDelivery, bool)>, import: &Im
     })
 }
 
+#[path = "print_containers.rs"]
+mod containers;
+
 #[path = "print_files.rs"]
 mod files;
-pub(super) use files::{render_planned_file_admitted, PlannedPrint};
+pub(super) use files::{render_planned_file_admitted, PlannedPrint, PlannedText};
+pub(crate) use files::PlannedStructure;
 
 struct Buffer<'a, 'ledger> {
     text: String,
@@ -369,6 +376,9 @@ struct Printer<'a, 'budget, 'ledger> {
     /// specifier), when this prints one file of several.
     lazy: &'a [(u32, String)],
     forms: &'a super::spellings::PrintForms,
+    container: Option<&'a containers::ContainerView<'a>>,
+    root_activation: bool,
+    planned_structure: Option<PlannedStructure>,
 }
 
 /// The surrounding JavaScript syntax's named-evaluation behavior. A computed
@@ -1078,7 +1088,7 @@ impl<'a> Printer<'a, '_, '_> {
                 Literal::Null => self.text("null"),
                 Literal::Undefined => self.text("void 0"),
             },
-            Expr::Binding(symbol) => self.text(self.names.get(*symbol)),
+            Expr::Binding(symbol) => self.binding_read(*symbol),
             Expr::Host(host) => self.text(&host.name),
             Expr::Regex(literal) => {
                 // `a/ /x/`: a division before the literal would otherwise
@@ -1087,7 +1097,10 @@ impl<'a> Printer<'a, '_, '_> {
                 self.text(literal);
                 self.output.separate_slash(at);
             }
-            Expr::This => self.text("this"),
+            Expr::This => {
+                if self.root_activation && self.container.is_some_and(|view|view.strict) {self.text("(void 0)");}
+                else {self.text("this");}
+            },
             Expr::Unary { op, value } => {
                 self.text(match op {
                     Unary::Negate => "-",
@@ -1189,7 +1202,7 @@ impl<'a> Printer<'a, '_, '_> {
                         || match callee_node {
                             Expr::Member { .. } => true,
                             Expr::Host(host) => host.kind == crate::catalog::HostKind::Eval,
-                            Expr::Binding(symbol) => self.names.get(*symbol) == "eval",
+                            Expr::Binding(symbol) => self.names.get(*symbol) == "eval" || self.container.is_some_and(|view| view.imported(*symbol)),
                             _ => false,
                         });
                 let function_literal = matches!(callee_node, Expr::Function(_));
@@ -1321,9 +1334,10 @@ impl<'a> Printer<'a, '_, '_> {
                 if let Some(chunk) = chunk {
                     // The file's own namespace; a failed load reports the
                     // source specifier, as the old route did.
-                    self.text("import(");
-                    self.unicode_string(chunk);
-                    self.text(").catch(e=>");
+                    if let Some(view)=self.container.filter(|view| view.commonjs) {
+                        self.expression(*promise,18);self.text(".resolve().then(()=>");self.text(view.prefix);self.text("r(");self.unicode_string(chunk);self.text("))");
+                    } else { self.text("import(");self.unicode_string(chunk);self.text(")"); }
+                    self.text(".catch(e=>");
                     self.expression(*promise, 18);
                     self.text(".reject({specifier:");
                     self.unicode_string(specifier);
@@ -1401,7 +1415,7 @@ impl<'a> Printer<'a, '_, '_> {
                     };
                     let shorthand =
                         spelled.is_some_and(|name| match &self.module.expressions[value.index()] {
-                            Expr::Binding(binding) => self.names.get(*binding) == name,
+                            Expr::Binding(binding) => self.names.get(*binding) == name && !self.container.is_some_and(|view| view.imported(*binding)),
                             Expr::Host(host) => host.name == *name,
                             _ => false,
                         });
@@ -1507,6 +1521,13 @@ impl<'a> Printer<'a, '_, '_> {
     }
 
     fn function(&mut self, id: FunctionId) {
+        let activation=self.root_activation;
+        if !self.module.functions[id.index()].arrow {self.root_activation=false;}
+        self.function_inner(id);
+        self.root_activation=activation;
+    }
+
+    fn function_inner(&mut self, id: FunctionId) {
         if !self.output.work(1) {
             return;
         }

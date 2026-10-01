@@ -1,0 +1,211 @@
+{
+  "algorithm": 66,
+  "tests": [
+    {
+      "name": "build::delivery_tests::dynamic_import_loads_a_lazy_file_serving_only_the_members_read",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 1.9170821129810065
+    },
+    {
+      "name": "build::delivery_tests::embedded_host_modules_become_program_code_in_a_strict_output",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 1.4664192049822304
+    },
+    {
+      "name": "build::delivery_tests::hashed_names_cover_every_file_a_file_can_load",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 2.0189722949871793
+    },
+    {
+      "name": "build::delivery_tests::preserve_modules_keeps_each_module_in_its_file_and_writes_through_a_setter",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 1.517139922012575
+    },
+    {
+      "name": "build::delivery_tests::q3_scoring_workers_keep_complete_delivery_and_runtime_identical",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.21428448701044545
+    },
+    {
+      "name": "build::delivery_tests::relative_foreign_imports_resolve_from_nested_files",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.26429362600902095
+    },
+    {
+      "name": "build::delivery_tests::two_entries_share_one_instance_of_what_both_reach",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 1.066317971009994
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_cjs_iife_umd_live_exports_and_strict_callbacks",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.26444025299861096
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_cjs_single_and_split_cycles_preserve_hoisted_calls",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.16427751400624402
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_cjs_split_preserve_and_lazy_files_keep_shared_state",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.16432919100043364
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_container_controls_have_distinct_identity_and_hygienic_bindings",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.11387454302166589
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_default_interop_and_direct_default_are_explicit",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.21423263801261783
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_external_imports_stay_live_and_unbound_in_every_container",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.2142679739918094
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_global_multi_entry_templates_publish_distinct_namespaces",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.1144789140089415
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_library_frames_preserve_module_this_and_lexical_host_arguments",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.21423772699199617
+    },
+    {
+      "name": "build::tests::delivery_formats::d1_module_paths_are_injective_and_preserved_files_load",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.16411520898691379
+    },
+    {
+      "name": "build::tests::private_wrapper_preserves_classic_this_and_accepts_explicit_bare",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.3646075309952721
+    },
+    {
+      "name": "build::tests::script_containers_refuse_module_exports_and_imports",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.031771392008522525
+    },
+    {
+      "name": "compilation_policy::tests::resolved_script_containers_have_distinct_identity_without_changing_strictness",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.0639030680176802
+    },
+    {
+      "name": "js::admission::tests::a_misprinted_tree_is_refused",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.007712361024459824
+    },
+    {
+      "name": "js::admission::tests::a_printed_tree_is_admitted",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.007609407999552786
+    },
+    {
+      "name": "js::admission::tests::d1_each_planned_file_refuses_a_different_statement_partition",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.007564604980871081
+    },
+    {
+      "name": "js::admission::tests::every_module_the_printer_spells_differently_is_one_structure",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.007500414008973166
+    },
+    {
+      "name": "js::admission::tests::private_frame_is_part_of_independently_admitted_structure",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.007506696012569591
+    },
+    {
+      "name": "js::cloning::tests::q2_copied_unicode_and_proof_rows_keep_runtime_and_release_replaced_payloads",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.06371516597573645
+    },
+    {
+      "name": "js::cloning::tests::q2_target_copies_admit_each_nested_owner_and_rollback_refusals",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.007598206982947886
+    },
+    {
+      "name": "js::delivery::admission_tests::q2_delivery_failed_trial_preserves_the_parent_layout",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.007996133004780859
+    },
+    {
+      "name": "js::delivery::admission_tests::q2_delivery_metadata_rows_use_admitted_iterative_depth_and_exact_capacity",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.015643480990547687
+    },
+    {
+      "name": "js::delivery::admission_tests::q2_delivery_owns_exact_surviving_plan_storage_in_each_mode",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.007578440010547638
+    },
+    {
+      "name": "js::delivery::admission_tests::q2_delivery_setters_grow_the_existing_module_owner_and_refusals_release",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.015607826004270464
+    },
+    {
+      "name": "js::delivery::admission_tests::q2_rendered_bundle_owns_names_layout_and_files_and_refusals_keep_only_naming_caches",
+      "binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+      "exit_code": 0,
+      "seconds": 0.03179015699424781
+    },
+    {
+      "name": "objective_tests::d1_cli_cjs_delivers_exact_files_and_uses_cjs_extension",
+      "binary": "target/debug/deps/lilscript-f7f78531a1571f95",
+      "exit_code": 0,
+      "seconds": 0.2141572249820456
+    },
+    {
+      "name": "objective_tests::d1_manifest_labels_are_relative_to_the_primary_entry_and_cost_names_its_leaf",
+      "binary": "target/debug/deps/lilscript-f7f78531a1571f95",
+      "exit_code": 0,
+      "seconds": 0.00780647702049464
+    },
+    {
+      "name": "objective_tests::d1_v2_stale_cleanup_preserves_unlisted_files_and_external_paths",
+      "binary": "target/debug/deps/lilscript-f7f78531a1571f95",
+      "exit_code": 0,
+      "seconds": 0.007520170998759568
+    }
+  ],
+  "complete": true,
+  "pass": true
+}

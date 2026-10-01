@@ -1272,7 +1272,7 @@ fn script_containers_refuse_module_exports_and_imports() {
             ServiceOptions::default(),
         )
         .unwrap_err();
-        assert!(error.message.contains("library global exports"), "{error}");
+        assert!(error.message.contains("delivery.global") || error.message.contains("application script"), "{error}");
     }
     let error = compile_source(
         "print(7);",
@@ -4777,3 +4777,6 @@ fn s4_choose_prevents_sharing_helpers_with_incompatible_pins() {
     }
     check_scores(&built);
 }
+
+#[path = "build_container_tests.rs"]
+mod delivery_formats;

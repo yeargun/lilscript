@@ -578,7 +578,13 @@ pub fn translate_bundle_table(table: &mut toml::Table) -> Result<Vec<String>, St
         }
     }
     if let Some(key) = bundle.keys().next() {
-        return Err(format!("invalid config: unknown key `bundle.{key}`"));
+        let mut path=format!("bundle.{key}");
+        let mut value=&bundle[key];
+        while let toml::Value::Table(table)=value {
+            let Some((key,child))=table.iter().next() else {break;};
+            path.push('.');path.push_str(key);value=child;
+        }
+        return Err(format!("invalid config: unknown key `{path}`"));
     }
     if moved.is_empty() {
         return Ok(warnings);
@@ -1141,16 +1147,39 @@ impl ProjectConfig {
             JavaScriptFormat::Auto => JavaScriptFormat::Iife,
             format => format,
         };
-        if format == JavaScriptFormat::Cjs {
-            return Err("CommonJS delivery is not implemented; use `esm` for a library or `iife`/`bare` for a classic application script".into());
+        use JavaScriptFormat as F;
+        if library && format == F::Bare {
+            return Err("`bare` is an application script; use iife with delivery.global for a library".into());
         }
-        if library && matches!(format, JavaScriptFormat::Iife | JavaScriptFormat::Bare) {
-            return Err(format!("`format = \"{}\"` currently delivers a private application: use `--target js`; library global exports are not implemented", format.name()));
+        if matches!(format, F::Iife | F::Umd) && library && delivery.global.is_none() {
+            return Err("library IIFE/UMD requires `delivery.global`".into());
+        }
+        if let Some(template) = &delivery.global {
+            let expanded=template.replace("[name]","entry").replace("[index]","0");
+            let global=expanded.as_str();
+            if !crate::js::identifier(global) || matches!(global, "eval" | "arguments")
+                || (delivery.global_binding==GlobalBinding::Var && matches!(global, "module" | "exports" | "require" | "define" | "Object" | "globalThis" | "self")) {
+                return Err("`delivery.global` must be a JavaScript binding identifier, optionally containing [name] or [index]".into());
+            }
+        }
+        for path in delivery.globals.values() {
+            if path.is_empty() || path.split('.').any(|part| !crate::js::identifier_name(part)) {
+                return Err("`delivery.globals` values must be dotted JavaScript global paths".into());
+            }
+        }
+        if !matches!(format, F::Esm | F::Cjs) && delivery.mode != DeliveryMode::Single {
+            return Err("IIFE, UMD and bare delivery require `delivery.mode = 'single'`".into());
+        }
+        if format != F::Esm && delivery.mode != DeliveryMode::Single && delivery.preload != PreloadPolicy::None {
+            return Err("module preloading requires ESM delivery; set `delivery.preload = 'none'` for CommonJS".into());
+        }
+        if format == F::Umd && !library {
+            return Err("UMD publishes a library: use `--target js-module`".into());
         }
         if !library && format == JavaScriptFormat::Esm {
             return Err("`format = \"esm\"` requires module execution: use `--target js-module`, or choose `iife`/`bare` for a classic script".into());
         }
-        if delivery.mode != DeliveryMode::Single && !library {
+        if delivery.mode != DeliveryMode::Single && !library && format != F::Cjs {
             return Err(format!(
                 "`delivery.mode = \"{}\"` needs module execution, whose files import each other: build with `--target js-module`",
                 delivery.mode.name()
@@ -1171,6 +1200,15 @@ impl ProjectConfig {
             request_bytes: delivery.request_bytes,
             depth_bytes: delivery.depth_bytes,
             host_modules: delivery.host_modules,
+            container: crate::compilation_policy::ContainerContract {
+                global: delivery.global.clone(),
+                globals: delivery.globals.iter().map(|(key,value)| (key.clone(),value.clone())).collect(),
+                global_binding: delivery.global_binding,
+                es_module_marker: delivery.es_module_marker,
+                exports: delivery.exports,
+                default_interop: delivery.default_interop,
+                strict: library,
+            },
         })
     }
 
@@ -1985,6 +2023,8 @@ pub enum JavaScriptFormat {
     Cjs,
     /// Private application frame, with the classic script's strictness.
     Iife,
+    /// Universal AMD/CommonJS/browser library.
+    Umd,
     /// Unwrapped code for an embedding that owns its private root scope.
     Bare,
 }
@@ -1996,17 +2036,35 @@ impl JavaScriptFormat {
             Self::Esm => "esm",
             Self::Cjs => "cjs",
             Self::Iife => "iife",
+            Self::Umd => "umd",
             Self::Bare => "bare",
         }
     }
     /// The `[ext]` of a delivered file in this container.
     pub const fn extension(self) -> &'static str {
         match self {
-            Self::Auto | Self::Esm | Self::Iife | Self::Bare => "js",
+            Self::Auto | Self::Esm | Self::Iife | Self::Umd | Self::Bare => "js",
             Self::Cjs => "cjs",
         }
     }
 }
+
+/// Browser namespace publication; property works when the script is embedded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum GlobalBinding { #[default] Var, Property }
+/// CommonJS interoperability marker; never changes a source export.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum EsModuleMarker { #[default] IfDefault, Always, Never }
+/// Default-only is an explicit snapshot export; named exports remain live.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CjsExports { #[default] Named, Default }
+/// A foreign provider's default-import calling convention.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DefaultInterop { #[default] Node, EsModule }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -2054,9 +2112,14 @@ impl HostModules {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DeliveryConfig {
-    /// How the program is placed in files: `single` (one file per entry),
-    /// `split` (files shared by the entries that load them) or
-    /// `preserve-modules` (a file per source module).
+    /// IIFE/UMD namespace, with optional [name]/[index] entry placeholders.
+    pub global: Option<String>,
+    pub global_binding: GlobalBinding,
+    pub globals: BTreeMap<String, String>,
+    pub es_module_marker: EsModuleMarker,
+    pub exports: CjsExports,
+    pub default_interop: DefaultInterop,
+    /// Single file per entry, shared files, or preserved source modules.
     pub mode: DeliveryMode,
     /// Entry name to source path, relative to this file. Sorted by name:
     /// entry `i` is bit `i` of every reachability label.
@@ -2086,6 +2149,12 @@ pub struct DeliveryConfig {
 impl Default for DeliveryConfig {
     fn default() -> Self {
         Self {
+            global: None,
+            global_binding: GlobalBinding::default(),
+            globals: BTreeMap::new(),
+            es_module_marker: EsModuleMarker::default(),
+            exports: CjsExports::default(),
+            default_interop: DefaultInterop::default(),
             mode: DeliveryMode::Single,
             entries: BTreeMap::new(),
             entry_names: None,

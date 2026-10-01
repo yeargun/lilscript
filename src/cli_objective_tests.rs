@@ -343,3 +343,37 @@ fn objective_cli_target_all_keeps_one_native_build_beside_javascript_variants() 
     );
     assert_eq!(native.stdout, b"5\n");
 }
+
+#[test]
+fn d1_v2_stale_cleanup_preserves_unlisted_files_and_external_paths() {
+    let scratch=Scratch::new();
+    let old=scratch.write("out/old.cjs","old");let kept=scratch.write("out/kept.cjs","current");
+    let note=scratch.write("out/note.txt","keep");let outside=scratch.write("outside.cjs","keep");
+    #[cfg(unix)] std::os::unix::fs::symlink(&outside,scratch.0.join("out/link.cjs")).unwrap();
+    let manifest=scratch.write("out/lilscript.manifest.json",r#"{"version":2,"chunks":[{"file":"old.cjs"},{"file":"kept.cjs"},{"file":"../outside.cjs"},{"file":"link.cjs"}]}"#);
+    remove_stale_files(&scratch.0.join("out"),&manifest,&[(kept.clone(),"current")]).unwrap();
+    assert!(!old.exists());assert!(kept.exists());assert!(note.exists());assert!(outside.exists());
+    #[cfg(unix)] assert!(scratch.0.join("out/link.cjs").symlink_metadata().unwrap().file_type().is_symlink());
+}
+#[test]
+fn d1_manifest_labels_are_relative_to_the_primary_entry_and_cost_names_its_leaf() {
+    assert_eq!(relative_source_name(Path::new("/project/src"),Path::new("/project/src/a.lil")),"a.lil");
+    assert_eq!(relative_source_name(Path::new("/project/src"),Path::new("/shared/lib.lil")),"../../shared/lib.lil");
+    let error=lilscript::config::parse_project_config("[bundle.cost]\nunknown_cost=1").unwrap_err();
+    assert!(error.contains("bundle.cost.unknown_cost"),"{error}");
+}
+#[test]
+fn d1_cli_cjs_delivers_exact_files_and_uses_cjs_extension() {
+    let scratch=Scratch::new();let entry=scratch.write("entry.lil","export int n=2;export void bump(){n++;}");
+    let entries=[EntrySource{name:"main".into(),path:entry}];let args=arguments(&scratch,"js-module");
+    let options=service_options_with_environment(&args,None).unwrap();
+    let config=lilscript::config::parse_project_config("objective.codecs=['raw','gzip','brotli']\neffort.level=3\n[target.javascript]\nformat='cjs'").unwrap().config;
+    let result=lilscript::compile_entries(&entries,&config,options).unwrap();
+    write_objective_deliveries(&args,&entries,&config,&result,options.requested_objectives(&config).unwrap()).unwrap();
+    let directory=scratch.0.join("out");verify_manifest(&directory,&result,&[Objective::Raw,Objective::Gzip,Objective::Brotli]);
+    for codec in ["raw","gzip","brotli"] {
+        assert!(directory.join(codec).join("main.cjs").exists());
+        let output=std::process::Command::new("node").args(["-e",&format!("const m=require('./{codec}/main.cjs');m.bump();console.log(m.n)")]).current_dir(&directory).output().unwrap();
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));assert_eq!(output.stdout,b"3\n");
+    }
+}

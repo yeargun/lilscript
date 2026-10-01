@@ -44,7 +44,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version63 qualifies six target-local proofs with complete dependency and storage keys.
 // Version64 protects effort checkpoints, bounds assignment evidence, ranks data
 // with objective fragments and admits fixed batches of independent file scores.
-pub const POLICY_ALGORITHM_VERSION: u32 = 65;
+pub const POLICY_ALGORITHM_VERSION: u32 = 66;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -94,6 +94,7 @@ pub enum CompilationContract {
 pub struct DeliveryContract {
     pub mode: crate::config::DeliveryMode,
     pub format: crate::config::JavaScriptFormat,
+    pub container: ContainerContract,
     /// Which lazily loaded files an entry preloads; `None` for one file.
     pub preload: crate::config::PreloadPolicy,
     /// File name templates (`js::names`); `None` is the default, which
@@ -119,6 +120,7 @@ impl DeliveryContract {
         Self {
             mode: crate::config::DeliveryMode::Single,
             format: crate::config::JavaScriptFormat::Esm,
+            container: ContainerContract::default(),
             preload: crate::config::PreloadPolicy::None,
             entry_names: None,
             chunk_names: None,
@@ -147,6 +149,31 @@ impl DeliveryContract {
         [&self.entry_names, &self.chunk_names, &self.module_names]
             .into_iter()
             .flatten()
+            .chain(self.container.strings())
+    }
+}
+
+/// Container metadata owns no semantic program; every emitted byte is scored.
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize)]
+pub struct ContainerContract {
+    pub global: Option<String>,
+    pub globals: Vec<(String, String)>,
+    pub global_binding: crate::config::GlobalBinding,
+    pub es_module_marker: crate::config::EsModuleMarker,
+    pub exports: crate::config::CjsExports,
+    pub default_interop: crate::config::DefaultInterop,
+    pub strict: bool,
+}
+impl ContainerContract {
+    pub fn strings(&self) -> impl Iterator<Item=&String> {
+        self.global.iter().chain(self.globals.iter().flat_map(|(key,value)| [key,value]))
+    }
+    pub(crate) fn clone_in(&self, budget: &mut crate::output_budget::AllocationBudget<'_>) -> Result<Self, crate::output_budget::AllocationError> {
+        use crate::output_budget::AllocationClass::Retained;
+        let mut globals=budget.vector(Retained,self.globals.len())?;
+        for (key,value) in &self.globals { globals.push((budget.string(Retained,key)?,budget.string(Retained,value)?)); }
+        Ok(Self { global:self.global.as_ref().map(|s| budget.string(Retained,s)).transpose()?,globals,
+            global_binding:self.global_binding, es_module_marker:self.es_module_marker,exports:self.exports,default_interop:self.default_interop,strict:self.strict })
     }
 }
 
@@ -1082,7 +1109,7 @@ impl ResolvedPolicy {
                 "strip_console_calls":language.effects.strip_console_calls,
                 "checks":language.checks.name(),
                 "preserved_properties":preserved_properties,
-                "delivery":{"mode":delivery.mode.name(), "format":delivery.format.name(),
+                "delivery":{"mode":delivery.mode.name(), "format":delivery.format.name(), "container":delivery.container,
                     "preload":delivery.preload.name(), "host_modules":delivery.host_modules.name(), "entry_names":delivery.entry_names(),
                     "chunk_names":delivery.chunk_names(), "module_names":delivery.module_names(),
                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},

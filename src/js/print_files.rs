@@ -16,6 +16,16 @@ pub(in crate::js) struct PlannedPrint<'a> {
     pub names: &'a [String],
 }
 
+/// Fixed-size proof retained with the candidate, parsed once at admission.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PlannedStructure {
+    pub start: usize,
+    pub end: usize,
+    pub expected: crate::admission_parse::StructureDigest,
+}
+pub(in crate::js) struct PlannedText { pub code:String, pub structure:PlannedStructure }
+impl std::ops::Deref for PlannedText {type Target=str;fn deref(&self)->&str{&self.code}}
+
 /// One planned file, in the plan's format.
 #[allow(clippy::too_many_arguments)]
 pub(in crate::js) fn render_planned_file_admitted(
@@ -27,7 +37,7 @@ pub(in crate::js) fn render_planned_file_admitted(
     budget: &mut AllocationBudget<'_>,
     planned: &PlannedPrint<'_>,
     hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
-) -> Result<String, PrintError> {
+) -> Result<PlannedText, PrintError> {
     let _timing = crate::timing::TARGET_PRINT.scope(0);
     let plan = planned.plan;
     let file = &plan.files[planned.file];
@@ -45,6 +55,9 @@ pub(in crate::js) fn render_planned_file_admitted(
                 &mut phase,
             )
             .map_err(PrintError::Admission)?;
+            let path=if plan.format==JavaScriptFormat::Esm {
+                crate::js::names::url_specifier_in(path,AllocationClass::Scratch,&mut phase).map_err(PrintError::Admission)?
+            } else {path};
             lazy.push((loaded, path));
         }
     }
@@ -74,11 +87,16 @@ pub(in crate::js) fn render_planned_file_admitted(
         },
         discarded_root: None,
         lazy: &lazy,
+        container: None,
+        root_activation: true,
+        planned_structure: None,
     };
     match plan.format {
         JavaScriptFormat::Esm => esm(&mut printer, plan, planned, hosts),
-        _ => return Err(PrintError::Container),
+        JavaScriptFormat::Cjs | JavaScriptFormat::Iife | JavaScriptFormat::Umd => containers::render(&mut printer, planned, hosts),
+        _ => return Err(PrintError::Container("unresolved output container")),
     }
+    let structure=printer.planned_structure;
     let Buffer { text, error, .. } = printer.output;
     if let Some(error) = error {
         drop(text);
@@ -86,7 +104,7 @@ pub(in crate::js) fn render_planned_file_admitted(
     }
     drop((forms, lazy));
     phase.finish_retained().map_err(PrintError::Admission)?;
-    Ok(text)
+    Ok(PlannedText{code:text,structure:structure.expect("planned core proof")})
 }
 
 /// An exported or imported name: an identifier, or a string (ES2022).
@@ -192,10 +210,11 @@ fn esm(
         }
     }
     let root = &printer.module.regions[printer.module.root.index()].statements;
-    printer.statement_list(
-        root,
-        file.statements.iter().map(|&statement| statement as usize),
-    );
+    let start=printer.output.text.len();
+    printer.statement_list(root,file.statements.iter().map(|&statement| statement as usize));
+    if !printer.output.work(printer.module.expressions.len()+printer.module.regions.len()) {return;}
+    printer.planned_structure=Some(PlannedStructure{start,end:printer.output.text.len(),
+        expected:crate::js::admission::planned_core_digest(printer.module,&file.statements,&[],printer.lazy,false,false)});
     // Internal exports under their own names, then the public names this
     // file declares.
     let own = planned.file as u32;
@@ -249,12 +268,10 @@ fn specifier(
     target: u32,
 ) -> Option<String> {
     printer.output.admit(|budget| {
-        crate::js::names::specifier_in(
-            own_name(planned),
-            &planned.names[target as usize],
-            AllocationClass::Scratch,
-            budget,
-        )
+        let path=crate::js::names::specifier_in(own_name(planned),&planned.names[target as usize],AllocationClass::Scratch,budget)?;
+        if planned.plan.format==JavaScriptFormat::Esm {
+            crate::js::names::url_specifier_in(path,AllocationClass::Scratch,budget)
+        } else {Ok(path)}
     })
 }
 

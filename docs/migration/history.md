@@ -1741,3 +1741,24 @@ scope and typed-helper mechanism correction. Stored public value-struct graphs
 are source-diagnosed pending D2's graph-preserving boundary; the final guard is
 focused-test qualified and postdates the release pin. Native static const and
 public const ABI remain N2. Q4 is complete under that contract; D1 follows.
+
+## 2026-10-01: D1 compiler-written formats and manifest completion
+
+Algorithm66/search33 adds CJS, library IIFE/UMD, explicit bare and documented
+publication/interop controls to the same planned/named/scored delivery. Live
+namespace imports/getters, unbound calls, module strictness, lexical arguments,
+CJS split/preserve/lazy links and all UMD branches are independently exercised.
+Injective module filenames, ESM URL escapes, primary-entry source labels, v2
+stale cleanup and nested config diagnostics repair the carried manifest defects.
+Full files parse independently and their program-statement regions match an
+independent target-partition digest. Wrapper/linkage semantics have runtime
+oracles; no whole-wrapper canonical proof is claimed.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-d1-formats/README.md)
+records 34 passing focused checks, one final namespace-template guard check,
+21 release builds optimized independently for raw/gzip/Brotli with canonical
+artifact remeasurement and a targeted existing-case matrix through new CJS/bare
+lanes. Initial build/fixture/harness failures are retained. No full suite/fleet
+rerun. D1 is complete under [its contract](d1-acceptance.md); D2 follows with
+consumer shaking, initialization/placement, lazy effects/cycles, host modules,
+source maps and graph-preserving public const product publication.

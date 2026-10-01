@@ -185,6 +185,7 @@ impl CachedSizes {
 /// One file of a delivery plan, scored with the others.
 pub struct ArtifactFile {
     pub name: String,
+    structure: crate::js::PlannedStructure,
     pub code: String,
     /// This file's own codec sizes, measured once.
     sizes: CachedSizes,
@@ -247,9 +248,10 @@ struct Record {
 }
 impl Record {
     /// Admission's independent parse (plan task M2.5; architecture A5): every
-    /// delivered file parses as it executes, and a file printed whole parses
-    /// to the printed tree's structure. Charged once per record, linear in its
-    /// bytes.
+    /// delivered file parses as it executes. Whole files and each planned
+    /// file's program statements match their target-tree structure; generated
+    /// container/link syntax is additionally covered by delivery oracles.
+    /// Charged once per record, linear in its bytes.
     fn admit_parse(&self, budget: &mut AllocationBudget<'_>) -> Result<(), CandidateError> {
         let verdict = match self.parsed.get() {
             Some(verdict) => verdict,
@@ -257,6 +259,7 @@ impl Record {
                 let _timing = crate::timing::ADMISSION_PARSE.scope(0);
                 let bytes =
                     self.text.len() + self.files.iter().map(|file| file.code.len()).sum::<usize>();
+                let bytes=self.files.iter().try_fold(bytes,|sum,file|sum.checked_add(file.structure.end.saturating_sub(file.structure.start))).ok_or(CandidateError::Capacity)?;
                 budget.work(
                     WorkKind::Analysis,
                     crate::admission_parse::work_units(bytes),
@@ -279,6 +282,8 @@ impl Record {
                         Some(layout) => {
                             let module = layout.format == crate::config::JavaScriptFormat::Esm;
                             for file in &self.files {
+                                let core=file.code.get(file.structure.start..file.structure.end).ok_or_else(||crate::admission_parse::Refusal("invalid planned body range".into()))?;
+                                crate::admission_parse::admit(&file.structure.expected,core,module).map_err(|error|crate::admission_parse::Refusal(format!("file {} planned body: {}",file.name,error.0)))?;
                                 crate::admission_parse::parse_canonical(&file.code, module)
                                     .map_err(|refusal| {
                                         crate::admission_parse::Refusal(format!(
@@ -1271,7 +1276,8 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
                     literals,
                     byte_limit,
                     self.staging.owner,
-                    |name, code| ArtifactFile {
+                    |name, code, structure| ArtifactFile {
+                        structure,
                         sizes: CachedSizes::new(code.len()),
                         name,
                         code,

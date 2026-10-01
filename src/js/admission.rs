@@ -74,7 +74,7 @@ pub(crate) fn program(
         // `let{…}=<host modules>;`: foreign text, compared by kind.
         out.push(Canon::Pattern);
     }
-    let walk = Walk { module };
+    let walk = Walk { module, member_imports:&[], lazy:&[], commonjs:false, module_root:false, root_activation:true };
     for statement in &module.regions[module.root.index()].statements {
         out.push(walk.statement(statement));
     }
@@ -84,8 +84,23 @@ pub(crate) fn program(
     out
 }
 
+#[derive(Clone, Copy)]
 struct Walk<'a> {
     module: &'a Module,
+    member_imports: &'a [BindingId],
+    lazy: &'a [(u32,String)],
+    commonjs: bool,
+    module_root: bool,
+    root_activation: bool,
+}
+
+/// A planned file's source-owned statements, independently of wrapper text.
+/// Import reads and lazy links are part of its explicit delivery recipe.
+pub(super) fn planned_core_digest(module:&Module, statements:&[u32], member_imports:&[BindingId],
+    lazy:&[(u32,String)], commonjs:bool, module_root:bool) -> StructureDigest {
+    let walk=Walk{module,member_imports,lazy,commonjs,module_root,root_activation:true};
+    let root=&module.regions[module.root.index()].statements;
+    admission_parse::digest(&admission_parse::statement_list(statements.iter().map(|&index|walk.statement(&root[index as usize])).collect()))
 }
 
 fn unary(op: Unary) -> &'static str {
@@ -247,6 +262,10 @@ impl Walk<'_> {
     }
 
     fn function(&self, id: FunctionId) -> CanonFunction {
+        let walk=Self{root_activation:self.root_activation && self.module.functions[id.index()].arrow,..*self};
+        walk.function_inner(id)
+    }
+    fn function_inner(&self, id: FunctionId) -> CanonFunction {
         let (defaults, absorbed) = self.native_defaults(id);
         let function = &self.module.functions[id.index()];
         // From `length` on, a parameter prints its native default; the one at
@@ -303,13 +322,15 @@ impl Walk<'_> {
                 }
             }
             Expr::Literal(_) => Canon::Lit,
-            Expr::Binding(_) => Canon::Ident,
+            Expr::Binding(binding) => if self.member_imports.binary_search(binding).is_ok() {
+                Canon::member(Canon::Ident,None)
+            } else {Canon::Ident},
             Expr::Host(host) => host
                 .name
                 .split('.')
                 .skip(1)
                 .fold(Canon::Ident, |object, _| Canon::member(object, None)),
-            Expr::This => Canon::This,
+            Expr::This => if self.root_activation && self.module_root {Canon::Lit} else {Canon::This},
             Expr::Regex(_) => Canon::Regex,
             Expr::Unary { op, value } => Canon::unary(unary(*op), self.expression(*value)),
             // `|0` is reduced away by the form, printed or not.
@@ -412,8 +433,20 @@ impl Walk<'_> {
                 Canon::Yield(*delegate, Some(Box::new(self.expression(*value))))
             }
             Expr::LoadModule {
-                members, promise, ..
+                module, members, promise, string, ..
             } => {
+                if self.lazy.iter().any(|(loaded,_)|loaded==module) {
+                    let arrow=|parameters, value| Canon::Function(Box::new(CanonFunction {
+                        arrow:true,asynchronous:false,generator:false,strict:false,
+                        parameters:vec![None;parameters],rest:false,body:vec![Canon::Return(Some(Box::new(value)))],
+                    }));
+                    let loaded=if self.commonjs {
+                        let resolve=Canon::Call(Box::new(Canon::member(self.expression(*promise),None)),vec![]);
+                        Canon::Call(Box::new(Canon::member(resolve,None)),vec![arrow(0,Canon::Call(Box::new(Canon::Ident),vec![Canon::Lit]))])
+                    } else {Canon::ImportCall(Box::new(Canon::Lit))};
+                    let error=Canon::Object(vec![(None,Canon::Lit),(None,Canon::Call(Box::new(self.expression(*string)),vec![Canon::Ident]))]);
+                    return Canon::Call(Box::new(Canon::member(loaded,None)),vec![arrow(1,Canon::Call(Box::new(Canon::member(self.expression(*promise),None)),vec![error]))]);
+                }
                 // A single file has no lazy chunk: the namespace is
                 // `P.resolve({})`, or `P.resolve().then(()=>({…}))` a turn later.
                 let resolve = Canon::member(self.expression(*promise), None);

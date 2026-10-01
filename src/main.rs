@@ -53,6 +53,7 @@ enum FormatArg {
     Esm,
     Cjs,
     Iife,
+    Umd,
     Bare,
 }
 
@@ -274,6 +275,7 @@ fn run() -> Result<(), String> {
             FormatArg::Esm => JavaScriptFormat::Esm,
             FormatArg::Cjs => JavaScriptFormat::Cjs,
             FormatArg::Iife => JavaScriptFormat::Iife,
+            FormatArg::Umd => JavaScriptFormat::Umd,
             FormatArg::Bare => JavaScriptFormat::Bare,
         };
     }
@@ -313,7 +315,7 @@ fn run() -> Result<(), String> {
     }
     // `-o FILE` writes the one entry at FILE: a delivery of several files
     // names that entry's file so, and its other files beside it.
-    if args.out_dir.is_none() && loaded.config.delivery.mode != DeliveryMode::Single {
+    if args.out_dir.is_none() {
         if let Some(name) = args
             .output
             .as_deref()
@@ -665,7 +667,7 @@ fn plan_delivery<'a>(
                     name,
                     index: 0,
                     path: name,
-                    ext: "js",
+                    ext: config.delivery_contract(matches!(args.target, Target::JsModule))?.format.extension(),
                     hash: &hash,
                 },
             );
@@ -715,17 +717,9 @@ fn plan_delivery<'a>(
             });
         }
     }
-    let base = common_directory(&modules);
-    let modules = modules
-        .iter()
-        .map(|path| {
-            Path::new(path)
-                .strip_prefix(&base)
-                .unwrap_or(Path::new(path))
-                .display()
-                .to_string()
-        })
-        .collect::<Vec<_>>();
+    let root_index=result.report()["inputs"]["root"].as_u64().unwrap_or(0) as usize;
+    let base=modules.get(root_index).and_then(|root|Path::new(root).parent()).unwrap_or(Path::new(""));
+    let modules=modules.iter().map(|path| relative_source_name(base,Path::new(path))).collect::<Vec<_>>();
     let manifest = lilscript::manifest_v3(&outputs, &modules, codec);
     Ok(PlannedDelivery {
         directory,
@@ -842,30 +836,15 @@ fn prefix_manifest_paths(output: &mut Value, prefix: &str) {
     paths(&mut output["side_effects"]);
 }
 
-/// The directory every path shares.
-fn common_directory(paths: &[String]) -> PathBuf {
-    let mut common: Option<Vec<std::ffi::OsString>> = None;
-    for path in paths {
-        let parts = Path::new(path)
-            .parent()
-            .map(|parent| {
-                parent
-                    .iter()
-                    .map(|part| part.to_os_string())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        common = Some(match common {
-            None => parts,
-            Some(known) => known
-                .into_iter()
-                .zip(parts)
-                .take_while(|(left, right)| left == right)
-                .map(|(left, _)| left)
-                .collect(),
-        });
-    }
-    common.unwrap_or_default().iter().collect()
+/// Source labels are relative to the primary entry, including sibling trees.
+/// They are metadata only; output path validation never accepts these `..`s.
+fn relative_source_name(base: &Path, path: &Path) -> String {
+    let base=base.components().collect::<Vec<_>>();let parts=path.components().collect::<Vec<_>>();
+    let shared=base.iter().zip(&parts).take_while(|(a,b)|a==b).count();
+    let mut result=PathBuf::new();
+    for _ in shared..base.len(){result.push("..");}
+    for part in &parts[shared..]{result.push(part.as_os_str());}
+    result.iter().map(|part|part.to_string_lossy()).collect::<Vec<_>>().join("/")
 }
 
 /// Remove the files the previous manifest listed that this build does not
@@ -881,18 +860,13 @@ fn remove_stale_files(
     let Ok(previous) = serde_json::from_str::<Value>(&previous) else {
         return Ok(());
     };
-    let Some(outputs) = previous.get("outputs").and_then(Value::as_array) else {
-        return Ok(());
-    };
-    let Ok(root) = fs::canonicalize(directory) else {
-        return Ok(());
-    };
-    for file in outputs
-        .iter()
-        .filter_map(|output| output.get("files")?.as_array())
-        .flatten()
-        .filter_map(|file| file.get("file")?.as_str())
-    {
+    let Ok(root) = fs::canonicalize(directory) else { return Ok(()); };
+    let current=previous.get("outputs").and_then(Value::as_array).into_iter().flatten()
+        .filter_map(|output| output.get("files")?.as_array()).flatten()
+        .filter_map(|file| file.get("file")?.as_str());
+    let legacy=previous.get("chunks").filter(|_|previous["version"]==2).and_then(Value::as_array)
+        .into_iter().flatten().filter_map(|file|file.get("file")?.as_str());
+    for file in current.chain(legacy) {
         let relative = Path::new(file);
         if relative.is_absolute()
             || relative

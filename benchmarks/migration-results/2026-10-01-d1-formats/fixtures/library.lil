@@ -1,0 +1,1 @@
+export int count=3;export const Record<string> words=record{negative:"minus",zero:"zero",positive:"plus"};export int step(int n){count+=n;return count;}export {step as inc};export string classify(int n){if(n<0){return words["negative"]??"missing";}if(n==0){return words["zero"]??"missing";}return words["positive"]??"missing";}

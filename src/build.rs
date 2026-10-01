@@ -1756,17 +1756,13 @@ fn module_paths(paths: &[std::path::PathBuf]) -> Vec<String> {
             relative
                 .iter()
                 .map(|segment| {
-                    segment
-                        .to_string_lossy()
-                        .chars()
-                        .map(|c| {
-                            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
-                                c
-                            } else {
-                                '_'
-                            }
-                        })
-                        .collect::<String>()
+                    let mut escaped=String::new();
+                    for byte in segment.to_string_lossy().as_bytes() {
+                        if byte.is_ascii_alphanumeric() || matches!(*byte,b'-'|b'_'|b'.') {
+                            escaped.push(*byte as char);
+                        } else { use std::fmt::Write; write!(&mut escaped,"%{byte:02X}").unwrap(); }
+                    }
+                    escaped
                 })
                 .collect::<Vec<_>>()
                 .join("/")

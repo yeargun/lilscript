@@ -1,0 +1,1304 @@
+{
+ "schema": 1,
+ "kind": "lilscript-case-runner",
+ "started": "2026-10-01T21:00:27.955Z",
+ "completed": "2026-10-01T21:00:28.902Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "a3b55dab4e562ef7baf238cd5f034377b7d630af",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/d1-formats-1/lilscript",
+  "path": "/home/azureuser/lilscript-work/d1-cases/bin/lilscript-5a00a14dc4761dbd",
+  "sha256": "5a00a14dc4761dbd87598912949640316dad1e619233c11dd6e6724d2dc0fade",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/d1-cases/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "node": {
+  "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+  "version": "v20.19.0"
+ },
+ "cc": {
+  "path": "/usr/bin/cc",
+  "flags": [
+   "-std=c11",
+   "-O2",
+   "-fno-fast-math",
+   "-ffp-contract=off"
+  ],
+  "defaultFlags": [
+   "-O2"
+  ],
+  "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+ },
+ "scrubbedEnvironment": [],
+ "tactics": {
+  "source": "--print-policy",
+  "ids": [
+   "dead-code-elimination",
+   "constant-folding",
+   "inlining",
+   "loop-unrolling",
+   "scalar-replacement",
+   "call-specialization",
+   "helper-sharing",
+   "target-compaction",
+   "statement-spellings",
+   "declaration-order",
+   "receiver-aliases",
+   "identifier-mangling",
+   "property-mangling",
+   "string-pooling",
+   "string-array-packing",
+   "startup-reconstruction",
+   "recurring-reconstruction",
+   "naming-search",
+   "naming-compaction",
+   "representation-joints",
+   "naming-alphabet"
+  ]
+ },
+ "ledger": {
+  "path": "tests/cases/expected-failures.json",
+  "sha256": "c50963edf6d726fce305fd39ffa7ce1b6e297dba30312e2d7535b9f0a9c260f0",
+  "entries": 8
+ },
+ "masks": [
+  {
+   "id": "host-prelude",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "a .host.js prelude defines externs in a JavaScript realm",
+   "lifts": null
+  },
+  {
+   "id": "module-probe",
+   "targets": [
+    "module",
+    "cjs"
+   ],
+   "why": "a .module-probe.mjs reads the library export surface",
+   "lifts": null
+  },
+  {
+   "id": "JsValue",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: JsValue is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "import extern",
+   "targets": [
+    "module"
+   ],
+   "why": "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports",
+   "lifts": null
+  },
+  {
+   "id": "extern",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: C rejects host declarations",
+   "lifts": "M11.3 (externs per target)"
+  },
+  {
+   "id": "export",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "the entry's exports are a module ABI; C has none yet",
+   "lifts": "M11.8 (a C library ABI)"
+  },
+  {
+   "id": "JS namespace",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: C rejects the JS.* operations",
+   "lifts": null
+  },
+  {
+   "id": "async",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects async functions and tasks",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "exceptions",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects exceptions",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "Regex",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects Regex",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "generator",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects generators",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "object literal",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: object {} is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "JSON.parse",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: JSON.parse returns JsValue",
+   "lifts": null
+  }
+ ],
+ "lanes": [
+  {
+   "id": "production/raw/script",
+   "mode": "production",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 13\n\n",
+   "policyFingerprint": "6cca141b808068511aa4ede1622f4ad29113ff461184b092fba7beca5f169409",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/raw/module",
+   "mode": "production",
+   "codec": "raw",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 13\n\n",
+   "policyFingerprint": "6bcd64892aaf6a3ae130f1b2fcfa2520567efc9667f6e70061cad7c5524bc16e",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/raw/cjs",
+   "mode": "production",
+   "codec": "raw",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 13\n\n",
+   "policyFingerprint": "507447eb8d2abc62a79a2870ac17d196a4f0fbcaf8ab716bc404a87e5e909b69",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/raw/bare",
+   "mode": "production",
+   "codec": "raw",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 13\n\n",
+   "policyFingerprint": "a85166b2d168c4f055b48b34686c78a585f3cf8d5e0ffd292210e4e6de95a67b",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  }
+ ],
+ "cases": [
+  {
+   "id": "cases/09_closure_capture",
+   "digest": "9ff828bc5d28809683b135873b08b9588361215a88d9801744c3e74aa4a2504b",
+   "features": []
+  },
+  {
+   "id": "cases/nominal/export_constructor_boundary",
+   "digest": "a9319d6559e7f7c0d71f582fecd0c83ca4514576ce579df0729dc9806665666d",
+   "features": [
+    "module-probe",
+    "export"
+   ]
+  },
+  {
+   "id": "cases/regressions/compiler-cyclic_imports_observe_live_export_updates",
+   "digest": "fe505e8152e14452c1f7012d1f444161d1209fd03a5a1d5c9d8fb8a39663343f",
+   "features": [
+    "export"
+   ]
+  }
+ ],
+ "summary": {
+  "production/raw/script": {
+   "cases": 3,
+   "pass": 2,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 87,
+   "rawTotal": 87
+  },
+  "production/raw/module": {
+   "cases": 3,
+   "pass": 3,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 541,
+   "rawTotal": 541
+  },
+  "production/raw/cjs": {
+   "cases": 3,
+   "pass": 3,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 1014,
+   "rawTotal": 1014
+  },
+  "production/raw/bare": {
+   "cases": 3,
+   "pass": 2,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 65,
+   "rawTotal": 65
+  }
+ },
+ "unexpected": 0,
+ "staleLedgerEntries": [],
+ "narrowableLedgerEntries": [],
+ "unknownLedgerCases": [],
+ "results": [
+  {
+   "case": "cases/09_closure_capture",
+   "lane": "production/raw/script",
+   "compileMs": 11,
+   "artifact": {
+    "path": "lanes/production_raw_script/cases/09_closure_capture.js",
+    "bytes": 27,
+    "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75",
+    "raw": 27,
+    "gzip9": 47,
+    "brotli11": 31
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 0,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 1,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 2,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 3,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 4,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 5,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 6,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 7,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 8,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 9,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 10,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 11,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     },
+     {
+      "level": 12,
+      "size": 27,
+      "sha256": "b9d2015d6edf3f69911c61ece6b441627ff73499992396eaab2128eba74cfb75"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/09_closure_capture",
+   "lane": "production/raw/module",
+   "compileMs": 14,
+   "artifact": {
+    "path": "lanes/production_raw_module/cases/09_closure_capture.mjs",
+    "bytes": 16,
+    "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0",
+    "raw": 16,
+    "gzip9": 36,
+    "brotli11": 20
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 0,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 1,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 2,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 3,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 4,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 5,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 6,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 7,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 8,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 9,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 10,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 11,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 12,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/09_closure_capture",
+   "lane": "production/raw/cjs",
+   "compileMs": 14,
+   "artifact": {
+    "path": "lanes/production_raw_cjs/cases/09_closure_capture.cjs",
+    "bytes": 79,
+    "sha256": "4685c350e76221126b021fd1027883a9674936e47cc115b3ca09175a37cba32b",
+    "raw": 79,
+    "gzip9": 97,
+    "brotli11": 65
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 0,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 1,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 2,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 3,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 4,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 5,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 6,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 7,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 8,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 9,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 10,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 11,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     },
+     {
+      "level": 12,
+      "size": 79,
+      "sha256": "7ca215cb5b194fdefdf28b81bc790cac903b425a0015c9bd83e9d7d6afc94578"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/09_closure_capture",
+   "lane": "production/raw/bare",
+   "compileMs": 10,
+   "artifact": {
+    "path": "lanes/production_raw_bare/cases/09_closure_capture.js",
+    "bytes": 16,
+    "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0",
+    "raw": 16,
+    "gzip9": 36,
+    "brotli11": 20
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 0,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 1,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 2,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 3,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 4,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 5,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 6,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 7,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 8,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 9,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 10,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 11,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     },
+     {
+      "level": 12,
+      "size": 16,
+      "sha256": "5b5131ac0a698c05aa1f838225d3efd5de4d08d9f19b3d17f4bfdcbfd80437f0"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/nominal/export_constructor_boundary",
+   "lane": "production/raw/script",
+   "state": "masked",
+   "features": [
+    "module-probe"
+   ]
+  },
+  {
+   "case": "cases/nominal/export_constructor_boundary",
+   "lane": "production/raw/module",
+   "compileMs": 58,
+   "artifact": {
+    "path": "lanes/production_raw_module/cases/nominal/export_constructor_boundary.mjs",
+    "bytes": 444,
+    "sha256": "544bb6c8c6382c392f1f2f75c5e4da3854b2049b701fb73de6e2926be4eed37c",
+    "raw": 444,
+    "gzip9": 262,
+    "brotli11": 226
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 202,
+    "judged": 28,
+    "pruned": 21,
+    "passes": 7,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 459,
+      "sha256": "e8709cbbab2c2d79af08b919cff4c353b68ed29cb63f59fcce33de683ea2b1d5"
+     },
+     {
+      "level": 1,
+      "size": 459,
+      "sha256": "e8709cbbab2c2d79af08b919cff4c353b68ed29cb63f59fcce33de683ea2b1d5"
+     },
+     {
+      "level": 2,
+      "size": 459,
+      "sha256": "e8709cbbab2c2d79af08b919cff4c353b68ed29cb63f59fcce33de683ea2b1d5"
+     },
+     {
+      "level": 3,
+      "size": 459,
+      "sha256": "e8709cbbab2c2d79af08b919cff4c353b68ed29cb63f59fcce33de683ea2b1d5"
+     },
+     {
+      "level": 4,
+      "size": 459,
+      "sha256": "e8709cbbab2c2d79af08b919cff4c353b68ed29cb63f59fcce33de683ea2b1d5"
+     },
+     {
+      "level": 5,
+      "size": 445,
+      "sha256": "0503f3ebe1d48b685bf48f8491ea1fd679468ae510a89251eb86b1a014235a2e"
+     },
+     {
+      "level": 6,
+      "size": 445,
+      "sha256": "0503f3ebe1d48b685bf48f8491ea1fd679468ae510a89251eb86b1a014235a2e"
+     },
+     {
+      "level": 7,
+      "size": 445,
+      "sha256": "0503f3ebe1d48b685bf48f8491ea1fd679468ae510a89251eb86b1a014235a2e"
+     },
+     {
+      "level": 8,
+      "size": 445,
+      "sha256": "0503f3ebe1d48b685bf48f8491ea1fd679468ae510a89251eb86b1a014235a2e"
+     },
+     {
+      "level": 9,
+      "size": 445,
+      "sha256": "0503f3ebe1d48b685bf48f8491ea1fd679468ae510a89251eb86b1a014235a2e"
+     },
+     {
+      "level": 10,
+      "size": 445,
+      "sha256": "0503f3ebe1d48b685bf48f8491ea1fd679468ae510a89251eb86b1a014235a2e"
+     },
+     {
+      "level": 11,
+      "size": 445,
+      "sha256": "0503f3ebe1d48b685bf48f8491ea1fd679468ae510a89251eb86b1a014235a2e"
+     },
+     {
+      "level": 12,
+      "size": 445,
+      "sha256": "0503f3ebe1d48b685bf48f8491ea1fd679468ae510a89251eb86b1a014235a2e"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/nominal/export_constructor_boundary",
+   "lane": "production/raw/cjs",
+   "compileMs": 48,
+   "artifact": {
+    "path": "lanes/production_raw_cjs/cases/nominal/export_constructor_boundary.cjs",
+    "bytes": 701,
+    "sha256": "2040e535d79b9bb336be9749cfaf9d007d2c85fa7df47509d6276b562d30af83",
+    "raw": 701,
+    "gzip9": 348,
+    "brotli11": 295
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 202,
+    "judged": 22,
+    "pruned": 21,
+    "passes": 7,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 1,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 2,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 3,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 4,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 5,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 6,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 7,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 8,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 9,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 10,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 11,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     },
+     {
+      "level": 12,
+      "size": 702,
+      "sha256": "de0a00a294e1aabac7fdcbf945124deb271294bfad01588323c2c51d51de4b28"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/nominal/export_constructor_boundary",
+   "lane": "production/raw/bare",
+   "state": "masked",
+   "features": [
+    "module-probe"
+   ]
+  },
+  {
+   "case": "cases/regressions/compiler-cyclic_imports_observe_live_export_updates",
+   "lane": "production/raw/script",
+   "compileMs": 20,
+   "artifact": {
+    "path": "lanes/production_raw_script/cases/regressions/compiler-cyclic_imports_observe_live_export_updates.js",
+    "bytes": 60,
+    "sha256": "baba933001a84c9424b57ecd0fc89fa8e9247eb090fd24295918ff06652b4d31",
+    "raw": 60,
+    "gzip9": 77,
+    "brotli11": 47
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 88,
+    "judged": 9,
+    "pruned": 3,
+    "passes": 4,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 1,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 2,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 3,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 4,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 5,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 6,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 7,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 8,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 9,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 10,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 11,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     },
+     {
+      "level": 12,
+      "size": 60,
+      "sha256": "f2cd0dfe9f28af30764ff3f6dd1fe726cdb1b0a8d2d50b5f1ae6a91408dc9e48"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-cyclic_imports_observe_live_export_updates",
+   "lane": "production/raw/module",
+   "compileMs": 17,
+   "artifact": {
+    "path": "lanes/production_raw_module/cases/regressions/compiler-cyclic_imports_observe_live_export_updates.mjs",
+    "bytes": 81,
+    "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f",
+    "raw": 81,
+    "gzip9": 95,
+    "brotli11": 73
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 172,
+    "judged": 4,
+    "pruned": 6,
+    "passes": 7,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 85,
+      "sha256": "15a5a91a1781aaac3329e9030031646a4eb6e5a7a5dbd47aded89a1c068bda11"
+     },
+     {
+      "level": 1,
+      "size": 85,
+      "sha256": "15a5a91a1781aaac3329e9030031646a4eb6e5a7a5dbd47aded89a1c068bda11"
+     },
+     {
+      "level": 2,
+      "size": 85,
+      "sha256": "15a5a91a1781aaac3329e9030031646a4eb6e5a7a5dbd47aded89a1c068bda11"
+     },
+     {
+      "level": 3,
+      "size": 85,
+      "sha256": "15a5a91a1781aaac3329e9030031646a4eb6e5a7a5dbd47aded89a1c068bda11"
+     },
+     {
+      "level": 4,
+      "size": 85,
+      "sha256": "15a5a91a1781aaac3329e9030031646a4eb6e5a7a5dbd47aded89a1c068bda11"
+     },
+     {
+      "level": 5,
+      "size": 81,
+      "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f"
+     },
+     {
+      "level": 6,
+      "size": 81,
+      "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f"
+     },
+     {
+      "level": 7,
+      "size": 81,
+      "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f"
+     },
+     {
+      "level": 8,
+      "size": 81,
+      "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f"
+     },
+     {
+      "level": 9,
+      "size": 81,
+      "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f"
+     },
+     {
+      "level": 10,
+      "size": 81,
+      "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f"
+     },
+     {
+      "level": 11,
+      "size": 81,
+      "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f"
+     },
+     {
+      "level": 12,
+      "size": 81,
+      "sha256": "70afc8bf59fe7c21e2206abf58db656d25244fe2e02205ed2366e22963292f8f"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-cyclic_imports_observe_live_export_updates",
+   "lane": "production/raw/cjs",
+   "compileMs": 23,
+   "artifact": {
+    "path": "lanes/production_raw_cjs/cases/regressions/compiler-cyclic_imports_observe_live_export_updates.cjs",
+    "bytes": 234,
+    "sha256": "cccfc7d475551873313496671e87786f3c9f0b698e18b1e7e23bc53c913b9223",
+    "raw": 234,
+    "gzip9": 173,
+    "brotli11": 157
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 88,
+    "judged": 9,
+    "pruned": 9,
+    "passes": 4,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 1,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 2,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 3,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 4,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 5,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 6,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 7,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 8,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 9,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 10,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 11,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     },
+     {
+      "level": 12,
+      "size": 234,
+      "sha256": "0322de9bb73493880d69fac642914d0e80ecd4464121d3c38ebae2e3df05e016"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-cyclic_imports_observe_live_export_updates",
+   "lane": "production/raw/bare",
+   "compileMs": 20,
+   "artifact": {
+    "path": "lanes/production_raw_bare/cases/regressions/compiler-cyclic_imports_observe_live_export_updates.js",
+    "bytes": 49,
+    "sha256": "42b45623635265fad4f29630ad4063bcec98380654b5571e1ce5b2b380c8aa19",
+    "raw": 49,
+    "gzip9": 69,
+    "brotli11": 53
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 88,
+    "judged": 9,
+    "pruned": 3,
+    "passes": 4,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 1,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 2,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 3,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 4,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 5,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 6,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 7,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 8,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 9,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 10,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 11,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     },
+     {
+      "level": 12,
+      "size": 49,
+      "sha256": "d81227b5ecc8db879f4f26e4600a99ce17b0dc3f630ba4bc2d86403276861ddd"
+     }
+    ]
+   },
+   "state": "pass"
+  }
+ ]
+}
