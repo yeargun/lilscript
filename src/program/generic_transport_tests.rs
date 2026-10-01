@@ -129,7 +129,7 @@ fn unrelated_schemas_do_not_restrict_public_or_observed_primitive_generic_calls(
 }
 
 #[test]
-fn nominal_generic_calls_still_require_private_producers_and_closed_raw_forwarding() {
+fn nominal_generic_calls_require_private_producers_and_closed_typed_transport() {
     // Public visibility of the same body prevents its full input seal, even
     // though a separate call instantiates T as a primitive.
     reject("struct P{int x;}export T forward<T>(T value){return value;}export int scalar(){return forward(3);}export int run(){P p=P{7};P saved=forward(p);return saved.x;}",
@@ -137,7 +137,10 @@ fn nominal_generic_calls_still_require_private_producers_and_closed_raw_forwardi
     // Mere generic annotations cannot authorize an opaque or captured value
     // transport. All source calls still execute through the original ABI.
     reject("struct P{int x;}extern void observe(JsValue value);T forward<T>(T value){observe(value);return value;}export int run(){P p=P{7};P saved=forward(p);return saved.x;}",
-        "closed value forwarding");
-    reject("struct P{int x;}bool choose=true;T forward<T>(T value){if(choose){return value;}return value;}export int run(){P p=P{7};P saved=forward(p);return saved.x;}",
-        "closed value forwarding");
+        "closed typed interface");
+    let source="struct P{int x;}bool choose=true;T forward<T>(T value){if(choose){return value;}return value;}export int run(){P p=P{7};P saved=forward(p);return saved.x;}";
+    for compact in [false, true] {
+        let javascript=output(source,compact,true).unwrap();
+        assert_eq!(execute(&javascript,"","events.push(library.run());",true),json!([7]));
+    }
 }

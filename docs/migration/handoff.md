@@ -11,14 +11,19 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 host catalog batch](../../benchmarks/migration-results/2026-10-01-s4-host-catalog/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-host-catalog-1/lilscript`, SHA-256
-`a20feebf53589c898ddf56e3a6ce22e9a0252a0f164ef9b80733233857b02640`. Algorithm 33 / search 32 / walk 10 / local facts 14.
-Generic extern schemas, bundled ECMAScript/DOM modules, TOML JavaScript host
-paths and native provider symbols/sources are implemented. Six focused checks,
-the extended generic native/header check, CLI release build and real CLI provider
-link/run pass. The unchanged control remains 56 raw / 74 gzip / 57 Brotli.
-New capability oracles pass, with no old-compiler size-win or fleet/timing claim.
+The latest [S4 erased transport batch](../../benchmarks/migration-results/2026-10-01-s4-erased-transport/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-erased-transport-1/lilscript`, SHA-256
+`b0d10fdb01b8bd1517ff6681fcaae880c380f607d52ca04b02101733deea397d`.
+Algorithm 34 / search 32 / walk 10 / local facts 14. Closed private generic
+product transport supports branches, recursive helpers, private collections,
+nested products, captures and complete concrete callback inputs. Focused runtime,
+refusal and resource/reuse checks, CLI build and independent artifact oracles
+pass, including hard TOML vetoes. The existing forwarding control is unchanged
+at 50 raw / 69 gzip / 53 Brotli. Wider public opaque ABI remains open.
+
+The preceding host catalog batch implemented generic extern schemas, bundled
+ECMAScript/DOM modules, TOML host paths and native provider symbols/sources,
+including real CLI C/header/link delivery and generic managed provider values.
 
 The preceding erased-variant batch implements generic virtual calls and
 suspending/captured payloads; its matched controls retain −20 raw / +7 gzip /
@@ -31,7 +36,7 @@ selectors retain compatibility defaults until D3/V2's qualified transition.
 1. R8 erased generic dispatch and directly suspending payload arms are implemented.
    Native shapes remain N2; erased type arguments never distinguish two payload
    variants of one nominal declaration.
-2. Complete R18 wider erased generic/product/union/callable transport. R17's
+2. Complete R18 wider public erased generic/product/union/callable transport. R17's
    maintained catalog, configurable host names and callback ABI v1 providers are
    implemented; complete generated Web IDL is not claimed. Erased public generic
    shape presence still has a source diagnostic. Aliased mutable product

@@ -684,9 +684,35 @@ pub(super) fn body_for_call<A: Admission>(
     else {
         return Ok(None);
     };
+    located_value_body(program, uses, unit, data, callee, admission)
+}
+
+/// Locate the same original producer when it is transported as an argument.
+/// This grants identity only, just like `body_for_call`.
+pub(super) fn body_for_value<A: Admission>(
+    program: &Program<'_>,
+    uses: &UseIndex,
+    unit: UnitId,
+    value: ValueId,
+    admission: &mut A,
+) -> Result<Option<UnitId>, A::Error> {
+    tables(program, uses, admission)?;
+    let data = checked_unit(program, uses, unit, admission)?;
+    admission.work(1)?;
+    located_value_body(program, uses, unit, data, value, admission)
+}
+
+fn located_value_body<A: Admission>(
+    program: &Program<'_>,
+    uses: &UseIndex,
+    unit: UnitId,
+    data: &UnitData,
+    value: ValueId,
+    admission: &mut A,
+) -> Result<Option<UnitId>, A::Error> {
     let definition = data
         .values
-        .get(callee.index())
+        .get(value.index())
         .ok_or_else(|| admission.invalid("callable locator callee"))?
         .definition;
     let operation = &data.operations[definition.index()];

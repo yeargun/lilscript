@@ -256,7 +256,9 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Clause.** A type parameter is not observable at run time. With §4's collapse of `T??` into `T?`, erasure (JavaScript) and monomorphization or boxing (C) are both exact, and the native plan chooses per instantiation.
 - **Replaces.** v0.1:511-515 (its implementation note "Polymorphic functions are not inlined until…" leaves the contract).
 - **Status.** Generic functions/methods, observed classes and fixed-schema callable
-  crossings are implemented. Wider opaque generic product/union transport remains
+  crossings are implemented. Closed private product transport also supports
+  branches, recursive helpers, collections, nested products, captures and
+  concrete owned callbacks under a complete input proof. Wider public opaque generic product/union transport remains
   S4 work; native representation qualification remains N2.
 
 ---

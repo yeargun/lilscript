@@ -1,0 +1,1 @@
+let run=function(c){return([c][0]|0)+1|0};export{run};

@@ -1,0 +1,6 @@
+struct Point{int x;}
+        T apply<T>(func(T)->T f,T value){return f(value);}
+        Point increment(Point value){value.x+=2;return value;}
+        export int run(int n){Point original=Point{n};Point first=apply(increment,original);
+            Point second=apply((Point value)=>{value.x+=3;return value;},original);
+            return original.x*100+first.x*10+second.x;}

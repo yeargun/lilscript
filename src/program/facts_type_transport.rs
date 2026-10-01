@@ -9,12 +9,37 @@ pub(in crate::program) fn contains_nominal_product<'types, 'src, A: Admission>(
     pending: &mut Vec<&'types Type<'src>>,
     admission: &mut A,
 ) -> Result<bool, A::Error> {
+    contains(ty, pending, admission, false)
+}
+
+/// An abstract payload may contain a product at an original instantiation.
+/// Nominal arguments matter here even though a class itself has reference
+/// identity. This is a storage question, never a runtime-domain assertion.
+pub(in crate::program) fn contains_type_parameter<'types, 'src, A: Admission>(
+    ty: &'types Type<'src>,
+    pending: &mut Vec<&'types Type<'src>>,
+    admission: &mut A,
+) -> Result<bool, A::Error> {
+    contains(ty, pending, admission, true)
+}
+
+fn contains<'types, 'src, A: Admission>(
+    ty: &'types Type<'src>,
+    pending: &mut Vec<&'types Type<'src>>,
+    admission: &mut A,
+    parameters: bool,
+) -> Result<bool, A::Error> {
     debug_assert!(pending.is_empty());
     let mut next = Some(ty);
     while let Some(ty) = next.take().or_else(|| pending.pop()) {
         admission.work(1)?;
         match ty {
-            Type::Struct(_) | Type::StructInstance { .. } => {
+            Type::TypeParameter(_) if parameters => {
+                admission.work(pending.len())?;
+                pending.clear();
+                return Ok(true);
+            }
+            Type::Struct(_) | Type::StructInstance { .. } if !parameters => {
                 admission.work(pending.len())?;
                 pending.clear();
                 return Ok(true);
@@ -30,6 +55,15 @@ pub(in crate::program) fn contains_nominal_product<'types, 'src, A: Admission>(
                 admission.push(pending, value)?;
             }
             Type::Union(members) => {
+                for member in members {
+                    admission.push(pending, member)?;
+                }
+            }
+            Type::StructInstance { args: members, .. }
+            | Type::ClassInstance { args: members, .. }
+            | Type::Intersection(members)
+                if parameters =>
+            {
                 for member in members {
                     admission.push(pending, member)?;
                 }

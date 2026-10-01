@@ -12,10 +12,10 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 ## Next
 
-Complete **S4** under its [acceptance contract](s4-acceptance.md): wider erased
+Complete **S4** under its [acceptance contract](s4-acceptance.md): wider public erased
 product/union/callable crossings and the shared fact-consumer/removal audit.
 Identities, defaults, indexing, fields, shapes, absence, enums, payloads, generic
-sealed calls, platform catalogs and configurable host bindings are implemented;
+sealed calls, closed private generic product transport, platform catalogs and configurable host bindings are implemented;
 [history](history.md) and the [handoff](handoff.md) retain their evidence and pins.
 Then follow **Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 

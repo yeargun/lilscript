@@ -716,7 +716,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
     }
 
     /// Demand has already qualified each requested original generic body's
-    /// complete private inputs and returned origin under this source/contract.
+    /// complete private inputs and closed typed transport under this contract.
     /// Every physical context consumes that result without another body scan.
     /// A false answer is not a primitive-domain fact and does not relax the
     /// ordinary per-transfer checks below.

@@ -1,0 +1,1 @@
+let run=function(t){let a=[t],n=(function(t){let a=t[0]+2|0;t[0],t=[a];return t})(a),r=(t=>{let a=t[0]+3|0;t[0],t=[a];return t})(a);return((a[0]*100|0)+(n[0]*10|0)|0)+r[0]|0};export{run};

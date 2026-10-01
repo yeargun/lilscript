@@ -2480,13 +2480,21 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                     "generic product transport requires strict module execution",
                 ));
             }
-            match facts::returned_value_origin(self.program, uses, body, budget, |_, _, _| Ok(()))?
-            {
-                facts::ReturnedValueOrigin::Parameter { .. } => Ok(()),
-                facts::ReturnedValueOrigin::Unknown(_) => Err(unsupported(
-                    "generic product body requires closed value forwarding",
-                )),
+            // Existing forwarding evidence is a cheaper sufficient proof; it
+            // must not become a requirement on a body's control flow or result.
+            let forwarding = matches!(facts::returned_value_origin(
+                self.program, uses, body, budget, |_, _, _| Ok(()),
+            )?, facts::ReturnedValueOrigin::Parameter { .. });
+            let refusal = if forwarding { None } else { facts::closed_erased_transport(
+                self.program, uses, body, self.contract.execution, budget,
+            )? };
+            if let Some(span) = refusal {
+                return Err(DemandError::Unsupported(Unsupported {
+                    span,
+                    feature: "erased product escapes a closed typed interface",
+                }));
             }
+            Ok(())
         })();
         // The Program/UseIndex and execution contract cannot change during this
         // Demand's lifetime. Temporary proof backing is dropped before its

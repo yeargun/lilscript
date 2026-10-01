@@ -14,7 +14,11 @@ pub(super) use return_origin::{returned_value_origin, ReturnedValueOrigin};
 
 #[path = "facts_type_transport.rs"]
 mod type_transport;
-pub(super) use type_transport::contains_nominal_product;
+pub(super) use type_transport::{contains_nominal_product, contains_type_parameter};
+
+#[path = "facts_erased_transport.rs"]
+mod erased_transport;
+pub(super) use erased_transport::closed_erased_transport;
 
 #[path = "facts_domains.rs"]
 pub(super) mod domains;

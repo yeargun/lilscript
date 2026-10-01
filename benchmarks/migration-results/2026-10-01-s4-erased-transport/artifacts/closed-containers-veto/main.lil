@@ -1,0 +1,22 @@
+struct Point{int x;}
+        struct Pair<T>{T first;T second;}
+        T pick<T>(T a,T b,bool first){if(first){return a;}return b;}
+        T recurse<T>(T value,int depth){if(depth==0){return value;}return recurse(value,depth-1);}
+        T[] pair<T>(T a,T b){T[] values=[a,b];values.push(a);return values.slice(0,2);}
+        Pair<T> packed<T>(T a,T b){return Pair{a,b};}
+        func()->T saved<T>(T value){return ()=>value;}
+        int ignore<T>(T value){return 9;}
+        T? maybe<T>(T value,bool present){if(present){return value;}return null;}
+        void replace<T>(T[] values,T value){values[0]=value;}
+        T fromMap<T>(T value){Map<string,T> table=new Map<string,T>();table.set("v",value);return table.get("v")??value;}
+        export int run(int seed){
+            Point a=Point{seed};Point b=Point{seed+1};
+            Point p=pick(a,b,false);Point q=recurse(a,3);
+            Point[] values=pair(a,b);Pair<Point> box=packed(a,b);
+            auto read=saved(a);a.x=90;b.x=91;values[0].x=80;box.first.x=70;
+            Point snapshot=read();
+            Point[] copied=[q];replace(copied,p);Point absent=maybe(q,false)??p;
+            Point present=maybe(q,true)??p;Point mapped=fromMap(q);
+            return p.x+q.x+values[0].x+values[1].x+box.first.x+box.second.x+snapshot.x+ignore(a)
+                +copied[0].x+absent.x+present.x+mapped.x;
+        }

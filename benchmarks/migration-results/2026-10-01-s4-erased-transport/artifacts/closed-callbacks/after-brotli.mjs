@@ -1,0 +1,1 @@
+let run=function(a){let b=[a],c=(function(a){let b=a[0]+2|0;a[0],a=[b];return a})(b),d=(a=>{let b=a[0]+3|0;a[0],a=[b];return a})(b);return((b[0]*100|0)+(c[0]*10|0)|0)+d[0]|0};export{run};

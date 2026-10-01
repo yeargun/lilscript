@@ -223,7 +223,7 @@ fn generic_inline_occurrences_do_not_repeat_body_wide_qualification() {
 }
 
 #[test]
-fn unused_generic_constant_return_has_explicit_nominal_scope_refusal() {
+fn unused_generic_constant_return_accepts_closed_nominal_transport() {
     for nominal in [false, true] {
         let argument = if nominal {
             "P p=P{seed};return first(p);"
@@ -241,29 +241,15 @@ fn unused_generic_constant_return_has_explicit_nominal_scope_refusal() {
                 .direct_javascript(source, &policy, WorkDomain::Baseline)
                 .unwrap();
             let selected = inline(&mut compiler, direct, cell, &policy);
-            if !nominal {
-                for candidate in [direct, selected] {
-                    compiler
-                        .with_implementation_description(candidate, WorkDomain::Baseline, |_| ())
-                        .unwrap();
-                }
+            for candidate in [direct, selected] {
+                compiler
+                    .with_implementation_description(candidate, WorkDomain::Baseline, |_| ())
+                    .unwrap();
             }
             let retained = compiler.ledger().retained_bytes();
             for candidate in [direct, selected] {
                 let result = render(&mut compiler, candidate, &policy);
-                if nominal {
-                    match result {
-                        Err(CandidateError::Unsupported(error)) => assert!(
-                            error.feature.contains("closed value forwarding"),
-                            "{error:?}"
-                        ),
-                        other => {
-                            panic!("constant origin is outside this nominal proof slice: {other:?}")
-                        }
-                    }
-                } else {
-                    execute(&result.unwrap(), json!([3, 3]));
-                }
+                execute(&result.unwrap(), json!([3, 3]));
                 assert_eq!(compiler.ledger().retained_bytes(), retained);
             }
             assert_eq!(compiler.finish().retained_bytes(), 0);

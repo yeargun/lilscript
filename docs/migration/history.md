@@ -1047,3 +1047,23 @@ oracles pass without a baseline-win claim. Pin `s4-host-catalog-1`, SHA-256
 `a20feebf53589c898ddf56e3a6ce22e9a0252a0f164ef9b80733233857b02640`; algorithm 33 / search 32 / walk 10 / local facts 14.
 S4 continues with wider R18 ABI and shared consumers/removals. No full-library,
 fleet, timing or native-completion claim; no ratchet or port artifact changed.
+
+## 2026-10-01: S4 closed erased product transport
+
+The [private transport batch](../../benchmarks/migration-results/2026-10-01-s4-erased-transport/README.md)
+admits branches, recursive helpers, arrays/maps, nullable values, nested generic
+structs, captured snapshots and concrete owned callbacks. One shared admitted
+fact checks the closed typed body and helper graph; the existing forwarding
+fact remains a sufficient fast path. Neither proof grants purity, termination
+or inlining. Unknown/host egress remains refused with the source operation span.
+
+Three focused checks pass across the runtime/refusal runs; four existing
+generic/reuse checks also pass, including bounded 16/64/256-call growth. The
+release CLI and all independent artifact oracles pass. Hard TOML optimization
+vetoes preserve the capability. The matched forwarding control remains
+50 raw / 69 gzip / 53 Brotli. New container/callback capabilities are measured
+without an old-compiler win claim. Pin `s4-erased-transport-1`, SHA-256
+`b0d10fdb01b8bd1517ff6681fcaae880c380f607d52ca04b02101733deea397d`;
+algorithm 34 / search 32 / walk 10 / local facts 14. No full-suite/fleet/timing or
+native-completion claim. Public opaque crossings and shared-consumer removals
+remain S4; the sequential milestone order is unchanged.

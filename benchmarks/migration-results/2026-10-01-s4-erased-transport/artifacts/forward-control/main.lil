@@ -1,0 +1,1 @@
+struct Point{int x;}T identity<T>(T value){return value;}export int run(int n){Point p=identity(Point{n});return p.x+1;}

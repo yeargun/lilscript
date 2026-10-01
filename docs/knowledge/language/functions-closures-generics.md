@@ -31,6 +31,20 @@ arguments. Native boxes abstract parameters at generic boundaries. The compiler
 does not pretend a polymorphic body is concrete: substitution must be known before
 type-dependent inlining.
 
+Private generic bodies can transport structs through branches, recursive
+helpers, arrays, maps, nested generic structs and captured closures. The shared
+transport check follows the closed typed interface; it does not require the
+function to return one unchanged parameter. Concrete owned callback arguments
+are admitted when the complete call set proves their origin. The check grants
+neither purity nor permission to inline, and optional optimization vetoes do not
+disable this language support.
+
+An abstract value that could contain a struct still cannot escape through
+`JsValue`, `unknown`, unqualified host storage or an unknown callable. Such a
+crossing needs a concrete public codec: exposing the private product backing
+would break value snapshots. Public opaque generic crossings and aliased mutable
+host collections remain migration work.
+
 ## Optimization contracts
 
 - Interprocedural effects decide whether an unused call may disappear; `pure` is a

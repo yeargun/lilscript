@@ -5,6 +5,87 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+#[test]
+fn s4_erased_transport_preserves_branch_collection_nested_and_recursive_values() {
+    let source=r#"
+        struct Point{int x;}
+        struct Pair<T>{T first;T second;}
+        T pick<T>(T a,T b,bool first){if(first){return a;}return b;}
+        T recurse<T>(T value,int depth){if(depth==0){return value;}return recurse(value,depth-1);}
+        T[] pair<T>(T a,T b){T[] values=[a,b];values.push(a);return values.slice(0,2);}
+        Pair<T> packed<T>(T a,T b){return Pair{a,b};}
+        func()->T saved<T>(T value){return ()=>value;}
+        int ignore<T>(T value){return 9;}
+        T? maybe<T>(T value,bool present){if(present){return value;}return null;}
+        void replace<T>(T[] values,T value){values[0]=value;}
+        T fromMap<T>(T value){Map<string,T> table=new Map<string,T>();table.set("v",value);return table.get("v")??value;}
+        int run(int seed){
+            Point a=Point{seed};Point b=Point{seed+1};
+            Point p=pick(a,b,false);Point q=recurse(a,3);
+            Point[] values=pair(a,b);Pair<Point> box=packed(a,b);
+            auto read=saved(a);a.x=90;b.x=91;values[0].x=80;box.first.x=70;
+            Point snapshot=read();
+            Point[] copied=[q];replace(copied,p);Point absent=maybe(q,false)??p;
+            Point present=maybe(q,true)??p;Point mapped=fromMap(q);
+            return p.x+q.x+values[0].x+values[1].x+box.first.x+box.second.x+snapshot.x+ignore(a)
+                +copied[0].x+absent.x+present.x+mapped.x;
+        }
+        print(run(3));print(run(10));
+    "#;
+    for effort in [0,13] {
+        let mut settings=config("");settings.effort.level=effort;
+        let compiled=compile_source(source,&settings,ServiceOptions {
+            objectives:Some(Objectives::All),..ServiceOptions::default()
+        }).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(compiled.javascript(codec).unwrap().javascript(),"",""),"191\n254\n");
+        }
+        check_scores(&compiled);
+    }
+}
+
+#[test]
+fn s4_erased_transport_refuses_opaque_egress_and_reports_the_source_operation() {
+    for body in [
+        "observe(value);return value;",
+        "JsValue hidden=value;observe(hidden);return value;",
+        "unknown hidden=value;observe(hidden as JsValue);return value;",
+        "auto bad=()=>{observe(value);};bad();return value;",
+        "return JS.assume(input);",
+        "if(flag){observe(value);}return value;",
+    ] {
+        let source=format!("struct Point{{int x;}}extern void observe(JsValue value);extern JsValue input;extern bool flag;T relay<T>(T value){{{body}}}Point p=relay(Point{{7}});print(p.x);");
+        let mut settings=config("");settings.effort.level=0;
+        let error=compile_source(&source,&settings,ServiceOptions::default()).unwrap_err();
+        assert!(error.to_string().contains("closed typed interface"),"{error}\n{source}");
+        // The refusal identifies the operation in the source generic body,
+        // rather than a synthesized operation at the beginning of the file.
+        assert!(!format!("{error:?}").contains("Span { start: 0, end: 0 }"),"{error:?}");
+    }
+}
+
+#[test]
+fn s4_erased_transport_uses_complete_concrete_callback_inputs() {
+    let source=r#"
+        struct Point{int x;}
+        T apply<T>(func(T)->T f,T value){return f(value);}
+        Point increment(Point value){value.x+=2;return value;}
+        export int run(int n){Point original=Point{n};Point first=apply(increment,original);
+            Point second=apply((Point value)=>{value.x+=3;return value;},original);
+            return original.x*100+first.x*10+second.x;}
+    "#;
+    for effort in [0,13] {
+        let mut settings=config("");settings.effort.level=effort;
+        let compiled=compile_source(source,&settings,ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(compiled.javascript(codec).unwrap().javascript(),"","console.log(library.run(4));console.log(library.run(8));"),"467\n911\n");
+        }
+    }
+    let source="struct Point{int x;}extern Point host(Point value);T apply<T>(func(T)->T f,T value){return f(value);}Point p=apply(host,Point{7});print(p.x);";
+    let mut settings=config("");settings.effort.level=0;
+    assert!(compile_source(source,&settings,ServiceOptions::default()).is_err());
+}
+
 fn config(extra: &str) -> ProjectConfig {
     toml::from_str(&format!(
         "objective.codecs='brotli'\n[javascript]\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
