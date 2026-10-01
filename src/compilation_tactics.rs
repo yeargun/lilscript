@@ -204,8 +204,8 @@ declare_tactics! {
         analysis: A::NamesAndBoundary, default: D::On,
         producers: &[P::JavaScriptFormation, P::OutputFamilies], prerequisites: &[TacticId::TargetCompaction], risks: &[R::Neutral],
         invalidates: &[I::TargetHead, I::Names, I::RenderedFiles],
-        purpose: "Try coherent short names for proved private fields, including reuse across unrelated types.",
-        tradeoffs: "Requires observation and inheritance proofs and extra formation/judgments. Preserved or reflected keys keep their names. Independent of lexical mangling; off vetoes cached and direct assignments too."
+        purpose: "Try coherent short names for proved private fields, including generics and reuse across sibling or unrelated types.",
+        tradeoffs: "Requires observation and inheritance proofs and extra formation/judgments; adds no runtime work. Kept classes require pristine builtins and cannot declare __proto__. Reflected, external and published families keep their keys. Independent of lexical mangling; off vetoes cached and direct assignments too."
     },
     StringPooling {
         name: "string-pooling", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,

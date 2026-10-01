@@ -1,0 +1,1 @@
+(()=>{let a=class Box{constructor(d){this.hiddenAmount=0;this.hiddenOffset=7;this.hiddenAmount=d}},b=e=>{let f=new a(e);if(f instanceof a){f.hiddenAmount=f.hiddenAmount+f.hiddenOffset|0;return f.hiddenAmount*3|0}return-1};for(let c=0;c<4;++c)console.log(b(input()));})();

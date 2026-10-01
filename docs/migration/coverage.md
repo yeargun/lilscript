@@ -66,7 +66,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M9.2 | [Q3](plan.md#q3) | gzip's own prior row |
 | M9.3 | [G3](plan.md#g3) | per-site spellings |
 | M9.5 | [G1](plan.md#g1), complete | Live printed-order allocation, independent local/root frequency, hygienic reuse, full continuations and controlled joint alphabets |
-| M9.6 | [G2](plan.md#g2) | Property names |
+| M9.6 | [G2](plan.md#g2) | Complete in G2: private generic/observed eligibility, inherited/sibling slot reuse and reflected boundaries |
 | M9.7 | [Q1](plan.md#q1), complete | Record/product/call layouts use the common family contract with typed proof payloads and compatible recipe combinations |
 | M9.8 | [Q4](plan.md#q4) | the rest, after M10.3 |
 | M9.9 | [S3](plan.md#s3), complete | Constant signatures, alpha-equivalent bodies and opt-in parameterized helpers compete on final bytes |
@@ -142,7 +142,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M4 / M10 | [S4](plan.md#s4) | generic methods; |
 | M4 / M10 | [S4](plan.md#s4) | an explicit `JS.undefined()` argument; |
 | M4 / M10 | [S4](plan.md#s4) | a detached `charCodeAt`. |
-| M10.14 | [G2](plan.md#g2) | the two wrapper-name cases, rewritten to the reflected-set contract. |
+| M10.14 | [G2](plan.md#g2) | Complete in G2: both wrapper-name cases explicitly select name preservation and expect anonymous adapters. |
 | M12.2 | [D3](plan.md#d3) | the nominal rename reverts (`~/lilscript-work/portwork/nominal/`); |
 | M12.2 | [D3](plan.md#d3) | mobxlil's development bundle and its host globals; |
 | M12.2 | [D3](plan.md#d3) | four site receipts. |

@@ -1,0 +1,1 @@
+(()=>{let a=class Box{constructor(d){this.a=0;this.b=7;this.a=d}},b=e=>{let f=new a(e);if(f instanceof a){f.a=f.a+f.b|0;return f.a*3|0}return-1};for(let c=0;c<4;++c)console.log(b(input()));})();

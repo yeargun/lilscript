@@ -1,0 +1,1 @@
+class Box<T>{T hiddenPayload;init(T value){this.hiddenPayload=value;}}export int compute(int n){Box<int> b=new Box<int>(n);b.hiddenPayload+=7;return b.hiddenPayload*3;}export Box<int> expose(){return new Box<int>(23);}

@@ -7,16 +7,16 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is next**.
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is next**.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Implement **G2**: complete private property eligibility for observed and generic
-classes, safe name reuse and reflected boundary coverage. Build on Q1's family
-contract and G1's qualified allocator. Its [evidence](../../benchmarks/migration-results/2026-10-01-g1-complete/README.md)
-and [handoff](handoff.md) identify the retained compiler and the existing record
-fact/type refusal assigned to S4.
+Implement **G3**: per-site JavaScript spellings, safe declaration/locality choices,
+receiver aliases and structural printing. G2's
+[evidence](../../benchmarks/migration-results/2026-10-01-g2-complete/README.md)
+and [handoff](handoff.md) pin the completed compiler. S4 retains the existing
+record fact/type refusal.
 
 The owner requests substantial implementation batches followed by focused
 checks that answer a correctness or size question. Do not restart the deferred
@@ -35,7 +35,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
 | [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
 | [x] | [G1](plan.md#g1) Lexical names | Live printed-order/frequency allocation, full continuations, final-byte ties and replay controls complete; optional compaction is automatic at 14 |
-| [~] | [G2](plan.md#g2) Property names | Broader observed/generic eligibility, field ordering and held-out calibration; private-field renaming/reuse is qualified |
+| [x] | [G2](plan.md#g2) Property names | Private generic/observed eligibility, inherited/sibling slot reuse, reflected boundaries and adapter-name fixtures complete |
 | [~] | [G3](plan.md#g3) JS generation | Per-site spellings, ordering/locality and printer cleanup |
 | [x] | [Q1](plan.md#q1) Choices | Common source/target family contract, per-site call choices, bounded joint moves and replay permissions complete |
 | [~] | [Q2](plan.md#q2) Reuse | Dirty scheduling, incremental formation, persistent reuse and resource completion |

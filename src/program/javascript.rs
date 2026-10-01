@@ -619,7 +619,7 @@ fn form_head(
         }
     } else { super::physical_storage::StorageProofs::default() };
     let private_fields =
-        super::private_fields::Plan::new(program, preserved_properties, &mut phase)?;
+        super::private_fields::Plan::new(program, preserved_properties, contract.assumptions.pristine_builtins, &mut phase)?;
     let mut records = phase.vector(AllocationClass::Scratch, demand.records().len())?;
     for family in demand.records() {
         phase.work(WorkKind::Render, 1)?;

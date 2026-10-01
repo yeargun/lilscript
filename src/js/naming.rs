@@ -22,7 +22,7 @@ pub struct Alphabet([u8; 54]);
 
 impl Default for Alphabet {
     fn default() -> Self {
-        Self(*b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_")
+        Self(*crate::identifier_names::ALPHABET)
     }
 }
 
@@ -1014,20 +1014,8 @@ impl Names {
 #[path = "naming_allocation_tests.rs"]
 mod allocation_tests;
 
-/// Bijective shortlex lengths with a 54-character initial alphabet and, in
-/// the compact alternative, 64 continuation characters. Little-endian order
-/// preserves the existing first two alphabetic positions.
-fn encode_name(mut index: usize, alphabet: Alphabet, compact: bool, bytes: &mut [u8]) -> usize {
-    let mut length = 0;
-    loop {
-        let radix = if compact && length != 0 { 64 } else { 54 };
-        let digit = index % radix;
-        bytes[length] = if digit < 54 { alphabet.0[digit] } else { b'0' + (digit - 54) as u8 };
-        length += 1;
-        index /= radix;
-        if index == 0 { return length; }
-        index -= 1;
-    }
+fn encode_name(index: usize, alphabet: Alphabet, compact: bool, bytes: &mut [u8]) -> usize {
+    crate::identifier_names::encode(index, &alphabet.0, compact, bytes)
 }
 
 #[path = "naming_order.rs"]

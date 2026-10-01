@@ -1,0 +1,1 @@
+let a=(b,c)=>{b.hiddenPayload=c},compute=function(d){let f={hiddenPayload:null};a(f,d);f.hiddenPayload=f.hiddenPayload+7|0;return f.hiddenPayload*3|0},expose=function(){let g={hiddenPayload:null};a(g,23);return g};export{compute,expose};

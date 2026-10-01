@@ -26,6 +26,7 @@ pub enum ChoiceFamily {
     ParameterizedHelpers,
     DataEncoding,
     NameAllocation,
+    PropertyNames,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +34,7 @@ pub enum Stage {
     SourceRecipe,
     TargetSite,
     Naming,
+    TargetHead,
 }
 
 /// Metadata shared by discovery, explicit assignments and replay admission.
@@ -76,7 +78,7 @@ impl FamilySpec {
     }
 }
 impl ChoiceFamily {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::RecordLayout,
         Self::ProductLayout,
         Self::InlineBody,
@@ -89,6 +91,7 @@ impl ChoiceFamily {
         Self::ParameterizedHelpers,
         Self::DataEncoding,
         Self::NameAllocation,
+        Self::PropertyNames,
     ];
     pub const fn spec(self) -> FamilySpec {
         use ChoiceFamily as F;
@@ -133,6 +136,7 @@ impl ChoiceFamily {
                 RuntimeRisk::Recurring,
                 2,
             ),
+            F::PropertyNames => (Stage::TargetHead, T::PropertyMangling, RuntimeRisk::Neutral, 2),
             F::NameAllocation => (Stage::Naming, T::NamingCompaction, RuntimeRisk::Neutral, 2),
             F::DataEncoding => (
                 Stage::TargetSite,

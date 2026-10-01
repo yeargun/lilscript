@@ -1,4 +1,4 @@
-//! A coherent field-name assignment for unobserved private object layouts.
+//! A coherent field-name assignment for proved private object layouts.
 //! Identity, never an emitted spelling, joins a construction and its accesses.
 use super::*;
 use crate::compilation_policy::WorkKind;
@@ -10,8 +10,6 @@ struct Class {
     blocked: bool,
     base: Option<usize>,
     fields: usize,
-    inherited: usize,
-    first: usize,
 }
 
 pub(super) struct Plan {
@@ -49,6 +47,7 @@ impl Plan {
     pub(super) fn new(
         program: &Program<'_>,
         preserved: &[String],
+        pristine: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, AllocationError> {
         budget.work(WorkKind::Analysis, program.classes.len() as u64)?;
@@ -66,13 +65,23 @@ impl Plan {
         }
         for definition in program.classes.iter() {
             budget.work(WorkKind::Analysis, 1)?;
+            // Kept classes initialize through assignments. Without the explicit
+            // pristine contract an inherited setter could observe their keys.
+            // Even pristine Object.prototype has the __proto__ setter.
+            let mut prototype_observable = definition.observed && !pristine;
+            if definition.observed && pristine {
+                for &(key, _) in &definition.fields {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    prototype_observable |=
+                        program.strings[key.index()].as_unicode() == Some("__proto__");
+                }
+            }
             classes[definition.identity.index()] = Class {
                 present: true,
                 blocked: definition.external
                     || definition.reflected
-                    || definition.observed
-                    || definition.published
-                    || !definition.type_params.is_empty(),
+                    || prototype_observable
+                    || definition.published,
                 base: definition.base.map(|base| base.index()),
                 fields: definition.fields.len(),
                 ..Class::default()
@@ -96,7 +105,7 @@ impl Plan {
             let root = root(&mut parents, index, budget)?;
             blocked[root] |= classes[index].blocked;
         }
-        let mut next = budget.filled(Scratch, count, 0usize)?;
+        let mut width = 0usize;
         for index in 0..count {
             budget.work(WorkKind::Analysis, 1)?;
             let root = parents[index];
@@ -104,28 +113,21 @@ impl Plan {
             if !classes[index].present || blocked[root] {
                 continue;
             }
-            // Extern layouts keep only their own fields. Only an eligible
-            // internal family has the flattened, base-first slot convention.
+            // Flattened, base-first slots are the interference relation:
+            // ancestors coexist on an instance; sibling-only fields do not.
+            // The checked field identity still selects each access's slot.
             if let Some(base) = classes[index].base {
                 if classes[index].fields < classes[base].fields {
                     return Err(AllocationError::Capacity);
                 }
-                classes[index].inherited = classes[base].fields;
             }
-            // Siblings reserve distinct slots; unrelated families reuse them.
-            // This order depends only on checked identities, not allocation or
-            // traversal order in a particular target representation.
-            classes[index].first = next[root];
-            next[root] = next[root]
-                .checked_add(classes[index].fields - classes[index].inherited)
-                .ok_or(AllocationError::Capacity)?;
+            width = width.max(classes[index].fields);
         }
         let mut ordinals = Vec::new();
         if !preserved.is_empty() {
-            let count = next.iter().copied().max().unwrap_or(0);
-            ordinals = budget.vector(Scratch, count)?;
+            ordinals = budget.vector(Scratch, width)?;
             let mut ordinal = 0usize;
-            while ordinals.len() != count {
+            while ordinals.len() != width {
                 let mut bytes = [0; usize::BITS as usize];
                 let spelling = spelling_bytes(ordinal, &mut bytes);
                 let mut reserved = false;
@@ -141,7 +143,6 @@ impl Plan {
         }
         discard(parents, budget)?;
         discard(blocked, budget)?;
-        discard(next, budget)?;
         Ok(Self { classes, ordinals })
     }
 
@@ -150,32 +151,23 @@ impl Plan {
         field: FieldRef,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Option<usize>, AllocationError> {
-        let mut owner = field.nominal.index();
+        budget.work(WorkKind::Analysis, 1)?;
         let slot = field.slot as usize;
-        for _ in 0..self.classes.len() {
-            budget.work(WorkKind::Analysis, 1)?;
-            let class = self
-                .classes
-                .get(owner)
-                .filter(|c| c.present && slot < c.fields)
-                .ok_or(AllocationError::Capacity)?;
-            if class.blocked {
-                return Ok(None);
+        let class = self
+            .classes
+            .get(field.nominal.index())
+            .filter(|class| class.present && slot < class.fields)
+            .ok_or(AllocationError::Capacity)?;
+        Ok((!class.blocked).then(|| {
+            if self.ordinals.is_empty() {
+                slot
+            } else {
+                self.ordinals[slot]
             }
-            if slot >= class.inherited {
-                let slot = class.first + (slot - class.inherited);
-                return Ok(Some(if self.ordinals.is_empty() {
-                    slot
-                } else {
-                    self.ordinals[slot]
-                }));
-            }
-            owner = class.base.ok_or(AllocationError::Capacity)?;
-        }
-        Err(AllocationError::Capacity)
+        }))
     }
 
-    /// The same base54 sequence as the lexical allocator. Property keys may
+    /// Full legal identifier continuations, shared with lexical compaction. Keys may
     /// be keywords, and constructors create these as own data properties.
     pub(super) fn spelling(
         slot: usize,
@@ -191,18 +183,9 @@ impl Plan {
     }
 }
 
-fn spelling_bytes(mut slot: usize, bytes: &mut [u8; usize::BITS as usize]) -> &[u8] {
-    const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
-    let mut length = 0;
-    loop {
-        bytes[length] = ALPHABET[slot % ALPHABET.len()];
-        length += 1;
-        slot /= ALPHABET.len();
-        if slot == 0 {
-            break;
-        }
-        slot -= 1;
-    }
+fn spelling_bytes(slot: usize, bytes: &mut [u8; usize::BITS as usize]) -> &[u8] {
+    let length =
+        crate::identifier_names::encode(slot, crate::identifier_names::ALPHABET, true, bytes);
     &bytes[..length]
 }
 

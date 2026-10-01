@@ -1,0 +1,1 @@
+(()=>{let c=(d,e)=>{d.hiddenPayload=e},a=f=>{let h={hiddenPayload:null};c(h,f);h.hiddenPayload=h.hiddenPayload+7|0;return h.hiddenPayload*3|0};for(let b=0;b<4;++b)console.log(a(input()));})();

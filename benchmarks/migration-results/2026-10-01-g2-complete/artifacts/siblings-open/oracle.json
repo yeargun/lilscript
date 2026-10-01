@@ -1,0 +1,1 @@
+{"inputs":[-11,0,7,31],"expected":[496,672,784,1168],"shape":{"sharedValue":2,"privateCount":16,"privateOffset":17,"privateScale":18,"privateLimit":19}}

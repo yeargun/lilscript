@@ -2375,9 +2375,7 @@ impl<'src> Compilation<'src> {
     ) -> Result<R, CandidateError> {
         if head_choices.property_mangling
             && (!compact
-                || !policy
-                    .tactic(crate::compilation_policy::TacticId::PropertyMangling)
-                    .enabled)
+                || !crate::representation::ChoiceFamily::PropertyNames.spec().enabled(policy))
         {
             return Err(CandidateError::ForbiddenTactic(
                 crate::compilation_policy::TacticId::PropertyMangling,

@@ -14,6 +14,7 @@ pub mod config;
 pub mod diagnostics;
 pub mod formatter;
 mod host_modules;
+mod identifier_names;
 pub mod interpreter;
 pub mod js;
 pub mod js_platform;

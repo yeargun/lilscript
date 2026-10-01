@@ -751,3 +751,20 @@ prototype methods explicitly. A targeted Node check passes (40 distinct G1
 checks total); omitted owners previously refused the optional candidate at
 verification. Algorithm 17 marks the source correction. G1's immutable pin and
 cohort measurements stay intact; G2's release will include the correction.
+
+## 2026-10-01: G2 private property naming complete
+
+G2 broadens private generic storage and pristine kept-class eligibility, reuses
+sibling-only flattened slots, shares the complete name encoder and registers the
+property family. Reflected/extern/published families, prototype observability and
+reserved names remain protected. No initializer reordering is introduced. Both
+stale adapter-name fixtures now state their name-observation contract explicitly.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-g2-complete/README.md)
+pins `g2-complete-1` (`9be0c7c1d4d7795904840877c82885604ddde95ca977cdeb4e9d63ef5a3b0910`),
+algorithm 18 / search 31 / walk 10. Nineteen focused checks pass; matched open and
+closed workloads pass 144 numeric observations plus public shape checks.
+Closed totals save 154 raw / 96 gzip / 57 Brotli bytes, with open totals unchanged
+and no growing cell. Exact terminal judgments rise 243 → 276; no CPU claim.
+G3 is next. Full fleet/native/held-out qualification and S4's record refusal
+remain with their owners; no broad rerun or ratchet update was made.

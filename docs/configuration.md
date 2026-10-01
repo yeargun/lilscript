@@ -520,17 +520,27 @@ fingerprint. The version-2 level-16 compatibility grant is diagnosed until the r
 reconstruction permission is explicitly set or the configuration selects version 3.
 
 `property-mangling` permits an exactly judged private-field alternative at
-default and higher effort. Constructors and typed accesses use one assignment
-through inheritance, while unrelated private class families reuse short names.
-An inheritance family keeps its declared keys when any member is reflected,
-external, generic or retained as a JavaScript class identity. Trusted host views,
-public results, callbacks, thrown values and erased generic inputs preserve
-their reachable shapes. These property trials require `target-compaction` and
-are independent of `identifier-mangling`; disabling lexical mangling does not
-disable private property trials. `off` vetoes direct formation, cached heads and
-search. `on` permits the trial without forcing its selection.
-`mangle.preserve_properties` keeps the requested keys and excludes those names
-from new assignments; other eligible private fields can still rename.
+default and higher effort. Construction and typed access share one assignment
+through inheritance. Unrelated classes and sibling-only fields reuse short
+names; fields that coexist on an instance remain distinct. Private generic
+storage is eligible, while the reflected-set closure protects erased payloads,
+trusted host views, public results, callbacks and thrown values. Any reflected,
+external or published member protects its entire inheritance family.
+
+A retained JavaScript class identity alone does not expose storage keys, but its
+assignment-based field initialization can encounter inherited setters. Such
+classes qualify only with `javascript.assume_pristine_builtins = true`, and a
+`__proto__` field still protects the family because its inherited setter exists
+even in a pristine realm. This flag is a host contract, not a size-only switch.
+Property trials do not move field initializers or add runtime work. They cost
+formation and codec judgments, and the unmangled candidate remains eligible.
+
+These trials require `target-compaction` and are independent of
+`identifier-mangling`. `off` vetoes direct formation, cached heads and search;
+`on` permits the trial without forcing its selection. Codec measurements choose
+between candidates separately for raw, gzip and Brotli.
+`mangle.preserve_properties` keeps requested keys and excludes those names from
+new assignments; other eligible private fields can still rename.
 
 `target-compaction` permits the JavaScript target's optional rule schedule.
 Its folding, function inlining and object scalarization also require

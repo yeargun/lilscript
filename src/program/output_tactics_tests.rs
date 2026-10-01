@@ -650,6 +650,150 @@ fn private_properties_preserve_extern_inheritance_and_observed_class_layouts() {
 }
 
 #[test]
+fn private_properties_reuse_sibling_slots_without_aliasing_descendant_fields() {
+    let source = r#"
+        class Base{int sharedValue=2;}
+        class Left extends Base{int leftValue=3;}
+        class Right extends Base{int rightValue=5;}
+        class Leaf extends Left{int leafValue=7;}
+        class Other{int otherValue=11;}
+        export int compute(int n){
+            Left l=new Left();Right r=new Right();Leaf f=new Leaf();Other o=new Other();
+            Base alias=f;l.leftValue+=n;r.rightValue+=2*n;f.leftValue+=3*n;
+            return l.sharedValue+l.leftValue+r.sharedValue+r.rightValue+
+                alias.sharedValue+f.leftValue+f.leafValue+o.otherValue;
+        }
+    "#;
+    let resolved = policy("[policy.tactics]\nproperty-mangling='on'\nscalar-replacement='off'\ninlining='off'");
+    with_candidate(source, &resolved, |compiler, candidate| {
+        for mangled in [false, true] {
+            let mut choices = OutputTactics::from_policy(&resolved);
+            choices.families.property_mangling = mangled;
+            let javascript = emit(compiler, candidate, &resolved, choices);
+            for field in ["sharedValue", "leftValue", "rightValue", "leafValue", "otherValue"] {
+                assert_eq!(javascript.contains(field), !mangled, "{javascript}");
+            }
+            if mangled {
+                // One shared slot and two descendant slots suffice for every
+                // instance. Sibling-only fields must not consume a fourth key.
+                assert!(javascript.contains(".b"), "{javascript}");
+                assert!(javascript.contains(".c"), "{javascript}");
+                assert!(!javascript.contains(".d"), "{javascript}");
+            }
+            assert_eq!(execute(&javascript,
+                "Object.defineProperty(Object.prototype,'a',{configurable:true,set(){throw 'inherited setter';}});",
+                "events.push(library.compute(4),library.compute(-2));"),
+                serde_json::json!([59,23]));
+        }
+    });
+}
+
+#[test]
+fn private_properties_observed_identity_requires_pristine_assignments() {
+    let source = r#"
+        class Box{int hiddenAmount;init(int n){this.hiddenAmount=n;}}
+        export int compute(int n){Box b=new Box(n);if(b is Box){b.hiddenAmount+=1;return b.hiddenAmount;}return -1;}
+    "#;
+    for pristine in [false, true] {
+        let resolved = policy(&format!("assume_pristine_builtins={pristine}\n[policy.tactics]\nproperty-mangling='on'\nscalar-replacement='off'\ninlining='off'"));
+        with_candidate(source, &resolved, |compiler, candidate| {
+            let mut choices = OutputTactics::from_policy(&resolved);
+            choices.families.property_mangling = true;
+            let javascript = emit(compiler, candidate, &resolved, choices);
+            assert_eq!(javascript.contains("hiddenAmount"), !pristine, "{javascript}");
+            let setup = if pristine { "" } else {
+                "Object.defineProperty(Object.prototype,'a',{configurable:true,set(){throw 'inherited setter';}});"
+            };
+            assert_eq!(execute(&javascript, setup, "events.push(library.compute(19),library.compute(-1));"),
+                serde_json::json!([20,0]));
+        });
+    }
+}
+
+#[test]
+fn private_properties_keep_observed_proto_setter_even_when_pristine() {
+    let source = r#"
+        class Box{int __proto__;int hiddenAmount;init(int n){this.__proto__=n;this.hiddenAmount=n;}}
+        export int compute(int n){Box b=new Box(n);if(b is Box){return b.hiddenAmount;}return -1;}
+    "#;
+    let resolved = policy("assume_pristine_builtins=true\n[policy.tactics]\nproperty-mangling='on'");
+    with_candidate(source, &resolved, |compiler, candidate| {
+        let mut choices = OutputTactics::from_policy(&resolved);
+        choices.families.property_mangling = true;
+        let javascript = emit(compiler, candidate, &resolved, choices);
+        assert!(javascript.contains("__proto__") && javascript.contains("hiddenAmount"), "{javascript}");
+        assert_eq!(execute(&javascript, "", "events.push(library.compute(19));"), serde_json::json!([19]));
+    });
+}
+
+#[test]
+fn private_properties_generic_storage_and_erased_payloads_keep_their_boundaries() {
+    let source = r#"
+        class Box<T>{T hiddenPayload;init(T value){this.hiddenPayload=value;}}
+        class Payload{int publicAmount=23;}
+        class Holder<T>{T retainedValue;init(T value){this.retainedValue=value;}JsValue expose(){return this.retainedValue;}}
+        export func(int)->int make(int n){Box<int> b=new Box<int>(n);return (int step)=>{b.hiddenPayload+=step;return b.hiddenPayload;};}
+        export JsValue expose(){Holder<Payload> h=new Holder<Payload>(new Payload());return h.expose();}
+    "#;
+    let resolved = policy("[policy.tactics]\nproperty-mangling='on'\nscalar-replacement='off'\ninlining='off'");
+    with_candidate(source, &resolved, |compiler, candidate| {
+        for mangled in [false, true] {
+            let mut choices = OutputTactics::from_policy(&resolved);
+            choices.families.property_mangling = mangled;
+            let javascript = emit(compiler, candidate, &resolved, choices);
+            assert_eq!(javascript.contains("hiddenPayload"), !mangled, "{javascript}");
+            assert_eq!(execute(&javascript, "",
+                "const a=library.make(10),b=library.make(1),p=library.expose();events.push(a(2),b(3),a(-1),Object.keys(p),p['public'+'Amount'],JSON.stringify(p));"),
+                serde_json::json!([12,4,11,["publicAmount"],23,"{\"publicAmount\":23}"]));
+        }
+    });
+}
+
+#[test]
+fn private_properties_published_generic_storage_retains_keys() {
+    let source = r#"
+        class Box<T>{T publicPayload;init(T value){this.publicPayload=value;}}
+        export Box<int> make(int n){return new Box<int>(n);}
+    "#;
+    let resolved = enabled();
+    with_candidate(source, &resolved, |compiler, candidate| {
+        let mut choices = OutputTactics::from_policy(&resolved);
+        choices.families.property_mangling = true;
+        let javascript = emit(compiler, candidate, &resolved, choices);
+        assert_eq!(execute(&javascript, "", "const b=library.make(31);events.push(Object.keys(b),JSON.stringify(b),b['publicPayload']);"),
+            serde_json::json!([["publicPayload"],"{\"publicPayload\":31}",31]));
+    });
+}
+
+#[test]
+fn g2_adapter_fixtures_observe_anonymous_names_under_the_explicit_contract() {
+    for (source, config, host, expected) in [
+        (
+            include_str!("../../tests/cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate.lil"),
+            include_str!("../../tests/cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate.toml"),
+            include_str!("../../tests/cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate.host.js"),
+            include_str!("../../tests/cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate.out"),
+        ),
+        (
+            include_str!("../../tests/cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver.lil"),
+            include_str!("../../tests/cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver.toml"),
+            include_str!("../../tests/cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver.host.js"),
+            include_str!("../../tests/cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver.out"),
+        ),
+    ] {
+        let config: crate::config::ProjectConfig = toml::from_str(config).unwrap();
+        let resolved = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+        with_candidate(source, &resolved, |compiler, candidate| {
+            let javascript = emit(compiler, candidate, &resolved, OutputTactics::from_policy(&resolved));
+            let script = format!("{host}\nawait import('data:text/javascript,'+encodeURIComponent({}));", serde_json::to_string(&javascript).unwrap());
+            let result = Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+            assert!(result.status.success(), "{}\n{javascript}", String::from_utf8_lossy(&result.stderr));
+            assert_eq!(String::from_utf8(result.stdout).unwrap(), expected, "{javascript}");
+        });
+    }
+}
+
+#[test]
 fn pooling_and_packing_are_independent_and_preserve_fresh_arrays() {
     let source = r#"
         extern void observe(string value);

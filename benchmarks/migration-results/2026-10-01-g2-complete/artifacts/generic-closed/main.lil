@@ -1,0 +1,1 @@
+class Box<T>{T hiddenPayload;init(T value){this.hiddenPayload=value;}}int compute(int n){Box<int> b=new Box<int>(n);b.hiddenPayload+=7;return b.hiddenPayload*3;}extern int input();for(int i=0;i<4;i+=1){print(compute(input()));}

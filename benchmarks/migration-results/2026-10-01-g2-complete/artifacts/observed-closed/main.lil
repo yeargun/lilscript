@@ -1,0 +1,1 @@
+class Box{int hiddenAmount;int hiddenOffset=7;init(int n){this.hiddenAmount=n;}}int compute(int n){Box b=new Box(n);if(b is Box){b.hiddenAmount+=b.hiddenOffset;return b.hiddenAmount*3;}return -1;}extern int input();for(int i=0;i<4;i+=1){print(compute(input()));}

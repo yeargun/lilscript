@@ -53,17 +53,15 @@ that commit. Expected stdout comes from each test's own assertions, never from r
 - `dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-coercion`: the test asserted only the
   `TRACE:left,right` suffix. The `RL` line before it follows from the program (`b+a`).
 
-## Expectation conflicts with the language spec
+## Adapter name contract
 
-- `suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate` expects the wrapper name `handle`, and
-  `...-unused_receiver` expects a non-empty wrapper name. docs/language-v0.1.md said each adapter evaluation returns an
-  anonymous function, and that the fused spelling keeps it anonymous where JavaScript would infer a name. The `.out`
-  files keep the test's values as instructed.
-  **Decided (architecture §10.2, plan M8.2 A1, 2026-09-27):** a method formed from an adapter's callback keeps the
-  adapter result's anonymous name only where the contract observes names (`keep_function_names`, or a published
-  value); otherwise its name is unobservable (R6) and it may carry the name JavaScript infers. `-local`, which asserts
-  the anonymous name, now states that contract in its `.toml`; `-aggregate` and `-unused_receiver` assert names no
-  lane owes and stay ledgered (M10.14).
+The aggregate and unused-receiver adapter cases now explicitly select
+`javascript.keep_function_names = true`, like the local case. Under the existing
+R6 / architecture §10.2 contract, adapter results stay anonymous when names are
+observed. Their independent expectations are an empty name; identity, arity and
+call results remain checked. The old inferred-name expectations described
+unobservable behavior and were not compiler defects. The historical legacy
+results below predate this correction and have not been rerun.
 
 ## Cases
 
@@ -199,9 +197,9 @@ that commit. Expected stdout comes from each test's own assertions, never from r
 | `irjs-emits_negated_empty_else_as_or_statement-keep_false` | `emits_negated_empty_else_as_or_statement` (src/codegen_ir_js.rs:35096) | pass | pass | .lil .out .host.js |  |
 | `irjs-emits_negated_empty_else_as_or_statement-keep_true` | `emits_negated_empty_else_as_or_statement` (src/codegen_ir_js.rs:35096) | pass | pass | .lil .out .host.js |  |
 | `irjs-preserves_adapter_for_stored_or_mutably_captured_replaced_parameters` | `preserves_adapter_for_stored_or_mutably_captured_replaced_parameters` (src/codegen_ir_js.rs:35123) | pass | pass | .lil .out .host.js |  |
-| `irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate` | `suppresses_adapter_name_in_variable_and_aggregate_initializers` (src/codegen_ir_js.rs:35170) | **FAIL** | pass | .lil .out .host.js | CONFLICT: test expects the inferred name 'handle'; docs/language-v0.1.md says adapter wrappers stay anonymous; semantic: keeps the wrapper anonymous, as the spec requires (expectation conflict, not a semantic bug) (first diff: line 1: expected 'TRACE:handle' got 'TRACE:') |
+| `irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate` | `suppresses_adapter_name_in_variable_and_aggregate_initializers` (src/codegen_ir_js.rs:35170) | pass (G2 focused) | historical (not rerun) | .lil .out .host.js .toml | Explicit observed-name contract; anonymous wrapper oracle replaces the stale inferred-name expectation. |
 | `irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-local` | `suppresses_adapter_name_in_variable_and_aggregate_initializers` (src/codegen_ir_js.rs:35170) | pass | pass | .lil .out .host.js |  |
-| `irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver` | `suppresses_adapter_name_in_variable_and_aggregate_initializers` (src/codegen_ir_js.rs:35170) | pass | pass | .lil .out .host.js | CONFLICT: test expects a non-empty (inferred) wrapper name; docs/language-v0.1.md says adapter wrappers stay anonymous |
+| `irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver` | `suppresses_adapter_name_in_variable_and_aggregate_initializers` (src/codegen_ir_js.rs:35170) | pass (G2 focused) | historical (not rerun) | .lil .out .host.js .toml | Explicit observed-name contract; anonymous wrapper oracle replaces the stale inferred-name expectation. |
 | `irjs-inlines_eraseable_host_getters_at_constant_identifier_keys` | `inlines_eraseable_host_getters_at_constant_identifier_keys` (src/codegen_ir_js.rs:35236) | pass | pass | .lil .out .host.js |  |
 | `irjs-nested_lexical_js_bindings_keep_the_callback_context-arguments` | `nested_lexical_js_bindings_keep_the_callback_context` (src/codegen_ir_js.rs:35294) | pass | **FAIL** | .lil .out .host.js | program body wrapped in a LilScript function (the test wrapped the output in a JS function); legacy: inlines `ambient`, so `arguments` becomes the CommonJS wrapper's (first diff: line 1: expected 'TRACE:ambient:4:true' got 'TRACE:[object Object]:4:true') |
 | `irjs-nested_lexical_js_bindings_keep_the_callback_context-this` | `nested_lexical_js_bindings_keep_the_callback_context` (src/codegen_ir_js.rs:35294) | pass | pass | .lil .out .host.js | program reports its top-level this (the test chose it by wrapping the output in a function) |

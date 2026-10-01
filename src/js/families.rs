@@ -341,7 +341,7 @@ impl OutputFamilies {
             (self.string_constants, TacticId::ConstantFolding),
             (self.string_pooling, TacticId::StringPooling),
             (self.string_array_packing, TacticId::StringArrayPacking),
-            (self.property_mangling, TacticId::PropertyMangling),
+            (self.property_mangling, crate::representation::ChoiceFamily::PropertyNames.spec().tactic),
         ]
     }
 
@@ -359,7 +359,7 @@ impl OutputFamilies {
         self.string_constants &= policy.tactic(TacticId::ConstantFolding).enabled;
         self.string_pooling &= policy.tactic(TacticId::StringPooling).enabled;
         self.string_array_packing &= ArrayPacking::from_policy(policy) != ArrayPacking::Disabled;
-        self.property_mangling &= policy.tactic(TacticId::PropertyMangling).enabled;
+        self.property_mangling &= crate::representation::ChoiceFamily::PropertyNames.spec().enabled(policy);
         self
     }
 
