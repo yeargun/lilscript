@@ -40,7 +40,9 @@ use super::edit::Editor;
 use super::values::ProgramValues;
 use super::*;
 use crate::check::{FunctionSignature, FunctionType, Type};
+use crate::compilation_policy::WorkKind;
 use crate::output_budget::AllocationClass::{Retained, Scratch};
+use crate::output_budget::{AllocationBudget, AllocationError};
 
 /// One body's new signature and the edits that follow from it.
 struct Change {
@@ -71,91 +73,158 @@ pub(super) fn apply(
     receipt: &mut RuleReceipt,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
 ) -> Result<bool, super::RuleError> {
-    let program = editor.program();
-    let graph = effects.graph();
-    let created = created_units(program);
-    let mut creations: Vec<Vec<(UnitId, OpId)>> = vec![Vec::new(); program.units.len()];
-    for frozen in &program.units {
-        for (index, operation) in frozen.data().operations.iter().enumerate() {
-            if let OperationKind::Closure(body) = operation.kind {
-                creations[body.index()].push((frozen.id(), OpId::from_index(index).unwrap()));
+    budget.with_temporary_context(
+        editor,
+        |editor, budget| {
+            plans(
+                editor.program(),
+                effects.graph(),
+                values,
+                constants_permitted,
+                budget,
+            )
+        },
+        |changes, editor, budget| {
+            for change in changes {
+                receipt.dropped_parameters += change.dropped.iter().filter(|d| **d).count() as u32;
+                receipt.constant_parameters += change.constants.iter().flatten().count() as u32;
+                receipt.unused_results += u32::from(change.void);
+                execute(editor, change, budget)?;
+            }
+            Ok(!changes.is_empty())
+        },
+    )
+}
+
+fn discard(change: Change, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {
+    storage::release_vec(change.unread, Retained, budget)?;
+    storage::release_vec(change.dropped, Retained, budget)?;
+    storage::release_vec(change.constants, Retained, budget)?;
+    storage::release_vec(change.calls, Retained, budget)
+}
+
+fn plans(
+    program: &Program<'_>,
+    graph: &CallGraph,
+    values: &ProgramValues,
+    constants_permitted: bool,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Change>, super::RuleError> {
+    budget.retained_phase(|budget| {
+        let created = created_units_in(program, budget)?;
+        let mut creations = storage::collect(
+            (0..program.units.len()).map(|_| Vec::new()),
+            Scratch,
+            budget,
+        )?;
+        let mut members = budget.filled(Scratch, program.types.len(), 0usize)?;
+        let mut loads = budget.filled(Scratch, program.cells.len(), (0usize, 0usize))?;
+        for frozen in &program.units {
+            if created[frozen.id().index()] {
+                if let Some(ty) = frozen.data().callable_type {
+                    members[ty.index()] += 1;
+                }
+            }
+            for (index, operation) in frozen.data().operations.iter().enumerate() {
+                budget.work(WorkKind::Analysis, 1)?;
+                match operation.kind {
+                    OperationKind::Closure(body) => budget.push(
+                        Scratch,
+                        &mut creations[body.index()],
+                        (frozen.id(), OpId::from_index(index).unwrap()),
+                    )?,
+                    OperationKind::Load(place) => {
+                        if let Some(Place::Cell(cell)) = frozen.data().places.get(place.index()) {
+                            loads[cell.index()].0 += 1;
+                            if program.cells[cell.index()].owner == frozen.id() {
+                                loads[cell.index()].1 += 1;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
-    }
-    let eligible: Vec<Change> = program
-        .units
-        .iter()
-        .filter_map(|frozen| {
-            change(
+        let mut eligible = Vec::new();
+        for frozen in &program.units {
+            if let Some(change) = change(
                 program,
                 graph,
                 values,
                 constants_permitted,
                 &created,
                 &creations,
+                &loads,
                 frozen.id(),
-            )
-        })
-        .collect();
-    // Each signature's functions, and how many of them may change.
-    let mut members: std::collections::HashMap<TypeId, usize> = std::collections::HashMap::new();
-    for frozen in &program.units {
-        let data = frozen.data();
-        if created[frozen.id().index()] {
-            if let Some(ty) = data.callable_type {
-                *members.entry(ty).or_default() += 1;
+                budget,
+            )? {
+                budget.push(Retained, &mut eligible, change)?;
             }
         }
-    }
-    let mut classes: std::collections::HashMap<TypeId, Vec<Change>> =
-        std::collections::HashMap::new();
-    for change in eligible {
-        classes.entry(change.signature).or_default().push(change);
-    }
-    let mut changes = Vec::new();
-    for (signature, mut class) in classes {
-        if members.get(&signature).copied() != Some(class.len()) {
-            continue;
-        }
-        // A position leaves when no member reads it; a constant stands for a
-        // parameter only in a class of one; a result leaves when no member's
-        // calls use it.
-        let arity = class[0].unread.len();
-        let single = class.len() == 1;
-        let unread: Vec<bool> = (0..arity)
-            .map(|position| class.iter().all(|change| change.unread[position]))
-            .collect();
-        let void = class.iter().all(|change| change.void);
-        for change in &mut class {
-            if !single {
-                change
-                    .constants
-                    .iter_mut()
-                    .for_each(|constant| *constant = None);
+        // Sorted adjacent groups replace allocator-owned hash buckets. Their
+        // final application order remains the original body order.
+        budget.work(
+            WorkKind::Analysis,
+            (eligible.len() as u64)
+                .saturating_mul(u64::from(usize::BITS - eligible.len().max(1).leading_zeros()) + 1),
+        )?;
+        eligible.sort_unstable_by_key(|change| (change.signature, change.body));
+        let mut start = 0;
+        while start < eligible.len() {
+            let signature = eligible[start].signature;
+            let end =
+                start + eligible[start..].partition_point(|change| change.signature == signature);
+            let class = &mut eligible[start..end];
+            if members[signature.index()] != class.len() {
+                for change in class {
+                    change.void = false;
+                    change.dropped.fill(false);
+                }
+                start = end;
+                continue;
             }
-            change.void = void;
-            change.dropped = (0..arity)
-                .map(|position| unread[position] || change.constants[position].is_some())
-                .collect();
+            let arity = class[0].unread.len();
+            let single = class.len() == 1;
+            budget.work(
+                WorkKind::Analysis,
+                (arity as u64).saturating_mul(class.len() as u64),
+            )?;
+            let unread = storage::collect(
+                (0..arity).map(|position| class.iter().all(|change| change.unread[position])),
+                Scratch,
+                budget,
+            )?;
+            let void = class.iter().all(|change| change.void);
+            for change in class {
+                if !single {
+                    change.constants.fill(None);
+                }
+                change.void = void;
+                for (position, dropped) in change.dropped.iter_mut().enumerate() {
+                    *dropped = unread[position] || change.constants[position].is_some();
+                }
+            }
+            storage::release_vec(unread, Scratch, budget)?;
+            start = end;
         }
-        if class
-            .iter()
-            .any(|change| change.void || change.dropped.iter().any(|dropped| *dropped))
-        {
-            changes.extend(class);
+        let mut changes = Vec::new();
+        for change in eligible.drain(..) {
+            if change.void || change.dropped.iter().any(|dropped| *dropped) {
+                budget.push(Retained, &mut changes, change)?;
+            } else {
+                discard(change, budget)?;
+            }
         }
-    }
-    if changes.is_empty() {
-        return Ok(false);
-    }
-    changes.sort_by_key(|change| change.body);
-    for change in changes {
-        receipt.dropped_parameters += change.dropped.iter().filter(|d| **d).count() as u32;
-        receipt.constant_parameters += change.constants.iter().flatten().count() as u32;
-        receipt.unused_results += u32::from(change.void);
-        execute(editor, change, budget)?;
-    }
-    Ok(true)
+        storage::release_vec(eligible, Retained, budget)?;
+        storage::release_vec(created, Retained, budget)?;
+        budget.work(
+            WorkKind::Analysis,
+            (changes.len() as u64)
+                .saturating_mul(u64::from(usize::BITS - changes.len().max(1).leading_zeros()) + 1),
+        )?;
+        changes.sort_unstable_by_key(|change| change.body);
+        Ok(changes)
+    })
 }
 
 fn change(
@@ -165,223 +234,239 @@ fn change(
     constants_permitted: bool,
     created: &[bool],
     creations: &[Vec<(UnitId, OpId)>],
+    load_counts: &[(usize, usize)],
     body: UnitId,
-) -> Option<Change> {
-    let data = program.unit(body)?;
-    if !created[body.index()]
-        || data.kind == UnitKind::ModuleInitialization
-        || data.suspension != Suspension::None
-        || data.constructor_of.is_some()
-    {
-        return None;
-    }
-    let Some(Type::Function(signature)) = data.callable_type.and_then(|ty| program.ty(ty)) else {
-        return None;
-    };
-    if signature.params.len() != data.parameters.len()
-        || signature.params.iter().any(|parameter| {
-            parameter.passing != crate::primitive::ParameterPassing::Value || parameter.optional
-        })
-        || data.places.iter().any(|place| {
-            matches!(place, Place::Cell(cell)
-                if ambient::classify(&program.cells[cell.index()]).is_some())
-        })
-        || data
-            .captures
-            .iter()
-            .any(|cell| ambient::classify(&program.cells[cell.index()]).is_some())
-    {
-        return None;
-    }
-    let edges = graph.complete_callers(body)?;
-    if edges.is_empty() || edges.iter().any(|edge| !created[edge.caller.index()]) {
-        return None;
-    }
-    let &[creation] = creations[body.index()].as_slice() else {
-        return None;
-    };
-    let creator = program.unit(creation.0)?;
-    let created_value = creator.operations[creation.1.index()].result?;
-
-    // Each call names the body through the value its creation made, or a
-    // load of the one cell that holds it.
-    let mut holder = None;
-    let mut calls = Vec::with_capacity(edges.len());
-    for edge in edges {
-        let caller = program.unit(edge.caller)?;
-        let site = caller.calls.get(edge.call.index())?;
-        let CallTarget::Value {
-            callee,
-            invocation: Invocation::Value,
-        } = site.target
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Option<Change>, AllocationError> {
+    storage::optional(budget, |attempt| {
+        let data = program.unit(body)?;
+        attempt.work(
+            data.parameters.len() as u64
+                + data.places.len() as u64
+                + data.captures.len() as u64
+                + 1,
+        )?;
+        if !created[body.index()]
+            || data.kind == UnitKind::ModuleInitialization
+            || data.suspension != Suspension::None
+            || data.constructor_of.is_some()
+        {
+            return None;
+        }
+        let Some(Type::Function(signature)) = data.callable_type.and_then(|ty| program.ty(ty))
         else {
             return None;
         };
-        let arguments = caller.arguments(site.arguments)?;
-        if site.contract.instantiation.is_some()
-            || site.contract.signature != data.callable_type
-            || arguments.len() != data.parameters.len()
-            || arguments
-                .iter()
-                .any(|argument| matches!(argument, CallArgument::Reference(_)))
-        {
-            return None;
-        }
-        let definition = &caller.operations[caller.values[callee.index()].definition.index()];
-        match definition.kind {
-            OperationKind::Closure(unit)
-                if unit == body && (edge.caller, callee) == (creation.0, created_value) => {}
-            OperationKind::Load(place) => {
-                let Some(&Place::Cell(cell)) = caller.places.get(place.index()) else {
-                    return None;
-                };
-                if *holder.get_or_insert(cell) != cell {
-                    return None;
-                }
-            }
-            _ => return None,
-        }
-        calls.push((edge.caller, edge.call, edge.operation, callee));
-    }
-    if let Some(cell) = holder {
-        // The holder is initialized with the creation, and every load of it
-        // is one of these calls' callee values.
-        let loads = program
-            .units
-            .iter()
-            .flat_map(|frozen| {
-                let data = frozen.data();
-                data.operations.iter().filter(move |operation| {
-                    matches!(operation.kind, OperationKind::Load(place)
-                        if data.places.get(place.index()) == Some(&Place::Cell(cell)))
-                })
+        if signature.params.len() != data.parameters.len()
+            || signature.params.iter().any(|parameter| {
+                parameter.passing != crate::primitive::ParameterPassing::Value || parameter.optional
             })
-            .count();
-        let storage = graph.storage(cell);
-        if loads != calls.len()
-            || storage.stored
-            || storage.referenced
-            || storage.initializers != 1
-            || program.cells[cell.index()].ty != data.callable_type?
+            || data.places.iter().any(|place| {
+                matches!(place, Place::Cell(cell)
+                if ambient::classify(&program.cells[cell.index()]).is_some())
+            })
+            || data
+                .captures
+                .iter()
+                .any(|cell| ambient::classify(&program.cells[cell.index()]).is_some())
         {
             return None;
         }
-    }
+        let edges = graph.complete_callers(body)?;
+        if edges.is_empty() || edges.iter().any(|edge| !created[edge.caller.index()]) {
+            return None;
+        }
+        let &[creation] = creations[body.index()].as_slice() else {
+            return None;
+        };
+        let creator = program.unit(creation.0)?;
+        let created_value = creator.operations[creation.1.index()].result?;
 
-    // Per parameter: whether the body reads it, and whether every call
-    // passes the same exact value.
-    let mut unread = vec![false; data.parameters.len()];
-    let mut constants = vec![None; data.parameters.len()];
-    for (position, &cell) in data.parameters.iter().enumerate() {
-        let storage = graph.storage(cell);
-        let places: Vec<&Place> = data
-            .places
-            .iter()
-            .filter(|place| root_cell(data, place) == Some(cell))
-            .collect();
-        if places.is_empty() && !storage.shared {
-            unread[position] = true;
-            continue;
-        }
-        if storage.stored
-            || storage.referenced
-            || storage.shared
-            || places.iter().any(|place| !matches!(place, Place::Cell(_)))
-        {
-            continue;
-        }
-        if !constants_permitted {
-            continue;
-        }
-        let mut known: Option<facts::StoredExact> = None;
-        let mut agreed = true;
-        for &(caller, call, _, _) in &calls {
-            let unit = program.unit(caller)?;
-            let CallArgument::Value(value) =
-                unit.arguments(unit.calls[call.index()].arguments)?[position]
+        // Each call names the body through the value its creation made, or a
+        // load of the one cell that holds it.
+        let mut holder = None;
+        let mut calls = attempt.vector(Retained, edges.len())?;
+        for edge in edges {
+            attempt.work(1)?;
+            let caller = program.unit(edge.caller)?;
+            let site = caller.calls.get(edge.call.index())?;
+            let CallTarget::Value {
+                callee,
+                invocation: Invocation::Value,
+            } = site.target
             else {
                 return None;
             };
-            if unit.operations[unit.values[value.index()].definition.index()]
-                .authored
-                .get(crate::representation::ChoiceFamily::QuoteDelimiter)
-                .is_some()
+            let arguments = caller.arguments(site.arguments)?;
+            attempt.work(arguments.len() as u64)?;
+            if site.contract.instantiation.is_some()
+                || site.contract.signature != data.callable_type
+                || arguments.len() != data.parameters.len()
+                || arguments
+                    .iter()
+                    .any(|argument| matches!(argument, CallArgument::Reference(_)))
             {
-                agreed = false;
-                break;
+                return None;
             }
-            match values.exact(caller, value) {
-                Some(exact) if known.as_ref().is_none_or(|first| first == exact) => {
-                    known = Some(exact.clone());
+            let definition = &caller.operations[caller.values[callee.index()].definition.index()];
+            match definition.kind {
+                OperationKind::Closure(unit)
+                    if unit == body && (edge.caller, callee) == (creation.0, created_value) => {}
+                OperationKind::Load(place) => {
+                    let Some(&Place::Cell(cell)) = caller.places.get(place.index()) else {
+                        return None;
+                    };
+                    if *holder.get_or_insert(cell) != cell {
+                        return None;
+                    }
                 }
-                _ => {
+                _ => return None,
+            }
+            calls.push((edge.caller, edge.call, edge.operation, callee));
+        }
+        if let Some(cell) = holder {
+            // The holder is initialized with the creation, and every load of it
+            // is one of these calls' callee values.
+            let loads = load_counts[cell.index()].0;
+            let storage = graph.storage(cell);
+            if loads != calls.len()
+                || storage.stored
+                || storage.referenced
+                || storage.initializers != 1
+                || program.cells[cell.index()].ty != data.callable_type?
+            {
+                return None;
+            }
+        }
+
+        // Per parameter: whether the body reads it, and whether every call
+        // passes the same exact value.
+        let mut unread = attempt.filled(Retained, data.parameters.len(), false)?;
+        let mut constants = attempt.collect(Retained, (0..data.parameters.len()).map(|_| None))?;
+        let mut roots = attempt.vector(Scratch, data.places.len())?;
+        for place in &data.places {
+            roots.push(attempt.admit(|budget| root_cell(data, place, budget))?);
+        }
+        for (position, &cell) in data.parameters.iter().enumerate() {
+            let storage = graph.storage(cell);
+            attempt.work(data.places.len() as u64 + 1)?;
+            let mut reads = 0;
+            let mut projected = false;
+            for (place, root) in data.places.iter().zip(&roots) {
+                if *root == Some(cell) {
+                    reads += 1;
+                    projected |= !matches!(place, Place::Cell(_));
+                }
+            }
+            if reads == 0 && !storage.shared {
+                unread[position] = true;
+                continue;
+            }
+            if storage.stored || storage.referenced || storage.shared || projected {
+                continue;
+            }
+            if !constants_permitted {
+                continue;
+            }
+            let mut known: Option<facts::StoredExact> = None;
+            let mut agreed = true;
+            for &(caller, call, _, _) in &calls {
+                attempt.work(1)?;
+                let unit = program.unit(caller)?;
+                let CallArgument::Value(value) =
+                    unit.arguments(unit.calls[call.index()].arguments)?[position]
+                else {
+                    return None;
+                };
+                if unit.operations[unit.values[value.index()].definition.index()]
+                    .authored
+                    .get(crate::representation::ChoiceFamily::QuoteDelimiter)
+                    .is_some()
+                {
                     agreed = false;
                     break;
                 }
+                match values.exact(caller, value) {
+                    Some(exact) if known.as_ref().is_none_or(|first| first == exact) => {
+                        known = Some(exact.clone());
+                    }
+                    _ => {
+                        agreed = false;
+                        break;
+                    }
+                }
+            }
+            let (true, Some(known)) = (agreed, known) else {
+                continue;
+            };
+            let Some(constant) = fold::constant(program, program.cells[cell.index()].ty, &known)
+            else {
+                continue;
+            };
+            // Each read spells the literal where a name stood; each call loses
+            // at least a one-character argument and its separator, and the
+            // declaration its parameter.
+            let reads = load_counts[cell.index()].1;
+            let Some(text) = fold::constant_text(program, &constant) else {
+                continue;
+            };
+            if reads * text.saturating_sub(1) <= 2 * calls.len() + 2 {
+                constants[position] = Some(constant);
             }
         }
-        let (true, Some(known)) = (agreed, known) else {
-            continue;
-        };
-        let Some(constant) = fold::constant(program, program.cells[cell.index()].ty, &known) else {
-            continue;
-        };
-        // Each read spells the literal where a name stood; each call loses
-        // at least a one-character argument and its separator, and the
-        // declaration its parameter.
-        let reads = data
-            .operations
-            .iter()
-            .filter(|operation| {
-                matches!(operation.kind, OperationKind::Load(place)
-                    if data.places.get(place.index()) == Some(&Place::Cell(cell)))
-            })
-            .count();
-        let Some(text) = fold::constant_text(program, &constant) else {
-            continue;
-        };
-        if reads * text.saturating_sub(1) <= 2 * calls.len() + 2 {
-            constants[position] = Some(constant);
-        }
-    }
 
-    // A result no call uses.
-    let void = !signature.return_type.is_void()
-        && calls.iter().all(|&(caller, _, operation, _)| {
-            program.unit(caller).is_some_and(|unit| {
-                unit.operations[operation.index()]
-                    .result
-                    .is_none_or(|result| !super::inline::used(unit, result))
-            })
-        });
-    Some(Change {
-        body,
-        signature: data.callable_type?,
-        dropped: vec![false; unread.len()],
-        unread,
-        constants,
-        void,
-        creation,
-        holder,
-        calls,
+        // A result no call uses.
+        let mut void = !signature.return_type.is_void();
+        if void {
+            for &(caller, _, operation, _) in &calls {
+                let caller = program.unit(caller)?;
+                if let Some(result) = caller.operations[operation.index()].result {
+                    if attempt.admit(|budget| super::dce::used_in(caller, result, budget))? {
+                        void = false;
+                        break;
+                    }
+                }
+            }
+        }
+        Some(Change {
+            body,
+            signature: data.callable_type?,
+            dropped: attempt.filled(Retained, unread.len(), false)?,
+            unread,
+            constants,
+            void,
+            creation,
+            holder,
+            calls,
+        })
     })
 }
 
 /// The cell a place's storage belongs to, through field projections.
-fn root_cell(data: &UnitData, place: &Place) -> Option<CellId> {
+fn root_cell(
+    data: &UnitData,
+    place: &Place,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Option<CellId>, AllocationError> {
     let mut place = place;
     loop {
+        budget.work(WorkKind::Analysis, 1)?;
         match place {
-            Place::Cell(cell) => return Some(*cell),
-            Place::Field { base, .. } => place = data.places.get(base.index())?,
-            _ => return None,
+            Place::Cell(cell) => return Ok(Some(*cell)),
+            Place::Field { base, .. } => {
+                let Some(base) = data.places.get(base.index()) else {
+                    return Ok(None);
+                };
+                place = base;
+            }
+            _ => return Ok(None),
         }
     }
 }
 
 fn execute(
     editor: &mut Editor<'_>,
-    change: Change,
+    change: &Change,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
 ) -> Result<(), super::RuleError> {
     let ty = budget.with_temporary_context(
@@ -479,7 +564,7 @@ fn execute(
 
     // Each call: the callee value's type, the contract, the arguments that
     // stay and, for a result that leaves, no result.
-    for (caller, call, operation, callee) in change.calls {
+    for &(caller, call, operation, callee) in &change.calls {
         let data = editor.unit_mut_in(caller, budget)?;
         data.values[callee.index()].ty = ty;
         data.calls[call.index()].contract.signature = Some(ty);

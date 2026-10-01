@@ -39,11 +39,13 @@
 //! `src/js/blocks.rs`) apply the same conditions to the target tree.
 
 use super::super::ambient;
-use super::super::call_graph::{CallEdge, EdgeKind};
+use super::super::call_graph::EdgeKind;
 use super::edit::{self, Editor, GraftPlan};
+use super::storage::Map;
 use super::*;
-use crate::output_budget::AllocationClass::Retained;
-use std::collections::{HashMap, HashSet};
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::AllocationClass::{Retained, Scratch};
+use crate::output_budget::{AllocationBudget, AllocationError};
 
 /// One call a round inlines.
 struct Site {
@@ -75,69 +77,110 @@ pub(super) fn apply(
     native: bool,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
 ) -> Result<bool, super::RuleError> {
-    let program = editor.program();
-    let graph = effects.graph();
-    let created = created_units(program);
-    // Units whose entry region declares a local that owns storage.
-    let mut declares = vec![false; program.units.len()];
-    for cell in program.cells.iter() {
-        if matches!(cell.binding, CellBinding::Local)
-            && !scalar(program, cell.ty)
-            && program
-                .unit(cell.owner)
-                .is_some_and(|owner| owner.entry == cell.region)
-        {
-            declares[cell.owner.index()] = true;
-        }
-    }
-    // A `debug` function's calls are `strip_debug`'s to drop (R15): its body
-    // stays a body.
-    let mut debug = vec![false; program.units.len()];
-    for cell in program.cells.iter() {
-        if let (true, CellBinding::Function(unit)) = (cell.debug, cell.binding) {
-            debug[unit.index()] = true;
-        }
-    }
-    let mut chosen = Vec::new();
-    let mut bodies = HashSet::new();
-    let mut receivers = HashSet::new();
-    for component in graph.components() {
-        for &body in component {
-            if debug[body.index()] {
-                continue;
+    budget.with_temporary_context(
+        editor,
+        |editor, budget| plans(editor.program(), effects, native, budget),
+        |plan, editor, budget| {
+            receipt.call_frequency_work += plan.frequency_work;
+            for candidate in &plan.chosen {
+                let source = editor.handle(candidate.body);
+                for site in &candidate.sites {
+                    inline(
+                        editor,
+                        source.data(),
+                        candidate,
+                        site,
+                        &plan.creators,
+                        budget,
+                    )?;
+                    receipt.inlined_calls += 1;
+                    receipt.cloned_closure_units += candidate.children.len() as u32;
+                }
+                receipt.inlined_bodies += 1;
             }
-            let Some(candidate) =
-                candidate(program, effects, &created, &declares, body, native, receipt)
-            else {
-                continue;
-            };
-            if receivers.contains(&body)
-                || candidate
-                    .sites
-                    .iter()
-                    .any(|site| bodies.contains(&site.caller))
+            Ok(!plan.chosen.is_empty())
+        },
+    )
+}
+struct Plan {
+    chosen: Vec<Candidate>,
+    creators: Vec<Option<UnitId>>,
+    frequency_work: u64,
+}
+fn plans(
+    program: &Program<'_>,
+    effects: &ProgramEffects,
+    native: bool,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Plan, super::RuleError> {
+    budget.retained_phase(|budget| {
+        let graph = effects.graph();
+        let created = created_units_in(program, budget)?;
+        let mut declares = budget.filled(Scratch, program.units.len(), false)?;
+        let mut debug = budget.filled(Scratch, program.units.len(), false)?;
+        for cell in program.cells.iter() {
+            budget.work(WorkKind::Analysis, 1)?;
+            if matches!(cell.binding, CellBinding::Local)
+                && !scalar(program, cell.ty)
+                && program
+                    .unit(cell.owner)
+                    .is_some_and(|owner| owner.entry == cell.region)
             {
-                continue;
+                declares[cell.owner.index()] = true;
             }
-            bodies.insert(body);
-            receivers.extend(candidate.sites.iter().map(|site| site.caller));
-            chosen.push(candidate);
+            if let (true, CellBinding::Function(unit)) = (cell.debug, cell.binding) {
+                debug[unit.index()] = true;
+            }
         }
-    }
-    if chosen.is_empty() {
-        return Ok(false);
-    }
-    let creators = creators(program, &created);
-    for candidate in &chosen {
-        let source = editor.handle(candidate.body);
-        for site in &candidate.sites {
-            inline(editor, source.data(), candidate, site, &creators, budget)?;
-            receipt.inlined_calls += 1;
-            receipt.cloned_closure_units += candidate.children.len() as u32;
+        let mut chosen = Vec::new();
+        let mut bodies = budget.filled(Scratch, program.units.len(), false)?;
+        let mut receivers = budget.filled(Scratch, program.units.len(), false)?;
+        let mut frequency_work = 0u64;
+        for component in graph.components() {
+            for &body in component {
+                if debug[body.index()] {
+                    continue;
+                }
+                let Some(candidate) = candidate(
+                    program,
+                    effects,
+                    &created,
+                    &declares,
+                    body,
+                    native,
+                    &mut frequency_work,
+                    budget,
+                )?
+                else {
+                    continue;
+                };
+                budget.work(WorkKind::Analysis, candidate.sites.len() as u64 + 1)?;
+                if receivers[body.index()]
+                    || candidate
+                        .sites
+                        .iter()
+                        .any(|site| bodies[site.caller.index()])
+                {
+                    storage::release_vec(candidate.sites, Retained, budget)?;
+                    storage::release_vec(candidate.forwarded, Retained, budget)?;
+                    storage::release_vec(candidate.children, Retained, budget)?;
+                    continue;
+                }
+                bodies[body.index()] = true;
+                for site in &candidate.sites {
+                    receivers[site.caller.index()] = true;
+                }
+                budget.push(Retained, &mut chosen, candidate)?;
+            }
         }
-        receipt.inlined_bodies += 1;
-    }
-    Ok(true)
+        let creators = creators(program, &created, budget)?;
+        storage::release_vec(created, Retained, budget)?;
+        Ok(Plan {
+            chosen,
+            creators,
+            frequency_work,
+        })
+    })
 }
 
 /// Operations that are statements: a body holding one is not an expression.
@@ -167,264 +210,303 @@ fn candidate(
     declares: &[bool],
     body: UnitId,
     native: bool,
-    receipt: &mut RuleReceipt,
-) -> Option<Candidate> {
-    let graph = effects.graph();
-    let data = program.unit(body)?;
-    if !created[body.index()]
-        || data.kind == UnitKind::ModuleInitialization
-        || data.suspension != Suspension::None
-        || data.constructor_of.is_some()
-        || graph.recursive(body)
-        || data
-            .parameters
-            .iter()
-            .any(|&cell| program.is_reference_parameter(cell))
-    {
-        return None;
-    }
-    // Calls from units nothing creates never run; they are emptied.
-    let edges: Vec<&CallEdge> = graph
-        .complete_callers(body)?
-        .iter()
-        .filter(|edge| created[edge.caller.index()])
-        .collect();
-    if edges.is_empty() {
-        return None;
-    }
-
-    let children = super::inline_clones::children(program, body)?;
-    // The body's shape: one exit, nothing it cannot lend to a caller.
-    let entry = &data.regions[data.entry.index()].operations;
-    let mut exit = None;
-    let mut expression = true;
-    for (index, operation) in data.operations.iter().enumerate() {
-        let op = OpId::from_index(index)?;
-        match operation.kind {
-            OperationKind::Return => {
-                if exit.is_some() || entry.last() != Some(&op) {
-                    return None;
-                }
-                exit = Some(op);
-            }
-            OperationKind::IsUndefined { .. }
-            | OperationKind::Yield { .. }
-            | OperationKind::Await
-            | OperationKind::SuperConstruct
-            | OperationKind::LoadModule { .. } => return None,
-            ref kind => expression &= !statement(kind),
-        }
-    }
-    // Ambient `this` and `arguments` belong to the activation, and a foreign
-    // cell the body declares is not a cell a caller can hold.
-    let foreign = |cell: &CellId| {
-        let storage = &program.cells[cell.index()];
-        ambient::classify(storage).is_some()
-            || (storage.owner == body && storage.binding == CellBinding::Foreign)
-    };
-    if data.captures.iter().any(foreign)
-        || data.places.iter().any(|place| match place {
-            Place::Cell(cell) => foreign(cell),
-            _ => false,
-        })
-    {
-        return None;
-    }
-    let returned = exit.and_then(|exit| {
-        data.operands(data.operations[exit.index()].operands)
-            .and_then(|operands| operands.first().copied())
-    });
-    // A parameter reads its argument when nothing writes it and every load
-    // and argument has its exact type, so a use sees the type it saw.
-    let mut forwarded: Vec<bool> = data
-        .parameters
-        .iter()
-        .map(|&cell| {
-            let storage = graph.storage(cell);
-            // A reference-valued parameter written only through a field still
-            // denotes the same evaluated handle. Captured formals need a fresh
-            // lexical bank; value products keep their private mutable copy.
-            !storage.referenced && !storage.shared && (!storage.stored ||
-                !matches!(program.types[program.cells[cell.index()].ty.index()],
-                    Type::Struct(_) | Type::StructInstance { .. } | Type::Nullable(_))
-                && !data.operations.iter().any(|op| matches!(op.kind,
-                    OperationKind::Store(place) if matches!(data.places[place.index()], Place::Cell(id) if id == cell))))
-        })
-        .collect();
-    for operation in &data.operations {
-        if let (OperationKind::Load(place), Some(result)) = (&operation.kind, operation.result) {
-            if let Some(Place::Cell(cell)) = data.places.get(place.index()) {
-                if let Some(position) = data.parameters.iter().position(|p| p == cell) {
-                    forwarded[position] &=
-                        data.values[result.index()].ty == program.cells[cell.index()].ty;
-                }
-            }
-        }
-    }
-
-    let mut sites = Vec::with_capacity(edges.len());
-    let mut callee_loads = 0usize;
-    for edge in edges {
-        if edge.kind != EdgeKind::Call {
-            return None;
-        }
-        let caller = program.unit(edge.caller)?;
-        let site = caller.calls.get(edge.call.index())?;
-        let CallTarget::Value {
-            callee,
-            invocation: Invocation::Value,
-        } = site.target
-        else {
-            return None;
-        };
-        let arguments = caller.arguments(site.arguments)?;
-        if (caller.module != data.module
-            && data.captures.iter().any(|cell| {
-                program
-                    .unit(program.cells[cell.index()].owner)
-                    .is_none_or(|owner| owner.kind != UnitKind::ModuleInitialization)
-            }))
-            || site.contract.instantiation.is_some()
-            || arguments.len() != data.parameters.len()
-            || arguments
+    frequency_work: &mut u64,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Option<Candidate>, AllocationError> {
+    storage::optional(budget, |attempt| {
+        let graph = effects.graph();
+        let data = program.unit(body)?;
+        attempt.work(
+            data.parameters.len() as u64
+                + data.places.len() as u64
+                + data.captures.len() as u64
+                + 1,
+        )?;
+        if !created[body.index()]
+            || data.kind == UnitKind::ModuleInitialization
+            || data.suspension != Suspension::None
+            || data.constructor_of.is_some()
+            || graph.recursive(body)
+            || data
+                .parameters
                 .iter()
-                .any(|argument| matches!(argument, CallArgument::Reference(_)))
+                .any(|&cell| program.is_reference_parameter(cell))
         {
             return None;
         }
-        for (position, argument) in arguments.iter().enumerate() {
-            match argument {
-                CallArgument::Value(value) => {
-                    forwarded[position] &= caller.values[value.index()].ty
-                        == program.cells[data.parameters[position].index()].ty;
+        // Calls from units nothing creates never run; they are emptied.
+        let callers = graph.complete_callers(body)?;
+        attempt.work(callers.len() as u64)?;
+        let edges = attempt.collect(
+            Scratch,
+            callers.iter().filter(|edge| created[edge.caller.index()]),
+        )?;
+        if edges.is_empty() {
+            return None;
+        }
+
+        let children =
+            attempt.admit(|budget| super::inline_clones::children(program, body, budget))??;
+        // The body's shape: one exit, nothing it cannot lend to a caller.
+        let entry = &data.regions[data.entry.index()].operations;
+        let mut exit = None;
+        let mut expression = true;
+        for (index, operation) in data.operations.iter().enumerate() {
+            attempt.work(1)?;
+            let op = OpId::from_index(index)?;
+            match operation.kind {
+                OperationKind::Return => {
+                    if exit.is_some() || entry.last() != Some(&op) {
+                        return None;
+                    }
+                    exit = Some(op);
                 }
-                // A spread is never a forwarded parameter.
-                CallArgument::Spread(_) => forwarded[position] = false,
-                CallArgument::Reference(_) => {}
+                OperationKind::IsUndefined { .. }
+                | OperationKind::Yield { .. }
+                | OperationKind::Await
+                | OperationKind::SuperConstruct
+                | OperationKind::LoadModule { .. } => return None,
+                ref kind => expression &= !statement(kind),
             }
         }
-        // A used result is the returned value itself, of the same type.
-        let operation = caller.operations.get(edge.operation.index())?;
-        if let Some(result) = operation.result.filter(|result| used(caller, *result)) {
-            match returned {
-                Some(returned)
-                    if data.values[returned.index()].ty == caller.values[result.index()].ty => {}
-                _ => return None,
-            }
-        }
-        let definition = &caller.operations[caller.values[callee.index()].definition.index()];
-        callee_loads += usize::from(matches!(definition.kind, OperationKind::Load(_)));
-        sites.push(Site {
-            caller: edge.caller,
-            call: edge.call,
-            operation: edge.operation,
-        });
-    }
-
-    // An expression stands anywhere when it reads its arguments where the
-    // call evaluated them: once each, in order, before anything observable.
-    // Otherwise the copy is a statement (a parameter that does not read its
-    // argument is a cell initialized where the copy stands), and goes only
-    // where statements may.
-    // Arguments the target can spell where the copy reads them.
-    let movable = sites.iter().all(|site| {
-        program.unit(site.caller).is_some_and(|caller| {
-            caller
-                .arguments(caller.calls[site.call.index()].arguments)
-                .is_some_and(|arguments| {
-                    arguments.iter().all(|argument| match argument {
-                        CallArgument::Value(value) => {
-                            let definition =
-                                &caller.operations[caller.values[value.index()].definition.index()];
-                            match definition.kind {
-                                OperationKind::Constant(_) => true,
-                                OperationKind::Load(place) => {
-                                    matches!(caller.places.get(place.index()), Some(Place::Cell(_)))
-                                }
-                                _ => false,
-                            }
-                        }
-                        CallArgument::Reference(_) | CallArgument::Spread(_) => false,
-                    })
-                })
-        })
-    });
-    let expression = expression
-        && forwarded.iter().all(|forwarded| *forwarded)
-        && reads_in_order(
-            program,
-            data,
-            &behaviors(program, effects, body, None),
-            movable,
-        );
-    // One proved activation needs no renewed JavaScript capture bank. Native
-    // still ends its owned locals at the original call's exit. Unknown and
-    // repeated activations always keep the lexical block.
-    let capture_scope = if children.is_empty() {
-        false
-    } else {
-        let (frequency, work) = graph.frequency(program, body);
-        receipt.call_frequency_work += work as u64;
-        native || frequency != super::super::call_graph::CallFrequency::AtMostOnce
-    };
-    let scoped = capture_scope
-        || declares[body.index()]
-        || forwarded
-            .iter()
-            .zip(&data.parameters)
-            .any(|(forwarded, &cell)| {
-                !*forwarded && !scalar(program, program.cells[cell.index()].ty)
-            });
-    if (!expression || scoped)
-        && sites.iter().any(|site| {
-            program
-                .unit(site.caller)
-                .is_none_or(|caller| !statement_site(caller, site.operation))
-        })
-    {
-        return None;
-    }
-
-    // No growth: each copy adds the body (less its exit and forwarded
-    // loads) and a cell initialization per other parameter; it removes the
-    // call, its preparation and, for a function held in a cell, the load of
-    // the callee. Retiring the body removes it, its creation and the
-    // initialization of the cell that held it.
-    let forwarded_loads = data
-        .operations
-        .iter()
-        .filter(|operation| match operation.kind {
-            OperationKind::Load(place) => match data.places.get(place.index()) {
-                Some(Place::Cell(cell)) => data
-                    .parameters
-                    .iter()
-                    .position(|parameter| parameter == cell)
-                    .is_some_and(|position| forwarded[position]),
+        // Ambient `this` and `arguments` belong to the activation, and a foreign
+        // cell the body declares is not a cell a caller can hold.
+        let foreign = |cell: &CellId| {
+            let storage = &program.cells[cell.index()];
+            ambient::classify(storage).is_some()
+                || (storage.owner == body && storage.binding == CellBinding::Foreign)
+        };
+        if data.captures.iter().any(foreign)
+            || data.places.iter().any(|place| match place {
+                Place::Cell(cell) => foreign(cell),
                 _ => false,
-            },
-            _ => false,
+            })
+        {
+            return None;
+        }
+        let returned = exit.and_then(|exit| {
+            data.operands(data.operations[exit.index()].operands)
+                .and_then(|operands| operands.first().copied())
+        });
+        // A parameter reads its argument when nothing writes it and every load
+        // and argument has its exact type, so a use sees the type it saw.
+        let mut whole_stores = attempt.filled(Scratch, program.cells.len(), false)?;
+        for operation in &data.operations {
+            attempt.work(1)?;
+            if let OperationKind::Store(place) = operation.kind {
+                if let Place::Cell(cell) = data.places[place.index()] {
+                    whole_stores[cell.index()] = true;
+                }
+            }
+        }
+        let mut forwarded = attempt.collect(
+            Retained,
+            data.parameters.iter().map(|&cell| {
+                let storage = graph.storage(cell);
+                !storage.referenced
+                    && !storage.shared
+                    && (!storage.stored
+                        || !matches!(
+                            program.types[program.cells[cell.index()].ty.index()],
+                            Type::Struct(_) | Type::StructInstance { .. } | Type::Nullable(_)
+                        ) && !whole_stores[cell.index()])
+            }),
+        )?;
+        for operation in &data.operations {
+            attempt.work(data.parameters.len() as u64 + 1)?;
+            if let (OperationKind::Load(place), Some(result)) = (&operation.kind, operation.result)
+            {
+                if let Some(Place::Cell(cell)) = data.places.get(place.index()) {
+                    if let Some(position) = data.parameters.iter().position(|p| p == cell) {
+                        forwarded[position] &=
+                            data.values[result.index()].ty == program.cells[cell.index()].ty;
+                    }
+                }
+            }
+        }
+
+        let mut sites = attempt.vector(Retained, edges.len())?;
+        let mut callee_loads = 0usize;
+        for edge in edges {
+            attempt.work(1)?;
+            if edge.kind != EdgeKind::Call {
+                return None;
+            }
+            let caller = program.unit(edge.caller)?;
+            let site = caller.calls.get(edge.call.index())?;
+            let CallTarget::Value {
+                callee,
+                invocation: Invocation::Value,
+            } = site.target
+            else {
+                return None;
+            };
+            let arguments = caller.arguments(site.arguments)?;
+            attempt.work(arguments.len() as u64 + data.captures.len() as u64)?;
+            if (caller.module != data.module
+                && data.captures.iter().any(|cell| {
+                    program
+                        .unit(program.cells[cell.index()].owner)
+                        .is_none_or(|owner| owner.kind != UnitKind::ModuleInitialization)
+                }))
+                || site.contract.instantiation.is_some()
+                || arguments.len() != data.parameters.len()
+                || arguments
+                    .iter()
+                    .any(|argument| matches!(argument, CallArgument::Reference(_)))
+            {
+                return None;
+            }
+            for (position, argument) in arguments.iter().enumerate() {
+                match argument {
+                    CallArgument::Value(value) => {
+                        forwarded[position] &= caller.values[value.index()].ty
+                            == program.cells[data.parameters[position].index()].ty;
+                    }
+                    // A spread is never a forwarded parameter.
+                    CallArgument::Spread(_) => forwarded[position] = false,
+                    CallArgument::Reference(_) => {}
+                }
+            }
+            // A used result is the returned value itself, of the same type.
+            let operation = caller.operations.get(edge.operation.index())?;
+            if let Some(result) = operation.result {
+                if attempt.admit(|budget| super::dce::used_in(caller, result, budget))? {
+                    match returned {
+                        Some(returned)
+                            if data.values[returned.index()].ty
+                                == caller.values[result.index()].ty => {}
+                        _ => return None,
+                    }
+                }
+            }
+            let definition = &caller.operations[caller.values[callee.index()].definition.index()];
+            callee_loads += usize::from(matches!(definition.kind, OperationKind::Load(_)));
+            sites.push(Site {
+                caller: edge.caller,
+                call: edge.call,
+                operation: edge.operation,
+            });
+        }
+
+        // An expression stands anywhere when it reads its arguments where the
+        // call evaluated them: once each, in order, before anything observable.
+        // Otherwise the copy is a statement (a parameter that does not read its
+        // argument is a cell initialized where the copy stands), and goes only
+        // where statements may.
+        // Arguments the target can spell where the copy reads them.
+        let movable = sites.iter().all(|site| {
+            program.unit(site.caller).is_some_and(|caller| {
+                caller
+                    .arguments(caller.calls[site.call.index()].arguments)
+                    .is_some_and(|arguments| {
+                        arguments.iter().all(|argument| match argument {
+                            CallArgument::Value(value) => {
+                                let definition = &caller.operations
+                                    [caller.values[value.index()].definition.index()];
+                                match definition.kind {
+                                    OperationKind::Constant(_) => true,
+                                    OperationKind::Load(place) => {
+                                        matches!(
+                                            caller.places.get(place.index()),
+                                            Some(Place::Cell(_))
+                                        )
+                                    }
+                                    _ => false,
+                                }
+                            }
+                            CallArgument::Reference(_) | CallArgument::Spread(_) => false,
+                        })
+                    })
+            })
+        });
+        let expression = if expression && forwarded.iter().all(|forwarded| *forwarded) {
+            attempt.admit(|budget| {
+                budget.with_temporary(
+                    |budget| behaviors_in(program, effects, body, None, budget),
+                    |behaviors, budget| reads_in_order(program, data, behaviors, movable, budget),
+                )
+            })?
+        } else {
+            false
+        };
+        // One proved activation needs no renewed JavaScript capture bank. Native
+        // still ends its owned locals at the original call's exit. Unknown and
+        // repeated activations always keep the lexical block.
+        let capture_scope = if children.is_empty() {
+            false
+        } else {
+            let (frequency, work) =
+                attempt.admit(|budget| graph.frequency(program, body, budget))?;
+            *frequency_work += work as u64;
+            native || frequency != super::super::call_graph::CallFrequency::AtMostOnce
+        };
+        let scoped = capture_scope
+            || declares[body.index()]
+            || forwarded
+                .iter()
+                .zip(&data.parameters)
+                .any(|(forwarded, &cell)| {
+                    !*forwarded && !scalar(program, program.cells[cell.index()].ty)
+                });
+        if !expression || scoped {
+            for site in &sites {
+                if !attempt.admit(|budget| {
+                    statement_site(
+                        program.unit(site.caller).expect("a caller"),
+                        site.operation,
+                        budget,
+                    )
+                })? {
+                    return None;
+                }
+            }
+        }
+
+        // No growth: each copy adds the body (less its exit and forwarded
+        // loads) and a cell initialization per other parameter; it removes the
+        // call, its preparation and, for a function held in a cell, the load of
+        // the callee. Retiring the body removes it, its creation and the
+        // initialization of the cell that held it.
+        attempt.work(
+            (data.operations.len() as u64).saturating_mul(data.parameters.len() as u64 + 1),
+        )?;
+        let forwarded_loads = data
+            .operations
+            .iter()
+            .filter(|operation| match operation.kind {
+                OperationKind::Load(place) => match data.places.get(place.index()) {
+                    Some(Place::Cell(cell)) => data
+                        .parameters
+                        .iter()
+                        .position(|parameter| parameter == cell)
+                        .is_some_and(|position| forwarded[position]),
+                    _ => false,
+                },
+                _ => false,
+            })
+            .count();
+        let cells = forwarded.iter().filter(|forwarded| !**forwarded).count();
+        let copy = data.operations.len() - usize::from(exit.is_some()) - forwarded_loads + cells;
+        let held = callee_loads > 0;
+        let growth = if sites.len() == 1 {
+            // The body moves: the copy may not outnumber the body, its creation,
+            // the cell that held it and the call operations.
+            copy <= data.operations.len() + 1 + usize::from(held) + 2 + callee_loads
+        } else {
+            // Only identity transports add no duplicated representation. Counted
+            // operations do not bound literal bytes or predict a codec's repeats.
+            // Nonempty bodies compete through the expression-inlining family.
+            expression && copy == 0
+        };
+        growth.then_some(Candidate {
+            body,
+            sites,
+            exit,
+            forwarded,
+            scoped,
+            children,
         })
-        .count();
-    let cells = forwarded.iter().filter(|forwarded| !**forwarded).count();
-    let copy = data.operations.len() - usize::from(exit.is_some()) - forwarded_loads + cells;
-    let held = callee_loads > 0;
-    let growth = if sites.len() == 1 {
-        // The body moves: the copy may not outnumber the body, its creation,
-        // the cell that held it and the call operations.
-        copy <= data.operations.len() + 1 + usize::from(held) + 2 + callee_loads
-    } else {
-        // Only identity transports add no duplicated representation. Counted
-        // operations do not bound literal bytes or predict a codec's repeats.
-        // Nonempty bodies compete through the expression-inlining family.
-        expression && copy == 0
-    };
-    growth.then_some(Candidate {
-        body,
-        sites,
-        exit,
-        forwarded,
-        scoped,
-        children,
     })
 }
 
@@ -441,40 +523,50 @@ fn reads_in_order(
     data: &UnitData,
     behaviors: &[EvaluationBehavior],
     arithmetic: bool,
-) -> bool {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<bool, AllocationError> {
+    let mut budget = budget.scope();
     let entry = &data.regions[data.entry.index()].operations;
-    let parameter = |place: PlaceId| {
-        let mut place = place;
+    let mut read = budget.filled(Scratch, data.operations.len(), None)?;
+    let mut in_entry = budget.filled(Scratch, data.operations.len(), false)?;
+    for &op in entry {
+        in_entry[op.index()] = true;
+    }
+    for (index, operation) in data.operations.iter().enumerate() {
+        budget.work(WorkKind::Analysis, 1)?;
+        let OperationKind::Load(mut place) = operation.kind else {
+            continue;
+        };
         loop {
+            budget.work(WorkKind::Analysis, 1)?;
             match data.places.get(place.index()) {
                 Some(Place::Cell(cell)) => {
-                    return data.parameters.iter().position(|p| p == cell);
+                    budget.work(WorkKind::Analysis, data.parameters.len() as u64)?;
+                    read[index] = data
+                        .parameters
+                        .iter()
+                        .position(|parameter| parameter == cell);
+                    break;
                 }
                 Some(Place::Field { base, .. }) => place = *base,
-                _ => return None,
+                _ => break,
             }
         }
-    };
-    let read = |operation: &Operation| match operation.kind {
-        OperationKind::Load(place) => parameter(place),
-        _ => None,
-    };
-    // Every read stands in the entry region: none in a branch or a loop.
-    let in_entry = data
-        .operations
+    }
+    // Every parameter read stands in the entry region.
+    if read
         .iter()
-        .enumerate()
-        .filter(|(_, operation)| read(operation).is_some())
-        .all(|(index, _)| entry.iter().any(|op| op.index() == index));
-    if !in_entry {
-        return false;
+        .zip(&in_entry)
+        .any(|(read, entry)| read.is_some() && !*entry)
+    {
+        return Ok(false);
     }
     let mut next = 0;
     let mut last = 0;
     for (at, op) in entry.iter().enumerate() {
-        if let Some(position) = read(&data.operations[op.index()]) {
+        if let Some(position) = read[op.index()] {
             if position < next {
-                return false;
+                return Ok(false);
             }
             next = position + 1;
             last = at;
@@ -493,11 +585,17 @@ fn reads_in_order(
             )
         )
     };
-    entry[..last].iter().all(|op| {
+    for op in &entry[..last] {
         let operation = &data.operations[op.index()];
-        match operation.kind {
+        budget.work(
+            WorkKind::Analysis,
+            data.operands(operation.operands)
+                .map_or(0, |values| values.len()) as u64
+                + 1,
+        )?;
+        let allowed = match operation.kind {
             OperationKind::Constant(_) => true,
-            OperationKind::Load(_) => read(operation).is_some(),
+            OperationKind::Load(_) => read[op.index()].is_some(),
             OperationKind::IntBinary(_)
             | OperationKind::Binary(_)
             | OperationKind::Unary { .. }
@@ -512,158 +610,203 @@ fn reads_in_order(
                             .is_some_and(|operands| operands.iter().all(primitive)))
             }
             _ => false,
+        };
+        if !allowed {
+            return Ok(false);
         }
-    })
+    }
+    Ok(true)
 }
 
 /// Whether anything reads `value`.
 pub(super) fn used(data: &UnitData, value: ValueId) -> bool {
-    let mut scratch = Vec::new();
-    data.regions
-        .iter()
-        .any(|region| region.result == Some(value))
-        || data.operations.iter().any(|operation| {
-            super::dce::reads(data, operation, &mut scratch);
-            scratch.contains(&value)
-        })
+    super::dce::used_in(
+        data,
+        value,
+        &mut crate::output_budget::AllocationBudget::new(None),
+    )
+    .expect("inspection value reads")
 }
 
 /// A statement region, where the target writes statements (not a loop's
 /// test or update, not an expression's operand), in which no value computed
 /// before `operation` is read after it, and no call prepared before it is
 /// made after it: the site is not inside another call's arguments.
-fn statement_site(data: &UnitData, operation: OpId) -> bool {
+fn statement_site(
+    data: &UnitData,
+    operation: OpId,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<bool, AllocationError> {
+    let mut budget = budget.scope();
     let region = data.operations[operation.index()].region;
     if data.regions[region.index()].result.is_some() {
-        return false;
+        return Ok(false);
     }
     if let Some(parent) = data.regions[region.index()].parent {
+        budget.work(
+            WorkKind::Analysis,
+            data.regions[parent.index()].operations.len() as u64,
+        )?;
         let owner = data.regions[parent.index()]
             .operations
             .iter()
             .map(|op| &data.operations[op.index()].kind)
             .find(|kind| kind.child_regions().any(|child| child == region));
         match owner {
-            Some(OperationKind::Loop { body, .. }) if *body != region => return false,
+            Some(OperationKind::Loop { body, .. }) if *body != region => return Ok(false),
             Some(OperationKind::ShortCircuit { .. } | OperationKind::Select { .. }) => {
-                return false
+                return Ok(false)
             }
             _ => {}
         }
     }
     let list = &data.regions[region.index()].operations;
+    budget.work(WorkKind::Analysis, list.len() as u64)?;
     let Some(position) = list.iter().position(|op| *op == operation) else {
-        return false;
+        return Ok(false);
     };
-    let mut prepared = HashSet::new();
+    let mut prepared = budget.filled(Scratch, data.calls.len(), false)?;
+    let mut prepared_count = 0usize;
     for op in &list[..position] {
+        budget.work(WorkKind::Analysis, 1)?;
         match data.operations[op.index()].kind {
             OperationKind::PrepareCall(call) | OperationKind::PrepareReference { call, .. } => {
-                prepared.insert(call);
+                prepared_count +=
+                    usize::from(!std::mem::replace(&mut prepared[call.index()], true));
             }
             OperationKind::Call(call) => {
-                prepared.remove(&call);
+                prepared_count -=
+                    usize::from(std::mem::replace(&mut prepared[call.index()], false));
             }
             _ => {}
         }
     }
     if let OperationKind::Call(call) = data.operations[operation.index()].kind {
-        prepared.remove(&call);
+        prepared_count -= usize::from(std::mem::replace(&mut prepared[call.index()], false));
     }
-    if !prepared.is_empty() {
-        return false;
+    if prepared_count != 0 {
+        return Ok(false);
     }
     // A constant is spelled where it is read, so it never waits.
-    let pending: HashSet<ValueId> = list[..position]
-        .iter()
-        .map(|op| &data.operations[op.index()])
-        .filter(|operation| !matches!(operation.kind, OperationKind::Constant(_)))
-        .filter_map(|operation| operation.result)
-        .collect();
-    if pending.is_empty() {
-        return true;
+    let mut pending = budget.filled(Scratch, data.values.len(), false)?;
+    let mut any = false;
+    for op in &list[..position] {
+        budget.work(WorkKind::Analysis, 1)?;
+        let operation = &data.operations[op.index()];
+        if !matches!(operation.kind, OperationKind::Constant(_)) {
+            if let Some(value) = operation.result {
+                pending[value.index()] = true;
+                any = true;
+            }
+        }
     }
-    let mut scratch = Vec::new();
-    let mut stack: Vec<OpId> = list[position + 1..].to_vec();
+    if !any {
+        return Ok(true);
+    }
+    let mut stack = budget.copy_slice(Scratch, &list[position + 1..])?;
     while let Some(op) = stack.pop() {
         let operation = &data.operations[op.index()];
-        super::dce::reads(data, operation, &mut scratch);
-        if scratch.iter().any(|value| pending.contains(value)) {
-            return false;
+        budget.work(WorkKind::Analysis, 1)?;
+        let mut found = false;
+        super::dce::visit_reads(data, operation, &mut budget, |value, _| {
+            found |= pending[value.index()];
+            Ok(())
+        })?;
+        if found {
+            return Ok(false);
         }
         for child in operation.kind.child_regions() {
-            stack.extend(data.regions[child.index()].operations.iter().copied());
+            budget.extend_copy(Scratch, &mut stack, &data.regions[child.index()].operations)?;
         }
     }
-    true
+    Ok(true)
 }
 
 /// The operations that evaluate a call's arguments: those between its
 /// preparation and the call in the call's region, when none declares a cell
 /// and no value they compute is read after the call. Otherwise none.
-fn arguments_evaluation<'a>(data: &'a UnitData, region: RegionId, site: &Site) -> &'a [OpId] {
+fn arguments_evaluation<'a>(
+    data: &'a UnitData,
+    region: RegionId,
+    site: &Site,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<&'a [OpId], AllocationError> {
+    let mut budget = budget.scope();
     let list = &data.regions[region.index()].operations;
+    budget.work(WorkKind::Analysis, (list.len() as u64).saturating_mul(2))?;
     let prepared = list.iter().position(|op| {
         matches!(data.operations[op.index()].kind, OperationKind::PrepareCall(call) if call == site.call)
     });
     let called = list.iter().position(|op| *op == site.operation);
     let (Some(prepared), Some(called)) = (prepared, called) else {
-        return &[];
+        return Ok(&[]);
     };
     if prepared >= called {
-        return &[];
+        return Ok(&[]);
     }
     let evaluation = &list[prepared + 1..called];
-    let mut defined = HashSet::new();
-    let mut stack = evaluation.to_vec();
+    let mut defined = budget.filled(Scratch, data.values.len(), false)?;
+    let mut stack = budget.copy_slice(Scratch, evaluation)?;
     while let Some(op) = stack.pop() {
+        budget.work(WorkKind::Analysis, 1)?;
         let operation = &data.operations[op.index()];
         if matches!(
             operation.kind,
             OperationKind::Initialize(_) | OperationKind::Declare(_)
         ) {
-            return &[];
+            return Ok(&[]);
         }
-        defined.extend(operation.result);
+        if let Some(value) = operation.result {
+            defined[value.index()] = true;
+        }
         for child in operation.kind.child_regions() {
-            stack.extend(data.regions[child.index()].operations.iter().copied());
+            budget.extend_copy(Scratch, &mut stack, &data.regions[child.index()].operations)?;
         }
     }
-    let mut scratch = Vec::new();
-    let mut later: Vec<OpId> = list[called + 1..].to_vec();
+    let mut later = budget.copy_slice(Scratch, &list[called + 1..])?;
     while let Some(op) = later.pop() {
         let operation = &data.operations[op.index()];
-        super::dce::reads(data, operation, &mut scratch);
-        if scratch.iter().any(|value| defined.contains(value)) {
-            return &[];
+        budget.work(WorkKind::Analysis, 1)?;
+        let mut found = false;
+        super::dce::visit_reads(data, operation, &mut budget, |value, _| {
+            found |= defined[value.index()];
+            Ok(())
+        })?;
+        if found {
+            return Ok(&[]);
         }
         for child in operation.kind.child_regions() {
-            later.extend(data.regions[child.index()].operations.iter().copied());
+            budget.extend_copy(Scratch, &mut later, &data.regions[child.index()].operations)?;
         }
     }
     if data.regions[region.index()]
         .result
-        .is_some_and(|value| defined.contains(&value))
+        .is_some_and(|value| defined[value.index()])
     {
-        return &[];
+        return Ok(&[]);
     }
-    evaluation
+    Ok(evaluation)
 }
 
 /// The unit whose operation creates each created body.
-fn creators(program: &Program<'_>, created: &[bool]) -> Vec<Option<UnitId>> {
-    let mut creators = vec![None; program.units.len()];
+fn creators(
+    program: &Program<'_>,
+    created: &[bool],
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Option<UnitId>>, AllocationError> {
+    let mut creators = budget.filled(Retained, program.units.len(), None)?;
     for frozen in &program.units {
         if !created[frozen.id().index()] {
             continue;
         }
         for operation in &frozen.data().operations {
+            budget.work(WorkKind::Analysis, 1)?;
             if let OperationKind::Closure(body) = operation.kind {
                 creators[body.index()] = Some(frozen.id());
             }
         }
     }
-    creators
+    Ok(creators)
 }
 
 fn inline(
@@ -678,21 +821,25 @@ fn inline(
     let caller = program.unit(site.caller).ok_or("a missing caller")?;
     let at = &caller.operations[site.operation.index()];
     let (region, span) = (at.region, at.span);
-    let result_type = at
-        .result
-        .filter(|&value| used(caller, value))
-        .map(|value| caller.values[value.index()].ty);
+    let result_type = match at.result {
+        Some(value) if super::dce::used_in(caller, value, budget)? => {
+            Some(caller.values[value.index()].ty)
+        }
+        _ => None,
+    };
     let foreign_module = caller.module != body.module;
-    let arguments: Vec<ValueId> = caller
+    let passed = caller
         .arguments(caller.calls[site.call.index()].arguments)
-        .ok_or("invalid argument range")?
-        .iter()
-        .map(|argument| match argument {
-            CallArgument::Value(value) => Ok(*value),
-            CallArgument::Reference(_) => Err("an inlined call passes a reference"),
-            CallArgument::Spread(_) => Err("an inlined call spreads an argument"),
-        })
-        .collect::<Result<_, _>>()?;
+        .ok_or("invalid argument range")?;
+    let mut arguments = budget.vector(Scratch, passed.len())?;
+    for argument in passed {
+        budget.work(WorkKind::Analysis, 1)?;
+        arguments.push(match argument {
+            CallArgument::Value(value) => *value,
+            CallArgument::Reference(_) => return Err("an inlined call passes a reference".into()),
+            CallArgument::Spread(_) => return Err("an inlined call spreads an argument".into()),
+        });
+    }
     // A scoped copy stands in a block at the call: the block's region is
     // the next one the caller's arena takes.
     let scope = if candidate.scoped {
@@ -710,9 +857,10 @@ fn inline(
 
     // The body's own cells: a forwarded parameter reads its argument, every
     // other cell is cloned where the copy stands.
-    let mut forwards = HashMap::new();
+    let mut forwards = Map::new(Scratch);
     let mut clones = Vec::new();
     for (index, cell) in program.cells.iter().enumerate() {
+        budget.work(WorkKind::Analysis, body.parameters.len() as u64 + 1)?;
         if cell.owner != candidate.body || cell.binding == CellBinding::Foreign {
             continue;
         }
@@ -722,7 +870,7 @@ fn inline(
             .iter()
             .position(|&parameter| parameter == id);
         if let Some(position) = parameter.filter(|&position| candidate.forwarded[position]) {
-            forwards.insert(id, arguments[position]);
+            forwards.insert(id, arguments[position], budget)?;
             continue;
         }
         let mut clone = storage::cell(cell, budget)?;
@@ -739,17 +887,18 @@ fn inline(
         clone.binding = CellBinding::Local;
         clone.synthetic = true;
         clone.observable_before_initialization &= parameter.is_none();
-        clones.push((id, clone));
+        budget.push(Scratch, &mut clones, (id, clone))?;
     }
     storage::release_vec(regions, Retained, budget)?;
-    let mut cells = HashMap::new();
-    for (id, clone) in clones {
-        cells.insert(id, editor.add_cell_in(clone, budget)?);
+    let mut cells = Map::new(Scratch);
+    for (id, clone) in clones.drain(..) {
+        let new = editor.add_cell_in(clone, budget)?;
+        cells.insert(id, new, budget)?;
     }
+    storage::release_vec(clones, Scratch, budget)?;
     let units = super::inline_clones::clone(editor, &candidate.children, &mut cells, budget)?;
-    let root_bindings: Vec<_> = cells
-        .iter()
-        .filter_map(|(&old, &new)| {
+    let root_bindings = storage::collect(
+        cells.iter().filter_map(|(&old, &new)| {
             let original = &editor.program().cells[old.index()];
             if original.owner != candidate.body {
                 return None;
@@ -758,14 +907,17 @@ fn inline(
                 return None;
             };
             units.get(&unit).copied().map(|unit| (new, unit))
-        })
-        .collect();
+        }),
+        Scratch,
+        budget,
+    )?;
     if !root_bindings.is_empty() {
         let (_, table) = editor.unit_and_cells_in(site.caller, budget)?;
-        for (cell, unit) in root_bindings {
+        for &(cell, unit) in &root_bindings {
             table[cell.index()].binding = CellBinding::Function(unit);
         }
     }
+    storage::release_vec(root_bindings, Scratch, budget)?;
     let result_cell = if scope.is_some() {
         if let Some(ty) = result_type {
             Some(editor.add_cell_in(
@@ -795,6 +947,7 @@ fn inline(
 
     let mut source = storage::unit(body, budget)?;
     for op in &mut source.operations {
+        budget.work(WorkKind::Edit, 1)?;
         if let OperationKind::Closure(unit) = &mut op.kind {
             *unit = units.get(unit).copied().unwrap_or(*unit);
         }
@@ -875,8 +1028,8 @@ fn inline(
         // The arguments are evaluated between the call's preparation and the
         // call: in the block they run at the same point, and their values
         // stay inside it, where the copy reads them.
-        let mut evaluation =
-            budget.copy_slice(Retained, arguments_evaluation(data, region, site))?;
+        let evaluated = arguments_evaluation(data, region, site, budget)?;
+        let mut evaluation = budget.copy_slice(Retained, evaluated)?;
         for &op in &evaluation {
             data.operations[op.index()].region = scope;
             for child in data.operations[op.index()].kind.child_regions() {
@@ -936,20 +1089,13 @@ fn inline(
     budget.reserve_vec(Retained, list, inserted.len())?;
     list.splice(position..position, inserted.iter().copied());
     storage::release_vec(inserted, Retained, budget)?;
-    let preparations: Vec<OpId> = data
-        .operations
-        .iter()
-        .enumerate()
-        .filter(|(_, operation)| match operation.kind {
-            OperationKind::PrepareCall(call) | OperationKind::PrepareReference { call, .. } => {
-                call == site.call
-            }
-            _ => false,
-        })
-        .filter_map(|(index, _)| OpId::from_index(index))
-        .collect();
-    for op in preparations {
-        edit::detach(data, op);
+    for index in 0..data.operations.len() {
+        budget.work(WorkKind::Analysis, 1)?;
+        if matches!(data.operations[index].kind,
+            OperationKind::PrepareCall(call) | OperationKind::PrepareReference { call, .. } if call == site.call)
+        {
+            edit::detach(data, OpId::from_index(index).unwrap());
+        }
     }
     // A used result has the returned value's type (`candidate`).
     if let (Some(result), Some(returned)) =
@@ -969,6 +1115,7 @@ fn inline(
             .is_some_and(|data| data.kind == UnitKind::ModuleInitialization);
         let mut unit = site.caller;
         while unit != owner {
+            budget.work(WorkKind::Edit, 1)?;
             let data = editor.unit_mut_in(unit, budget)?;
             if data.captures.contains(&cell) {
                 break;
@@ -980,5 +1127,9 @@ fn inline(
             unit = creators[unit.index()].ok_or("a capture has no path to its owner")?;
         }
     }
+    storage::release_vec(arguments, Scratch, budget)?;
+    forwards.release(budget)?;
+    cells.release(budget)?;
+    units.release(budget)?;
     Ok(())
 }

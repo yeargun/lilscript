@@ -179,3 +179,55 @@ fn q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations(
     }
     assert!(passed > 0 && refused > 0);
 }
+
+#[test]
+fn q2_legality_probes_distinguish_decline_from_refusal_and_drop_temporaries() {
+    use super::super::analysis_storage::{optional, Map};
+    let mut ledger = ledger(1_000_000, 1024);
+    {
+        let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+        let declined = optional(&mut budget, |attempt| {
+            let _temporary = attempt.vector::<u64>(Retained, 32)?;
+            None::<Vec<u64>>
+        })
+        .unwrap();
+        assert!(declined.is_none());
+        assert_eq!(budget.retained_bytes(Retained), 0);
+        let refused = optional(&mut budget, |attempt| {
+            let first = attempt.vector::<u64>(Retained, 32)?;
+            let _second = attempt.vector::<u64>(Retained, 256)?;
+            Some(first)
+        });
+        assert!(matches!(
+            refused,
+            Err(crate::output_budget::AllocationError::Budget(_))
+        ));
+        assert_eq!(budget.retained_bytes(Retained), 0);
+        let unwound = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = optional(&mut budget, |attempt| {
+                let _temporary = attempt.vector::<u64>(Retained, 32)?;
+                if !std::hint::black_box(false) {
+                    panic!("probe unwind");
+                }
+                None::<Vec<u64>>
+            });
+        }));
+        assert!(unwound.is_err());
+        assert_eq!(budget.retained_bytes(Retained), 0);
+        let mut map = Map::new(Scratch);
+        for (key, value) in [(9u32, 90u32), (1, 10), (4, 40), (9, 99)] {
+            map.insert(key, value, &mut budget).unwrap();
+        }
+        assert_eq!(
+            map.iter()
+                .map(|(key, value)| (*key, *value))
+                .collect::<Vec<_>>(),
+            [(1, 10), (4, 40), (9, 99)]
+        );
+        assert_eq!(map.get(&9), Some(&99));
+        assert_eq!(map.get(&2), None);
+        map.release(&mut budget).unwrap();
+        assert_eq!(budget.retained_bytes(Scratch), 0);
+    }
+    assert_eq!(ledger.retained_bytes(), 0);
+}

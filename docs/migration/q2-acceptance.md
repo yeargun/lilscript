@@ -238,3 +238,11 @@ and repeated activation walks. Thirty-nine distinct focused checks pass across
 the connected changes; two test corrections and their earlier failures remain
 in the evidence. This extends task 4, with exact-value evaluation and other rule
 planners still open. No release/fleet measurement or broad speed claim is made.
+
+The [folding/signature/inlining batch](../../benchmarks/migration-results/2026-10-01-q2-rewrite-plans/README.md)
+admits those planners and closure/graft remaps, with explicit normal-decline
+versus resource-refusal handling. Shared counts, region propagation and streamed
+read/spelling queries remove repeated temporary allocations. Thirty-eight
+focused checks pass, including the native closure case after selecting the
+already installed Clang. Aggregate rewrite plans and exact-value evaluation
+remain open under task 4; this is not Q2 completion.

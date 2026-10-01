@@ -1,0 +1,55 @@
+
+running 38 tests
+test js::print::number_spelling_tests::finite_number_spelling_round_trips_across_exponents_and_signs ... ok
+test js::print::number_spelling_tests::numbers_take_their_shortest_exact_spelling ... ok
+test program::rules::admission_tests::q2_legality_probes_distinguish_decline_from_refusal_and_drop_temporaries ... ok
+test program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations ... ok
+test program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates ... ok
+test program::rules::call_tests::s3_cross_module_cycle_keeps_captured_tdz_observable ... ok
+test program::rules::call_tests::s3_cross_module_inlining_keeps_global_capture_and_initialization_order ... ok
+test program::rules::call_tests::s3_field_written_reference_parameter_does_not_copy_its_handle ... ok
+test program::rules::call_tests::s3_inlined_argument_mutation_keeps_earlier_snapshot ... ok
+test program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return ... FAILED
+test program::rules::call_tests::s3_nested_closure_subtree_remaps_every_capture ... ok
+test program::rules::call_tests::s3_return_normalization_does_not_keep_a_range_after_mutation ... ok
+test program::rules::call_tests::s3_returned_closures_keep_distinct_loop_activations ... ok
+test program::rules::call_tests::s3_scoped_result_survives_value_product_parameter_mutation ... ok
+test program::rules::call_tests::s3_tail_guard_return_keeps_the_untaken_suffix_lazy ... ok
+test program::rules::call_tests::s3_terminal_branches_preserve_lazy_effects_and_return_types ... ok
+test program::rules::tests::a_copied_body_reads_the_storage_its_function_captured ... ok
+test program::rules::tests::a_false_branch_leaves_with_the_function_only_it_called ... ok
+test program::rules::tests::a_fold_counts_what_the_output_may_name_at_one_character ... ok
+test program::rules::tests::a_function_called_once_moves_into_its_caller ... ok
+test program::rules::tests::a_loop_whose_test_is_false_never_runs ... ok
+test program::rules::tests::a_parameter_every_call_passes_the_same_constant_becomes_it ... ok
+test program::rules::tests::a_published_signature_stays ... ok
+test program::rules::tests::a_repeated_nonempty_body_stays_available_to_objective_judging ... ok
+test program::rules::tests::a_result_leaves_a_scoped_copy_through_private_storage ... ok
+test program::rules::tests::a_result_no_call_uses_leaves ... ok
+test program::rules::tests::a_signature_changes_for_every_function_that_shares_it ... ok
+test program::rules::tests::an_argument_is_not_read_after_something_observable ... ok
+test program::rules::tests::an_arrow_held_in_a_local_is_inlined_at_its_calls ... ok
+test program::rules::tests::an_unread_parameter_leaves_every_call ... ok
+test program::rules::tests::bitwise_identities_of_an_int_are_the_int ... ok
+test program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution ... ok
+test program::rules::tests::conditional_values_keep_the_operand_that_runs ... ok
+test program::rules::tests::default_transport_keeps_observed_argument_count_and_signed_zero ... ok
+test program::rules::tests::nested_constant_structures_fold_over_rounds ... ok
+test program::rules::tests::recursion_stays_callable_and_terminal_returns_inline ... ok
+test program::rules::tests::the_default_fold_bound_keeps_large_constants_as_expressions ... ok
+test text_measure::tests::literal_measurement_matches_emission_for_surrogates_and_number_boundaries ... ok
+
+failures:
+
+---- program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return stdout ----
+
+thread 'program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return' (1056022) panicked at src/program/native_tests.rs:187:10:
+Clang is required; set LILSCRIPT_NATIVE_CLANG to its executable (no skipped gate)
+native failure inputs retained at /tmp/lilscript-native-test-1055983-0-s3-captured-banks
+
+
+failures:
+    program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return
+
+test result: FAILED. 37 passed; 1 failed; 0 ignored; 0 measured; 2014 filtered out; finished in 1.82s
+

@@ -19,6 +19,15 @@ pub(crate) fn literal(value: &StringValue, quote: char) -> String {
     out
 }
 
+/// The exact emitted byte length, without a temporary quoted string.
+pub(crate) fn literal_length(value: &StringValue, quote: char) -> Option<usize> {
+    crate::text_measure::measure(|out| {
+        out.write_char(quote)?;
+        contents(out, value, quote, false)?;
+        out.write_char(quote)
+    })
+}
+
 /// `after_dollar` carries the preceding cooked chunk boundary for templates.
 /// The writer can enforce an output bound without allocating a temporary text.
 pub(crate) fn contents(

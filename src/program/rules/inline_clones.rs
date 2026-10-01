@@ -1,51 +1,68 @@
 //! Clone lexical callable subtrees for one inline occurrence. Function objects
 //! still form at their original evaluation points, capturing that call's bank.
 use super::edit::Editor;
+use super::storage::Map;
 use super::*;
-use std::collections::HashMap;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 
-pub(super) fn children(program: &Program<'_>, root: UnitId) -> Option<Vec<UnitId>> {
-    let mut result = Vec::new();
-    let mut pending = vec![root];
-    let mut work = 0usize;
-    while let Some(unit) = pending.pop() {
-        let data = program.unit(unit)?;
-        work = work.checked_add(data.operations.len())?;
-        if work > 65_536 || result.len() > 256 {
-            return None;
-        }
-        for operation in &data.operations {
-            if let OperationKind::Closure(child) = operation.kind {
-                if child == root || result.contains(&child) {
-                    return None;
+pub(super) fn children(
+    program: &Program<'_>,
+    root: UnitId,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Option<Vec<UnitId>>, AllocationError> {
+    storage::optional(budget, |attempt| {
+        let mut result = Vec::new();
+        let mut pending = attempt.vector(Scratch, 1)?;
+        pending.push(root);
+        let mut work = 0usize;
+        while let Some(unit) = pending.pop() {
+            let data = program.unit(unit)?;
+            work = work.checked_add(data.operations.len())?;
+            if work > 65_536 || result.len() > 256 {
+                return None;
+            }
+            attempt.work(data.operations.len() as u64)?;
+            for operation in &data.operations {
+                if let OperationKind::Closure(child) = operation.kind {
+                    attempt.work(result.len() as u64 + 1)?;
+                    if child == root || result.contains(&child) {
+                        return None;
+                    }
+                    if program.unit(child)?.constructor_of.is_some() {
+                        return None;
+                    }
+                    attempt.push(Retained, &mut result, child)?;
+                    attempt.push(Scratch, &mut pending, child)?;
                 }
-                if program.unit(child)?.constructor_of.is_some() {
-                    return None;
-                }
-                result.push(child);
-                pending.push(child);
             }
         }
-    }
-    Some(result)
+        Some(result)
+    })
 }
 
 pub(super) fn clone(
     editor: &mut Editor<'_>,
     children: &[UnitId],
-    cells: &mut HashMap<CellId, CellId>,
+    cells: &mut Map<CellId, CellId>,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
-) -> Result<HashMap<UnitId, UnitId>, super::RuleError> {
-    let mut units = HashMap::new();
+) -> Result<Map<UnitId, UnitId>, super::RuleError> {
+    let mut units = Map::new(Scratch);
     let base = editor.program().units.len();
     for (index, &unit) in children.iter().enumerate() {
         units.insert(
             unit,
             UnitId::from_index(base + index).ok_or("inline unit capacity")?,
-        );
+            budget,
+        )?;
     }
     let mut added = Vec::new();
     for (index, cell) in editor.program().cells.iter().enumerate() {
+        budget.work(WorkKind::Analysis, 1)?;
         let Some(&owner) = units.get(&cell.owner) else {
             continue;
         };
@@ -56,26 +73,35 @@ pub(super) fn clone(
         if let CellBinding::Function(body) = &mut cell.binding {
             *body = units.get(body).copied().unwrap_or(*body);
         }
-        added.push((id, cell));
+        budget.push(Scratch, &mut added, (id, cell))?;
     }
-    for (id, cell) in added {
-        cells.insert(id, editor.add_cell_in(cell, budget)?);
+    for (id, cell) in added.drain(..) {
+        let new = editor.add_cell_in(cell, budget)?;
+        cells.insert(id, new, budget)?;
     }
+    storage::release_vec(added, Scratch, budget)?;
     for &old in children {
         let mut data = storage::unit(
             editor.program().unit(old).ok_or("inline child unit")?,
             budget,
         )?;
+        budget.work(
+            WorkKind::Analysis,
+            data.parameters.len() as u64
+                + data.captures.len() as u64
+                + data.places.len() as u64
+                + data.operations.len() as u64,
+        )?;
         remap(&mut data, cells, &units);
         let new = editor.add_unit_in(data, budget)?;
-        if units[&old] != new {
+        if units.get(&old) != Some(&new) {
             return Err("inline unit order".into());
         }
     }
     Ok(units)
 }
 
-fn remap(data: &mut UnitData, cells: &HashMap<CellId, CellId>, units: &HashMap<UnitId, UnitId>) {
+fn remap(data: &mut UnitData, cells: &Map<CellId, CellId>, units: &Map<UnitId, UnitId>) {
     let cell = |id: &mut CellId| *id = cells.get(id).copied().unwrap_or(*id);
     for id in &mut data.parameters {
         cell(id);

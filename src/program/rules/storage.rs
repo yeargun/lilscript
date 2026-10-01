@@ -308,3 +308,5 @@ pub(super) fn release_unit(
     drop(data);
     budget.release(Retained, bytes)
 }
+
+pub(super) use super::super::analysis_storage::{optional, Map};

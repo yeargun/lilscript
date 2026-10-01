@@ -25,6 +25,7 @@ pub mod js_platform {
 }
 mod js_regex;
 mod js_string;
+mod text_measure;
 pub mod js_syntax_target;
 pub mod lexer;
 pub mod lint;

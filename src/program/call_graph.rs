@@ -180,59 +180,37 @@ struct Scan {
 
 impl CallGraph {
     pub(crate) fn frequency(
-        &self,
-        program: &Program<'_>,
-        mut body: UnitId,
-    ) -> (CallFrequency, u32) {
+        &self, program: &Program<'_>, mut body: UnitId, budget: &mut AllocationBudget<'_>,
+    ) -> Result<(CallFrequency, u32), AllocationError> {
         let mut work = 0u32;
         for _ in 0..program.units.len() {
+            budget.work(WorkKind::Analysis, 1)?;
             work += 1;
-            if work >= 65_536 {
-                return (CallFrequency::Unknown, work);
-            }
+            if work >= 65_536 { return Ok((CallFrequency::Unknown, work)); }
             let data = program.unit(body).expect("call graph unit");
-            if data.kind == UnitKind::ModuleInitialization {
-                return (CallFrequency::AtMostOnce, work);
-            }
-            if self.recursive(body) {
-                return (CallFrequency::Unknown, work);
-            }
-            let Some(calls) = self.complete_callers(body) else {
-                return (CallFrequency::Unknown, work);
-            };
+            if data.kind == UnitKind::ModuleInitialization { return Ok((CallFrequency::AtMostOnce, work)); }
+            if self.recursive(body) { return Ok((CallFrequency::Unknown, work)); }
+            let Some(calls) = self.complete_callers(body) else { return Ok((CallFrequency::Unknown, work)); };
             let [call] = calls else {
-                return (
-                    if calls.is_empty() {
-                        CallFrequency::AtMostOnce
-                    } else {
-                        CallFrequency::MayRepeat
-                    },
-                    work,
-                );
+                return Ok((if calls.is_empty() { CallFrequency::AtMostOnce } else { CallFrequency::MayRepeat }, work));
             };
             let caller = program.unit(call.caller).expect("call graph caller");
             let mut region = Some(caller.operations[call.operation.index()].region);
             while let Some(id) = region {
                 for operation in &caller.operations {
+                    budget.work(WorkKind::Analysis, 1)?;
                     work += 1;
-                    if work >= 65_536 {
-                        return (CallFrequency::Unknown, work);
-                    }
-                    if matches!(
-                        operation.kind,
-                        OperationKind::Loop { .. }
-                            | OperationKind::ForIn { .. }
-                            | OperationKind::ForOf { .. }
-                    ) && operation.kind.child_regions().any(|child| child == id)
-                    {
-                        return (CallFrequency::MayRepeat, work);
+                    if work >= 65_536 { return Ok((CallFrequency::Unknown, work)); }
+                    if matches!(operation.kind, OperationKind::Loop { .. } | OperationKind::ForIn { .. } | OperationKind::ForOf { .. })
+                        && operation.kind.child_regions().any(|child| child == id) {
+                        return Ok((CallFrequency::MayRepeat, work));
                     }
                 }
                 region = caller.regions[id.index()].parent;
             }
             body = call.caller;
         }
-        (CallFrequency::Unknown, work)
+        Ok((CallFrequency::Unknown, work))
     }
 
     pub fn build(program: &Program<'_>, seal: Seal) -> Self {

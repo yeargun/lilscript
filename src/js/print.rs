@@ -1951,6 +1951,12 @@ pub(super) fn number_spelling(value: f64) -> String {
     result
 }
 
+/// Length only; the shared formatter keeps its digit buffers on the stack.
+pub(crate) fn number_spelling_length(value: f64) -> Option<usize> {
+    if !value.is_finite() { return None; }
+    crate::text_measure::measure(|out| write_number(out, value))
+}
+
 /// LowerExp's finite f64 spelling fits in 32 ASCII bytes. Keep its digits on
 /// the stack and emit only the selected form; no discarded plain/scientific
 /// strings or repeated-zero buffers need heap storage.

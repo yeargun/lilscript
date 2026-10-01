@@ -260,7 +260,7 @@ pub(super) fn reads(data: &UnitData, operation: &Operation, out: &mut Vec<ValueI
 
 /// Stream reads so cascading liveness never materializes another operand list.
 /// A visitor can admit its own queue growth through the same allocation owner.
-fn visit_reads(
+pub(super) fn visit_reads(
     data: &UnitData,
     operation: &Operation,
     budget: &mut AllocationBudget<'_>,
@@ -332,6 +332,33 @@ fn visit_reads(
         }
     }
     Ok(())
+}
+
+/// A read query needs no temporary value list. Callers outside planning use
+/// the same walk with an inspection budget.
+pub(super) fn used_in(
+    data: &UnitData,
+    value: ValueId,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<bool, AllocationError> {
+    for region in &data.regions {
+        budget.work(WorkKind::Analysis, 1)?;
+        if region.result == Some(value) {
+            return Ok(true);
+        }
+    }
+    for operation in &data.operations {
+        budget.work(WorkKind::Analysis, 1)?;
+        let mut found = false;
+        visit_reads(data, operation, budget, |read, _| {
+            found |= read == value;
+            Ok(())
+        })?;
+        if found {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Operation kinds that may go once nothing reads their result, when their

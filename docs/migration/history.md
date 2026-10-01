@@ -1568,3 +1568,20 @@ No full suite, release rebuild, ports, ratchet or fleet comparison. No measured
 compression or CPU improvement is claimed. Q2 remains active for exact-value
 and remaining planning owners, dirty dependencies, incremental formation and
 per-module elaboration.
+
+## 2026-10-01: Q2 folding/signature/inlining plans
+
+Algorithm 57 completes admission for those plans and their closure/graft
+remaps. Rejected legality probes release storage while preserving the distinction
+between an inapplicable rewrite and a resource refusal. Signature counts and
+region-observation propagation are shared within each pass. Read queries and
+literal-length measurements no longer allocate operand/spelling strings.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-rewrite-plans/README.md):
+38 focused checks pass. The first run passed 37; the native closure check required
+the existing Clang 18.1.3 path. Only that case was repeated, passing its
+GCC/Clang O0/O2/UBSan matrix. Source-publication, refusal/unwind cleanup,
+signature coupling, nested/cross-module captures, call order, folds and cold/reused
+views pass. No full library, CLI, release, ratchet or fleet rerun. No measured
+compression or CPU improvement is claimed. Aggregate rewrite planning,
+exact-value evaluation and the other open Q2 gates remain next.

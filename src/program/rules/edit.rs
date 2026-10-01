@@ -11,7 +11,7 @@
 use super::super::ids::RevisionId;
 use super::super::views::ProgramViews;
 use super::super::*;
-use std::collections::HashMap;
+use super::storage::Map;
 use std::sync::Arc;
 
 use super::{storage, RuleError};
@@ -523,10 +523,10 @@ struct Remaps<'a> {
     calls: Vec<Option<CallId>>,
     instantiations: Vec<Option<CallInstantiationId>>,
     /// A graft's cells: what the copied body declared, cloned for the copy.
-    cells: Option<&'a HashMap<CellId, CellId>>,
+    cells: Option<&'a Map<CellId, CellId>>,
     /// A graft's parameters that read their argument: a place naming one
     /// reads the argument value.
-    forwards: Option<&'a HashMap<CellId, ValueId>>,
+    forwards: Option<&'a Map<CellId, ValueId>>,
     /// A graft's allocation sites, renumbered past the receiver's own.
     allocations: Vec<(AllocationId, AllocationId)>,
 }
@@ -1069,10 +1069,10 @@ fn compact_in(
 /// What a graft copies from a body, and how.
 pub(super) struct GraftPlan<'a> {
     /// The body's own cells, cloned for this copy.
-    pub(super) cells: &'a HashMap<CellId, CellId>,
+    pub(super) cells: &'a Map<CellId, CellId>,
     /// Parameters that read their argument: their plain loads are not
     /// copied, and a place naming one reads the argument value.
-    pub(super) forwards: &'a HashMap<CellId, ValueId>,
+    pub(super) forwards: &'a Map<CellId, ValueId>,
     /// The body's final `return`, which is not copied: its operand is the
     /// copy's result.
     pub(super) exit: Option<OpId>,
@@ -1149,7 +1149,7 @@ struct GraftInput<'a> {
     remaps: Remaps<'a>,
 }
 
-/// Graft maps borrow cells/forwarded parameters; cloning those hash tables
+/// Graft maps borrow cells/forwarded parameters; cloning those remap tables
 /// cannot outlive or evade their producer's owner. Arena and nested payload
 /// growth belongs to the original target budget.
 pub(super) fn graft_in(
@@ -1169,7 +1169,7 @@ pub(super) fn graft_in(
                         || match (&operation.kind, operation.result) {
                             (OperationKind::Load(place), Some(_)) => {
                                 match source.places.get(place.index()) {
-                                    Some(Place::Cell(cell)) => plan.forwards.contains_key(cell),
+                                    Some(Place::Cell(cell)) => plan.forwards.get(cell).is_some(),
                                     _ => false,
                                 }
                             }

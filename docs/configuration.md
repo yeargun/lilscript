@@ -1288,7 +1288,9 @@ older compilers did not account for. Algorithm 56 additionally admits primitive
 classes, aggregate origins, activation/default transport and forwarding/dead-code
 plans. Temporary plans release before publication, including refused attempts.
 These costs use the existing resource limits; there is no flag that bypasses
-mandatory admission. Analysis choices and source semantics are unchanged.
+mandatory admission. Algorithm 57 extends that ownership through folding,
+signature coupling, inline legality and closure/graft remaps, including rejected
+plans. Analysis choices and source semantics are unchanged.
 
 Target literal folding and undefined/unreachable cleanup reuse stable answers
 only while their complete node/region/function/table dependencies remain

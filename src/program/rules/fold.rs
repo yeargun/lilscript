@@ -28,9 +28,15 @@ use super::edit::{self, Editor};
 use super::values::ProgramValues;
 use super::*;
 use crate::check::Type;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 use facts::{StoredExact, StoredString};
-use std::collections::HashMap;
 
+#[derive(Clone, Copy)]
 enum Fold {
     /// Keep `region` of the operation, as a block.
     Block { op: OpId, region: RegionId },
@@ -58,7 +64,7 @@ enum Fold {
 
 /// A literal as a target spells it: numbers by value, strings by their
 /// interned text.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Literal {
     Number(u64),
     String(StringId),
@@ -76,7 +82,7 @@ impl Literal {
 }
 
 /// How often the created units spell each literal.
-type Literals = HashMap<Literal, u32>;
+type Literals = Vec<Literal>;
 
 #[derive(Default)]
 struct Plan {
@@ -94,7 +100,7 @@ impl FoldedConstant {
     fn text(&self, program: &Program<'_>) -> Option<usize> {
         match self {
             Self::Existing(constant) => constant_text(program, constant),
-            Self::String(value) => Some(crate::js_string::literal(value, '"').len()),
+            Self::String(value) => crate::js_string::literal_length(value, '"'),
         }
     }
 }
@@ -106,49 +112,79 @@ pub(super) fn apply(
     receipt: &mut RuleReceipt,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
 ) -> Result<bool, super::RuleError> {
-    let program = editor.program();
-    let created = created_units(program);
-    let mut literals = Literals::new();
-    for frozen in program
-        .units
-        .iter()
-        .filter(|frozen| created[frozen.id().index()])
-    {
-        for operation in &frozen.data().operations {
-            if let OperationKind::Constant(constant) = &operation.kind {
-                if let Some(literal) = Literal::of(constant) {
-                    *literals.entry(literal).or_default() += 1;
+    budget.with_temporary_context(
+        editor,
+        |editor, budget| plans(editor.program(), effects, values, budget),
+        |plans, editor, budget| execute(editor, plans, values, receipt, budget),
+    )
+}
+
+fn plans(
+    program: &Program<'_>,
+    effects: &ProgramEffects,
+    values: &ProgramValues,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<(UnitId, Plan)>, super::RuleError> {
+    budget.retained_phase(|budget| {
+        let created = created_units_in(program, budget)?;
+        let mut literals = Literals::new();
+        for frozen in &program.units {
+            if !created[frozen.id().index()] {
+                continue;
+            }
+            for operation in &frozen.data().operations {
+                budget.work(WorkKind::Analysis, 1)?;
+                if let OperationKind::Constant(constant) = &operation.kind {
+                    if let Some(literal) = Literal::of(constant) {
+                        budget.push(Scratch, &mut literals, literal)?;
+                    }
                 }
             }
         }
-    }
-    let plans: Vec<(UnitId, Plan)> = program
-        .units
-        .iter()
-        .filter(|frozen| created[frozen.id().index()])
-        .map(|frozen| {
-            let unit = frozen.id();
-            (unit, plan(program, effects, values, &literals, unit))
-        })
-        .filter(|(_, plan)| !plan.constants.is_empty() || !plan.folds.is_empty())
-        .collect();
-    if plans.is_empty() {
-        return Ok(false);
-    }
+        budget.work(
+            WorkKind::Analysis,
+            (literals.len() as u64)
+                .saturating_mul(u64::from(usize::BITS - literals.len().max(1).leading_zeros()) + 1),
+        )?;
+        literals.sort_unstable();
+        let mut plans = Vec::new();
+        for frozen in &program.units {
+            if !created[frozen.id().index()] {
+                continue;
+            }
+            let plan = plan(program, effects, values, &literals, frozen.id(), budget)?;
+            if plan.constants.is_empty() && plan.folds.is_empty() {
+                storage::release_vec(plan.constants, Retained, budget)?;
+                storage::release_vec(plan.calls, Retained, budget)?;
+                storage::release_vec(plan.folds, Retained, budget)?;
+            } else {
+                budget.push(Retained, &mut plans, (frozen.id(), plan))?;
+            }
+        }
+        storage::release_vec(created, Retained, budget)?;
+        Ok(plans)
+    })
+}
+
+fn execute(
+    editor: &mut Editor<'_>,
+    plans: &[(UnitId, Plan)],
+    values: &ProgramValues,
+    receipt: &mut RuleReceipt,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     for (unit, plan) in plans {
-        let constants: Vec<_> = plan
-            .constants
-            .into_iter()
-            .map(|(op, constant)| {
-                let constant = match constant {
-                    FoldedConstant::Existing(constant) => constant,
-                    FoldedConstant::String(value) => {
-                        Constant::String(editor.intern_string_in(&value, budget)?)
-                    }
-                };
-                Ok((op, constant))
-            })
-            .collect::<Result<_, super::RuleError>>()?;
+        let unit = *unit;
+        let mut constants = budget.vector(Scratch, plan.constants.len())?;
+        for (op, constant) in &plan.constants {
+            let constant = match constant {
+                FoldedConstant::Existing(constant) => constant.clone(),
+                FoldedConstant::String(value) => {
+                    Constant::String(editor.intern_string_in(value, budget)?)
+                }
+            };
+            constants.push((*op, constant));
+        }
         let (data, cells): (&mut UnitData, &mut [Cell]) = if plan
             .folds
             .iter()
@@ -158,7 +194,7 @@ pub(super) fn apply(
         } else {
             (editor.unit_mut_in(unit, budget)?, &mut [])
         };
-        for (op, constant) in constants {
+        for (op, constant) in constants.drain(..) {
             if let Some(result) = data.operations[op.index()].result {
                 let origin = values.origin(unit, result);
                 receipt.set_folds += u32::from(origin & super::values::FROM_SET != 0);
@@ -167,34 +203,35 @@ pub(super) fn apply(
             edit::make_constant_in(data, op, constant, budget)?;
             receipt.folded_values += 1;
         }
+        storage::release_vec(constants, Scratch, budget)?;
         // A folded call's preparations leave with it.
         if !plan.calls.is_empty() {
             receipt.folded_calls += plan.calls.len() as u32;
-            let preparations: Vec<OpId> = data
-                .operations
-                .iter()
-                .enumerate()
-                .filter(|(_, operation)| match operation.kind {
+            for index in 0..data.operations.len() {
+                budget.work(WorkKind::Analysis, plan.calls.len() as u64 + 1)?;
+                if match data.operations[index].kind {
                     OperationKind::PrepareCall(call)
                     | OperationKind::PrepareReference { call, .. } => plan.calls.contains(&call),
                     _ => false,
-                })
-                .map(|(index, _)| OpId::from_index(index).unwrap())
-                .collect();
-            for op in preparations {
-                edit::detach(data, op);
+                } {
+                    edit::detach(data, OpId::from_index(index).unwrap());
+                }
             }
         }
         // A fold's value may be another fold's result in the same round
         // (`(x | 0) | 0`): each substitution follows the ones made before it.
-        let mut substituted: HashMap<ValueId, ValueId> = HashMap::new();
-        let resolve = |substituted: &HashMap<ValueId, ValueId>, mut value: ValueId| {
-            while let Some(&next) = substituted.get(&value) {
+        let mut substituted = budget.filled(Scratch, data.values.len(), None)?;
+        let resolve = |substituted: &[Option<ValueId>],
+                       mut value: ValueId,
+                       budget: &mut AllocationBudget<'_>| {
+            while let Some(next) = substituted[value.index()] {
+                budget.work(WorkKind::Analysis, 1)?;
                 value = next;
             }
-            value
+            Ok::<_, AllocationError>(value)
         };
-        for fold in plan.folds {
+        for &fold in &plan.folds {
+            budget.work(WorkKind::Edit, 1)?;
             let op = match &fold {
                 Fold::Block { op, .. }
                 | Fold::Inline { op, .. }
@@ -235,7 +272,7 @@ pub(super) fn apply(
                     result,
                     yields,
                 } => {
-                    let yields = resolve(&substituted, yields);
+                    let yields = resolve(&substituted, yields, budget)?;
                     let parent = data.operations[op.index()].region;
                     let position = data.regions[parent.index()]
                         .operations
@@ -246,7 +283,7 @@ pub(super) fn apply(
                     edit::splice_in(data, cells, unit, op, region, budget)?;
                     if data.values[result.index()].ty == data.values[yields.index()].ty {
                         edit::substitute(data, result, yields);
-                        substituted.insert(result, yields);
+                        substituted[result.index()] = Some(yields);
                     } else {
                         edit::make_value_view_in(data, op, yields, budget)?;
                         let list = &mut data.regions[parent.index()].operations;
@@ -259,11 +296,11 @@ pub(super) fn apply(
                     }
                 }
                 Fold::Replace { op, result, with } => {
-                    let with = resolve(&substituted, with);
+                    let with = resolve(&substituted, with, budget)?;
                     if data.values[result.index()].ty == data.values[with.index()].ty {
                         edit::detach(data, op);
                         edit::substitute(data, result, with);
-                        substituted.insert(result, with);
+                        substituted[result.index()] = Some(with);
                     } else {
                         edit::make_value_view_in(data, op, with, budget)?;
                     }
@@ -271,8 +308,9 @@ pub(super) fn apply(
             }
             receipt.folded_branches += 1;
         }
+        storage::release_vec(substituted, Scratch, budget)?;
     }
-    Ok(true)
+    Ok(!plans.is_empty())
 }
 
 fn plan(
@@ -281,61 +319,79 @@ fn plan(
     values: &ProgramValues,
     literals: &Literals,
     unit: UnitId,
-) -> Plan {
-    let data = program.unit(unit).expect("a program unit");
-    let behaviors = behaviors(program, effects, unit, Some(values));
-    let mut in_prefix = vec![false; data.operations.len()];
-    for op in prefix(data) {
-        in_prefix[op.index()] = true;
-    }
-    let mut plan = Plan::default();
-    // Structural folds apply to the outermost construct of a round; what a
-    // fold keeps is folded again in the next round.
-    let mut stack = vec![(data.entry, false)];
-    while let Some((region, inside)) = stack.pop() {
-        for &op in &data.regions[region.index()].operations {
-            let operation = &data.operations[op.index()];
-            let fold = if inside {
-                None
-            } else {
-                structural(program, values, &behaviors, unit, data, op)
-            };
-            let folded = fold.is_some();
-            // A kept branch whose own cells own no storage needs no scope.
-            let fold = fold.map(|fold| match fold {
-                Fold::Block { op, region }
-                    if program.cells.iter().all(|cell| {
-                        cell.owner != unit
-                            || cell.region != region
-                            || super::scalar(program, cell.ty)
-                    }) =>
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Plan, AllocationError> {
+    budget.retained_phase(|budget| {
+        let data = program.unit(unit).expect("a program unit");
+        let behaviors = behaviors_in(program, effects, unit, Some(values), budget)?;
+        let unobservable = unobservable_regions(data, &behaviors, budget)?;
+        let mut in_prefix = budget.filled(Scratch, data.operations.len(), false)?;
+        for op in prefix(data) {
+            in_prefix[op.index()] = true;
+        }
+        let mut plan = Plan::default();
+        // Structural folds apply to the outermost construct of a round; what a
+        // fold keeps is folded again in the next round.
+        let mut stack = budget.vector(Scratch, data.regions.len())?;
+        stack.push((data.entry, false));
+        while let Some((region, inside)) = stack.pop() {
+            for &op in &data.regions[region.index()].operations {
+                let operation = &data.operations[op.index()];
+                budget.work(
+                    WorkKind::Analysis,
+                    data.operands(operation.operands)
+                        .map_or(0, |values| values.len()) as u64
+                        + 1,
+                )?;
+                let fold = if inside {
+                    None
+                } else {
+                    structural(program, values, &unobservable, unit, data, op)
+                };
+                let folded = fold.is_some();
+                if matches!(fold, Some(Fold::Block { .. })) {
+                    budget.work(WorkKind::Analysis, program.cells.len() as u64)?;
+                }
+                // A kept branch whose own cells own no storage needs no scope.
+                let fold = fold.map(|fold| match fold {
+                    Fold::Block { op, region }
+                        if program.cells.iter().all(|cell| {
+                            cell.owner != unit
+                                || cell.region != region
+                                || super::scalar(program, cell.ty)
+                        }) =>
+                    {
+                        Fold::Inline { op, region }
+                    }
+                    fold => fold,
+                });
+                if let Some(fold) = fold {
+                    budget.push(Retained, &mut plan.folds, fold)?;
+                }
+                for child in operation.kind.child_regions() {
+                    budget.push(Scratch, &mut stack, (child, inside || folded))?;
+                }
+                if in_prefix[op.index()] {
+                    continue;
+                }
+                if let Some(constant) = value(program, values, literals, &behaviors, unit, data, op)
                 {
-                    Fold::Inline { op, region }
+                    if let OperationKind::Call(call) = operation.kind {
+                        budget.push(Retained, &mut plan.calls, call)?;
+                    }
+                    budget.push(Retained, &mut plan.constants, (op, constant))?;
                 }
-                fold => fold,
-            });
-            plan.folds.extend(fold);
-            for child in operation.kind.child_regions() {
-                stack.push((child, inside || folded));
-            }
-            if in_prefix[op.index()] {
-                continue;
-            }
-            if let Some(constant) = value(program, values, literals, &behaviors, unit, data, op) {
-                if let OperationKind::Call(call) = operation.kind {
-                    plan.calls.push(call);
-                }
-                plan.constants.push((op, constant));
             }
         }
-    }
-    plan
+        storage::release_vec(behaviors, Retained, budget)?;
+        Ok(plan)
+    })
 }
 
 fn structural(
     program: &Program<'_>,
     values: &ProgramValues,
-    behaviors: &[EvaluationBehavior],
+    unobservable: &[bool],
     unit: UnitId,
     data: &UnitData,
     op: OpId,
@@ -426,30 +482,49 @@ fn structural(
         OperationKind::Loop { test, .. } => {
             let condition = data.regions[test.index()].result?;
             (values.exact(unit, condition)? == &StoredExact::Boolean(false)
-                && region_unobservable(data, behaviors, test))
+                && unobservable[test.index()])
             .then_some(Fold::Remove { op })
         }
         _ => None,
     }
 }
 
-/// Whether every operation of `region`, and of the regions they own, can go
-/// unevaluated.
-fn region_unobservable(
+/// Propagate required evaluation to containing regions once per body. The
+/// ownership edges come from operations, not lexical-scope parent metadata.
+fn unobservable_regions(
     data: &UnitData,
     behaviors: &[EvaluationBehavior],
-    region: RegionId,
-) -> bool {
-    let mut stack = vec![region];
-    while let Some(region) = stack.pop() {
-        for &op in &data.regions[region.index()].operations {
-            if behaviors[op.index()].requires_evaluation() {
-                return false;
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<bool>, AllocationError> {
+    let mut unobservable = budget.filled(Scratch, data.regions.len(), true)?;
+    let mut parents = budget.filled(Scratch, data.regions.len(), None)?;
+    let mut pending = budget.vector(Scratch, data.regions.len())?;
+    for (index, region) in data.regions.iter().enumerate() {
+        for &op in &region.operations {
+            budget.work(WorkKind::Analysis, 1)?;
+            if behaviors[op.index()].requires_evaluation()
+                && std::mem::replace(&mut unobservable[index], false)
+            {
+                pending.push(index);
             }
-            stack.extend(data.operations[op.index()].kind.child_regions());
+            for child in data.operations[op.index()].kind.child_regions() {
+                parents[child.index()] = Some(index);
+            }
         }
     }
-    true
+    let mut cursor = 0;
+    while cursor < pending.len() {
+        budget.work(WorkKind::Analysis, 1)?;
+        if let Some(parent) = parents[pending[cursor]] {
+            if std::mem::replace(&mut unobservable[parent], false) {
+                pending.push(parent);
+            }
+        }
+        cursor += 1;
+    }
+    storage::release_vec(parents, Scratch, budget)?;
+    storage::release_vec(pending, Scratch, budget)?;
+    Ok(unobservable)
 }
 
 /// The constant an operation folds to, if it computes an exact value, its
@@ -589,8 +664,11 @@ fn operand_text(
     let definition = data.values[value.index()].definition;
     match &data.operations[definition.index()].kind {
         OperationKind::Constant(constant)
-            if Literal::of(constant)
-                .is_some_and(|literal| literals.get(&literal).copied().unwrap_or(0) <= 1) =>
+            if Literal::of(constant).is_some_and(|literal| {
+                literals.partition_point(|entry| *entry <= literal)
+                    - literals.partition_point(|entry| *entry < literal)
+                    <= 1
+            }) =>
         {
             constant_text(program, constant).unwrap_or(1)
         }
@@ -650,32 +728,8 @@ fn replaced_text(
 /// shortest round-trip digits, plain or with an exponent, whichever is
 /// shorter. None for NaN and the infinities.
 fn numeral(value: f64) -> Option<usize> {
-    if !value.is_finite() {
-        return None;
-    }
-    let sign = usize::from(value.is_sign_negative());
-    let scientific = format!("{:e}", value.abs());
-    let (mantissa, exponent) = scientific.split_once('e')?;
-    let exponent: i32 = exponent.parse().ok()?;
-    let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
-    let significant = digits.trim_end_matches('0').len().max(1);
-    // Value = 0.DIGITS x 10^(exponent + 1).
-    let point = exponent + 1;
-    let count = significant as i32;
-    let plain = if point <= 0 {
-        1 + (-point) as usize + significant
-    } else if point >= count {
-        point as usize
-    } else {
-        significant + 1
-    };
-    let shift = point - count;
-    let exponential = significant + 1 + shift.to_string().len();
-    Some(
-        sign + if shift != 0 {
-            plain.min(exponential)
-        } else {
-            plain
-        },
-    )
+    // The printer handles negative zero at its expression boundary. Preserve
+    // this heuristic's former sign byte when measuring that value alone.
+    crate::js::number_spelling_length(value)
+        .map(|length| length + usize::from(value == 0.0 && value.is_sign_negative()))
 }
