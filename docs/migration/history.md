@@ -1026,3 +1026,24 @@ negative evidence. New capabilities have no baseline-win claim. Pin
 `s4-erased-variants-1`, SHA-256 `bd6ca8311a8e0b358243710b402e3d95e01970bf2e4fbec722e38eb4c128c33d`,
 algorithm 32 / search 32 / walk 10 / local facts 14. S4 continues with R17/R18
 and the shared-consumer audit. No full-library rerun or fleet/timing claim.
+
+
+## 2026-10-01: S4 declarative host catalog and configurable providers
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-s4-host-catalog/README.md).
+Generic extern schemas preserve inherited field/constructor substitutions.
+`lil:ecmascript` and `lil:dom` use ordinary checked module interfaces and add no
+runtime code when unused. TOML selects JavaScript host paths and native provider
+symbols before optimization; policy receipts fingerprint those contracts.
+Native C/header delivery and separately compiled providers share value layouts,
+including boxed generic ownership. Direct eval's existing refusal now belongs
+to checking. The property inventory has one catalog owner and a compatibility
+Rust re-export.
+
+Six focused checks and an extended generic native/header check pass; the CLI
+release build, schema reference and actual C/header/executable delivery pass.
+The host-call control remains 56 raw / 74 gzip / 57 Brotli. New capability
+oracles pass without a baseline-win claim. Pin `s4-host-catalog-1`, SHA-256
+`a20feebf53589c898ddf56e3a6ce22e9a0252a0f164ef9b80733233857b02640`; algorithm 33 / search 32 / walk 10 / local facts 14.
+S4 continues with wider R18 ABI and shared consumers/removals. No full-library,
+fleet, timing or native-completion claim; no ratchet or port artifact changed.

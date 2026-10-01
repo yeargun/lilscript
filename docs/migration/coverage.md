@@ -85,7 +85,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.6 | [S4](plan.md#s4) | Implemented: ABI enums/flags, canonical storage, domain checks and shared/native evaluation (R8); private alternatives Q4, qualified source-default transition D3/V2 |
 | M10.18 | [S4](plan.md#s4) | Value structs (R4); `ref` removal after Y2 |
 | M10.10 | [S4](plan.md#s4) | Implemented: internal constructor visibility, root ABI publication, canonical first-class/dynamic observations and zero-use singleton retirement (R16); delivery production remains D1–D3 |
-| M10.17 | [S4](plan.md#s4) | Host catalog and generics (R17, R18) |
+| M10.17 | [S4](plan.md#s4) | Host catalog, configurable JS/native providers and generic extern schemas implemented; wider product/union ABI remains R18 |
 | M11.1 | [N1](plan.md#n1) | Toolchain owner |
 | M11.3 | [N2](plan.md#n2) | Externs per target |
 | M11.4 | [N2](plan.md#n2) | Portable records |

@@ -1,0 +1,1 @@
+let n=function run(n){return api.read(n)+1|0};export{n as run};

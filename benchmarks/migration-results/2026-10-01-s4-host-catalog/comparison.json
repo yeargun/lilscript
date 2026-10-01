@@ -1,0 +1,258 @@
+{
+  "scope": "ordinary host-call control plus platform/generic/configured host capabilities; independent behavior oracles, no fleet or timing claim",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-host-catalog-1/lilscript",
+    "sha256": "a20feebf53589c898ddf56e3a6ce22e9a0252a0f164ef9b80733233857b02640"
+  },
+  "baseline": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-erased-variants-1/lilscript",
+    "sha256": "bd6ca8311a8e0b358243710b402e3d95e01970bf2e4fbec722e38eb4c128c33d"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "totals": {
+    "unchanged_contract": {
+      "raw": {
+        "before": 56,
+        "after": 56,
+        "delta": 0
+      },
+      "gzip": {
+        "before": 74,
+        "after": 74,
+        "delta": 0
+      },
+      "brotli": {
+        "before": 57,
+        "after": 57,
+        "delta": 0
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "host-control",
+      "matched": true,
+      "migration": false,
+      "source_sha256": "c059f6fbee8ccdbf5daed3aed03b805d83aa0714abbde2a958181336dade80fd",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "1130281878950bf65c117c48ace6ed62e4a82df955907f4a36f0d3843623047b",
+            "raw": 56,
+            "gzip9": 74,
+            "brotli11": 60,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 11
+            }
+          },
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "1130281878950bf65c117c48ace6ed62e4a82df955907f4a36f0d3843623047b",
+            "raw": 56,
+            "gzip9": 74,
+            "brotli11": 60,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 11
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "1130281878950bf65c117c48ace6ed62e4a82df955907f4a36f0d3843623047b",
+            "raw": 56,
+            "gzip9": 74,
+            "brotli11": 60,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 88,
+              "judged": 6
+            }
+          },
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "1130281878950bf65c117c48ace6ed62e4a82df955907f4a36f0d3843623047b",
+            "raw": 56,
+            "gzip9": 74,
+            "brotli11": 60,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 88,
+              "judged": 6
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "b14a68843ce9bfb8c63264300f3f01ba92f1b25c8689b56209883390b49c7bc2",
+            "raw": 63,
+            "gzip9": 78,
+            "brotli11": 57,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 18
+            }
+          },
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "b14a68843ce9bfb8c63264300f3f01ba92f1b25c8689b56209883390b49c7bc2",
+            "raw": 63,
+            "gzip9": 78,
+            "brotli11": 57,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 18
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "platform-catalog",
+      "matched": false,
+      "migration": false,
+      "source_sha256": "f81cca8479d10e1944c045466c5ab07b76e1e2e91af15b000c864a4348fc2d14",
+      "lanes": {
+        "raw": {
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "e4bfe697ea57111dc3d81e01322d9e36d6af2a4ed2086b57d7833bc97e0758f7",
+            "raw": 84,
+            "gzip9": 97,
+            "brotli11": 74,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 116,
+              "judged": 2
+            }
+          }
+        },
+        "gzip": {
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "e4bfe697ea57111dc3d81e01322d9e36d6af2a4ed2086b57d7833bc97e0758f7",
+            "raw": 84,
+            "gzip9": 97,
+            "brotli11": 74,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 60,
+              "judged": 0
+            }
+          }
+        },
+        "brotli": {
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "e4bfe697ea57111dc3d81e01322d9e36d6af2a4ed2086b57d7833bc97e0758f7",
+            "raw": 84,
+            "gzip9": 97,
+            "brotli11": 74,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 60,
+              "judged": 6
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "configured-host",
+      "matched": false,
+      "migration": false,
+      "source_sha256": "3173470614d5e35bfa7e4f38dd34ef606d9a7468903dbcd091692d3e11a37134",
+      "lanes": {
+        "raw": {
+          "after": {
+            "config_sha256": "5c486a7e2c06d4cead86144392cb1594d0f2abc91fe6cabcea557c96b28a64fa",
+            "sha256": "4afbca6943fbe86b5188ab13324d49a84248395baf64bfeac1f43c08eceac235",
+            "raw": 134,
+            "gzip9": 132,
+            "brotli11": 99,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 10
+            }
+          }
+        },
+        "gzip": {
+          "after": {
+            "config_sha256": "ec9b6212353a8219a3289d065ea2cfc2192e29738629678300b9877a506ff42d",
+            "sha256": "efaffb9457fe532de5074a5754436f28e4790c06de61228df64550543709de2a",
+            "raw": 142,
+            "gzip9": 131,
+            "brotli11": 98,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 172,
+              "judged": 6
+            }
+          }
+        },
+        "brotli": {
+          "after": {
+            "config_sha256": "81bae8fa3755661d8d93ff451203d4a7d6302df18341973d53b5e2e5d3bd7750",
+            "sha256": "fdeb8c8eaea473b6dec3e76ed548f32950a017bd6f4097f3b8c21c3f6c41e255",
+            "raw": 134,
+            "gzip9": 132,
+            "brotli11": 98,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 144,
+              "judged": 16
+            }
+          }
+        }
+      }
+    }
+  ]
+}

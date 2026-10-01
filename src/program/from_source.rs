@@ -16,6 +16,8 @@ use crate::output_budget::{
 };
 #[path = "from_source_shapes.rs"]
 mod shapes;
+#[path = "from_source_hosts.rs"]
+mod hosts;
 
 /// The frontend owns its tables exclusively until the checked Program is
 /// returned. Sharing during construction is an owner bug, not a reason to
@@ -177,7 +179,7 @@ pub(crate) fn from_checked_source_admitted<'ast, 'src>(
     semantics: &CheckedModule<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ConversionError> {
-    from_checked_source_with_rules(source, semantics, None, false, budget)
+    from_checked_source_with_rules(source, semantics, None, false, &Default::default(), budget)
         .map(|(program, _)| program)
 }
 
@@ -188,10 +190,12 @@ pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
     semantics: &CheckedModule<'ast, 'src>,
     rules: Option<RuleRequest>,
     trap_index_reads: bool,
+    host_config: &crate::config::HostConfig,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ConversionError> {
     let mut scope = budget.scope();
     let mut program = convert_source(source, semantics, &mut scope)?;
+    hosts::apply(&mut program, semantics.view(), host_config, &mut scope).map_err(|(_, error)| error)?;
     program.trap_index_reads = trap_index_reads;
     verify_conversion(&program, source.span, &mut scope)?;
     check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
@@ -206,7 +210,7 @@ pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
     semantics: &CheckedModules<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ModuleConversionError> {
-    from_checked_modules_with_rules(sources, semantics, None, false, budget)
+    from_checked_modules_with_rules(sources, semantics, None, false, &Default::default(), budget)
         .map(|(program, _)| program)
 }
 
@@ -216,10 +220,13 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
     semantics: &CheckedModules<'ast, 'src>,
     rules: Option<RuleRequest>,
     trap_index_reads: bool,
+    host_config: &crate::config::HostConfig,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ModuleConversionError> {
     let mut scope = budget.scope();
     let mut program = convert_modules(sources, semantics, &mut scope)?;
+    hosts::apply(&mut program, semantics.view(semantics.root()).expect("checked root"), host_config, &mut scope)
+        .map_err(|(module, error)| ModuleConversionError { module: module.index(), error })?;
     program.trap_index_reads = trap_index_reads;
     verify_module_conversion(
         &program,
@@ -900,11 +907,6 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         let semantics = self.semantics;
         for symbol in semantics.symbols() {
             self.work(1)?;
-            if symbol.is_foreign()
-                && crate::catalog::host_kind(symbol.name) == crate::catalog::HostKind::Eval
-            {
-                return self.unsupported(symbol.span, "source eval contract");
-            }
             let module = owner(symbol.id)
                 .filter(|&module| module < self.program.modules.len())
                 .ok_or(Unsupported {
@@ -2255,9 +2257,6 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let span = declaration.span;
         let identity = self.declared_class(declaration.name)?;
         let info = self.class_info(identity, span)?;
-        if !info.type_params.is_empty() {
-            return self.unsupported(span, "generic extern class conversion");
-        }
         let base = match &info.base {
             Some(base) => Some(base_class(base).ok_or(Unsupported {
                 span,
@@ -2266,11 +2265,30 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             None => None,
         };
         let mut fields = self.budget.vector(Retained, info.fields.len())?;
+        let mut ordered = self.budget.vector(Scratch, info.fields.len())?;
         for field in info.fields.values() {
+            self.budget.push(Scratch, &mut ordered, field)?;
+        }
+        self.work(ordered.len().saturating_mul(usize::BITS as usize - ordered.len().leading_zeros() as usize))?;
+        ordered.sort_by_key(|field| field.index);
+        for field in ordered.iter() {
             self.work(1)?;
             let key = self.string(field.name)?;
             let ty = self.ty(&field.ty)?;
             self.budget.push(Retained, &mut fields, (key, ty))?;
+        }
+        drop_vector(ordered, Scratch, self.budget)?;
+        let mut type_params = self.budget.vector(Retained, info.type_params.len())?;
+        for parameter in &info.type_params {
+            self.budget.push(Retained, &mut type_params, parameter.identity)?;
+        }
+        let mut base_arguments = Vec::new();
+        if let Some(Type::ClassInstance { args, .. }) = &info.base {
+            base_arguments = self.budget.vector(Retained, args.len())?;
+            for argument in args {
+                let argument = self.ty(argument)?;
+                self.budget.push(Retained, &mut base_arguments, argument)?;
+            }
         }
         let name = self.budget.string(Retained, declaration.name.name)?;
         let constructor = match &info.constructor {
@@ -2292,8 +2310,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 external: true,
                 reflected: true,
                 base,
-                type_params: Vec::new(),
-                base_arguments: Vec::new(),
+                type_params,
+                base_arguments,
                 constructor,
                 fields,
                 observed: false,

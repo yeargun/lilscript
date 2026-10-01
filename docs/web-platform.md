@@ -36,8 +36,8 @@ element.setAttribute("data-state","ready")
 
 The compiler emits no host wrappers, registries, proxies, reflection tables, or
 runtime type checks. External global and member names are ABI names and stay
-exact; no configuration renames them (the old `mangle.extern_fields` switch is
-retired and has no effect). Internal values passed to or returned from a host
+exact; `[host.javascript]` can select a declaration's global path but never
+renames its members (the old `mangle.extern_fields` switch is retired). Internal values passed to or returned from a host
 operation are marked as escaping so representation-changing optimizations remain
 sound.
 
@@ -70,6 +70,27 @@ must happen through the declared host API. External methods must be called throu
 their receiver so JavaScript's `this` binding cannot be lost accidentally;
 function-valued external fields remain first-class callable values.
 
+## Bundled declaration modules
+
+```lilscript
+import {document} from "lil:dom";
+import {console, performance, queueMicrotask} from "lil:ecmascript";
+```
+
+These are ordinary checked interfaces embedded in the compiler. Repeated
+imports share one module and typed declaration identity. Unused imports add no
+runtime code. The ECMAScript catalog covers console, timing/microtask functions,
+and the `RegExp` host view; the DOM catalog covers events, nodes, elements,
+text, document fragments and `document`. Host operations remain conservatively
+effectful: importing a catalog grants no pristine-builtins assumption. Native
+builds diagnose these JavaScript-only object contracts during checking.
+
+Generic extern classes and methods erase type arguments, including inherited
+fields and internal subclasses that call a declared host `init` through `super`.
+The generic schema carries each checked substitution; host member names and
+receiver identity remain intact. Host constructor signatures still serve
+`super` calls; a direct `new` of an extern class remains refused.
+
 ## Scope
 
 The hand-written declaration syntax is the implemented ABI foundation. LilScript
@@ -83,7 +104,10 @@ language-model support before a complete Web IDL package can be claimed.
 Host-object member access is JavaScript-target-only. The C and native targets
 reject it with a source diagnostic because browser object identity and behavior do
 not have a portable C ABI. Ordinary `extern` functions are the explicit route for
-a user-defined C host ABI; **until M11.3** the native target refuses them.
+a user-defined C host ABI; explicit `[host.native]` mappings select callback ABI v1 provider symbols;
+`[host] native_sources` supplies separately compiled C implementations. The
+compiler delivers their exact header with C or executable output. Defaults,
+implicit receivers and foreign globals still require explicit adapter functions.
 
 For APIs whose documented JavaScript boundary is intentionally dynamic,
 `JsValue` preserves the raw host value rather than requiring an allocation-heavy

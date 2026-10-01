@@ -11,15 +11,18 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 erased variant batch](../../benchmarks/migration-results/2026-10-01-s4-erased-variants/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-erased-variants-1/lilscript`, SHA-256
-`bd6ca8311a8e0b358243710b402e3d95e01970bf2e4fbec722e38eb4c128c33d`.
-Algorithm 32 / search 32 / walk 10 / local facts 14. Generic receivers/methods,
-concrete native overrides and applied payloads are implemented. Captured async
-arms preserve fresh shared bindings and the independent promise-order oracle.
-Four focused checks plus the earlier payload-scope/native test pass; CLI
-release build passes. Matched controls total −20 raw / +7 gzip / −1 Brotli.
-Keep the gzip loss as negative evidence; no fleet or timing claim.
+The latest [S4 host catalog batch](../../benchmarks/migration-results/2026-10-01-s4-host-catalog/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-host-catalog-1/lilscript`, SHA-256
+`a20feebf53589c898ddf56e3a6ce22e9a0252a0f164ef9b80733233857b02640`. Algorithm 33 / search 32 / walk 10 / local facts 14.
+Generic extern schemas, bundled ECMAScript/DOM modules, TOML JavaScript host
+paths and native provider symbols/sources are implemented. Six focused checks,
+the extended generic native/header check, CLI release build and real CLI provider
+link/run pass. The unchanged control remains 56 raw / 74 gzip / 57 Brotli.
+New capability oracles pass, with no old-compiler size-win or fleet/timing claim.
+
+The preceding erased-variant batch implements generic virtual calls and
+suspending/captured payloads; its matched controls retain −20 raw / +7 gzip /
+−1 Brotli as mixed evidence. No full-library rerun is needed for these batches.
 
 The preceding absence and character-code batches implement unified absence,
 explicit pins/defaults/optional keys and number/NaN character reads. Source
@@ -28,10 +31,15 @@ selectors retain compatibility defaults until D3/V2's qualified transition.
 1. R8 erased generic dispatch and directly suspending payload arms are implemented.
    Native shapes remain N2; erased type arguments never distinguish two payload
    variants of one nominal declaration.
-2. Complete R17 host declarations/catalog and R18 wider erased
-   generic/product/union/callable transport. Erased public generic shape presence
-   currently has a source diagnostic. Native shapes and absent-to-default
-   argument transport remain N2.
+2. Complete R18 wider erased generic/product/union/callable transport. R17's
+   maintained catalog, configurable host names and callback ABI v1 providers are
+   implemented; complete generated Web IDL is not claimed. Erased public generic
+   shape presence still has a source diagnostic. Aliased mutable product
+   collections cannot be fixed by a copied boundary array: preserve both host
+   sharing and value snapshots. Native shapes and absent-to-default argument
+   transport remain N2. Native `preserve_root_exports=false` still skips frontend
+   export checking without retiring the shared program's root export table; N1
+   must resolve that capability/formation mismatch.
 3. Complete the shared-consumer audit. The contracts batch already deleted
    `raw_domains.rs` and `quiet.rs` and routed root constants through the common
    target binding facts; verify remaining consumers/transitional passes against

@@ -1,0 +1,63 @@
+import {readFileSync,writeFileSync,mkdirSync,readdirSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+const directory=dirname(fileURLToPath(import.meta.url)),root=resolve(directory,'../../..');
+const binary='/home/azureuser/lilscript-work/bin/s4-host-catalog-1/lilscript';
+const baseline='/home/azureuser/lilscript-work/bin/s4-erased-variants-1/lilscript';
+const codec='/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec';
+const sha=x=>createHash('sha256').update(x).digest('hex');
+const identity=path=>({path,sha256:sha(readFileSync(path))});
+const run=(command,args,input)=>{const r=spawnSync(command,args,{cwd:root,input,encoding:'utf8',timeout:300000,maxBuffer:64*1024*1024});if(r.status!==0)throw Error(`${command}: ${r.stderr||r.error}`);return r;};
+const metrics={raw:'raw',gzip:'gzip9',brotli:'brotli11'};
+const cases=[{
+ id:'host-control',matched:true,
+ source:`extern class Host{int read(int n);}extern Host api;export int run(int n){return api.read(n)+1;}`,
+ setup:`globalThis.api={base:4,read(n){return this.base+n;}};`,exercise:`console.log(JSON.stringify([m.run(3),m.run(-7)]));`,expected:[8,-2]
+},{
+ id:'platform-catalog',matched:false,
+ source:`import {performance} from "lil:ecmascript";import {document} from "lil:dom";export int run(){return performance.now().toInt()+document.title.length;}`,
+ setup:`globalThis.document={title:'hello'};globalThis.performance={now(){if(this!==performance)throw Error('receiver');return 7;}};`,
+ exercise:`console.log(JSON.stringify([m.run()]));`,expected:[12]
+},{
+ id:'configured-host',matched:false,
+ source:`extern class Host<T>{init(T n);T value;T read();}class Child extends Host<int>{init(int n){super(n);}}extern int value();export int run(){return new Child(value()).read();}`,
+ config:`[host.javascript]\nHost='Runtime.Base'\nvalue='Runtime.value'\n`,
+ setup:`globalThis.Runtime={Base:class{constructor(n){this.value=n;}read(){return this.value;}},value:()=>17};`,
+ exercise:`console.log(JSON.stringify([m.run()]));`,expected:[17]
+}];
+const rows=[];
+for(const c of cases){
+ const folder=resolve(directory,'artifacts',c.id);mkdirSync(folder,{recursive:true});
+ const entry=resolve(folder,'main.lil');writeFileSync(entry,c.source);
+ writeFileSync(resolve(folder,'oracle.json'),JSON.stringify({exercise:c.exercise,expected:c.expected,setup:c.setup||''},null,2)+'\n');
+ const row={id:c.id,matched:c.matched,migration:!!c.migration,source_sha256:sha(c.source),lanes:{}};
+ for(const [lane,metric] of Object.entries(metrics)){
+  const outputs={};
+  for(const [label,compiler,mode] of c.matched?[['before',baseline,null],['after',binary,null]]:[['after',binary,null]]){
+   const config=resolve(folder,`${label}-${lane}.toml`);
+   writeFileSync(config,`[optimization]\npreset='maximum'\n[objective]\ncodecs='${lane}'\n[effort]\nlevel=13\n${c.config||''}${mode?`[language]\nenum_abi='${mode}'\n`:''}`);
+   const out=resolve(folder,`${label}-${lane}.mjs`);
+   const result=run(compiler,[entry,'--config',config,'--format','esm','--target','js-module','--explain','json','-o',out]);
+   const code=readFileSync(out,'utf8'),sizes=JSON.parse(run(codec,['--json',out]).stdout).artifacts[0];
+   const search=JSON.parse(result.stderr.slice(result.stderr.indexOf('{\n'))).search,t=search.terminal.objectives[0];
+   if(t.after!==sizes[metric])throw Error('delivered/scored mismatch');
+   const observed=run('node',['--input-type=module','-e',`${c.setup||''}const m=await import('data:text/javascript,'+encodeURIComponent(${JSON.stringify(code)}));${c.exercise}`]).stdout.trim();
+   if(observed!==JSON.stringify(c.expected))throw Error(`oracle mismatch ${c.id}/${lane}/${label}: ${observed}`);
+   outputs[label]={config_sha256:sha(readFileSync(config)),sha256:sha(code),raw:sizes.raw,gzip9:sizes.gzip9,brotli11:sizes.brotli11,work:{proposals:search.proposals,structures:search.structures,renders:search.renders,codec_probes:search.codec_probes,examined:t.examined,judged:t.judged}};
+  }
+  row.lanes[lane]=outputs;console.log(`checked ${c.id}/${lane}`);
+ }
+ rows.push(row);
+}
+const groupTotals=migration=>Object.fromEntries(Object.entries(metrics).map(([lane,key])=>{
+ const matched=rows.filter(r=>r.matched&&r.migration===migration),before=matched.reduce((n,r)=>n+r.lanes[lane].before[key],0),after=matched.reduce((n,r)=>n+r.lanes[lane].after[key],0);
+ return[lane,{before,after,delta:after-before}];
+}));
+const totals={unchanged_contract:groupTotals(false)};
+writeFileSync(resolve(directory,'comparison.json'),JSON.stringify({scope:'ordinary host-call control plus platform/generic/configured host capabilities; independent behavior oracles, no fleet or timing claim',compiler:identity(binary),baseline:identity(baseline),codec:identity(codec),totals,rows},null,2)+'\n');
+const paths=['Cargo.toml','Cargo.lock',...readdirSync(resolve(root,'src'),{recursive:true}).filter(p=>/\.(rs|lil|h)$/.test(p)).map(p=>'src/'+p)].sort();
+const source_files=paths.map(path=>({path,sha256:sha(readFileSync(resolve(root,path)))}));
+writeFileSync(resolve(directory,'identity.json'),JSON.stringify({head:run('git',['rev-parse','HEAD']).stdout.trim(),compiler:identity(binary),source_files,source_sha256:sha(JSON.stringify(source_files)),source_digest_recipe:'SHA-256 of compact JSON source_files in sorted path order'},null,2)+'\n');
+console.log(JSON.stringify(totals));

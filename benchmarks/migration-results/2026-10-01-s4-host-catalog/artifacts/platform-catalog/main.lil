@@ -1,0 +1,1 @@
+import {performance} from "lil:ecmascript";import {document} from "lil:dom";export int run(){return performance.now().toInt()+document.title.length;}

@@ -44,6 +44,7 @@ pub(crate) fn native(
     view: CheckedView<'_, '_, '_>,
     module: Option<usize>,
     exports: &[ModuleExport<'_>],
+    hosts: &crate::config::HostConfig,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), AdmittedCheckError> {
     let mut scope = budget.scope();
@@ -53,6 +54,20 @@ pub(crate) fn native(
         budget.work(WorkKind::Analysis, 1)?;
         if view.declarations.symbol_modules[symbol.id.0 as usize] == module {
             check_type(view, &symbol.ty, symbol.span, budget)?;
+            if symbol.is_foreign() {
+                let Some(signature) = symbol.ty.callable_signature() else {
+                    return Err(AdmittedCheckError::new(symbol.span,
+                        "native extern globals require a function provider; declare getter/setter functions"));
+                };
+                if signature.params.iter().any(|p| p.optional || p.receiver || p.passing != crate::primitive::ParameterPassing::Value) {
+                    return Err(AdmittedCheckError::new(symbol.span,
+                        "native provider ABI v1 requires value parameters without defaults or an implicit receiver"));
+                }
+                if !hosts.native.contains_key(symbol.name) {
+                    return Err(AdmittedCheckError::new(symbol.span,
+                        format!("extern `{}` needs an explicit [host.native] provider for the native target", symbol.name)));
+                }
+            }
         }
     }
     for definition in view.structs() {
@@ -161,4 +176,40 @@ pub(crate) fn language(
         }
     }
     Ok(())
+}
+
+/// Resolve configuration spellings while declarations are still available.
+/// Conversion consumes these identities, never a name-keyed nominal lookup.
+pub(crate) struct JavaScriptHostBindings<'a> {
+    pub cells: Vec<(SymbolId, &'a str)>,
+    pub classes: Vec<(NominalId, &'a str)>,
+}
+pub(crate) fn javascript_bindings<'a>(
+    view: CheckedView<'_, '_, '_>,
+    config: &'a crate::config::HostConfig,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<JavaScriptHostBindings<'a>, AdmittedCheckError> {
+    let mut bindings = JavaScriptHostBindings { cells: Vec::new(), classes: Vec::new() };
+    for (name, path) in &config.javascript {
+        let mut found = false;
+        for symbol in view.symbols() {
+            budget.work(WorkKind::Analysis, 1)?;
+            if symbol.is_foreign() && symbol.name == name {
+                budget.push(AllocationClass::Scratch, &mut bindings.cells, (symbol.id, path.as_str()))?;
+                found = true;
+            }
+        }
+        for definition in view.classes() {
+            budget.work(WorkKind::Analysis, 1)?;
+            if definition.external && definition.declaration.name == name {
+                budget.push(AllocationClass::Scratch, &mut bindings.classes, (definition.declaration.identity, path.as_str()))?;
+                found = true;
+            }
+        }
+        if !found {
+            return Err(AdmittedCheckError::new(Span::default(), format!(
+                "host.javascript.{name} does not name an extern declaration in this program")));
+        }
+    }
+    Ok(bindings)
 }

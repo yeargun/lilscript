@@ -1,0 +1,35 @@
+// Host operations remain effectful: a replaceable host binding may run code.
+// Use LilScript's catalogued primitive operations for optimizer-known effects.
+extern class Console {
+    void log(JsValue... values);
+    void info(JsValue... values);
+    void warn(JsValue... values);
+    void error(JsValue... values);
+    void debug(JsValue... values);
+    void trace(JsValue... values);
+    void assert(bool condition, JsValue... values);
+}
+extern Console console;
+extern class Performance { float now(); }
+extern Performance performance;
+extern void queueMicrotask(func()->void callback);
+extern JsValue setTimeout(func()->void callback, float delay=0);
+extern void clearTimeout(JsValue handle);
+extern JsValue setInterval(func()->void callback, float delay=0);
+extern void clearInterval(JsValue handle);
+extern class RegExp {
+    init(string pattern, string flags);
+    bool test(string value);
+    JsValue exec(string value);
+    string source;
+    string flags;
+    bool global;
+    bool ignoreCase;
+    bool multiline;
+    bool dotAll;
+    bool sticky;
+    bool unicode;
+    float lastIndex;
+}
+export {Console, console, Performance, performance, queueMicrotask,
+    setTimeout, clearTimeout, setInterval, clearInterval, RegExp};

@@ -1,19 +1,6 @@
-//! The JavaScript host surface: property names the program does not own.
-//!
-//! This module is data. It lists the standard library and DOM members that a
-//! program reaches through an untyped `JsValue` (`JS.invoke`, `JS.getProperty`)
-//! and that therefore look exactly like members the program invented:
-//! `value.toUpperCase()` and `node.measuredDepth` have the same shape. Any
-//! renaming of properties must never touch a name in this list, whatever the
-//! ownership policy says.
-//!
-//! Nothing renames properties today. The list is kept for the typed property
-//! renaming (plan M9.6), and later moves into the host operation catalog. It
-//! came from the old route's `js_externs.rs`, where it guarded that route's
-//! property mangling. The cost of a name that belongs here and is missing is a
-//! wrong program; the cost of a name that does not belong and is present is a
-//! few bytes, so the list is generous on purpose: the ECMAScript surface as the
-//! engine reports it, plus the DOM members a browser port touches.
+//! Catalog inventory for untyped host properties. Typed host fields use their
+//! checked extern identity; this conservative inventory is available to clients
+//! that cannot establish typed ownership. It is not a private-field allowlist.
 
 /// Sorted for binary search. Keep it sorted.
 pub const HOST_PROPERTY_NAMES: &[&str] = &[

@@ -1,0 +1,9 @@
+[optimization]
+preset='maximum'
+[objective]
+codecs='brotli'
+[effort]
+level=13
+[host.javascript]
+Host='Runtime.Base'
+value='Runtime.value'

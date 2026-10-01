@@ -1,0 +1,1 @@
+let run=function(a){return api.read(a)+1|0};export{run};

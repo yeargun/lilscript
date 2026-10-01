@@ -1,0 +1,1 @@
+extern class Host{int read(int n);}extern Host api;export int run(int n){return api.read(n)+1;}

@@ -12,37 +12,12 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 ## Next
 
-Complete **S4**: identities/defaults, the record fact/type fix, typed
-receivers/rest, checked array reads and value updates are implemented in its
-[contracts batch](../../benchmarks/migration-results/2026-10-01-s4-contracts/README.md).
-Continue its remaining shared-consumer and language/boundary work before Q2.
-Concrete generic structs, nullable/default/rest value adapters, published
-constructor/prototype adapters and dual type/constructor module bindings are
-implemented in the [boundaries batch](../../benchmarks/migration-results/2026-10-01-s4-boundaries/README.md).
-Host callable defaults/rest/receivers, generic/nullable `JS.assume` and zero-use
-`object` singleton retirement are implemented in the
-[host batch](../../benchmarks/migration-results/2026-10-01-s4-host-boundaries/README.md).
-Checker-owned definite assignment and the explicit TOML field contract are
-implemented in the [field batch](../../benchmarks/migration-results/2026-10-01-s4-field-contracts/README.md).
-Native UTF-16 indexing, binary nullable reads and preservation of required bounds
-traps are implemented in the [index batch](../../benchmarks/migration-results/2026-10-01-s4-index-contracts/README.md).
-Internal constructor visibility and actual ABI observation are separated in the
-[sealed-module batch](../../benchmarks/migration-results/2026-10-01-s4-sealed-modules/README.md).
-Observed generic constructors, fixed struct callable contracts and canonical source
-interfaces are implemented in the [generic batch](../../benchmarks/migration-results/2026-10-01-s4-observed-generics/README.md).
-Declared shapes, checked spread/intersections/tags and concrete public product
-storage are implemented in the [shape batch](../../benchmarks/migration-results/2026-10-01-s4-shapes/README.md).
-Unified absence, pinned crossings, default arguments and public optional keys are
-implemented in the [absence batch](../../benchmarks/migration-results/2026-10-01-s4-absence/README.md).
-The opt-in number/NaN `charCodeAt` contract is implemented on both targets in
-the [character-code batch](../../benchmarks/migration-results/2026-10-01-s4-char-code/README.md).
-ABI enums/flags, declared storage, conversions and shared/native evaluation are
-implemented in the [enum batch](../../benchmarks/migration-results/2026-10-01-s4-enums/README.md).
-Payload bindings and sealed dispatch, including captured scopes and initialization
-order, are implemented in the [variant batch](../../benchmarks/migration-results/2026-10-01-s4-variants/README.md).
-Erased generic receivers/methods and suspending captured payload arms are
-implemented in the [erased variant batch](../../benchmarks/migration-results/2026-10-01-s4-erased-variants/README.md).
-The [handoff](handoff.md) records the current scope and compiler pins.
+Complete **S4** under its [acceptance contract](s4-acceptance.md): wider erased
+product/union/callable crossings and the shared fact-consumer/removal audit.
+Identities, defaults, indexing, fields, shapes, absence, enums, payloads, generic
+sealed calls, platform catalogs and configurable host bindings are implemented;
+[history](history.md) and the [handoff](handoff.md) retain their evidence and pins.
+Then follow **Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 
 The owner requests substantial implementation batches followed by focused
 checks that answer a correctness or size question. Do not restart the deferred
@@ -59,7 +34,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
-| [~] | [S4](plan.md#s4) Contracts | Host catalog/wider generic crossings and fact-consumer audit; staged language-default adoption belongs to V2 |
+| [~] | [S4](plan.md#s4) Contracts | Wider generic crossings and fact-consumer audit; staged language-default adoption belongs to V2 |
 | [x] | [G1](plan.md#g1) Lexical names | Live printed-order/frequency allocation, full continuations, final-byte ties and replay controls complete; optional compaction is automatic at 14 |
 | [x] | [G2](plan.md#g2) Property names | Private generic/observed eligibility, inherited/sibling slot reuse, reflected boundaries and adapter-name fixtures complete |
 | [x] | [G3](plan.md#g3) JS generation | Stable per-site forms, guarded aliases, safe locality choices and structural printing complete |

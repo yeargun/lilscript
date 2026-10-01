@@ -1,0 +1,7 @@
+{
+  "exercise": "console.log(JSON.stringify([m.run()]));",
+  "expected": [
+    12
+  ],
+  "setup": "globalThis.document={title:'hello'};globalThis.performance={now(){if(this!==performance)throw Error('receiver');return 7;}};"
+}

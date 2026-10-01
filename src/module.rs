@@ -724,6 +724,10 @@ fn read_module_source(
     path: &Path,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<String, ModuleDiscoveryError> {
+    if let Some(source) = crate::catalog::platform::source(path) {
+        budget.work(WorkKind::Analysis, source.len() as u64)?;
+        return Ok(budget.string(Retained, source)?);
+    }
     let read_error = |error: io::Error| {
         ModuleError::new(
             path,
@@ -1021,6 +1025,9 @@ impl<S: DiscoveryStorage> ModuleLoader<S> {
         }
     }
     fn resolve_import_path(&self, parent: &Path, specifier: &str) -> Result<PathBuf, String> {
+        if let Some(resolved) = crate::catalog::platform::resolve(specifier) {
+            return resolved;
+        }
         if specifier.starts_with('.') {
             return Ok(parent.join(specifier));
         }
@@ -1072,6 +1079,9 @@ impl<S: DiscoveryStorage> ModuleLoader<S> {
 }
 
 fn canonical_module_path(path: &Path) -> Result<PathBuf, String> {
+    if crate::catalog::platform::source(path).is_some() {
+        return Ok(path.to_path_buf());
+    }
     let with_extension = if path.extension().is_none() {
         path.with_extension("lil")
     } else {

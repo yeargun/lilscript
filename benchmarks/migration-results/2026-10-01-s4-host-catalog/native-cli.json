@@ -1,0 +1,30 @@
+{
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-host-catalog-1/lilscript",
+    "sha256": "a20feebf53589c898ddf56e3a6ce22e9a0252a0f164ef9b80733233857b02640"
+  },
+  "scope": "CLI C/header delivery and separately compiled provider from a TOML-relative path; not native-complete qualification",
+  "sources": [
+    {
+      "path": "artifacts/native-cli/main.lil",
+      "sha256": "877cf48316c6ff694a0451a28aa030415068be789b7e427103e5abd80175e92f"
+    },
+    {
+      "path": "artifacts/native-cli/lilscript.toml",
+      "sha256": "a8dc218e5c2732df7ec86973ede862adac237b71645ab4eb59a7b1665cb4de6f"
+    },
+    {
+      "path": "artifacts/native-cli/provider.c",
+      "sha256": "9c11dff5fc305e3b2a2d00356cc4c9c3677a479ab64a71449456f7715b77dbb7"
+    },
+    {
+      "path": "artifacts/native-cli/main.c",
+      "sha256": "c2ea686f391e481d40a1c3456fd32fed075af146404ed2deff8faa3f78c3755c"
+    },
+    {
+      "path": "artifacts/native-cli/main.h",
+      "sha256": "78aaf67042218d147682c4b26a65fe5c8bd558bdcb4bc4567314d636f47e24f3"
+    }
+  ],
+  "output": "21\n"
+}

@@ -225,7 +225,12 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 
 - **Clause.** `extern` functions, globals and classes carry trusted types and a JavaScript host name or a C link name. `import extern` aliases are compiler-named. A platform catalog (ECMAScript and the DOM surface) declares `document`, `RegExp`, `console` and the rest once, with effect classes and target capabilities. A declaration may have a binding per export condition: a library's `browser` condition may decode entities through the DOM, as upstream micromark does, while its Node condition ships the table.
 - **Replaces.** v0.1:366-383; `globalThis[...]` access; name-keyed host helpers (already dropped).
-- **Status.** Target (M4.6, M10.17).
+- **Status.** Bundled `lil:ecmascript` / `lil:dom` declarations, generic extern
+  schemas, TOML JavaScript paths and native callback-provider symbols are
+  implemented. Host names resolve to checked identities before search;
+  capability diagnostics retain source spans. The catalogs are a maintained
+  surface, not complete generated Web IDL. Package condition/delivery completion
+  remains D1–D3 and additional native ABI capabilities remain N2.
 
 ---
 

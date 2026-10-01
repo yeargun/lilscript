@@ -489,11 +489,18 @@ fn build(
                 write_delivery(args, entries, config, &result, selected, primary)
             }
         }
-        Target::C => write_or_print(args.output.as_deref(), native_c()?),
+        Target::C => {
+            if result.native_header().is_some() && args.output.is_none() {
+                return Err("native provider C delivery requires -o <file.c> so its matching .h can be written".into());
+            }
+            if let Some(path) = &args.output { write_native_header(&result, path)?; }
+            write_or_print(args.output.as_deref(), native_c()?)
+        },
         Target::Native => {
             let base = base();
             ensure_parent(&base)?;
-            compile_native(native_c()?, &base)
+            write_native_header(&result, &base)?;
+            compile_native(native_c()?, &base, config)
         }
         Target::All => {
             if multiple {
@@ -507,7 +514,8 @@ fn build(
                 let c = base.with_extension("c");
                 fs::write(&c, native_c()?)
                     .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
-                return compile_native(native_c()?, &base);
+                write_native_header(&result, &base)?;
+                return compile_native(native_c()?, &base, config);
             }
             let base = base();
             ensure_parent(&base)?;
@@ -522,7 +530,8 @@ fn build(
             let c = base.with_extension("c");
             fs::write(&c, native_c()?)
                 .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
-            compile_native(native_c()?, &base)
+            write_native_header(&result, &base)?;
+            compile_native(native_c()?, &base, config)
         }
     }
 }
@@ -1281,7 +1290,14 @@ fn ensure_parent(output: &Path) -> Result<(), String> {
 
 /// Compile C to an executable with the strict numerics the C target
 /// assumes: no fast math and no floating-point contraction.
-fn compile_native(c: &str, output: &Path) -> Result<(), String> {
+fn write_native_header(result: &lilscript::build::ServiceCompilation, output: &Path) -> Result<(), String> {
+    let Some(header) = result.native_header() else { return Ok(()); };
+    let path = output.with_extension("h");
+    ensure_parent(&path)?;
+    fs::write(&path, header).map_err(|error| format!("failed to write {}: {error}", path.display()))
+}
+
+fn compile_native(c: &str, output: &Path, config: &ProjectConfig) -> Result<(), String> {
     // The platform's C compiler unless `CC` names one.
     let compiler = std::env::var("CC").unwrap_or_else(|_| "cc".to_string());
     let mut command = Command::new(&compiler);
@@ -1296,6 +1312,11 @@ fn compile_native(c: &str, output: &Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     command.arg("-Wl,-no_uuid");
     command.arg("-o").arg(output).arg("-");
+    command.arg("-I").arg(output.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(|| Path::new(".")));
+    let base = config.config_dir.as_deref().unwrap_or_else(|| Path::new("."));
+    for source in &config.host.native_sources {
+        command.arg(base.join(source));
+    }
     #[cfg(not(target_os = "windows"))]
     command.arg("-lm");
     let mut child = command

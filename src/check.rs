@@ -9765,6 +9765,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         ty: Type<'src>,
         callable: bool,
     ) -> Result<SymbolId, AdmittedCheckError> {
+        if crate::catalog::host_kind(ident.name) == crate::catalog::HostKind::Eval {
+            return Err(AdmittedCheckError::new(ident.span,
+                "direct eval has no sealed source contract; declare a host wrapper with an explicit interface"));
+        }
         // A host binding's parameters, result or value cross (R6).
         self.declarations.reflect(&ty);
         if self.module.is_none() {

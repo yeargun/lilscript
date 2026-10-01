@@ -2642,10 +2642,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             if let Some(ambient) = ambient::classify(cell) {
                 return self.ambient(unit, ambient, cell.declaration);
             }
-            Ok({
-                let node = js::Expr::Host(js::Host::new(self.text(&cell.name)?));
-                self.expression(node)
-            }?)
+            self.host_binding(&cell.name)
         } else if references::is_reference(self.program, cell) {
             self.read_reference(unit, cell)
         } else {
@@ -4262,6 +4259,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         Ok(callee)
     }
 
+    fn host_binding(&mut self, path: &str) -> Result<js::ExprId, FormationError> {
+        self.work(path.len())?;
+        let mut parts = path.split('.');
+        let name = self.text(parts.next().unwrap())?;
+        let mut value = self.expression(js::Expr::Host(js::Host::new(name)))?;
+        for part in parts {
+            let property = js::Property::Named(self.text(part)?);
+            value = self.expression(js::Expr::Member { object: value, property })?;
+        }
+        Ok(value)
+    }
+
     fn scheduled_expression(
         &mut self,
         unit: ContextId,
@@ -4698,8 +4707,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         let definition = self.program.class(class).ok_or_else(|| {
                             self.error(operation.span, "identity test on an undeclared class")
                         })?;
-                        let name = self.text(&definition.name)?;
-                        self.expression(js::Expr::Host(js::Host::new(name)))?
+                        self.host_binding(&definition.name)?
                     }
                 };
                 js::Expr::Binary {
@@ -5450,8 +5458,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     .class(base)
                     .ok_or_else(|| self.error(span, "kept class with an undeclared base"))?;
                 Some(if base.external {
-                    let name = self.text(&base.name)?;
-                    self.expression(js::Expr::Host(js::Host::new(name)))?
+                    self.host_binding(&base.name)?
                 } else {
                     let cell = base
                         .value

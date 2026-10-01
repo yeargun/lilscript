@@ -4139,3 +4139,126 @@ fn s4_erased_variants_suspending_captures_have_fresh_shared_cells() {
         assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),setup,oracle),"same\n");
     }
 }
+
+#[test]
+fn s4_host_catalog_generic_extern_schemas_and_subclasses() {
+    let source=r#"
+        extern class Host<T>{init(T value);T value;T choose(T other);U echo<U>(U other);}
+        extern class Extended<T> extends Host<T>{string label;}
+        extern Extended<string> existing;
+        class Child extends Host<string>{init(string value){super(value);}string read(){return this.value;}}
+        export string run(){Child child=new Child("child");existing.value="changed";return existing.choose("pick")+existing.label+child.read()+existing.echo(7).toString();}
+    "#;
+    let setup=r#"
+        globalThis.Host=class {constructor(value){this.value=value;}choose(other){return this.value+other;}echo(other){return other;}};
+        globalThis.Extended=class extends Host {constructor(value){super(value);this.label='label';}};
+        globalThis.existing=new Extended('initial');
+    "#;
+    let built=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),setup,"console.log(library.run());console.log(existing.value);"),"changedpicklabelchild7\nchanged\n");
+    }
+}
+
+#[test]
+fn s4_host_catalog_modules_share_declarations_and_preserve_host_receivers() {
+    let scratch=Scratch::new();
+    std::fs::write(scratch.0.join("helper.lil"),r#"import {document} from "lil:dom";export string title(){return document.title;}"#).unwrap();
+    let source=r#"
+        import {document as page} from "lil:dom";
+        import {console as logger, performance as clock, queueMicrotask} from "lil:ecmascript";
+        import {title} from "./helper";
+        export string run(){auto element=page.createElement("button");element.setAttribute("id","go");logger.info(title());return (element.getAttribute("id")??"missing")+clock.now().toInt().toString();}
+        export void later(){queueMicrotask(()=>{logger.info("later");});}
+    "#;
+    std::fs::write(scratch.0.join("entry.lil"),source).unwrap();
+    let setup=r#"
+        globalThis.events=[];
+        globalThis.document={title:'catalog',createElement(name){if(this!==document)throw Error('document receiver');events.push(name);return {values:{},setAttribute(k,v){this.values[k]=v;},getAttribute(k){return this.values[k]??null;}};}};
+        globalThis.performance={now(){if(this!==performance)throw Error('performance receiver');return 12;}};
+        globalThis.console.info=function(value){if(this!==console)throw Error('console receiver');events.push(value);};
+    "#;
+    let built=compile_path(&scratch.0.join("entry.lil"),&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),setup,"console.log(library.run());library.later();await 0;console.log(JSON.stringify(events));"),"go12\n[\"button\",\"catalog\",\"later\"]\n");
+    }
+    std::fs::write(scratch.0.join("entry.lil"),"import {document} from \"lil:dom\";print(3);").unwrap();
+    let unused=compile_path(&scratch.0.join("entry.lil"),&config(""),ServiceOptions::default()).unwrap();
+    let plain=compile_source("print(3);",&config(""),ServiceOptions::default()).unwrap();
+    assert_eq!(unused.javascript(Objective::Brotli).unwrap().javascript(),plain.javascript(Objective::Brotli).unwrap().javascript());
+    let error=compile_path(&scratch.0.join("entry.lil"),&config(""),ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap_err();
+    assert_eq!(error.phase,"check","{error:?}");
+}
+
+#[test]
+fn s4_host_catalog_invalid_names_and_eval_are_source_diagnostics() {
+    let scratch=Scratch::new();
+    std::fs::write(scratch.0.join("entry.lil"),"import {missing} from \"lil:missing\";print(1);").unwrap();
+    let error=compile_path(&scratch.0.join("entry.lil"),&config(""),ServiceOptions::default()).unwrap_err();
+    assert!(format!("{error:?}").contains("unknown platform catalog"),"{error:?}");
+    let error=compile_source("extern int eval(string source);",&config(""),ServiceOptions::default()).unwrap_err();
+    assert_eq!(error.phase,"check","{error:?}");
+    assert!(format!("{error:?}").contains("direct eval"),"{error:?}");
+}
+
+#[test]
+fn s4_host_catalog_toml_paths_keep_checked_identity_and_call_order() {
+    let source=r#"
+        extern int first(int n);extern int second(int n);extern int next();
+        extern class Host{init(int n);int value;int read();}
+        class Child extends Host{init(int n){super(n);}}
+        export int run(){return first(next())*100+second(next())+new Child(3).read();}
+    "#;
+    let flags="[host.javascript]\nfirst='second'\nsecond='Runtime.second'\nnext='Runtime.next'\nHost='Runtime.Base'";
+    let setup=r#"
+        globalThis.trace=[];let n=0;
+        Object.defineProperty(globalThis,'second',{configurable:true,get(){trace.push('first');return x=>{trace.push('call1:'+x);return x+10;};}});
+        globalThis.Runtime={get second(){trace.push('second');return x=>{trace.push('call2:'+x);return x+20;};},next(){trace.push('next');return ++n;},Base:class{constructor(n){this.value=n;}read(){return this.value;}}};
+    "#;
+    for effort in [0,13] {
+        let mut settings=config(flags);settings.effort.level=effort;
+        let built=compile_source(source,&settings,ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),setup,"trace.length=0;console.log(library.run());console.log(JSON.stringify(trace));"),"1125\n[\"first\",\"next\",\"call1:1\",\"second\",\"next\",\"call2:2\"]\n");
+        }
+    }
+    let request=CompilationRequest::JavaScript{preserve_root_exports:true};
+    assert_ne!(config("").resolve_policy(request).unwrap().fingerprint(),config(flags).resolve_policy(request).unwrap().fingerprint());
+}
+
+#[test]
+fn s4_host_catalog_native_provider_configuration_delivers_a_matching_header() {
+    let source="extern int compute(int n);extern T identity<T>(T value);print(compute(7));print(identity(12));print(identity(\"ok\"));auto values=identity([3,4]);print(values[1]);";
+    let settings=config("[host.javascript]\ncompute='Runtime.compute'\nidentity='Runtime.identity'\n[host.native]\ncompute='host_compute'\nidentity='host_identity'");
+    let built=compile_source(source,&settings,ServiceOptions{target:ServiceTarget::All,..ServiceOptions::default()}).unwrap();
+    assert_eq!(execute_javascript(built.javascript(Objective::Brotli).unwrap().javascript(),"globalThis.Runtime={compute:n=>n*3,identity:value=>value};",""),"21\n12\nok\n4\n");
+    let scratch=Scratch::new();let source_path=scratch.0.join("main.c");
+    std::fs::write(&source_path,built.native_c().unwrap()).unwrap();
+    std::fs::write(scratch.0.join("main.h"),built.native_header().unwrap()).unwrap();
+    std::fs::write(scratch.0.join("provider.c"),"#include \"main.h\"\nint32_t host_compute(int32_t n){return n*3;}\nhost_identity_result host_identity(host_identity_arg0 value){ls_value_retain(value);return value;}\n").unwrap();
+    let executable=scratch.0.join("main");
+    let cc=std::env::var_os("LILSCRIPT_NATIVE_CC").unwrap_or_else(||"cc".into());
+    let output=Command::new(cc).args(["-std=c11","-O1","-fno-fast-math","-ffp-contract=off"])
+        .arg(&source_path).arg(scratch.0.join("provider.c")).args(["-lm","-o"]).arg(&executable).output().unwrap();
+    assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+    let output=Command::new(executable).output().unwrap();assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).unwrap(),"21\n12\nok\n4\n");
+    let error=compile_source(source,&config(""),ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap_err();
+    assert_eq!(error.phase,"check","{error:?}");assert!(format!("{error:?}").contains("host.native"));
+    let error=compile_source("extern int compute(int n=1);print(compute());",&settings,ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap_err();
+    assert_eq!(error.phase,"check","{error:?}");
+}
+
+#[test]
+fn s4_host_catalog_binding_configuration_refuses_ambiguous_or_invalid_contracts() {
+    for flags in ["[host.javascript]\nf='x;evil()'", "[host.javascript]\nf='eval'", "[host.native]\nf='not_reserved'", "[host.native]\nf='host_same'\ng='host_same'"] {
+        assert!(config(flags).validate().is_err(),"{flags}");
+    }
+    let error=compile_source("int f(){return 1;}print(f());",&config("[host.javascript]\nf='runtime.f'"),ServiceOptions::default()).unwrap_err();
+    assert_eq!(error.phase,"check","{error:?}");
+    let scratch=Scratch::new();
+    std::fs::write(scratch.0.join("entry.lil"),"import extern {f} from \"./host.js\";extern int f();print(f());").unwrap();
+    std::fs::write(scratch.0.join("host.js"),"export function f(){return 1;}").unwrap();
+    let error=compile_path(&scratch.0.join("entry.lil"),&config("[host.javascript]\nf='runtime.f'"),ServiceOptions::default()).unwrap_err();
+    assert_eq!(error.phase,"check","{error:?}");assert!(format!("{error:?}").contains("conflicts with its import extern"));
+}

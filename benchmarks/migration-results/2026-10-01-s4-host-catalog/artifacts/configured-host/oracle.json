@@ -1,0 +1,7 @@
+{
+  "exercise": "console.log(JSON.stringify([m.run()]));",
+  "expected": [
+    17
+  ],
+  "setup": "globalThis.Runtime={Base:class{constructor(n){this.value=n;}read(){return this.value;}},value:()=>17};"
+}

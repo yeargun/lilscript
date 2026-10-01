@@ -6,8 +6,13 @@ use crate::primitive::ParameterPassing;
 impl Emitter<'_, '_, '_, '_, '_> {
     pub(super) fn header(&mut self) -> Result<(), NativeError> {
         self.text("#ifndef LILSCRIPT_NATIVE_CALLBACK_ABI_V1_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_V1_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 1\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\ntypedef struct { const uint16_t *data; size_t length; } ls_string;\n")?;
-        self.value_types()?;
         self.text(native_memory::INTERFACE)?;
+        self.text("typedef struct ls_native_object ls_native_object;\n")?;
+        if self.plan.helpers.contains(Helper::Dynamic) {
+            self.text(dynamic::INTERFACE)?;
+        }
+        self.array_declarations()?;
+        self.value_types()?;
         self.text(native_memory::QUALIFICATION_INTERFACE)?;
         self.callable_types()?;
         self.host_interface()?;

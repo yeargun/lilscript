@@ -7,31 +7,10 @@
 use super::*;
 
 /// Tags follow JavaScript's runtime categories where a type test reads them.
-pub(in crate::program) const RUNTIME: &str = r#"typedef struct ls_value {
-    uint8_t tag;
-    /* A callable payload's physical signature. */
-    uint32_t signature;
-    union {
-        int32_t i;
-        double f;
-        bool b;
-        ls_string s;
-        ls_native_object *o;
-        struct { void (*code)(void); void *environment; uint64_t identity; } c;
-    } as;
-} ls_value;
-enum { LS_NULL, LS_INT, LS_FLOAT, LS_BOOL, LS_STRING, LS_OBJECT, LS_ARRAY, LS_CALLABLE, LS_SYMBOL };
-static void ls_value_mismatch(void) {
+pub(in crate::program) const INTERFACE: &str = include_str!("native_value_interface.h");
+pub(in crate::program) const RUNTIME: &str = concat!(include_str!("native_value_interface.h"), r#"static void ls_value_mismatch(void) {
     fputs("LilScript native value has an unexpected type\n", stderr);
     abort();
-}
-static void ls_value_retain(ls_value value) {
-    if (value.tag == LS_OBJECT || value.tag == LS_ARRAY || value.tag == LS_SYMBOL) ls_native_retain(value.as.o);
-    else if (value.tag == LS_CALLABLE) ls_native_retain(value.as.c.environment);
-}
-static void ls_value_release(ls_value value) {
-    if (value.tag == LS_OBJECT || value.tag == LS_ARRAY || value.tag == LS_SYMBOL) ls_native_release(value.as.o);
-    else if (value.tag == LS_CALLABLE) ls_native_release(value.as.c.environment);
 }
 static void ls_value_copy(ls_value *slot, ls_value value) { ls_value_retain(value); ls_value_release(*slot); *slot = value; }
 static void ls_value_take(ls_value *slot, ls_value value) { ls_value_release(*slot); *slot = value; }
@@ -99,7 +78,7 @@ static void ls_print_value(ls_value value) {
         abort();
     }
 }
-"#;
+"#);
 
 impl Emitter<'_, '_, '_, '_, '_> {
     /// Boxing and unboxing of each callable signature. Every callable record

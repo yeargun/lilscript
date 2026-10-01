@@ -10,7 +10,9 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    expressions/values to declaration metadata while retaining the function
    type's required/optional/rest call contract and transport conventions.
 3. [~] Finish operation-catalog ownership and check-time contract/capability
-   diagnostics, including the carried `Object.hasOwn`/detached intrinsic cases.
+   diagnostics, including the carried `Object.hasOwn`/detached intrinsic cases. Bundled host
+   declarations, explicit TOML paths/native providers and source diagnostics are
+   implemented; target provider headers share the native value layout.
    Preserve source spans. N1/N2 own additional native implementations, not hidden
    late refusals of a checked capability.
 4. [~] Transport and invalidate facts for representation-created bindings,

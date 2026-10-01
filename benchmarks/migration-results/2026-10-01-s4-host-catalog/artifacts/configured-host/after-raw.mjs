@@ -1,0 +1,1 @@
+let a=class Child extends Runtime.Base{constructor(b){super(b)}},run=function(){return new a((0,Runtime.value)()).read()};export{run};

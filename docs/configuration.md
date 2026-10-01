@@ -28,6 +28,53 @@ A configuration is read in two steps:
 2. **Strict reading.** Everything else must be a known key with a valid value.
    A misspelled key or value is an error. Nothing is accepted silently.
 
+## Declared host bindings
+
+An `extern` normally uses its declared global name. `[host.javascript]` selects
+another global or a dotted property path for that declaration. `[host.native]`
+selects an explicit callback ABI v1 provider symbol. Both mappings resolve to
+checked declaration identities and enter the policy fingerprint.
+
+```toml
+[host]
+native_sources = ["host/compute.c"]
+
+[host.javascript]
+compute = "Runtime.compute"
+document = "window.document"
+
+[host.native]
+compute = "host_compute"
+```
+
+Each key must name an extern in the selected program. JavaScript mappings may
+name functions, globals or extern classes; they cannot override `import extern`
+bindings or bind `eval`. A dotted path performs ordinary property reads at each
+source use. A mapped function remains a function call with no implicit receiver;
+use an extern class/global for receiver-bearing host methods. Mapping names does
+not change the declared types or trusted `pure`/`debug` effects.
+
+All maps and the provider-source list default to empty. They apply at every
+effort level, including 0; optimization flags cannot veto ABI selection. The
+compiler emits direct host accesses, so a longer path may cost bytes and execute
+more property reads. No search effort is spent selecting a different host.
+
+Native provider symbols use the reserved `host_` prefix. The generated header
+is the provider's exact interface, including UTF-16 strings, generic boxed
+values and callback ownership; it is not the platform's implicit C ABI.
+Providers currently take explicit value parameters without defaults or an
+implicit receiver. Missing providers and unsupported globals are source errors.
+`native_sources` paths are relative to the TOML file (the current directory for
+an in-memory configuration) and are passed to C compilation for executable
+output. `--target c -o main.c` also writes `main.h` when providers are present;
+executable builds write a matching header beside their output. The Rust build
+API returns it through `ServiceCompilation::native_header()`.
+
+Use one selected configuration per deployment environment. Package export
+conditions continue to select their source/host modules through the package
+resolver; output-format and condition-manifest completion belongs to D1–D3.
+See [web-platform.md](web-platform.md) for the bundled typed declarations.
+
 ## Precedence and explanations
 
 The nearest discovered file is the entire project configuration; parent files

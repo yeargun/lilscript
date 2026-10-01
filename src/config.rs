@@ -14,6 +14,9 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::js_syntax_target::{resolve_ecmascript_target, EcmaScriptEdition};
+#[path = "config_host.rs"]
+mod host;
+pub use host::HostConfig;
 
 /// What becomes of a configuration key this compiler no longer reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -686,6 +689,7 @@ pub enum FieldInitialization {
 #[serde(default, deny_unknown_fields)]
 pub struct ProjectConfig {
     pub language: LanguageConfig,
+    pub host: HostConfig,
     /// Versioned policy overlay; absent versions preserve legacy permission semantics.
     pub policy: Option<crate::compilation_policy::PolicyConfig>,
     pub package: Option<PackageMetadata>,
@@ -978,7 +982,7 @@ impl ProjectConfig {
             policy.resources.restricted_by(ceilings),
             policy.constraints,
             diagnostics,
-        ))
+        ).with_hosts(self.host.clone()))
     }
 
     /// The delivery part of the contract (plan M3.3). `library` is the
@@ -1152,6 +1156,7 @@ impl ProjectConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        self.host.validate()?;
         if let Some(policy) = &self.policy {
             policy.validate()?;
         }
@@ -1788,7 +1793,7 @@ pub struct MangleConfig {
     /// options a caller sets on an object it authors, fields a callback reads
     /// off a context the program hands it, members of a value the program
     /// returns. A contract: these names are never renamed. The host surface is
-    /// already known (`js_platform`); this is the part only the port knows.
+    /// already known (the operation catalog); this is the part only the port knows.
     /// Nothing renames properties yet, so the contract holds for every name;
     /// typed property renaming (plan M9.6) reads it.
     pub preserve_properties: Option<Vec<String>>,

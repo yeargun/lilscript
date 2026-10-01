@@ -311,6 +311,7 @@ pub struct ServiceCompilation {
     javascript: Vec<ServiceJavaScript>,
     winners: [Option<usize>; 3],
     native_c: Option<String>,
+    native_header: Option<String>,
     report: Value,
 }
 
@@ -321,6 +322,7 @@ impl ServiceCompilation {
     pub fn native_c(&self) -> Option<&str> {
         self.native_c.as_deref()
     }
+    pub fn native_header(&self) -> Option<&str> { self.native_header.as_deref() }
     pub fn report(&self) -> &Value {
         &self.report
     }
@@ -337,6 +339,7 @@ struct Frontend {
     source_buffer_bytes: Option<u64>,
     /// Relative host modules every output carries.
     hosts: crate::host_modules::HostDelivery,
+    native_bindings: Vec<(crate::program::CellId, String)>,
 }
 
 #[cfg(test)]
@@ -460,6 +463,7 @@ impl Frontend {
             phases: json!({"policy_ns": nanos(started)}),
             source_buffer_bytes: None,
             hosts: Default::default(),
+            native_bindings: Vec::new(),
         };
         frontend.checkpoint(1)?;
         Ok(frontend)
@@ -492,6 +496,7 @@ impl Frontend {
             mut phases,
             source_buffer_bytes,
             hosts,
+            native_bindings,
         } = self;
         let frontend_work = ledger.work_used(WorkDomain::Baseline);
         let source_identity = digest(serde_json::to_vec(&inputs).unwrap());
@@ -557,6 +562,7 @@ impl Frontend {
             inputs,
             shape,
             source_buffer_bytes,
+            native_bindings,
         })
     }
 }
@@ -577,6 +583,7 @@ pub struct CheckedSourceSession<'src> {
     inputs: Value,
     shape: Value,
     source_buffer_bytes: Option<u64>,
+    native_bindings: Vec<(crate::program::CellId, String)>,
 }
 
 /// Independently optimized winners retain each objective's qualification.
@@ -906,12 +913,17 @@ impl<'src> CheckedSourceSession<'src> {
             .native
             .as_ref()
             .ok_or_else(|| ServiceError::new("native", "not a native session"))?;
+        let bindings = self.native_bindings.iter().map(|(cell, link_name)| NativeHostBinding {
+            cell: *cell, link_name,
+        }).collect::<Vec<_>>();
+        let hosts = NativeHostBindings { callback_abi_version: 1, bindings: &bindings };
         self.compilation
-            .retain_native_c(
+            .retain_native_c_and_hosts(
                 source,
                 policy,
                 ArtifactRuntimeEvidence::default(),
                 WorkDomain::Baseline,
+                &hosts,
             )
             .map_err(|error| ServiceError::new("native", error))
     }
@@ -932,6 +944,7 @@ impl<'src> CheckedSourceSession<'src> {
             javascript: Vec::new(),
             winners: [None; 3],
             native_c: None,
+            native_header: None,
             report: Value::Null,
         };
         let mut search_report = Value::Null;
@@ -961,7 +974,7 @@ impl<'src> CheckedSourceSession<'src> {
                 .compilation
                 .take_qualified_native_artifact(artifact)
                 .map_err(|error| ServiceError::new("native handoff", error))?;
-            debug_assert!(header.is_empty());
+            if !header.is_empty() { output.native_header = Some(header); }
             output.native_c = Some(c);
             Some(cost)
         } else {
@@ -976,6 +989,7 @@ impl<'src> CheckedSourceSession<'src> {
         output.report["winners"] = json!(output.winners);
         output.report["native_sha256"] =
             json!(output.native_c.as_ref().map(|text| digest(text.as_bytes())));
+        output.report["native_header_sha256"] = json!(output.native_header.as_ref().map(|text| digest(text.as_bytes())));
         output.report["native_delivery"] = json!(native_cost);
         output.report["first_artifact_ns"] = json!(first_artifact_ns);
         output.report["search"] = search_report;
@@ -1334,6 +1348,7 @@ fn check_source_frontend<'src>(
     let rules = frontend.rules();
     let source_contract = frontend.source_contract();
     let trap_index_reads = frontend.trap_index_reads();
+    let host_config = frontend.javascript.as_ref().or(frontend.native.as_ref()).unwrap().hosts().clone();
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let syntax = arena.parse(source).map_err(|error| match error {
@@ -1365,9 +1380,11 @@ fn check_source_frontend<'src>(
                             semantics.view(),
                             Some(0),
                             if frontend.options.preserve_root_exports { semantics.exports() } else { &[] },
+                            &host_config,
                             budget,
                         )
                         .map_err(|error| native_check_error("<source>", source, error))?;
+                        frontend.native_bindings = configured_native_bindings(semantics.symbols(), &host_config)?;
                     }
                     frontend.phases["check_ns"] = json!(nanos(phase));
                     budget
@@ -1375,7 +1392,7 @@ fn check_source_frontend<'src>(
                         .map_err(|error| ServiceError::resources("frontend resources", error))?;
                     let phase = Instant::now();
                     let (program, rules) = from_checked_source_with_rules(
-                        &syntax, semantics, rules, trap_index_reads, budget,
+                        &syntax, semantics, rules, trap_index_reads, &host_config, budget,
                     )
                     .map_err(|error| match error {
                         ConversionError::Unsupported(error) => ServiceError::module(
@@ -1449,6 +1466,7 @@ fn check_path_frontend<'src, T>(
     let rules = if build { frontend.rules() } else { None };
     let source_contract = frontend.source_contract();
     let trap_index_reads = frontend.trap_index_reads();
+    let host_config = frontend.javascript.as_ref().or(frontend.native.as_ref()).unwrap().hosts().clone();
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let (modules, syntax) =
@@ -1527,12 +1545,14 @@ fn check_path_frontend<'src, T>(
                                 if frontend.options.preserve_root_exports && semantics.roots().contains(&module) {
                                     &semantics.interfaces()[module].exports
                                 } else { &[] },
+                                &host_config,
                                 budget,
                             )
                             .map_err(|error| {
                                 native_check_error(&input.path, input.source, error)
                             })?;
                         }
+                        frontend.native_bindings = configured_native_bindings(semantics.symbols(), &host_config)?;
                     }
                     frontend.phases["check_ns"] = json!(nanos(phase));
                     budget
@@ -1540,7 +1560,7 @@ fn check_path_frontend<'src, T>(
                         .map_err(|error| ServiceError::resources("frontend resources", error))?;
                     let phase = Instant::now();
                     let (program, rules) =
-                        from_checked_modules_with_rules(&syntax, semantics, rules, trap_index_reads, budget)
+                        from_checked_modules_with_rules(&syntax, semantics, rules, trap_index_reads, &host_config, budget)
                             .map_err(|error| match error.error {
                                 ConversionError::Unsupported(unsupported) => {
                                     let module = &modules.modules[error.module];
@@ -1676,6 +1696,7 @@ pub fn with_checked_entries<R>(
 fn module_paths(paths: &[std::path::PathBuf]) -> Vec<String> {
     let directories = paths
         .iter()
+        .filter(|path| crate::catalog::platform::source(path).is_none())
         .map(|path| path.parent().map(Path::to_path_buf).unwrap_or_default())
         .collect::<Vec<_>>();
     let mut common: Vec<std::ffi::OsString> = directories
@@ -1695,6 +1716,9 @@ fn module_paths(paths: &[std::path::PathBuf]) -> Vec<String> {
     paths
         .iter()
         .map(|path| {
+            if let Some(name) = crate::catalog::platform::delivery_name(path) {
+                return name;
+            }
             let relative = path
                 .strip_prefix(&prefix)
                 .unwrap_or(path)
@@ -2050,6 +2074,24 @@ mod delivery_tests;
 #[cfg(test)]
 #[path = "build_objective_tests.rs"]
 mod objective_tests;
+
+fn configured_native_bindings(
+    symbols: &[crate::check::Symbol<'_>],
+    hosts: &crate::config::HostConfig,
+) -> Result<Vec<(crate::program::CellId, String)>, ServiceError> {
+    for name in hosts.native.keys() {
+        if !symbols.iter().any(|s| s.is_foreign() && s.name == name && s.ty.callable_signature().is_some()) {
+            return Err(ServiceError::new("policy", format!("host.native.{name} does not name an extern function in this program")));
+        }
+    }
+    symbols.iter().filter(|s| s.is_foreign()).filter_map(|symbol| {
+        hosts.native.get(symbol.name).map(|link| {
+            let cell = crate::program::CellId::from_index(symbol.id.0 as usize)
+                .ok_or_else(|| ServiceError::new("check", "native provider cell capacity"))?;
+            Ok((cell, link.clone()))
+        })
+    }).collect()
+}
 
 fn native_check_error(
     path: impl AsRef<Path>,

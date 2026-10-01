@@ -3,6 +3,17 @@
 //! host builtins and their JavaScript spellings (form, arity and the int32
 //! facts of their results); the builtins' host status, contracts and effect
 //! classes. Checking, effects and the targets read them here.
+pub mod host_properties;
+pub(crate) mod platform;
+
+/// Callback ABI v1 reserves a C symbol namespace for explicitly linked hosts.
+pub(crate) fn native_link_identifier(link: &str) -> bool {
+    let Some(suffix) = link.strip_prefix("host_") else { return false; };
+    let mut bytes = suffix.bytes();
+    bytes.next().is_some_and(|b| b.is_ascii_alphabetic() || b == b'_')
+        && bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_')
+}
+
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use crate::typed_array::TypedArrayKind;
 

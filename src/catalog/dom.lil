@@ -1,0 +1,65 @@
+// A maintained typed DOM surface. Unlisted interfaces can be declared in an
+// ordinary extern module; this is not a generated, complete Web IDL package.
+extern class Event {
+    string type;
+    EventTarget? target;
+    bool defaultPrevented;
+    void preventDefault();
+    void stopPropagation();
+    void stopImmediatePropagation();
+}
+extern class EventTarget {
+    void addEventListener(string type, func(Event)->void callback);
+    void removeEventListener(string type, func(Event)->void callback);
+    bool dispatchEvent(Event event);
+}
+extern class Node extends EventTarget {
+    float nodeType;
+    string nodeName;
+    string? textContent;
+    Node? parentNode;
+    Node? firstChild;
+    Node? lastChild;
+    Node? nextSibling;
+    Node? previousSibling;
+    Node appendChild(Node child);
+    Node removeChild(Node child);
+    Node insertBefore(Node child, Node? before);
+    Node replaceChild(Node child, Node old);
+    Node cloneNode(bool deep=false);
+    bool contains(Node? node);
+    bool hasChildNodes();
+}
+extern class Element extends Node {
+    string id;
+    string className;
+    string tagName;
+    string innerHTML;
+    string outerHTML;
+    void setAttribute(string name, string value);
+    string? getAttribute(string name);
+    bool hasAttribute(string name);
+    void removeAttribute(string name);
+    Element? querySelector(string selector);
+    Element? closest(string selector);
+    bool matches(string selector);
+    void remove();
+}
+extern class Text extends Node { string data; float length; }
+extern class DocumentFragment extends Node {
+    Element? querySelector(string selector);
+}
+extern class Document extends Node {
+    string title;
+    Element? body;
+    Element? head;
+    Element? documentElement;
+    Element createElement(string name);
+    Element createElementNS(string? namespace, string name);
+    Text createTextNode(string value);
+    DocumentFragment createDocumentFragment();
+    Element? getElementById(string id);
+    Element? querySelector(string selector);
+}
+extern Document document;
+export {Event, EventTarget, Node, Element, Text, DocumentFragment, Document, document};

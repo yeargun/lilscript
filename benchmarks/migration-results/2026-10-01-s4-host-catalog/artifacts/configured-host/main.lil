@@ -1,0 +1,1 @@
+extern class Host<T>{init(T n);T value;T read();}class Child extends Host<int>{init(int n){super(n);}}extern int value();export int run(){return new Child(value()).read();}

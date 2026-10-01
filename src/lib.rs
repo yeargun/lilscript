@@ -17,7 +17,10 @@ mod host_modules;
 mod identifier_names;
 pub mod interpreter;
 pub mod js;
-pub mod js_platform;
+/// Compatibility view of the catalog's host-property inventory.
+pub mod js_platform {
+    pub use crate::catalog::host_properties::{is_host_property, HOST_PROPERTY_NAMES};
+}
 mod js_regex;
 mod js_string;
 pub mod js_syntax_target;

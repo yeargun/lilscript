@@ -1,0 +1,1 @@
+let run=function(){return(performance.now()|0)+document.title.length|0};export{run};

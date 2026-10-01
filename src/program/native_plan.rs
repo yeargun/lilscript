@@ -972,7 +972,7 @@ fn validate_hosts(
         if cell.binding != CellBinding::Foreign {
             return Err(error("native host binding declaration"));
         }
-        let Type::Function(signature) = &program.types[cell.ty.index()] else {
+        let Some(signature) = program.types[cell.ty.index()].callable_signature() else {
             return Err(error("native host binding signature"));
         };
         for parameter in &signature.params {
@@ -982,16 +982,8 @@ fn validate_hosts(
                 return Err(error("native host passing/default ABI"));
             }
         }
-        let Some(suffix) = host.link_name.strip_prefix("host_") else {
-            return Err(error("native callback provider symbol namespace"));
-        };
-        let mut name = suffix.bytes();
-        if !name
-            .next()
-            .is_some_and(|first| first.is_ascii_alphabetic() || first == b'_')
-            || !name.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
-        {
-            return Err(error("native host link identifier"));
+        if !crate::catalog::native_link_identifier(host.link_name) {
+            return Err(error("native host link identifier or provider namespace"));
         }
         for old in &hosts[..index] {
             work(
@@ -1005,8 +997,8 @@ fn validate_hosts(
             if old.link_name == host.link_name {
                 return Err(error("native host duplicate link identifier"));
             }
-            let Type::Function(old_signature) =
-                &program.types[program.cells[old.cell.index()].ty.index()]
+            let Some(old_signature) =
+                program.types[program.cells[old.cell.index()].ty.index()].callable_signature()
             else {
                 unreachable!("earlier host row was validated")
             };

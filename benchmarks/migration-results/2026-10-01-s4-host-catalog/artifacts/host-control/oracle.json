@@ -1,0 +1,8 @@
+{
+  "exercise": "console.log(JSON.stringify([m.run(3),m.run(-7)]));",
+  "expected": [
+    8,
+    -2
+  ],
+  "setup": "globalThis.api={base:4,read(n){return this.base+n;}};"
+}
