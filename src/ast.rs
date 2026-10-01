@@ -292,6 +292,7 @@ impl RegionPolicy {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl<'ast, 'src> {
+    pub declared_const: bool,
     pub dispatch: MethodDispatch,
     pub region: RegionPolicy,
     pub declared_pure: bool,
@@ -580,6 +581,8 @@ pub struct RecordBinding<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VarDecl<'ast, 'src> {
+    pub declared_define: bool,
+    pub declared_const: bool,
     pub ty: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
     pub initializer: Option<Expr<'ast, 'src>>,

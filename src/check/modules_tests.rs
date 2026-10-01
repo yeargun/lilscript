@@ -104,6 +104,8 @@ fn an_extern_declares_its_attributes_the_same_in_every_module() {
             .map_err(|error| (error.module, error.error.message))
     };
     let pure = Attributes {
+        define: false,
+        constant: false,
         pure: true,
         debug: false,
     };

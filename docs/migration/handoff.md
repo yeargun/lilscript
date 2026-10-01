@@ -1,21 +1,23 @@
-# Migration handoff — Q4 active
+# Migration handoff — D1 active
 
 Implement the entire remaining migration, one milestone at a time. Commit/push
 are authorized. Continue after each milestone. Use coherent implementation
 batches then focused checks; no repeated full library/fleet runs. One heavy job
 at a time; no PR/subagents requested.
 
-Q3 is complete under [its acceptance contract](q3-acceptance.md), algorithm64 /
-search33. [Evidence](../../benchmarks/migration-results/2026-10-01-q3-search/README.md)
-contains 25 focused checks, 54 release artifacts/oracles/remeasurements and CLI
-controls. The data fixture's +6 Brotli search-path regression and extra checkpoint
-cost are explicit. Do not repeat these checks without a new change or failure.
+Q4 is complete under [its acceptance contract](q4-acceptance.md), algorithm65 /
+search33. [Evidence](../../benchmarks/migration-results/2026-10-01-q4-data/README.md)
+records 36 focused checks, 30 release JS artifacts with independent oracles and
+canonical codec scores, two native compilers and paired reconstruction costs.
+The final public-product guard has a separate focused check. No full fleet rerun.
 
-Q4 is the sole active milestone. Read R9 in `docs/language.md`, M8.5/M9.8/M10.3/
-M10.19 in the archived plan and Q4 coverage. It owns const data/exact bounded
-evaluation, schema specialization, helper ownership/placement, pooling and
-remaining encoding alternatives including lazy legality/runtime gates.
-Remaining order: **Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
+D1 is the sole active milestone: finish CJS/library-IIFE/UMD/bare delivery,
+manifest naming/escaping/stale cleanup and complete-tree scoring. Inspect the
+existing `~/lilscript-work/portwork/m3.3b-wip.patch`; it is old config groundwork,
+not an implementation to apply blindly. Application IIFE default is already in.
+Remaining order: **D1 → D2 → D3 → N1 → N2 → V1 → V2**.
+D2 also owns graph-preserving public const product publication, currently diagnosed;
+N2 owns static native const storage and native public const ABI.
 
 Per-module elaboration is required in D3 with the shared graph/session owner.
 Q2 arbitrary target-fragment relocation and S4 unrestricted public erased/

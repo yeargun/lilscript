@@ -611,6 +611,65 @@ With `LILSCRIPT_TIMING`, `codec_lookup` and `codec_reuse` report this work
 separately from physical `canonical_gzip`, `canonical_brotli` and
 `proxy_brotli` encodes. These timing buckets report elapsed time, not CPU.
 
+## Required compile-time data and configurable defines
+
+`const T name=expression;` requires bounded exact evaluation, independently of
+optimization effort, constant-folding permission or data encodings. Construction
+may use local arrays/records, loops and synchronous source functions; their
+output is deeply immutable. A `const` function is callable in const initializers
+and has no exported runtime identity. Host calls, unresolved calls, mutable
+nonlocal reads and implementation-dependent math cannot supply a const result.
+Diagnostics identify the source operation that failed. Ordinary functions stay
+available when runtime evaluation is intended.
+
+```toml
+[language.const_evaluation]
+steps = 65536
+depth = 32
+bytes = 8388608
+
+[defines]
+FEATURE_X = true
+TABLE_SIZE = 128
+```
+
+The step limit applies per required initializer, including scalar evaluation;
+`depth` bounds nested execution and data dependencies (1–256). `bytes` bounds
+cumulative private evaluation storage across the compilation. Larger limits
+permit more construction at increased compiler cost; they do not grant host
+execution or approximate floating-point results. These limits never change with
+compression effort. Exhausting required evaluation diagnoses the declaration;
+optional optimizations may keep runtime code.
+
+`define bool FEATURE_X=false;` and `define int TABLE_SIZE=32;` declare typed,
+module-level defaults. `[defines]` overrides only matching declarations. The
+supported types are `bool`, int32 `int`, `float` and UTF-16 `string`. Unknown
+names, non-scalar values, out-of-range integers and incompatible types fail;
+integer-to-float overrides must be exactly representable. The same name in
+multiple modules denotes the same configuration key, checked against each
+declaration. Defaults remain typechecked when overridden. Overrides and float
+bits participate in policy receipts and cache identity. They are checked values,
+so a string containing source text remains a string.
+
+Private const data needs no runtime freeze. Publishing it through an explicit
+const export freezes the supported boundary recursively and retains exact keys
+and shared references. Mutation through aliases, mutable references, unresolved
+calls or host escapes is rejected. Public mutable aliases, exported aggregate returns and host callbacks returning
+const data are conservatively rejected; use an explicit const export or return
+a scalar projection. Private functions may return const aliases; the same
+mutation proof follows their results. Rest/spread transport and writes into
+unproved containers are refused; a private container initializer is tracked. Native static representation and public
+const ABI qualification belong to N2.
+
+Literal and eager encodings remain legal for ordinary exact literal graphs too:
+reconstruction preserves their mutability and identity. Lazy encoding additionally
+requires a checked private const, computed-key-only access, no alias/publication
+or whole-table observation, and both reconstruction permissions. It decodes once
+on first access and then keeps the resulting graph; each access pays a helper
+call and cache check. This can avoid unused-table allocation but worsens hot
+lookup cost and shifts startup work into first-use latency. Full decoder, cache
+and access-helper bytes are measured under the chosen raw/gzip/Brotli objective.
+
 ## Permission: tactics
 
 Every optional transformation belongs to a tactic in `[policy.tactics]`, each
@@ -619,8 +678,9 @@ and searched use). `--print-policy` generates the tactic reference from the
 registry: requested permission, effective state, target availability, producer
 stages, prerequisites, analysis requirements and defaults. `auto` follows the
 tactic's own default and its effort gate. A missing producer cannot be enabled
-by a flag: `recurring-reconstruction`
-currently reports unavailable, with a diagnostic when explicitly requested on.
+by a flag. `recurring-reconstruction` permits cached first-access table decoding
+only when `startup-reconstruction` is also explicitly on. It defaults off at
+every effort, including 14–16; more compile effort never grants runtime risk.
 Native supports shared scalar replacement and final-use ownership transfers; call specialization still has no native producer.
 Disabling identifier mangling also disables its dependent naming search and
 alphabet trials, with the reason in the policy diagnostics.

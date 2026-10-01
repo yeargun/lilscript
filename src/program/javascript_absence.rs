@@ -216,7 +216,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     )
                 {
                     let ty = &self.program.types[self.program.cells[cell.index()].ty.index()];
-                    return self.public_value(ty, value, false);
+                    let value = self.public_value(ty, value, false)?;
+                    return if self.program.cells[cell.index()].declared_const && super::super::rules::const_data::aggregate(ty) {
+                        self.freeze_const_boundary(value)
+                    } else { Ok(value) };
                 }
             }
         }

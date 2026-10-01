@@ -18,6 +18,7 @@
 //! `run_in_loop` (`oxc@591966d crates/oxc_minifier/src/compressor.rs:106-140`),
 //! here over the typed program instead of the syntax tree.
 
+pub(crate) mod const_data;
 mod aggregates;
 mod dce;
 mod defaults;

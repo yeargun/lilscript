@@ -133,6 +133,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 let original = &self.program.cells[prior.index()];
                 let name = self.budget.string(Retained, &original.name)?;
                 let clone = Cell {
+                    declared_define: original.declared_define,
+                    declared_const: original.declared_const,
                     source_symbol: original.source_symbol,
                     name,
                     ty: original.ty,

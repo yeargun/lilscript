@@ -1,0 +1,1 @@
+import {left} from "./left";import {right} from "./right";export string probe(string key){return left(key)+right(key);}

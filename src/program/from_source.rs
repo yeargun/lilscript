@@ -200,7 +200,7 @@ pub(crate) fn from_checked_source_admitted<'ast, 'src>(
     semantics: &CheckedModule<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ConversionError> {
-    from_checked_source_with_rules(source, semantics, None, false, &Default::default(), None, budget)
+    from_checked_source_with_rules(source, semantics, None, false, &Default::default(), &Default::default(), None, budget)
         .map(|(program, _)| program)
 }
 
@@ -212,11 +212,12 @@ pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
     rules: Option<RuleRequest>,
     trap_index_reads: bool,
     host_config: &crate::config::HostConfig,
+    defines: &crate::config::Defines,
     javascript: Option<&crate::compilation_contract::JavaScriptCompilationContract>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ConversionError> {
     let mut scope = budget.scope();
-    let mut program = convert_source(source, semantics, rules, &mut scope)?;
+    let mut program = convert_source(source, semantics, rules, defines, &mut scope)?;
     hosts::apply(&mut program, semantics.view(), host_config, &mut scope).map_err(|(_, error)| error)?;
     program.trap_index_reads = trap_index_reads;
     verify_conversion(&program, source.span, &mut scope)?;
@@ -233,7 +234,7 @@ pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
     semantics: &CheckedModules<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ModuleConversionError> {
-    from_checked_modules_with_rules(sources, semantics, None, false, &Default::default(), None, budget)
+    from_checked_modules_with_rules(sources, semantics, None, false, &Default::default(), &Default::default(), None, budget)
         .map(|(program, _)| program)
 }
 
@@ -244,11 +245,12 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
     rules: Option<RuleRequest>,
     trap_index_reads: bool,
     host_config: &crate::config::HostConfig,
+    defines: &crate::config::Defines,
     javascript: Option<&crate::compilation_contract::JavaScriptCompilationContract>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ModuleConversionError> {
     let mut scope = budget.scope();
-    let mut program = convert_modules(sources, semantics, rules, &mut scope)?;
+    let mut program = convert_modules(sources, semantics, rules, defines, &mut scope)?;
     hosts::apply(&mut program, semantics.view(semantics.root()).expect("checked root"), host_config, &mut scope)
         .map_err(|(module, error)| ModuleConversionError { module: module.index(), error })?;
     program.trap_index_reads = trap_index_reads;
@@ -347,7 +349,7 @@ pub fn from_checked_source<'ast, 'src>(
 ) -> Result<Program<'src>, Unsupported> {
     let mut budget = AllocationBudget::new(None);
     let result = (|| {
-        let program = convert_source(source, semantics, None, &mut budget)?;
+        let program = convert_source(source, semantics, None, &Default::default(), &mut budget)?;
         verify_conversion(&program, source.span, &mut budget)?;
         check_contracts(&program, &mut budget).map_err(|(_, error)| error)?;
         Ok(program)
@@ -434,6 +436,7 @@ fn convert_source<'ast, 'src>(
     source: &ast::Program<'ast, 'src>,
     semantics: &CheckedModule<'ast, 'src>,
     rules: Option<RuleRequest>,
+    defines: &crate::config::Defines,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Program<'src>, ConversionError> {
     if !semantics.belongs_to(source.source_identity()) {
@@ -466,7 +469,8 @@ fn convert_source<'ast, 'src>(
     lower.emit_source(root, source)?;
     lower.source_exports(module, semantics.exports())?;
     lower.publish_entries()?;
-    lower.finish()
+    let program = lower.finish()?;
+    super::rules::const_data::prepare(program, defines, budget).map_err(const_error)
 }
 
 /// Consumes per-source facts and canonical shared declarations directly.
@@ -477,7 +481,7 @@ pub fn from_checked_modules<'ast, 'src>(
 ) -> Result<Program<'src>, ModuleUnsupported> {
     let mut budget = AllocationBudget::new(None);
     let result = (|| {
-        let program = convert_modules(sources, semantics, None, &mut budget)?;
+        let program = convert_modules(sources, semantics, None, &Default::default(), &mut budget)?;
         verify_module_conversion(
             &program,
             semantics.root(),
@@ -508,6 +512,7 @@ fn convert_modules<'ast, 'src>(
     sources: &[ast::Program<'ast, 'src>],
     semantics: &CheckedModules<'ast, 'src>,
     rules: Option<RuleRequest>,
+    defines: &crate::config::Defines,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Program<'src>, ModuleConversionError> {
     let fail = |module, feature| ModuleConversionError {
@@ -799,10 +804,19 @@ fn convert_modules<'ast, 'src>(
             module: semantics.root(),
             error,
         })?;
-    lower.finish().map_err(|error| ModuleConversionError {
-        module: semantics.root(),
-        error,
+    let program = lower.finish().map_err(|error| ModuleConversionError {
+        module: semantics.root(), error,
+    })?;
+    super::rules::const_data::prepare(program, defines, budget).map_err(|error| ModuleConversionError {
+        module: error.module.index(), error: const_error(error),
     })
+}
+
+fn const_error(error: super::rules::const_data::Error) -> ConversionError {
+    match error.allocation {
+        Some(error) => ConversionError::Resources(error),
+        None => ConversionError::Contract(ContractViolation { span: error.span, message: error.message }),
+    }
 }
 
 fn interface_target(target: crate::check::InterfaceTarget) -> Option<InterfaceTarget> {
@@ -985,6 +999,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 Retained,
                 building_table(&mut self.program.cells),
                 Cell {
+                    declared_define: symbol.attributes.define,
+                    declared_const: symbol.attributes.constant,
                     source_symbol: Some(symbol.id),
                     name,
                     ty,
@@ -1640,6 +1656,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             Retained,
             building_table(&mut self.program.cells),
             Cell {
+                declared_define: false,
+                declared_const: false,
                 source_symbol,
                 name,
                 ty,
@@ -4121,6 +4139,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 let cell = self.declare(unit, region, declaration.name)?;
                 match &declaration.initializer {
                     Some(initializer) => {
+                        // An isolated initializer region is owned by this declaration.
+                        // Required const evaluation replaces the whole region before
+                        // optional rules; no executed constructor/call remains behind.
+                        let initialization = if declaration.declared_const {
+                            let child = self.region(unit, region, declaration.span)?;
+                            self.effect(unit, region, OperationKind::Block(child), &[], declaration.span)?;
+                            child
+                        } else { region };
+                        let region = initialization;
                         let value = self.expression(unit, region, initializer)?;
                         self.infer_creation_name(unit, initializer, value, declaration.name.name)?;
                         let value = self.copy_value(unit, region, value, declaration.span)?;

@@ -43,6 +43,16 @@ pub(super) fn validate_interfaces(
             let check = (|| {
                 budget.work(WorkKind::Analysis, 1)?;
                 let ty = &program.types[declaration.ty.index()];
+                // Const publication must preserve the private layout and all
+                // reference identities. The callable codecs do not establish
+                // that proof for a stored aggregate graph.
+                if declaration.declared_const && ty.callable_signature().is_none()
+                    && super::public_structs::carries_product(ty, budget)? {
+                    return Err(Unsupported {
+                        span: declaration.declaration,
+                        feature: "public const value-struct graph adaptation",
+                    }.into());
+                }
                 if ty.callable_signature().is_some()
                     && (super::public_structs::carries_product(ty, budget)?
                         || super::public_structs::carries_absence(program, ty, budget)?) {

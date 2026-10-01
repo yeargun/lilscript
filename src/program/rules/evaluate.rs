@@ -34,7 +34,7 @@ pub(super) struct Attempt {
     pub refusal: Option<Refusal>,
 }
 
-fn intrinsic_refusal(operation: ResolvedIntrinsic) -> Option<Refusal> {
+pub(super) fn intrinsic_refusal(operation: ResolvedIntrinsic) -> Option<Refusal> {
     use crate::catalog::EffectClass as E;
     use Intrinsic as I;
     let (ResolvedIntrinsic::Method(method)
@@ -127,7 +127,7 @@ fn computed(units: Vec<u16>) -> Exact {
 
 /// Exact primitive methods only. Transcendentals and Unicode case conversion
 /// deliberately remain unknown: host implementations need not agree bitwise.
-fn intrinsic(
+pub(super) fn intrinsic(
     program: &Program<'_>,
     operation: ResolvedIntrinsic,
     receiver: Option<&Exact>,
@@ -397,7 +397,7 @@ fn known(values: &[Knowledge], value: ValueId) -> Option<&Exact> {
     }
 }
 
-fn builtin_primitive(builtin: crate::check::BuiltinCall) -> bool {
+pub(super) fn builtin_primitive(builtin: crate::check::BuiltinCall) -> bool {
     use crate::check::BuiltinCall as B;
     matches!(
         builtin,
@@ -411,7 +411,7 @@ fn builtin_primitive(builtin: crate::check::BuiltinCall) -> bool {
     )
 }
 
-fn builtin(
+pub(super) fn builtin(
     program: &Program<'_>,
     builtin: crate::check::BuiltinCall,
     args: &[Exact],

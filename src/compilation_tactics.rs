@@ -266,9 +266,10 @@ declare_tactics! {
     RecurringReconstruction {
         name: "recurring-reconstruction", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,
         analysis: A::Values, default: D::Off,
-        producers: &[], prerequisites: &[], risks: &[R::Neutral, R::Recurring], invalidates: &[],
-        purpose: "Compatibility name for recurring table reconstruction; no implementation is currently available.",
-        tradeoffs: "Explicit on reports unavailable. String-array-packing owns its own callable-site risk and is not enabled by this flag."
+        producers: &[P::JavaScriptFormation], prerequisites: &[TacticId::StartupReconstruction], risks: &[R::Neutral, R::Recurring],
+        invalidates: &[I::TargetHead, I::TargetTail, I::Names, I::RenderedFiles],
+        purpose: "Offer cached first-access decoding for private immutable tables used only through computed lookups.",
+        tradeoffs: "Default off at every effort; explicit on and startup-reconstruction on are both required. Adds a cache check and helper call per lookup; saves unused-table allocation and delays decoding to first use. Full helpers/lookup bytes are judged. Publication, aliases, enumeration and mutation exclude the alternative. String-array-packing has its own permission."
     },
     NamingSearch {
         name: "naming-search", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,

@@ -1,0 +1,9 @@
+{
+  "source_sha256": {
+    "src/program/javascript_structs.rs": "2358a5ccd0cbcfdc7de52035e53344e22b31fea3e051fedcd4df9efcbd2fa030",
+    "src/program/rules/const_data_tests.rs": "f2c2b10f482f02a71da941a5cd64cb911e4a4fb37f6886775a1df4253ef56139"
+  },
+  "test": "q4_public_const_products_require_a_graph_preserving_boundary",
+  "pass": true,
+  "release_rebuilt": false
+}

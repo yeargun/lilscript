@@ -186,7 +186,7 @@ impl ChoiceFamily {
                 Stage::TargetSite,
                 T::StartupReconstruction,
                 RuntimeRisk::Startup,
-                4,
+                8,
             ),
         };
         FamilySpec {
@@ -308,7 +308,10 @@ impl ChoiceMap {
     pub fn uses(&self) -> impl Iterator<Item = TacticUse> + '_ {
         self.iter()
             .filter(|(_, alt)| *alt != AltId(0))
-            .map(|(key, _)| key.family.spec().usage())
+            .flat_map(|(key, alt)| [
+                Some(key.family.spec().usage()),
+                (key.family == ChoiceFamily::DataEncoding && alt.0 >= 4).then_some(TacticUse { tactic: TacticId::RecurringReconstruction, risk: RuntimeRisk::Recurring }),
+            ].into_iter().flatten())
             .chain(self.joint.then_some(TacticUse {
                 tactic: TacticId::RepresentationJoints,
                 risk: RuntimeRisk::Neutral,
@@ -334,6 +337,9 @@ impl ChoiceMap {
             }
             if alternative != AltId(0) {
                 spec.check(policy)?;
+                if key.family == ChoiceFamily::DataEncoding && alternative.0 >= 4 {
+                    policy.check_tactic_permissions(&[TacticUse { tactic: TacticId::RecurringReconstruction, risk: RuntimeRisk::Recurring }])?;
+                }
             }
         }
         Ok(())

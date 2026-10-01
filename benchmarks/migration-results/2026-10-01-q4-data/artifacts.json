@@ -1,0 +1,3130 @@
+{
+  "algorithm": 65,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/q4-data-1/lilscript",
+    "sha256": "7523692475f4879dc956c85d80599b4d643e20494f325cf41b14cb89e5a2306b"
+  },
+  "previous": {
+    "path": "/home/azureuser/lilscript-work/bin/q3-search-1/lilscript",
+    "sha256": "eac4314f7016b51b8280543fbf7e376e73bbed0dcf18f4dd4a65726246e58cf7"
+  },
+  "codec_sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "fixtures": {
+    "native.lil": "cba72828ab2da0fc30efc1ef34b21fa10947c4bd93283acba2f3fc598b44e488",
+    "modules.lil": "6199c48925649c6b9fde52d764a05e7fbb8af15f30c5a821aff04e663aa2e95d",
+    "schema.lil": "aeb46718fa7c0fcb14a2510f202f243e37de9c30a17a3ab84373f8bd6d40a04c",
+    "right.lil": "8b07feabbb3922d99ce0cf315d2bf8a228d5d2d99cf3c0bf7ea41ebd302d443d",
+    "public.lil": "b01b4332bc878ac47da09c156a70455ff56877927a172683fcb76e6e10d39cd7",
+    "left.lil": "56a0968a2a77bb5fcfc28aded96ad4ba595440ffddd8379aa0bab5de0f8e1e7e"
+  },
+  "rows": [
+    {
+      "name": "public",
+      "objective": "raw",
+      "variant": "literal",
+      "exit_code": 0,
+      "config_sha256": "454c05f8872a12bebda32fc4423698b177b9a6b661678d1256c6f2c2323bf58b",
+      "wall_seconds": 0.0447798150125891,
+      "cpu_seconds": 0.044138,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "675a4606ea6063c7f89e45149f7eb2c1985ea45196a5b0f648af4ce18effe416",
+          "raw": 1696,
+          "gzip9": 545,
+          "brotli11": 371
+        }
+      ],
+      "bytes": 1696,
+      "choices": [],
+      "judged": 11,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 335576,
+        "optional_work": 5256181,
+        "codec_work": 127,
+        "peak_retained_bytes": 22066687,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/raw/literal/explain.json",
+        "sha256": "2edd287c8075e2a02f517efd1f6ae742e747607cb50473c34d6f9cffb2cfbdb2"
+      }
+    },
+    {
+      "name": "public",
+      "objective": "raw",
+      "variant": "eager",
+      "exit_code": 0,
+      "config_sha256": "e0466f166d1ca92206b0c3223533575fc895a126547ff9ee1427ff84bebba6d9",
+      "wall_seconds": 0.07285222000791691,
+      "cpu_seconds": 0.07232500000000001,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "675a4606ea6063c7f89e45149f7eb2c1985ea45196a5b0f648af4ce18effe416",
+          "raw": 1696,
+          "gzip9": 545,
+          "brotli11": 371
+        }
+      ],
+      "bytes": 1696,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "literal",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              86
+            ],
+            [
+              "dictionary",
+              3917
+            ]
+          ]
+        }
+      ],
+      "judged": 14,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 479303,
+        "optional_work": 12245884,
+        "codec_work": 161,
+        "peak_retained_bytes": 22067219,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/raw/eager/explain.json",
+        "sha256": "32a471f7e6fa9b7fb1aace881f8be083c5be3591b2b04e53e4518cf4fa33577f"
+      }
+    },
+    {
+      "name": "public",
+      "objective": "raw",
+      "variant": "lazy",
+      "exit_code": 0,
+      "config_sha256": "7ba1451ad07e87474fb5a5fb5265ac7c0442026de6612b6fbed2e6b8344fb5e3",
+      "wall_seconds": 0.06694436899852008,
+      "cpu_seconds": 0.06645499999999996,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "675a4606ea6063c7f89e45149f7eb2c1985ea45196a5b0f648af4ce18effe416",
+          "raw": 1696,
+          "gzip9": 545,
+          "brotli11": 371
+        }
+      ],
+      "bytes": 1696,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "literal",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              86
+            ],
+            [
+              "dictionary",
+              3917
+            ]
+          ]
+        }
+      ],
+      "judged": 14,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 479307,
+        "optional_work": 12246039,
+        "codec_work": 161,
+        "peak_retained_bytes": 22067219,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/raw/lazy/explain.json",
+        "sha256": "c44d4bc21a5127b21e8c995d879a1e328c76ef9f0cbeb78101888ebebb21971e"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "raw",
+      "variant": "literal",
+      "exit_code": 0,
+      "config_sha256": "338272049dc4cec6866c941aad5ba1269117605abbd25b3af948bd84e3a15d06",
+      "wall_seconds": 0.08199062501080334,
+      "cpu_seconds": 0.081341,
+      "files": [
+        {
+          "name": "left.mjs",
+          "sha256": "083455d4ce76b4dbfc4815eb762ed7e22a781d6a0cb564966b2c64c420518417",
+          "raw": 1499,
+          "gzip9": 417,
+          "brotli11": 278
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "5aed61f8830e0459ed2354fdbc9451894517419772e6d4393b17e553de8a28b0",
+          "raw": 128,
+          "gzip9": 121,
+          "brotli11": 90
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "c5a09ccb712d9eaba7dcc42d8c767385feafcca11b599ab2f3d58e9bec7a5598",
+          "raw": 1511,
+          "gzip9": 418,
+          "brotli11": 273
+        }
+      ],
+      "bytes": 3138,
+      "choices": [],
+      "judged": 11,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 905655,
+        "optional_work": 11130559,
+        "codec_work": 203,
+        "peak_retained_bytes": 22130386,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/raw/literal/explain.json",
+        "sha256": "430ae791978f9c11d3fc3bd5dfe1ddcd82026c81fc1ac84bf68b46dd27673e51"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "raw",
+      "variant": "eager",
+      "exit_code": 0,
+      "config_sha256": "f447ddf5dce760daae3175ab0e34ab058c4893bb13dab7df064f9ec48699ea3f",
+      "wall_seconds": 0.1797910959867295,
+      "cpu_seconds": 0.17938199999999996,
+      "files": [
+        {
+          "name": "0.mjs",
+          "sha256": "15727d3a24419fbfb6373dd207abc103aa99e9b0c3a001129564029dc8c4451a",
+          "raw": 690,
+          "gzip9": 210,
+          "brotli11": 120
+        },
+        {
+          "name": "left.mjs",
+          "sha256": "f5dfcbe4ce2ee3073e4ab17fa1eea7a9b3c6060f3432a39435b9bbac333e2818",
+          "raw": 930,
+          "gzip9": 244,
+          "brotli11": 194
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "cac74bf4eba9afa6cae980db1704f738d1cb39992f1e918022bce9072585b16b",
+          "raw": 128,
+          "gzip9": 120,
+          "brotli11": 89
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "67d656342f8326c0ae1b56b78b82a21da29f87e0837767aeb34a0825efc91336",
+          "raw": 942,
+          "gzip9": 243,
+          "brotli11": 199
+        }
+      ],
+      "bytes": 2690,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              86
+            ],
+            [
+              "dictionary",
+              3749
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              86
+            ],
+            [
+              "dictionary",
+              3833
+            ]
+          ]
+        }
+      ],
+      "judged": 11,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 1128636,
+        "optional_work": 32195300,
+        "codec_work": 311,
+        "peak_retained_bytes": 22132654,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/raw/eager/explain.json",
+        "sha256": "7875e1cb1a1f6e985e274acccab35e4c351157de1a159a69d907781bb3300866"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "raw",
+      "variant": "lazy",
+      "exit_code": 0,
+      "config_sha256": "176adf05946540aa37be462c5c16cd4c73f72feda96ad78ff9e3db9f20c43d06",
+      "wall_seconds": 0.19074320999789052,
+      "cpu_seconds": 0.19025199999999987,
+      "files": [
+        {
+          "name": "0.mjs",
+          "sha256": "15727d3a24419fbfb6373dd207abc103aa99e9b0c3a001129564029dc8c4451a",
+          "raw": 690,
+          "gzip9": 210,
+          "brotli11": 120
+        },
+        {
+          "name": "left.mjs",
+          "sha256": "f5dfcbe4ce2ee3073e4ab17fa1eea7a9b3c6060f3432a39435b9bbac333e2818",
+          "raw": 930,
+          "gzip9": 244,
+          "brotli11": 194
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "cac74bf4eba9afa6cae980db1704f738d1cb39992f1e918022bce9072585b16b",
+          "raw": 128,
+          "gzip9": 120,
+          "brotli11": 89
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "67d656342f8326c0ae1b56b78b82a21da29f87e0837767aeb34a0825efc91336",
+          "raw": 942,
+          "gzip9": 243,
+          "brotli11": 199
+        }
+      ],
+      "bytes": 2690,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              86
+            ],
+            [
+              "dictionary",
+              3749
+            ],
+            [
+              "lazy-columns",
+              46
+            ],
+            [
+              "lazy-dictionary",
+              3709
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              86
+            ],
+            [
+              "dictionary",
+              3833
+            ],
+            [
+              "lazy-columns",
+              46
+            ],
+            [
+              "lazy-dictionary",
+              3793
+            ]
+          ]
+        }
+      ],
+      "judged": 11,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 1129516,
+        "optional_work": 37884329,
+        "codec_work": 367,
+        "peak_retained_bytes": 22132654,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/raw/lazy/explain.json",
+        "sha256": "072ce372666c727bd8f2239e69ba17b09f1b02bffcc8d87159dc929febc5b0e5"
+      }
+    },
+    {
+      "name": "schema",
+      "objective": "raw",
+      "variant": "runtime",
+      "exit_code": 0,
+      "config_sha256": "e07a60664751261a9897b0f08f0b7ad37cba999b49cd39364a3d046b67be8961",
+      "wall_seconds": 0.015077575022587553,
+      "cpu_seconds": 0.014614999999999961,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "92b69b0265d408eb41f0e9253aff94939fa635581a22f524214f1e7b945c55f4",
+          "raw": 104,
+          "gzip9": 115,
+          "brotli11": 93
+        }
+      ],
+      "bytes": 104,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "conditional-returns",
+          "site": "conditional-return",
+          "seed": "compact",
+          "delivered": "compact",
+          "offered": [
+            [
+              "canonical",
+              0
+            ],
+            [
+              "compact",
+              3
+            ]
+          ]
+        }
+      ],
+      "judged": 10,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 49332,
+        "optional_work": 776232,
+        "codec_work": 145,
+        "peak_retained_bytes": 764344,
+        "frontend_logical_work": 21334,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 448,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/schema/raw/runtime/explain.json",
+        "sha256": "7248a59c9efecb3e94cb99afacd24390426302ed9919e497241f27f8b2bd52c8"
+      }
+    },
+    {
+      "name": "schema",
+      "objective": "raw",
+      "variant": "specialized",
+      "exit_code": 0,
+      "config_sha256": "9a693cb0bb3c10ce27542aea14b9cbc9e771cbb751ad0d828878d2891dee6655",
+      "wall_seconds": 0.016003917990019545,
+      "cpu_seconds": 0.015501999999999877,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "d6c0299d304461cf9e859a96546b85ef5be1ccf6435de08d4165e2faa5ff920d",
+          "raw": 71,
+          "gzip9": 85,
+          "brotli11": 75
+        }
+      ],
+      "bytes": 71,
+      "choices": [],
+      "judged": 9,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 58686,
+        "optional_work": 384364,
+        "codec_work": 85,
+        "peak_retained_bytes": 739131,
+        "frontend_logical_work": 41704,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 448,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/schema/raw/specialized/explain.json",
+        "sha256": "a02658d7279c9bbd5f0f86ce609562bce78ea9a09673e7de07de80d168010d78"
+      }
+    },
+    {
+      "name": "existing-data",
+      "objective": "raw",
+      "variant": "before",
+      "exit_code": 0,
+      "config_sha256": "da8cea23f4346c3f0357a346cc7f69d705156a1cd8f2991c71aec7d4ed92422a",
+      "wall_seconds": 0.9361624869925436,
+      "cpu_seconds": 0.935184,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "a7418f6f0d9ba2ea23e5673eabd776d609a1d529d199098c0fcad56aaff6f2d1",
+          "raw": 7883,
+          "gzip9": 2943,
+          "brotli11": 2287
+        }
+      ],
+      "bytes": 7883,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_772",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              533
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "people",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              2710
+            ],
+            [
+              "dictionary",
+              2850
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1322",
+          "seed": "front-coded",
+          "delivered": "literal",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "front-coded",
+              595
+            ],
+            [
+              "columns",
+              82
+            ],
+            [
+              "dictionary",
+              592
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1728",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              1627
+            ],
+            [
+              "dictionary",
+              1857
+            ]
+          ]
+        }
+      ],
+      "judged": 14,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 5343263,
+        "optional_work": 144556477,
+        "codec_work": 247,
+        "peak_retained_bytes": 3655203,
+        "frontend_logical_work": 2545176,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24512,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/existing-data/raw/before/explain.json",
+        "sha256": "c30264b33f6f31905c8161c1bab8a482171f3e0ee54b36ffb53f8bfa09f0de23"
+      }
+    },
+    {
+      "name": "existing-data",
+      "objective": "raw",
+      "variant": "after",
+      "exit_code": 0,
+      "config_sha256": "da8cea23f4346c3f0357a346cc7f69d705156a1cd8f2991c71aec7d4ed92422a",
+      "wall_seconds": 0.9754328650014941,
+      "cpu_seconds": 0.9743899999999999,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "ead9781ee85d7def3e90e41c2d40e6e6451db22a4e872f3640ae84fc18b62332",
+          "raw": 7883,
+          "gzip9": 2943,
+          "brotli11": 2241
+        }
+      ],
+      "bytes": 7883,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_772",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              533
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "people",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              2710
+            ],
+            [
+              "dictionary",
+              2850
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1322",
+          "seed": "front-coded",
+          "delivered": "literal",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "front-coded",
+              595
+            ],
+            [
+              "columns",
+              82
+            ],
+            [
+              "dictionary",
+              592
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1728",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              1627
+            ],
+            [
+              "dictionary",
+              1857
+            ]
+          ]
+        }
+      ],
+      "judged": 14,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 5041146,
+        "optional_work": 123914472,
+        "codec_work": 247,
+        "peak_retained_bytes": 3383432,
+        "frontend_logical_work": 2545176,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24512,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/existing-data/raw/after/explain.json",
+        "sha256": "0256c4a8e732609f1d8ca95ce46cf6fe44fd12796d215626f948b7472cd8d943"
+      }
+    },
+    {
+      "name": "public",
+      "objective": "gzip",
+      "variant": "literal",
+      "exit_code": 0,
+      "config_sha256": "d7589cf98952c275150c13c4d2d8507a59d8589a570ee772672ce417462ad4d1",
+      "wall_seconds": 0.03155583201441914,
+      "cpu_seconds": 0.031123000000000067,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "b2e65dd8469b3b55d7cc884f809f94c67a572f089a214ab8794d20cc7c0cef52",
+          "raw": 1696,
+          "gzip9": 542,
+          "brotli11": 370
+        }
+      ],
+      "bytes": 542,
+      "choices": [],
+      "judged": 6,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 652515,
+        "optional_work": 10881553,
+        "codec_work": 7065078,
+        "peak_retained_bytes": 22112767,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/gzip/literal/explain.json",
+        "sha256": "ca9fc54ba81f19f9f247ed8c3b7dd171b47194a0fa639f7f78c14b6d8d6626fa"
+      }
+    },
+    {
+      "name": "public",
+      "objective": "gzip",
+      "variant": "eager",
+      "exit_code": 0,
+      "config_sha256": "6b0fbbcd50f6b1f52e961014c4e46814419b7b0db0872dae18082cb1353072a2",
+      "wall_seconds": 0.09986478599603288,
+      "cpu_seconds": 0.09941100000000014,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "392ff3aba29cfde7f56bd3b893f363ae398bb9a2801d37b836eb16af3714a9a1",
+          "raw": 1776,
+          "gzip9": 523,
+          "brotli11": 372
+        }
+      ],
+      "bytes": 523,
+      "choices": [
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              -7
+            ],
+            [
+              "dictionary",
+              1
+            ]
+          ]
+        }
+      ],
+      "judged": 7,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 736204,
+        "optional_work": 88468250,
+        "codec_work": 75391698,
+        "peak_retained_bytes": 22092287,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/gzip/eager/explain.json",
+        "sha256": "a57cade48eb62f5996215dd02010bffc122ae3e6f9881b900a88dab2856a3b94"
+      }
+    },
+    {
+      "name": "public",
+      "objective": "gzip",
+      "variant": "lazy",
+      "exit_code": 0,
+      "config_sha256": "95b34fb2c26d26fff51ec0b547637a7c62524a8e123417683192342d1d56e9fd",
+      "wall_seconds": 0.10145448500406928,
+      "cpu_seconds": 0.10099599999999995,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "392ff3aba29cfde7f56bd3b893f363ae398bb9a2801d37b836eb16af3714a9a1",
+          "raw": 1776,
+          "gzip9": 523,
+          "brotli11": 372
+        }
+      ],
+      "bytes": 523,
+      "choices": [
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              -7
+            ],
+            [
+              "dictionary",
+              1
+            ]
+          ]
+        }
+      ],
+      "judged": 7,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 736208,
+        "optional_work": 88468345,
+        "codec_work": 75391698,
+        "peak_retained_bytes": 22092287,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/gzip/lazy/explain.json",
+        "sha256": "cda42f3a3028dbdb31dc946210da9480e16bf646b2622d4132c98813c49f91c7"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "gzip",
+      "variant": "literal",
+      "exit_code": 0,
+      "config_sha256": "057757161a9709f779676dd4d8c8fab69864501895be00ac55a1f8f518bcb48f",
+      "wall_seconds": 0.08373737501096912,
+      "cpu_seconds": 0.08332900000000021,
+      "files": [
+        {
+          "name": "left.mjs",
+          "sha256": "57f77a76268f7b817741038067d0543662796f47119a8f00262cf2ec753dab1e",
+          "raw": 5329,
+          "gzip9": 413,
+          "brotli11": 267
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "a40102386a5e7a5e4efc83a743a77d8c1e7307c4fddc02a0838b05ceb1856871",
+          "raw": 132,
+          "gzip9": 116,
+          "brotli11": 90
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "ce3a73f8979a43025e1ccc202fcc5b52c4a58f551513747ce39cb9268fb96c00",
+          "raw": 5425,
+          "gzip9": 411,
+          "brotli11": 255
+        }
+      ],
+      "bytes": 940,
+      "choices": [],
+      "judged": 8,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 1826583,
+        "optional_work": 49576913,
+        "codec_work": 34156060,
+        "peak_retained_bytes": 43878129,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/gzip/literal/explain.json",
+        "sha256": "ac2fac967d79735361b32e67dc4879c49fe31a9628ce4bbbea20a1f6b7ea5351"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "gzip",
+      "variant": "eager",
+      "exit_code": 0,
+      "config_sha256": "fc586d9c8527e364a9357db9c9dcb654367c6216bafd1e87d4caffc9badd261c",
+      "wall_seconds": 0.17401722900103778,
+      "cpu_seconds": 0.17365200000000003,
+      "files": [
+        {
+          "name": "left.mjs",
+          "sha256": "8833c399f70515f936232f323605442e310fb14cc264a5339d4b7341684d5ccf",
+          "raw": 1579,
+          "gzip9": 409,
+          "brotli11": 278
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "a94c92a0aabadb4a01a55acb868270d0a88593553c3bf409c0c8264f6472a0cf",
+          "raw": 132,
+          "gzip9": 117,
+          "brotli11": 90
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "9f8c8dccf34ac68ffb9365d5e724a8cb87d29c7d04eaa230623956c6ecd2f38f",
+          "raw": 1591,
+          "gzip9": 410,
+          "brotli11": 277
+        }
+      ],
+      "bytes": 936,
+      "choices": [
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              -5
+            ],
+            [
+              "dictionary",
+              1
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "literal",
+          "delivered": "literal",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              -9
+            ],
+            [
+              "dictionary",
+              -1
+            ]
+          ]
+        }
+      ],
+      "judged": 0,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 1930233,
+        "optional_work": 209584741,
+        "codec_work": 186737493,
+        "peak_retained_bytes": 43860617,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/gzip/eager/explain.json",
+        "sha256": "bf0479524aea6520ae9358e344cc2ec47a1483dc6d70e8a883713a761aee6dbd"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "gzip",
+      "variant": "lazy",
+      "exit_code": 0,
+      "config_sha256": "5647619b876de78db900aa7bb4764933355e18d9e50fb8ca1d38bd954d160ad1",
+      "wall_seconds": 0.2838434189907275,
+      "cpu_seconds": 0.28343100000000016,
+      "files": [
+        {
+          "name": "left.mjs",
+          "sha256": "8833c399f70515f936232f323605442e310fb14cc264a5339d4b7341684d5ccf",
+          "raw": 1579,
+          "gzip9": 409,
+          "brotli11": 278
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "a94c92a0aabadb4a01a55acb868270d0a88593553c3bf409c0c8264f6472a0cf",
+          "raw": 132,
+          "gzip9": 117,
+          "brotli11": 90
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "9f8c8dccf34ac68ffb9365d5e724a8cb87d29c7d04eaa230623956c6ecd2f38f",
+          "raw": 1591,
+          "gzip9": 410,
+          "brotli11": 277
+        }
+      ],
+      "bytes": 936,
+      "choices": [
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "dictionary",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              -5
+            ],
+            [
+              "dictionary",
+              1
+            ],
+            [
+              "lazy-columns",
+              -42
+            ],
+            [
+              "lazy-dictionary",
+              -34
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "literal",
+          "delivered": "literal",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              -9
+            ],
+            [
+              "dictionary",
+              -1
+            ],
+            [
+              "lazy-columns",
+              -46
+            ],
+            [
+              "lazy-dictionary",
+              -36
+            ]
+          ]
+        }
+      ],
+      "judged": 0,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 1931113,
+        "optional_work": 346180075,
+        "codec_work": 313342800,
+        "peak_retained_bytes": 43860617,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/gzip/lazy/explain.json",
+        "sha256": "fae7ff192b31ca5642ddc6d30220b25818eb52b889764208d0e15b6b893e25f9"
+      }
+    },
+    {
+      "name": "schema",
+      "objective": "gzip",
+      "variant": "runtime",
+      "exit_code": 0,
+      "config_sha256": "a9e230722ba53a7dce116fe2e49ed21811104f970d5b6fb328dbff596ec55bf1",
+      "wall_seconds": 0.01936546800425276,
+      "cpu_seconds": 0.019005999999999745,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "7bfddaaf6f5162e200b69296cc6e4d63c9662be07386273ea2db1f106e80c641",
+          "raw": 104,
+          "gzip9": 114,
+          "brotli11": 89
+        }
+      ],
+      "bytes": 114,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "conditional-returns",
+          "site": "conditional-return",
+          "seed": "canonical",
+          "delivered": "compact",
+          "offered": [
+            [
+              "canonical",
+              0
+            ],
+            [
+              "compact",
+              3
+            ]
+          ]
+        }
+      ],
+      "judged": 11,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 315540,
+        "optional_work": 13230514,
+        "codec_work": 12610464,
+        "peak_retained_bytes": 1057452,
+        "frontend_logical_work": 21334,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 448,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/schema/gzip/runtime/explain.json",
+        "sha256": "4b67e7c54519bd34aab48c874dfdbf99ef7a683b75fedb617b73e0f00264e5aa"
+      }
+    },
+    {
+      "name": "schema",
+      "objective": "gzip",
+      "variant": "specialized",
+      "exit_code": 0,
+      "config_sha256": "b217f072e158934348c58a452e0296c733144cbb890b0828ecf7d47fa414e90a",
+      "wall_seconds": 0.011190630990313366,
+      "cpu_seconds": 0.010783000000000431,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "d6c0299d304461cf9e859a96546b85ef5be1ccf6435de08d4165e2faa5ff920d",
+          "raw": 71,
+          "gzip9": 85,
+          "brotli11": 75
+        }
+      ],
+      "bytes": 85,
+      "choices": [],
+      "judged": 7,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 326566,
+        "optional_work": 6188348,
+        "codec_work": 6170122,
+        "peak_retained_bytes": 1035286,
+        "frontend_logical_work": 41704,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 448,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/schema/gzip/specialized/explain.json",
+        "sha256": "ff1a2455c9d0456741f678ed4f8bc5ef409b7873f19a96c39608b1dfecea7c6c"
+      }
+    },
+    {
+      "name": "existing-data",
+      "objective": "gzip",
+      "variant": "before",
+      "exit_code": 0,
+      "config_sha256": "69f3da7d642ecb9ab578659d9df3249d472b7db83e0855227c0068b3bb7b6f10",
+      "wall_seconds": 2.37136443000054,
+      "cpu_seconds": 2.3706949999999996,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "a39c02d5e1286f06596fd07f61d766c6931f590b67372ec60fbed4605799074f",
+          "raw": 8150,
+          "gzip9": 2673,
+          "brotli11": 2096
+        }
+      ],
+      "bytes": 2673,
+      "choices": [
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_772",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              120
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "people",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              73
+            ],
+            [
+              "dictionary",
+              -9
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1322",
+          "seed": "front-coded",
+          "delivered": "front-coded",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "front-coded",
+              80
+            ],
+            [
+              "columns",
+              -25
+            ],
+            [
+              "dictionary",
+              -29
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1728",
+          "seed": "columns",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              56
+            ],
+            [
+              "dictionary",
+              48
+            ]
+          ]
+        }
+      ],
+      "judged": 26,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 5307528,
+        "optional_work": 1690149352,
+        "codec_work": 1278431437,
+        "peak_retained_bytes": 3535120,
+        "frontend_logical_work": 2545176,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24512,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/existing-data/gzip/before/explain.json",
+        "sha256": "f6fa8e0a80e6184aab0c329be7f09e5dccf2afc322bcca1c3c358db1fcf390ad"
+      }
+    },
+    {
+      "name": "existing-data",
+      "objective": "gzip",
+      "variant": "after",
+      "exit_code": 0,
+      "config_sha256": "69f3da7d642ecb9ab578659d9df3249d472b7db83e0855227c0068b3bb7b6f10",
+      "wall_seconds": 2.5801000779902097,
+      "cpu_seconds": 2.577548999999999,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "a39c02d5e1286f06596fd07f61d766c6931f590b67372ec60fbed4605799074f",
+          "raw": 8150,
+          "gzip9": 2673,
+          "brotli11": 2096
+        }
+      ],
+      "bytes": 2673,
+      "choices": [
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_772",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              120
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "people",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              73
+            ],
+            [
+              "dictionary",
+              -9
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1322",
+          "seed": "front-coded",
+          "delivered": "front-coded",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "front-coded",
+              80
+            ],
+            [
+              "columns",
+              -25
+            ],
+            [
+              "dictionary",
+              -29
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "gzip",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1728",
+          "seed": "columns",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              56
+            ],
+            [
+              "dictionary",
+              48
+            ]
+          ]
+        }
+      ],
+      "judged": 26,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 5082473,
+        "optional_work": 1648852004,
+        "codec_work": 1278431437,
+        "peak_retained_bytes": 3396806,
+        "frontend_logical_work": 2545176,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24512,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/existing-data/gzip/after/explain.json",
+        "sha256": "54b9b1eb906eeb382e7e8686302f36364a36e37694094ea609f74c7e5afe0512"
+      }
+    },
+    {
+      "name": "public",
+      "objective": "brotli",
+      "variant": "literal",
+      "exit_code": 0,
+      "config_sha256": "433d7f29003f0c33e518725db29d1540a84ea633df725227e988bc00f91ed511",
+      "wall_seconds": 0.13908403101959266,
+      "cpu_seconds": 0.13868000000000003,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "834e716fbd1173cb7d4e3351ecfa4c90ff3981d3a9cb67e06f5854193655e5bd",
+          "raw": 5694,
+          "gzip9": 551,
+          "brotli11": 360
+        }
+      ],
+      "bytes": 360,
+      "choices": [],
+      "judged": 25,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 384418,
+        "optional_work": 7770424,
+        "codec_work": 323319,
+        "peak_retained_bytes": 22118911,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/brotli/literal/explain.json",
+        "sha256": "8cbd433d588d14e9f7d43fe121542d5bfa98f70771ec14f3d3bb7105b8bf8ea1"
+      }
+    },
+    {
+      "name": "public",
+      "objective": "brotli",
+      "variant": "eager",
+      "exit_code": 0,
+      "config_sha256": "9cda3cd49d736a6c211ca087991b96640f942f7dffe1c7275b41eeb79aa309ae",
+      "wall_seconds": 0.2696230699948501,
+      "cpu_seconds": 0.2691879999999987,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "70c3a12ad355a39ba43494d2fb7a245c0c93d92451f4a03a36eb514b8a86bacc",
+          "raw": 5607,
+          "gzip9": 538,
+          "brotli11": 352
+        }
+      ],
+      "bytes": 352,
+      "choices": [
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              7
+            ],
+            [
+              "dictionary",
+              -11
+            ]
+          ]
+        }
+      ],
+      "judged": 41,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 468107,
+        "optional_work": 30194436,
+        "codec_work": 2612617,
+        "peak_retained_bytes": 22098195,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/brotli/eager/explain.json",
+        "sha256": "36bb87627ea3adb7328436de724ffa262a656a8379f5df1fa5ae52d5910d0429"
+      }
+    },
+    {
+      "name": "public",
+      "objective": "brotli",
+      "variant": "lazy",
+      "exit_code": 0,
+      "config_sha256": "d00812b78f06fc28e7524aa1b004d6ddf5905baa4e60f4dd3d5a537e1c05d5ac",
+      "wall_seconds": 0.2708800050022546,
+      "cpu_seconds": 0.27041699999999924,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "70c3a12ad355a39ba43494d2fb7a245c0c93d92451f4a03a36eb514b8a86bacc",
+          "raw": 5607,
+          "gzip9": 538,
+          "brotli11": 352
+        }
+      ],
+      "bytes": 352,
+      "choices": [
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              7
+            ],
+            [
+              "dictionary",
+              -11
+            ]
+          ]
+        }
+      ],
+      "judged": 41,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 468111,
+        "optional_work": 30194651,
+        "codec_work": 2612617,
+        "peak_retained_bytes": 22098195,
+        "frontend_logical_work": 203658,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 8128,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/public/brotli/lazy/explain.json",
+        "sha256": "a4543a9ad49c196728472b604c37211f1ef070f8c2f2ce8636a9ee75d05ce77d"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "brotli",
+      "variant": "literal",
+      "exit_code": 0,
+      "config_sha256": "463a36cac9414e4c4ea4c44a01d72e93dbec84cd30f3f66f53c12dfb15c98ca9",
+      "wall_seconds": 0.24099845200544223,
+      "cpu_seconds": 0.2405690000000007,
+      "files": [
+        {
+          "name": "left.mjs",
+          "sha256": "57f77a76268f7b817741038067d0543662796f47119a8f00262cf2ec753dab1e",
+          "raw": 5329,
+          "gzip9": 413,
+          "brotli11": 267
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "a40102386a5e7a5e4efc83a743a77d8c1e7307c4fddc02a0838b05ceb1856871",
+          "raw": 132,
+          "gzip9": 116,
+          "brotli11": 90
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "ce3a73f8979a43025e1ccc202fcc5b52c4a58f551513747ce39cb9268fb96c00",
+          "raw": 5425,
+          "gzip9": 411,
+          "brotli11": 255
+        }
+      ],
+      "bytes": 612,
+      "choices": [],
+      "judged": 43,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 1022231,
+        "optional_work": 22000636,
+        "codec_work": 464936,
+        "peak_retained_bytes": 43878129,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/brotli/literal/explain.json",
+        "sha256": "22927b72676d5aa169e3c3fb059a850e9ac5837e870920532bbebba4580fb47f"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "brotli",
+      "variant": "eager",
+      "exit_code": 0,
+      "config_sha256": "c779195c1b3bac2c1eb56e95cd261ecef1ecf514208f830aee0ac8932d59205f",
+      "wall_seconds": 0.6282713690015953,
+      "cpu_seconds": 0.6277919999999987,
+      "files": [
+        {
+          "name": "0.mjs",
+          "sha256": "a74987d2f775d4b10b8e82bef82b72429e702825f6ff752f4c8ce83e0db0a273",
+          "raw": 690,
+          "gzip9": 211,
+          "brotli11": 120
+        },
+        {
+          "name": "left.mjs",
+          "sha256": "eb8912cd76b50e73e41d4f8bf64619a35046f9beb1955fadd233e3ff02de32de",
+          "raw": 4593,
+          "gzip9": 250,
+          "brotli11": 176
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "ad5bc070eea2af7f9ff77d408bcf83a2fad39d5d8349aea27b6e3bbd2272fe37",
+          "raw": 128,
+          "gzip9": 120,
+          "brotli11": 89
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "5914d0360c24bdb46e38281761f424b30d0269d1b8b148aa7c2166bf91c658a2",
+          "raw": 4689,
+          "gzip9": 250,
+          "brotli11": 174
+        }
+      ],
+      "bytes": 559,
+      "choices": [
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              13
+            ],
+            [
+              "dictionary",
+              -4
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              7
+            ],
+            [
+              "dictionary",
+              -11
+            ]
+          ]
+        }
+      ],
+      "judged": 76,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 1125881,
+        "optional_work": 78397176,
+        "codec_work": 6606118,
+        "peak_retained_bytes": 52793080,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/brotli/eager/explain.json",
+        "sha256": "4e82a862187041b481f8ba65691c68f0b79c6e8a25708d2e48c360993c9bc8bc"
+      }
+    },
+    {
+      "name": "modules",
+      "objective": "brotli",
+      "variant": "lazy",
+      "exit_code": 0,
+      "config_sha256": "7f81b57226a35d329c63b9a78574cc4fee62bbf3073c32990c4268cfb7164b48",
+      "wall_seconds": 0.943984014011221,
+      "cpu_seconds": 0.9434209999999988,
+      "files": [
+        {
+          "name": "0.mjs",
+          "sha256": "a74987d2f775d4b10b8e82bef82b72429e702825f6ff752f4c8ce83e0db0a273",
+          "raw": 690,
+          "gzip9": 211,
+          "brotli11": 120
+        },
+        {
+          "name": "left.mjs",
+          "sha256": "eb8912cd76b50e73e41d4f8bf64619a35046f9beb1955fadd233e3ff02de32de",
+          "raw": 4593,
+          "gzip9": 250,
+          "brotli11": 176
+        },
+        {
+          "name": "main.mjs",
+          "sha256": "ad5bc070eea2af7f9ff77d408bcf83a2fad39d5d8349aea27b6e3bbd2272fe37",
+          "raw": 128,
+          "gzip9": 120,
+          "brotli11": 89
+        },
+        {
+          "name": "right.mjs",
+          "sha256": "5914d0360c24bdb46e38281761f424b30d0269d1b8b148aa7c2166bf91c658a2",
+          "raw": 4689,
+          "gzip9": 250,
+          "brotli11": 174
+        }
+      ],
+      "bytes": 559,
+      "choices": [
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              13
+            ],
+            [
+              "dictionary",
+              -4
+            ],
+            [
+              "lazy-columns",
+              -23
+            ],
+            [
+              "lazy-dictionary",
+              -37
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "data",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              7
+            ],
+            [
+              "dictionary",
+              -11
+            ],
+            [
+              "lazy-columns",
+              -29
+            ],
+            [
+              "lazy-dictionary",
+              -44
+            ]
+          ]
+        }
+      ],
+      "judged": 108,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 1126761,
+        "optional_work": 115971623,
+        "codec_work": 11718374,
+        "peak_retained_bytes": 52794607,
+        "frontend_logical_work": 631954,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24896,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/modules/brotli/lazy/explain.json",
+        "sha256": "14b52620c68c7124c6ade79c79ec01676dba08ca8656c5e1aa5a17ed0957bd67"
+      }
+    },
+    {
+      "name": "schema",
+      "objective": "brotli",
+      "variant": "runtime",
+      "exit_code": 0,
+      "config_sha256": "67889ebbeb7ba482b5b4ecad91a1144630ebbdcef2b4ef58c580e7233283b06d",
+      "wall_seconds": 0.03311634497367777,
+      "cpu_seconds": 0.032769000000000714,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "810894fd18b575776ea76d55e9e878e326c1f454397d1f9bf72d8bf05a13f8c7",
+          "raw": 111,
+          "gzip9": 122,
+          "brotli11": 92
+        }
+      ],
+      "bytes": 92,
+      "choices": [
+        {
+          "estimate_codec": "raw",
+          "pinned": false,
+          "family": "conditional-returns",
+          "site": "conditional-return",
+          "seed": "compact",
+          "delivered": "compact",
+          "offered": [
+            [
+              "canonical",
+              0
+            ],
+            [
+              "compact",
+              3
+            ]
+          ]
+        }
+      ],
+      "judged": 39,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 47412,
+        "optional_work": 945457,
+        "codec_work": 17553,
+        "peak_retained_bytes": 1908464,
+        "frontend_logical_work": 21334,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 448,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/schema/brotli/runtime/explain.json",
+        "sha256": "4f650d77ae9846f54ace10113e5bc39d54755bf32570aed63903c48bce58b906"
+      }
+    },
+    {
+      "name": "schema",
+      "objective": "brotli",
+      "variant": "specialized",
+      "exit_code": 0,
+      "config_sha256": "486f853960853fb6bc3627148a4604e9a814ec69ec2ca9496918b84c8571ef84",
+      "wall_seconds": 0.015868004004005343,
+      "cpu_seconds": 0.015577000000000951,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "366fc8f723318794ea28440e75def7f89fd3a6f44750d73ecc3ae4573c5ec012",
+          "raw": 92,
+          "gzip9": 92,
+          "brotli11": 70
+        }
+      ],
+      "bytes": 70,
+      "choices": [],
+      "judged": 17,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 58440,
+        "optional_work": 358829,
+        "codec_work": 6064,
+        "peak_retained_bytes": 1886623,
+        "frontend_logical_work": 41704,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 448,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/schema/brotli/specialized/explain.json",
+        "sha256": "1bed262249eb8eabd5687d536d42f9a6a93cf3957a65b9158d501e1c593f65f9"
+      }
+    },
+    {
+      "name": "existing-data",
+      "objective": "brotli",
+      "variant": "before",
+      "exit_code": 0,
+      "config_sha256": "654f9a2d7b6d2f10d62880156d05187f827b3056dc5e58efe60b4b7b47611247",
+      "wall_seconds": 3.256884655012982,
+      "cpu_seconds": 3.2560650000000013,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "a6bad86cabacf18cf050b30da2db3f48c38bf1db182a5c403d3a4bd7559662e2",
+          "raw": 8365,
+          "gzip9": 2798,
+          "brotli11": 2091
+        }
+      ],
+      "bytes": 2091,
+      "choices": [
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_772",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              96
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "people",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              68
+            ],
+            [
+              "dictionary",
+              -13
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1322",
+          "seed": "literal",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "front-coded",
+              -13
+            ],
+            [
+              "columns",
+              -33
+            ],
+            [
+              "dictionary",
+              -44
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1728",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              131
+            ],
+            [
+              "dictionary",
+              119
+            ]
+          ]
+        }
+      ],
+      "judged": 100,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 5039446,
+        "optional_work": 372217501,
+        "codec_work": 12182457,
+        "peak_retained_bytes": 4583993,
+        "frontend_logical_work": 2545176,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24512,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/existing-data/brotli/before/explain.json",
+        "sha256": "36d0350a75ff701f0656601419fdf6eca12f099e55b99887ea94d94bc451d583"
+      }
+    },
+    {
+      "name": "existing-data",
+      "objective": "brotli",
+      "variant": "after",
+      "exit_code": 0,
+      "config_sha256": "654f9a2d7b6d2f10d62880156d05187f827b3056dc5e58efe60b4b7b47611247",
+      "wall_seconds": 3.249624310003128,
+      "cpu_seconds": 3.2485350000000013,
+      "files": [
+        {
+          "name": "main.mjs",
+          "sha256": "a6bad86cabacf18cf050b30da2db3f48c38bf1db182a5c403d3a4bd7559662e2",
+          "raw": 8365,
+          "gzip9": 2798,
+          "brotli11": 2091
+        }
+      ],
+      "bytes": 2091,
+      "choices": [
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_772",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              96
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "people",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              68
+            ],
+            [
+              "dictionary",
+              -13
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1322",
+          "seed": "literal",
+          "delivered": "dictionary",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "front-coded",
+              -13
+            ],
+            [
+              "columns",
+              -33
+            ],
+            [
+              "dictionary",
+              -44
+            ]
+          ]
+        },
+        {
+          "estimate_codec": "brotli",
+          "pinned": false,
+          "family": "data-encoding",
+          "site": "value_0_1728",
+          "seed": "columns",
+          "delivered": "columns",
+          "offered": [
+            [
+              "literal",
+              0
+            ],
+            [
+              "columns",
+              131
+            ],
+            [
+              "dictionary",
+              119
+            ]
+          ]
+        }
+      ],
+      "judged": 100,
+      "oracle": true,
+      "resources": {
+        "baseline_work": 4814391,
+        "optional_work": 338811179,
+        "codec_work": 12182457,
+        "peak_retained_bytes": 4497985,
+        "frontend_logical_work": 2545176,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 24512,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+          "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+          "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+          "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+          "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+          "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+          "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+          "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+          "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+          "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+          "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+          "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+        "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "target_allocation_accounting": "partial",
+        "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+        "retained_bytes_after_handoff": 0
+      },
+      "explanation": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/builds/existing-data/brotli/after/explain.json",
+        "sha256": "d6cca82b04888e372e2ed42083d23b1032993664948a6fc5e25d143cc128c639"
+      }
+    }
+  ],
+  "complete": true,
+  "native": {
+    "c_sha256": "17d7793ad4c98527c525d030958455f08e08bb53d9f6fd14b66e197cd854a35d",
+    "config_sha256": "04a0320024497b349fbea2c841d75f780d2377dc77288948a532834a3985cc01",
+    "compilers": [
+      {
+        "compiler": "gcc",
+        "sha256": "f78ee77f284a16706562df6c43f2ceefb66452c8004f66a420f70f177d82a703",
+        "oracle": true
+      },
+      {
+        "compiler": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "sha256": "b61c21df57c5a1dadbf1dabd0440cc95bc1d1c5c5d663372ce23d9adca1091b4",
+        "oracle": true
+      }
+    ]
+  }
+}

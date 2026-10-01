@@ -1,0 +1,13 @@
+
+running 8 tests
+test program::rules::const_data::tests::q4_const_alias_rebinding_is_distinct_from_mutation_and_nested_values_copy ... ok
+test program::rules::const_data::tests::q4_const_array_construction_and_nested_alias_reads ... ok
+test program::rules::const_data::tests::q4_const_bindings_cannot_be_reassigned_or_export_functions ... ok
+test program::rules::const_data::tests::q4_const_mutation_rejects_alias_parameter_and_nested_container ... ok
+test program::rules::const_data::tests::q4_const_record_computed_keys_and_utf16_values ... ok
+test program::rules::const_data::tests::q4_const_required_failures_and_configured_bounds_are_diagnostic ... ok
+test program::rules::const_data::tests::q4_public_const_data_is_deeply_frozen_and_keeps_keys_and_aliases ... ok
+test program::rules::const_data::tests::q4_required_const_evaluation_survives_folding_veto ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 2066 filtered out; finished in 0.97s
+

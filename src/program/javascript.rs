@@ -51,6 +51,8 @@ mod methods;
 mod product_calls;
 #[path = "javascript_products.rs"]
 mod products;
+#[path = "javascript_const.rs"]
+mod const_data;
 #[path = "javascript_public_structs.rs"]
 mod public_structs;
 #[path = "javascript_references.rs"]
@@ -2186,6 +2188,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     };
                     self.module.binding_in(binding, self.budget)?
                 };
+                if cell.declared_const && rules::const_data::aggregate(&self.program.types[cell.ty.index()]) {
+                    self.budget.push(AllocationClass::Retained, &mut self.module.immutable_data, binding)?;
+                }
                 // What the cell holds, for the tree's type-directed edits.
                 self.module.bindings[binding.index()].class =
                     if self.payload_cell(cell_id)? { None } else { value_class(&self.program.types[cell.ty.index()]) };
@@ -4691,6 +4696,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 let target = self.reference(binding)?;
                 let value = self.value(unit, operands[0])?;
+                let value = self.boundary_cell(cell, value)?;
                 let value = self.carrier_value(unit, cell, value)?;
                 js::Expr::Assign { target, value }
             }

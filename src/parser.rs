@@ -397,6 +397,8 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
 
     fn parse_item(&mut self) -> Result<Item<'arena, 'src>, AdmittedParseError> {
         let region = self.parse_region_policy()?;
+        let declared_define = self.match_kind(|kind| matches!(kind, TokenKind::Ident("define")));
+        let declared_const = declared_define || self.match_kind(|kind| matches!(kind, TokenKind::Ident("const")));
         let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
         let is_async = self.match_kind(|kind| matches!(kind, TokenKind::Async));
         let is_generator = self.match_kind(|kind| matches!(kind, TokenKind::Generator));
@@ -413,6 +415,9 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 self.lookahead_kind(self.cursor + 1)?,
                 Some(TokenKind::Extern | TokenKind::Void)
             );
+        if declared_const && (is_async || is_generator || declared_debug || matches!(self.peek_kind(), Some(TokenKind::Extern | TokenKind::Struct | TokenKind::Class | TokenKind::Enum | TokenKind::Ident("shape" | "sealed" | "flags")))) {
+            return Err(self.error_here("`const` requires synchronous source data or a function"));
+        }
         if declared_debug {
             self.advance();
             if declared_pure {
@@ -525,6 +530,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             let name = self.expect_ident("expected declaration name")?;
             let type_params = self.parse_type_params()?;
             if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
+                if declared_define { return Err(self.error_here("`define` requires scalar data, not a function")); }
                 return self
                     .parse_function_after_signature(
                         ty,
@@ -535,7 +541,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                         is_async,
                         is_generator,
                     )
-                    .map(Item::Function);
+                    .map(|mut function| { function.declared_const = declared_const; Item::Function(function) });
             }
 
             if !type_params.is_empty() {
@@ -554,12 +560,13 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
 
             return self
                 .parse_var_decl_after_name(ty, name)
-                .map(|decl| Item::Stmt(Stmt::VarDecl(decl, self.source.node())));
+                .map(|mut decl| { decl.declared_define = declared_define; decl.declared_const = declared_const; Item::Stmt(Stmt::VarDecl(decl, self.source.node())) });
         }
 
         if declared_pure || is_async || is_generator || !region.is_default() {
             return Err(self.error_here("expected function declaration after modifier"));
         }
+        if declared_const { return Err(self.error_here("`const` requires a typed data or function declaration")); }
         self.parse_statement().map(Item::Stmt)
     }
 
@@ -701,6 +708,14 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     }
 
     fn parse_statement(&mut self) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
+        if matches!(self.peek_kind(), Some(TokenKind::Ident("define"))) { return Err(self.error_here("`define` is a module-level declaration")); }
+        if self.match_kind(|kind| matches!(kind, TokenKind::Ident("const"))) {
+            let ty = self.parse_type()?;
+            let name = self.expect_ident("expected const binding name")?;
+            let mut decl = self.parse_var_decl_after_name(ty, name)?;
+            decl.declared_const = true;
+            return Ok(Stmt::VarDecl(decl, self.source.node()));
+        }
         if self.match_kind(|kind| matches!(kind, TokenKind::Return)) {
             return self.parse_return_after_keyword();
         }
@@ -1275,6 +1290,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         )?;
         let (body, body_span) = self.parse_block_after_open()?;
         Ok(FunctionDecl {
+            declared_const: false,
             dispatch: crate::ast::MethodDispatch::Static,
             region,
             declared_pure,
@@ -1303,6 +1319,8 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         };
         let semi = self.expect_semicolon()?;
         Ok(VarDecl {
+            declared_define: false,
+            declared_const: false,
             ty,
             name,
             initializer,

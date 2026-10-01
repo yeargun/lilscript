@@ -68,6 +68,7 @@ pub struct TargetRules {
     pub inlining: bool,
     pub scalar_replacement: bool,
     pub data_encoding: bool,
+    pub lazy_data: bool,
     pub array_packing: ArrayPacking,
     pub call_specialization: bool,
     pub helper_sharing: bool,
@@ -85,6 +86,7 @@ impl TargetRules {
         inlining: true,
         scalar_replacement: true,
         data_encoding: false,
+        lazy_data: false,
         array_packing: ArrayPacking::Disabled,
         call_specialization: false,
         helper_sharing: false,
@@ -98,6 +100,7 @@ impl TargetRules {
         inlining: false,
         scalar_replacement: false,
         data_encoding: false,
+        lazy_data: false,
         array_packing: ArrayPacking::Disabled,
         call_specialization: false,
         helper_sharing: false,
@@ -118,6 +121,10 @@ impl TargetRules {
                     risk: RuntimeRisk::Startup,
                 }])
                 .is_ok(),
+            lazy_data: policy.check_tactic_permissions(&[
+                TacticUse { tactic: TacticId::StartupReconstruction, risk: RuntimeRisk::Startup },
+                TacticUse { tactic: TacticId::RecurringReconstruction, risk: RuntimeRisk::Recurring },
+            ]).is_ok(),
             array_packing: ArrayPacking::from_policy(policy),
             call_specialization: policy.tactic(TacticId::CallSpecialization).enabled,
             helper_sharing: policy.tactic(TacticId::HelperSharing).enabled,
@@ -143,6 +150,7 @@ impl TargetRules {
 
     pub fn runtime_uses(self, families: OutputFamilies) -> impl Iterator<Item = TacticUse> {
         [
+            self.lazy_data.then_some(TacticUse { tactic: TacticId::RecurringReconstruction, risk: RuntimeRisk::Recurring }),
             families.parameterized_helpers.then_some(TacticUse { tactic: TacticId::HelperSharing, risk: RuntimeRisk::Recurring }),
             self.data_encoding.then_some(TacticUse {
                 tactic: TacticId::StartupReconstruction,

@@ -197,6 +197,8 @@ pub(super) fn cell(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Cell, AllocationError> {
     Ok(Cell {
+        declared_define: source.declared_define,
+        declared_const: source.declared_const,
         source_symbol: source.source_symbol,
         name: budget.string(Retained, &source.name)?,
         ty: source.ty,

@@ -248,7 +248,12 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Clause.** `const` declares deep-immutable data (arrays, records, shapes, struct arrays). An exported const object has exact keys; the host receives a boundary object. `const` functions are evaluated at compile time under a configured bound (D3.6), using only `exact` operations: IEEE-754 basic operations with correct rounding, integer operations and ECMAScript-specified algorithms (Number-to-String, string operations). An operation whose precision ECMAScript leaves to the implementation (`Math.sin`, `exp`, `log`, `pow` and the rest) is evaluated at run time; a `const` that needs one at compile time is refused with a span. `define` constants are bound by configuration. A function called with const data may be **specialized** on it at compile time (a validator compiled per static schema), under the same bound and the same exactness.
 - **Replaces.** M9.8's site recognizer ("any root `let` whose value is a tree of constant data", `src/js/tables.rs:2-4`); runtime-built tables such as katex's `unicodeSymbols`; the case for runtime code generation (zod's `new Function`).
 - **JS.** The encoding is the codec's choice, within the startup law (P6). **Native.** `static const` data.
-- **Status.** Target (M10.3 const data and bounded evaluation; M10.11 defines; M10.19 specialization).
+- **Status.** Required bounded exact evaluation, scalar TOML defines, private
+  const graphs and static-schema forwarding are implemented on the shared IR.
+  JavaScript public scalar/array/record data preserves keys, aliases and deep
+  freezing. Stored public value-struct graphs are diagnosed pending D2's public
+  view adapter; native static storage/public const ABI remains N2. Unsupported
+  evaluator operations fail with source spans. [Scope and controls](migration/q4-acceptance.md).
 
 ---
 

@@ -1036,6 +1036,9 @@ pub struct EntryPublic {
 pub struct Module {
     /// Local data ranking uses this objective's proxy and window. The full
     /// artifact, with its final names and shared helpers, is judged separately.
+    pub(crate) const_freezers: Vec<(u32, BindingId)>,
+    /// Checked deep-immutable source bindings, preserved across target copies.
+    pub(crate) immutable_data: Vec<BindingId>,
     pub(crate) data_estimator: Option<(crate::config::CompressionCostModel, crate::compression::CodecSettings)>,
     pub expressions: Vec<Expr>,
     pub origins: Vec<Option<SourceNodeId>>,
@@ -3167,6 +3170,8 @@ impl Module {
         });
         Ok(Self {
             expressions: vec![],
+            const_freezers: Vec::new(),
+            immutable_data: Vec::new(),
             data_estimator: None,
             origins: vec![],
             authored_pool: Vec::new(),

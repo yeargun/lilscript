@@ -787,7 +787,7 @@ impl Module {
             }
             Rule::EncodeTables => {
                 if let Some(choices) = choices {
-                    let _ = self.encode_tables(choices, budget)?;
+                    let _ = self.encode_tables_with_laziness(choices, context.rules.lazy_data, budget)?;
                 }
             }
         }

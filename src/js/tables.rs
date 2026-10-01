@@ -51,6 +51,8 @@ use super::choices::{
 use super::print::number_spelling;
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
+#[path = "tables_lazy.rs"]
+mod lazy;
 
 /// The table as written.
 pub const LITERAL: AltId = AltId(0);
@@ -297,6 +299,7 @@ fn separator<'t>(texts: impl Iterator<Item = &'t str> + Clone) -> Option<char> {
 // Front-coded string tables.
 
 /// `d(keys,values,separator)` on a flat object of strings.
+#[derive(Clone)]
 struct FrontCoded {
     keys: String,
     values: String,
@@ -1259,12 +1262,19 @@ fn index_of(value: f64) -> Option<usize> {
 // The family on the tree.
 
 /// One table's chosen encoding, before it is applied.
+#[derive(Clone)]
 enum Encoding<'d> {
     FrontCoded(FrontCoded),
     Columns(Columns<'d>),
 }
 
 impl Module {
+    fn const_data_argument(&self, value: ExprId) -> Option<ExprId> {
+        let Expr::Call { callee, arguments, .. } = &self.expressions[value.index()] else { return None; };
+        let Expr::Binding(binding) = self.expressions[callee.index()] else { return None; };
+        (arguments.len() == 1 && self.const_freezers.iter().any(|(_, helper)| *helper == binding)).then(|| arguments[0])
+    }
+
     /// The constant data a literal denotes, if it is only constant data
     /// with no observed literal, no `__proto__` or duplicate key, no lone
     /// surrogate and no non-finite number.
@@ -1347,8 +1357,13 @@ impl Module {
     /// scheduler's next round: its site is already recorded. Returns how
     /// many tables are encoded.
     pub(crate) fn encode_tables(
+        &mut self, choices: &ChoiceMap, budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> { self.encode_tables_with_laziness(choices, false, budget) }
+
+    pub(crate) fn encode_tables_with_laziness(
         &mut self,
         choices: &ChoiceMap,
+        lazy: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let root = self.root.index();
@@ -1362,6 +1377,7 @@ impl Module {
             else {
                 continue;
             };
+            let value = self.const_data_argument(value).unwrap_or(value);
             if !matches!(
                 self.expressions[value.index()],
                 Expr::Array(_) | Expr::Object(_)
@@ -1396,7 +1412,7 @@ impl Module {
             let raw_literal = literal_length(node) as i64;
             let estimate_codec = self.data_estimator.map_or(crate::config::CompressionCostModel::Raw, |row| row.0);
             let literal = match self.data_estimator.filter(|(codec, _)| *codec != crate::config::CompressionCostModel::Raw) {
-                Some((codec, settings)) => estimate_fragment(Some(node), None, codec, settings, budget)? as i64,
+                Some((codec, settings)) => estimate_fragment(Some(node), None, false, codec, settings, budget)? as i64,
                 None => raw_literal,
             };
             // Planning and verifying every alternative is linear in the
@@ -1447,9 +1463,20 @@ impl Module {
                 }
             }
             if plans.is_empty() { continue; }
+            if lazy && self.lazy_table_eligible(*binding, budget)? {
+                for index in 0..plans.len() {
+                    let (alternative, plan) = &plans[index];
+                    let name = match *alternative { FRONT_CODED => "lazy-front-coded", COLUMNS => "lazy-columns", _ => "lazy-dictionary" };
+                    let saving = alternatives.iter().find(|row| row.alternative == *alternative).unwrap().saving - 40;
+                    let alternative = AltId(alternative.0 + 4);
+                    let plan = plan.clone();
+                    alternatives.push(ChoiceAlternative { alternative, name, saving });
+                    plans.push((alternative, plan));
+                }
+            }
             if let Some((codec, settings)) = self.data_estimator.filter(|(codec, _)| *codec != crate::config::CompressionCostModel::Raw) {
                 for (alternative, plan) in &plans {
-                    let length = estimate_fragment(None, Some(plan), codec, settings, budget)?;
+                    let length = estimate_fragment(None, Some(plan), alternative.0 >= 4, codec, settings, budget)?;
                     alternatives.iter_mut().find(|offered| offered.alternative == *alternative).unwrap().saving = literal - length as i64;
                 }
             }
@@ -1487,7 +1514,7 @@ impl Module {
                 .into_iter()
                 .find(|(alternative, _)| *alternative == applied)
             {
-                encodings.push((*index, encoding));
+                encodings.push((*index, *binding, applied.0 >= 4, encoding));
             }
         }
         if encodings.is_empty() {
@@ -1495,19 +1522,20 @@ impl Module {
         }
         let count = encodings.len();
         let mut functions = Vec::new();
-        let mut shared = None;
+        let mut shared: Vec<(u32, BindingId)> = Vec::new();
         // One decoder per schema: a table whose schema an earlier table has
         // calls that table's decoder.
-        let mut decoders: Vec<(Schema, BindingId)> = Vec::new();
-        for (index, encoding) in encodings {
+        let mut decoders: Vec<(u32, Schema, BindingId)> = Vec::new();
+        for (index, binding, lazy, encoding) in encodings {
+            let owner = self.root_rows.get(index).map_or(0, |row| row.module);
             let call = match encoding {
                 Encoding::FrontCoded(front) => {
-                    let decoder = match shared {
+                    let decoder = match shared.iter().find(|(module, _)| *module == owner).map(|(_, binding)| *binding) {
                         Some(decoder) => decoder,
                         None => {
                             let (decoder, function) = self.table_decoder(budget)?;
-                            functions.push(function);
-                            shared = Some(decoder);
+                            functions.push((function, RootRow::synthetic(owner)));
+                            shared.push((owner, decoder));
                             decoder
                         }
                     };
@@ -1528,44 +1556,40 @@ impl Module {
                 Encoding::Columns(columns) => {
                     let schema = columns.schema();
                     budget.work(Analysis, decoders.len() as u64 + 1)?;
-                    let decoder = match decoders.iter().find(|(known, _)| *known == schema) {
-                        Some(&(_, decoder)) => decoder,
+                    let decoder = match decoders.iter().find(|(module, known, _)| *module == owner && *known == schema) {
+                        Some(&(_, _, decoder)) => decoder,
                         None => {
                             let (decoder, function) = self.columns_decoder(&schema, budget)?;
-                            functions.push(function);
-                            decoders.push((schema, decoder));
+                            functions.push((function, RootRow::synthetic(owner)));
+                            decoders.push((owner, schema, decoder));
                             decoder
                         }
                     };
                     self.columns_call(decoder, &columns, budget)?
                 }
             };
-            if let Statement::Let { value, .. } = &mut self.statements_mut(root)[index] {
+            if lazy {
+                let (helper, function) = self.lazy_table_helper(binding, call, budget)?;
+                self.lazy_table_reads(binding, helper, budget)?;
+                functions.push((function, RootRow::synthetic(owner)));
+                if let Statement::Let { value, .. } = &mut self.statements_mut(root)[index] { *value = None; }
+                continue;
+            }
+            let original = match self.regions[root].statements[index] { Statement::Let { value: Some(value), .. } => value, _ => unreachable!() };
+            if self.const_data_argument(original).is_some() {
+                if let Expr::Call { arguments, .. } = self.expression_mut(original) { arguments[0] = call; }
+            } else if let Statement::Let { value, .. } = &mut self.statements_mut(root)[index] {
                 *value = Some(call);
             }
         }
-        // The decoders are declared ahead of the root, in its first
-        // statement's module, as the string tables always were.
-        budget.reserve_vec(
-            AllocationClass::Retained,
-            &mut self.regions[root].statements,
-            functions.len(),
-        )?;
-        // Decoders are a rule's definitions, beside the first module
-        // (design §6).
-        let first = self.root_rows.first().map_or(0, |row| row.module);
-        if !self.root_rows.is_empty() {
-            budget.reserve_vec(
-                AllocationClass::Retained,
-                &mut self.root_rows,
-                functions.len(),
-            )?;
-        }
-        let rows = functions.len();
-        self.prepend_roots(
-            functions,
-            std::iter::repeat_n(RootRow::synthetic(first), rows),
-        );
+        // Helpers belong to the module that first uses them, and are shared
+        // only inside that owner. Ordinary demand/dependency placement carries
+        // them with the corresponding data, including preserved/lazy modules.
+        budget.reserve_vec(AllocationClass::Retained, &mut self.regions[root].statements, functions.len())?;
+        if !self.root_rows.is_empty() { budget.reserve_vec(AllocationClass::Retained, &mut self.root_rows, functions.len())?; }
+        let (statements, rows): (Vec<_>, Vec<_>) = functions.into_iter().unzip();
+        self.prepend_roots(statements, rows);
+        self.renumber(budget)?;
         Ok(count)
     }
 
@@ -1790,7 +1814,7 @@ impl Module {
 /// Gzip uses its configured settings; Brotli uses min(quality, 5), preserving
 /// mode/window. Estimates never prune a legal representation.
 fn estimate_fragment(
-    literal: Option<&Node>, encoding: Option<&Encoding<'_>>,
+    literal: Option<&Node>, encoding: Option<&Encoding<'_>>, lazy: bool,
     codec: crate::config::CompressionCostModel, settings: crate::compression::CodecSettings,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<usize, AllocationError> {
@@ -1835,6 +1859,18 @@ fn estimate_fragment(
     if let Some(definition) = definition {
         phase.push(AllocationClass::Retained, &mut module.regions[0].statements, definition)?;
     }
+    let value = if lazy {
+        let scope = module.regions[module.root.index()].scope;
+        let table = Emit { module: &mut module, budget: &mut phase }.binding(scope, "table")?;
+        phase.push(AllocationClass::Retained, &mut module.regions[0].statements, Statement::Let { binding: table, value: None })?;
+        let (helper, function) = module.lazy_table_helper(table, value, &mut phase)?;
+        phase.push(AllocationClass::Retained, &mut module.regions[0].statements, function)?;
+        let mut emit = Emit { module: &mut module, budget: &mut phase };
+        let table = emit.read(table)?;
+        let key = emit.string("key")?;
+        let callee = emit.read(helper)?;
+        emit.node(Expr::Call { callee, arguments: vec![table, key], invocation: Invocation::Value })?
+    } else { value };
     phase.push(AllocationClass::Retained, &mut module.regions[0].statements, Statement::Evaluate(value))?;
     let output_error = |error: super::extract::OutputError| match error {
         super::extract::OutputError::Admission(error) => error,

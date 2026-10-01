@@ -626,6 +626,8 @@ pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LanguageConfig {
+    /// Required exact evaluation limits; independent of optimization effort.
+    pub const_evaluation: ConstEvaluation,
     /// `explicit` requires an ABI declaration before an enum can be observed
     /// by host/string/JSON operations. Legacy keeps ordinal observations while
     /// ports migrate. Declared ABI enums have the same contract in both modes.
@@ -647,6 +649,26 @@ pub struct LanguageConfig {
     /// The conservative flow proof can require explicit defaults around
     /// exception paths. It adds bounded checking work, not codec judgments.
     pub field_initialization: FieldInitialization,
+}
+
+/// Explicit compile-time execution is bounded even when global work is unlimited.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ConstEvaluation {
+    pub steps: u32,
+    pub depth: u16,
+    pub bytes: u64,
+}
+impl Default for ConstEvaluation {
+    fn default() -> Self { Self { steps: 65_536, depth: 32, bytes: 8 * 1024 * 1024 } }
+}
+impl ConstEvaluation {
+    fn validated(self) -> Result<Self, String> {
+        if self.steps == 0 || !(1..=256).contains(&self.depth) || self.bytes == 0 {
+            return Err("`language.const_evaluation` requires positive steps/bytes and depth between 1 and 256".into());
+        }
+        Ok(self)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
@@ -685,9 +707,42 @@ pub enum FieldInitialization {
     Explicit,
 }
 
+/// Scalar TOML values for checked `define T NAME=default` declarations.
+/// Number bits preserve negative zero and give receipts/cache keys exact identity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DefineValue { Boolean(bool), Integer(i64), Number(u64), String(String) }
+impl<'de> Deserialize<'de> for DefineValue {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(match toml::Value::deserialize(deserializer)? {
+            toml::Value::Boolean(value) => Self::Boolean(value),
+            toml::Value::Integer(value) => Self::Integer(value),
+            toml::Value::Float(value) => Self::Number(value.to_bits()),
+            toml::Value::String(value) => Self::String(value),
+            _ => return Err(serde::de::Error::custom("a define value must be bool, integer, float or string")),
+        })
+    }
+}
+impl serde::Serialize for DefineValue {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // Tagged receipt values avoid losing -0/NaN payloads in JSON fingerprints.
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(1))?;
+        match self {
+            Self::Boolean(value) => map.serialize_entry("bool", value)?,
+            Self::Integer(value) => map.serialize_entry("int", value)?,
+            Self::Number(bits) => map.serialize_entry("float_bits", bits)?,
+            Self::String(value) => map.serialize_entry("string", value)?,
+        }
+        map.end()
+    }
+}
+pub type Defines = BTreeMap<String, DefineValue>;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ProjectConfig {
+    /// Checked compile-time bindings; independent of effort and optimization flags.
+    pub defines: Defines,
     pub language: LanguageConfig,
     pub host: HostConfig,
     /// Versioned policy overlay; absent versions preserve legacy permission semantics.
@@ -1065,8 +1120,8 @@ impl ProjectConfig {
             policy.resources.restricted_by(ceilings),
             policy.constraints,
             diagnostics,
-        ).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?)
-            .with_execution(self.execution.validated()?)
+        ).with_defines(self.defines.clone()).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?)
+            .with_execution({ self.language.const_evaluation.validated()?; self.execution.validated()? })
             .with_effort_overrides([self.javascript.candidate_proposal_limit,
                 self.javascript.terminal_codec_probe_limit, self.javascript.candidate_limit,
                 self.javascript.candidate_byte_budget, self.javascript.candidate_beam_width]))
@@ -1243,6 +1298,7 @@ impl ProjectConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        self.language.const_evaluation.validated()?;
         self.execution.validated()?;
         self.host.validate()?;
         if let Some(policy) = &self.policy {

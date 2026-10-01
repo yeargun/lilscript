@@ -282,6 +282,8 @@ impl Module {
         let budget = &mut phase;
         let result = Self {
             expressions: map(&self.expressions, budget, Expr::clone_in)?,
+            const_freezers: budget.copy_slice(Retained, &self.const_freezers)?,
+            immutable_data: budget.copy_slice(Retained, &self.immutable_data)?,
             data_estimator: self.data_estimator,
             origins: budget.copy_slice(Retained, &self.origins)?,
             authored_pool: map(&self.authored_pool, budget, string)?,

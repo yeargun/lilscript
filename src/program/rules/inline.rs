@@ -912,6 +912,8 @@ fn inline(
         if let Some(ty) = result_type {
             Some(editor.add_cell_in(
                 Cell {
+                    declared_define: false,
+                    declared_const: false,
                     source_symbol: None,
                     name: budget.string(Retained, "inline_result")?,
                     ty,

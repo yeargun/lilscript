@@ -52,7 +52,7 @@ fn q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates
         {
             let mut budget=AllocationBudget::new(Some((&mut ledger,WorkDomain::Baseline)));
             let (prepared,receipt)=super::super::from_source::from_checked_source_with_rules(
-                &syntax,&checked,Some(ALL),false,&Default::default(),None,&mut budget,
+                &syntax,&checked,Some(ALL),false,&Default::default(),&Default::default(),None,&mut budget,
             ).unwrap_or_else(|error|panic!("{source}\n{error:?}"));
             assert!(receipt.rounds>0);
             let program=prepared.program();
@@ -159,6 +159,7 @@ fn q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations(
                 &checked,
                 Some(ALL),
                 false,
+                &Default::default(),
                 &Default::default(),
                 None,
                 &mut budget,
@@ -299,6 +300,7 @@ fn q2_stable_local_plans_replay_identical_logical_work_and_peak_storage() {
                     ..ALL
                 }),
                 false,
+                &Default::default(),
                 &Default::default(),
                 None,
                 &mut budget,

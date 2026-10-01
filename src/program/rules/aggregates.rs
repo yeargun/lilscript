@@ -701,6 +701,8 @@ fn scalarize(
         }
         let cell = editor.add_cell_in(
             Cell {
+                    declared_define: false,
+                    declared_const: false,
                 source_symbol: None,
                 name: budget.format(Retained, format_args!("field{index}"))?,
                 ty: plan.types[index],

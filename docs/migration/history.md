@@ -1717,3 +1717,27 @@ assertions; the inherited Q2 report macro expansion was fixed. The archived
 markedlil 14→46 trace already attributes 31 of 32 extra judgments to a second
 terminal start, buying 13 Brotli bytes. No fleet or full-library rerun. Q3 is
 complete and Q4 is next.
+
+## 2026-10-01: Q4 const data and reconstruction completion
+
+Algorithm65/search33 adds checked const data/functions, scalar configuration
+defines and mandatory bounded exact evaluation, readonly alias/escape checks,
+uniform static-schema forwarding and immutable provenance. Module-owned typed
+helpers and full-table lazy alternatives use ordinary demand, final naming and
+complete artifact scoring. Lazy requires explicit startup plus recurring
+permissions and defaults off. All controls and limits are documented.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q4-data/README.md)
+contains 36 focused checks, a separate final public-product refusal check,
+30 independent JS artifact/oracle/codec checks, GCC/Clang shared lowering and
+paired measurements of seven dictionary forms. Public dictionary gzip/Brotli
+improve 542→523 / 360→352; two preserved modules improve 3138→2690 raw and
+612→559 Brotli. Existing mutable tables are unchanged against Q3. Lazy has no
+additional selected size win here: it reduces unused memory/startup but shifts
+decoding to first use and adds bytes. No full fleet/library rerun.
+
+The [acceptance record](q4-acceptance.md) states the finite evaluator/schema
+scope and typed-helper mechanism correction. Stored public value-struct graphs
+are source-diagnosed pending D2's graph-preserving boundary; the final guard is
+focused-test qualified and postdates the release pin. Native static const and
+public const ABI remain N2. Q4 is complete under that contract; D1 follows.

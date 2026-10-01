@@ -1,0 +1,1 @@
+define int SIZE=5;const int square(int n){int result=0;for(int i=0;i<n;i++){result+=n;}return result;}const int answer=square(SIZE);int[] make(){int[] data=[];for(int i=0;i<5;i++){data.push(i*i);}return data;}const int[] data=make();print(answer);print(data[3]);

@@ -1,0 +1,1 @@
+const int[] schema=[3,7];int validate(int[] shape,int n){if(shape[0]==3){return n+shape[1];}return n-1;}export int probe(int n){return validate(schema,n)+validate(schema,n+1);}

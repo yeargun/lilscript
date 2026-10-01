@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const elapsed = start => Number(process.hrtime.bigint() - start);
+const cpu = start => { const used=process.cpuUsage(start); return used.user+used.system; };
+const keys=Array.from({length:512},(_,i)=>'key'+String(i).padStart(4,'0'));
+global.gc();const initial=process.memoryUsage();
+let start=process.hrtime.bigint(), clock=process.cpuUsage();
+const api=await import(pathToFileURL(process.argv[2]).href);
+const startup_wall_ns=elapsed(start),startup_cpu_us=cpu(clock);
+global.gc();const loaded=process.memoryUsage();
+start=process.hrtime.bigint();clock=process.cpuUsage();
+const first=api.probe('key0000');
+const first_access_wall_ns=elapsed(start),first_access_cpu_us=cpu(clock);
+assert.equal(first,'group0-'+'repeated-payload'.repeat(3));
+global.gc();const touched=process.memoryUsage();
+for(let i=0;i<512;i++)assert.equal(api.probe(keys[i]),'group'+i%16+'-'+'repeated-payload'.repeat(3));
+assert.equal(api.probe('missing'),undefined);
+const iterations=262144;
+function run(){let sum=0;for(let i=0;i<iterations;i++)sum+=api.probe(keys[i&511]).length;return sum;}
+const expected=iterations/16*(10*55+6*56);
+for(let i=0;i<4;i++)assert.equal(run(),expected);
+start=process.hrtime.bigint();clock=process.cpuUsage();const actual=run();
+const steady_wall_ns=elapsed(start),steady_cpu_us=cpu(clock);assert.equal(actual,expected);
+global.gc();const final=process.memoryUsage();
+console.log(JSON.stringify({engine:process.version,iterations,oracle:actual,metrics:{startup_wall_ns,startup_cpu_us,first_access_wall_ns,first_access_cpu_us,steady_wall_ns,steady_cpu_us,unused_heap_bytes:loaded.heapUsed-initial.heapUsed,first_access_heap_bytes:touched.heapUsed-loaded.heapUsed,rss_bytes:final.rss}}));

@@ -575,6 +575,8 @@ fn signature_phase<'ast, 'src, S>(
                 }
                 let mut ty = analyzer.resolve_value_type(decl.ty, "module binding")?;
                 let symbol = analyzer.declare(decl.name, ty)?;
+                analyzer.declarations.symbols[symbol.0 as usize].attributes.define = decl.declared_define;
+                analyzer.declarations.symbols[symbol.0 as usize].attributes.constant = decl.declared_const;
                 analyzer.initialization.bindings.insert(
                     symbol,
                     ModuleBindingState {

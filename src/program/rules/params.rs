@@ -35,7 +35,6 @@
 //! `keep_fargs=false` drops only unused trailing parameters.
 
 use super::super::ambient;
-use super::super::call_graph::CallGraph;
 use super::edit::Editor;
 use super::values::ProgramValues;
 use super::*;
@@ -43,6 +42,9 @@ use crate::check::{FunctionSignature, FunctionType, Type};
 use crate::compilation_policy::WorkKind;
 use crate::output_budget::AllocationClass::{Retained, Scratch};
 use crate::output_budget::{AllocationBudget, AllocationError};
+
+#[derive(Clone)]
+enum StaticArgument { Scalar(Constant), Data(CellId) }
 
 /// One body's new signature and the edits that follow from it.
 struct Change {
@@ -54,7 +56,7 @@ struct Change {
     /// Per parameter: it leaves (decided per signature).
     dropped: Vec<bool>,
     /// Per parameter: its loads become this constant.
-    constants: Vec<Option<Constant>>,
+    constants: Vec<Option<StaticArgument>>,
     /// The result leaves.
     void: bool,
     /// The operation that creates the body, and its unit.
@@ -78,7 +80,7 @@ pub(super) fn apply(
         |editor, budget| {
             plans(
                 editor.program(),
-                effects.graph(),
+                effects,
                 values,
                 constants_permitted,
                 budget,
@@ -105,7 +107,7 @@ fn discard(change: Change, budget: &mut AllocationBudget<'_>) -> Result<(), Allo
 
 fn plans(
     program: &Program<'_>,
-    graph: &CallGraph,
+    effects: &ProgramEffects,
     values: &ProgramValues,
     constants_permitted: bool,
     budget: &mut AllocationBudget<'_>,
@@ -149,7 +151,7 @@ fn plans(
         for frozen in &program.units {
             if let Some(change) = change(
                 program,
-                graph,
+                effects,
                 values,
                 constants_permitted,
                 &created,
@@ -229,7 +231,7 @@ fn plans(
 
 fn change(
     program: &Program<'_>,
-    graph: &CallGraph,
+    effects: &ProgramEffects,
     values: &ProgramValues,
     constants_permitted: bool,
     created: &[bool],
@@ -238,6 +240,7 @@ fn change(
     body: UnitId,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Option<Change>, AllocationError> {
+    let graph = effects.graph();
     storage::optional(budget, |attempt| {
         let data = program.unit(body)?;
         attempt.work(
@@ -362,12 +365,41 @@ fn change(
                 unread[position] = true;
                 continue;
             }
-            if storage.stored || storage.referenced || storage.shared || projected {
+            if storage.stored || storage.referenced || storage.shared {
                 continue;
             }
             if !constants_permitted {
                 continue;
             }
+            // A static schema is one initialized immutable module value at
+            // every call. Reuse that reference rather than cloning its graph:
+            // identity and nested aliases remain exact. Existing aggregate
+            // facts fold projections/branches under their bounded work owner.
+            if calls.len() <= program.source_contract.const_evaluation.steps as usize {
+                let mut schema = None;
+                let mut agreed = true;
+                for &(caller, call, operation, _) in &calls {
+                    attempt.work(1)?;
+                    let unit = program.unit(caller)?;
+                    let CallArgument::Value(value) = unit.arguments(unit.calls[call.index()].arguments)?[position] else { agreed = false; break; };
+                    let OperationKind::Load(place) = unit.operations[unit.values[value.index()].definition.index()].kind else { agreed = false; break; };
+                    let Place::Cell(candidate) = unit.places[place.index()] else { agreed = false; break; };
+                    let declaration = &program.cells[candidate.index()];
+                    let owner = program.unit(declaration.owner)?;
+                    if !declaration.declared_const || declaration.ty != program.cells[cell.index()].ty
+                        || !super::const_data::aggregate(&program.types[declaration.ty.index()])
+                        || owner.kind != UnitKind::ModuleInitialization || declaration.region != owner.entry
+                        || declaration.owner != creation.0
+                        || !effects.initialization().initialized(program, caller, operation, candidate)
+                        || schema.is_some_and(|known| known != candidate) { agreed = false; break; }
+                    schema = Some(candidate);
+                }
+                if let (true, Some(schema)) = (agreed, schema) {
+                    constants[position] = Some(StaticArgument::Data(schema));
+                    continue;
+                }
+            }
+            if projected { continue; }
             let mut known: Option<facts::StoredExact> = None;
             let mut agreed = true;
             for &(caller, call, _, _) in &calls {
@@ -411,7 +443,7 @@ fn change(
                 continue;
             };
             if reads * text.saturating_sub(1) <= 2 * calls.len() + 2 {
-                constants[position] = Some(constant);
+                constants[position] = Some(StaticArgument::Scalar(constant));
             }
         }
 
@@ -530,11 +562,20 @@ fn execute(
             continue;
         };
         if let Some(position) = data.parameters.iter().position(|p| *p == cell) {
-            if let Some(constant) = change.constants[position].clone() {
+            if let Some(StaticArgument::Scalar(constant)) = change.constants[position].clone() {
                 let op = OpId::from_index(index).ok_or("operation capacity")?;
                 super::edit::make_constant_in(data, op, constant, budget)?;
             }
         }
+    }
+    for (position, replacement) in change.constants.iter().enumerate() {
+        let Some(StaticArgument::Data(schema)) = replacement else { continue; };
+        let parameter = data.parameters[position];
+        for place in &mut data.places {
+            budget.work(WorkKind::Edit, 1)?;
+            if *place == Place::Cell(parameter) { *place = Place::Cell(*schema); }
+        }
+        if !data.captures.contains(schema) { budget.push(Retained, &mut data.captures, *schema)?; }
     }
     let mut at = 0u32;
     let mut position = 0;

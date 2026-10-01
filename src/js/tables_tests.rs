@@ -565,3 +565,120 @@ fn q3_data_ranking_uses_each_objective_and_keeps_negative_legal_alternatives() {
     assert!(tiny.choice_sites[0].alternatives.iter().any(|offered| offered.saving < 0));
     assert!(!crate::representation::schedule(&tiny.choice_sites, false).is_empty());
 }
+
+#[test]
+fn q4_lazy_tables_require_computed_only_immutable_data_and_preserve_tdz() {
+    let literal = Lit::O(vec![("alpha",Lit::S("first")),("beta",Lit::S("second")),("gamma",Lit::S("third"))]);
+    let (mut base, binding) = table_module(&literal);
+    base.immutable_data.push(binding);
+    assert!(!base.lazy_table_eligible(binding, &mut AllocationBudget::new(None)).unwrap(), "whole-table observation");
+    let describe = base.expression(Expr::Host("describe".into()), None);
+    let table = base.expression(Expr::Binding(binding), None);
+    let key = base.expression(Expr::Literal(Literal::String("beta".into())), None);
+    let lookup = base.expression(Expr::Member { object: table, property: Property::Computed(key) }, None);
+    let call = base.expression(Expr::Call { callee: describe, arguments: vec![lookup], invocation: Invocation::Value }, None);
+    base.regions[0].statements[1] = Statement::Evaluate(call);
+    // Reclaim unreachable whole-table observations before asking for a proof.
+    base.renumber(&mut AllocationBudget::new(None)).unwrap();
+    assert!(base.lazy_table_eligible(binding, &mut AllocationBudget::new(None)).unwrap());
+    let mut seeded = base.clone();
+    seeded.encode_tables_with_laziness(&ChoiceMap::SEEDS, true, &mut AllocationBudget::new(None)).unwrap();
+    let site = seeded.choice_sites[0].clone();
+    assert!(site.alternatives.iter().any(|alternative| alternative.alternative.0 >= 4));
+    for offered in site.alternatives.iter().filter(|alternative| alternative.alternative.0 >= 4) {
+        let mut formed = base.clone();
+        formed.encode_tables_with_laziness(&ChoiceMap::SEEDS.with(site.key, offered.alternative), true, &mut AllocationBudget::new(None)).unwrap();
+        assert_eq!(run(&formed), run(&base), "{}", offered.name);
+    }
+    let mut ordinary = base.clone();
+    ordinary.immutable_data.clear();
+    ordinary.encode_tables_with_laziness(&ChoiceMap::SEEDS, true, &mut AllocationBudget::new(None)).unwrap();
+    assert!(ordinary.choice_sites.iter().all(|site| site.alternatives.iter().all(|alt| alt.alternative.0 < 4)));
+    let mut early = base.clone();
+    let side = early.expression(Expr::Host("side".into()), None);
+    let key = early.expression(Expr::Call { callee: side, arguments: vec![], invocation: Invocation::Value }, None);
+    for expression in &mut early.expressions {
+        if let Expr::Member { property: Property::Computed(into), .. } = expression { *into = key; }
+    }
+    early.regions[0].statements.swap(0,1);
+    early.renumber(&mut AllocationBudget::new(None)).unwrap();
+    let check = |module: &Module| {
+        let code = module.render(PrintPolicy::default()).unwrap();
+        let script = format!("let calls=0;function side(){{calls++;return'beta'}}function describe(v){{}}try{{{code}}}catch(e){{console.log(e.name,calls)}}");
+        let output = Command::new("node").args(["-e", &script]).output().unwrap();
+        assert!(output.status.success(), "{}\n{script}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap(), "ReferenceError 0\n");
+    };
+    check(&early);
+    early.encode_tables_with_laziness(&ChoiceMap::SEEDS.with(site.key, AltId(6)), true, &mut AllocationBudget::new(None)).unwrap();
+    check(&early);
+}
+
+#[test]
+fn q4_decoder_definitions_follow_each_module_owner_and_share_within_it() {
+    for second_owner in [3, 7] {
+        let literal = Lit::O(vec![("alpha",Lit::S("first")),("beta",Lit::S("second")),("gamma",Lit::S("third"))]);
+        let (mut module, first) = table_module(&literal);
+        let root = ScopeId::new(0);
+        let second = module.binding(Binding { source_symbol: None, scope: root, spelling: "second".into(), pinned: false, class: None, defined: false });
+        let value = build(&mut module, &literal);
+        module.regions[0].statements.push(Statement::Let { binding: second, value: Some(value) });
+        module.root_rows = vec![RootRow::synthetic(3),RootRow::synthetic(3),RootRow::synthetic(second_owner)];
+        let choices = [first, second].into_iter().fold(ChoiceMap::SEEDS, |map, binding| map.with(ChoiceKey { family: ChoiceFamily::DataEncoding, site: SiteId::Formed(binding.index() as u32) }, AltId(2)));
+        module.encode_tables(&choices, &mut AllocationBudget::new(None)).unwrap();
+        assert!(module.root_rows_align());
+        let owners: Vec<_> = module.regions[0].statements.iter().zip(&module.root_rows).filter_map(|(statement,row)| matches!(statement, Statement::Function { .. }).then_some(row.module)).collect();
+        assert_eq!(owners, if second_owner == 3 {vec![3]} else {vec![3,7]});
+        module.verify().unwrap();
+    }
+}
+
+#[test]
+fn q4_all_data_forms_observe_independent_dictionary_oracle() {
+    // Generic immutable dictionary with exported scalar lookups. Optional file
+    // capture feeds the paired runtime/codec qualification, without recompiling
+    // or introducing a production flag for forcing a losing representation.
+    let mut module = Module::default();
+    module.pristine_builtins = true;
+    let mut budget = AllocationBudget::new(None);
+    let mut emit = Emit { module: &mut module, budget: &mut budget };
+    let scope = ScopeId::new(0);
+    let table = emit.binding(scope, "table") .unwrap();
+    let mut entries = Vec::new();
+    for index in 0..512 {
+        let value = emit.string(&format!("group{}-{}", index % 16, "repeated-payload".repeat(3))).unwrap();
+        let key = emit.string(&format!("key{index:04}")).unwrap();
+        entries.push((Property::Computed(key), value));
+    }
+    let literal = emit.node(Expr::Object(entries)).unwrap();
+    emit.module.regions[0].statements.push(Statement::Let { binding: table, value: Some(literal) });
+    emit.module.immutable_data.push(table);
+    let probe = emit.binding(scope, "probe").unwrap();
+    let (body, scope) = emit.region(scope).unwrap();
+    let key = emit.binding(scope, "key").unwrap();
+    let object = emit.read(table).unwrap();
+    let key = emit.read(key).unwrap();
+    let lookup = emit.node(Expr::Member { object, property: Property::Computed(key) }).unwrap();
+    emit.module.regions[body.index()].statements.push(Statement::Return(Some(lookup)));
+    let Expr::Binding(key) = emit.module.expressions[key.index()] else { unreachable!() };
+    let function = emit.function(vec![key], body).unwrap();
+    emit.module.regions[0].statements.push(Statement::Function { binding: probe, function });
+    emit.module.exports.push(Export { binding: probe, name: "probe".into() });
+    let mut seeded = module.clone();
+    seeded.encode_tables_with_laziness(&ChoiceMap::SEEDS, true, &mut budget).unwrap();
+    let site = seeded.choice_sites[0].clone();
+    for alternative in &site.alternatives {
+        let mut formed = module.clone();
+        formed.encode_tables_with_laziness(&ChoiceMap::SEEDS.with(site.key, alternative.alternative), true, &mut budget).unwrap();
+        formed.verify().unwrap();
+        let code = formed.render(PrintPolicy::default()).unwrap();
+        let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));for(let i=0;i<512;i++){{const expected='group'+i%16+'-'+'repeated-payload'.repeat(3);if(m.probe('key'+String(i).padStart(4,'0'))!==expected)throw Error(i)}}if(m.probe('missing')!==undefined)throw Error('missing');console.log('ok');", serde_json::to_string(&code).unwrap());
+        let output = Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+        assert!(output.status.success(), "{}: {}\n{code}", alternative.name, String::from_utf8_lossy(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap(), "ok\n");
+        if let Some(directory) = std::env::var_os("Q4_DATA_ARTIFACTS") {
+            std::fs::create_dir_all(&directory).unwrap();
+            std::fs::write(std::path::Path::new(&directory).join(format!("{}-{}.mjs", alternative.alternative.0, alternative.name)), code).unwrap();
+        }
+    }
+}

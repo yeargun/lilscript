@@ -1,0 +1,1907 @@
+{
+  "scope": "512-entry generic immutable dictionary, seven forced legal forms. Fresh Node processes; 5 alternating pairs per representation, 3 baseline/baseline controls. Source-generated target forms use the production decoder and printer. Not a default-policy winner or fleet claim.",
+  "engine": {
+    "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+    "sha256": "34bc6627675906f8431892630b5e91fc4cc9f1e03ce15e9716025aa551e5c823"
+  },
+  "runner_sha256": "4549d727589d91b06b37f66595ac81acf5256e996ab52772b6629b17e6b0e129",
+  "worker_sha256": "0199853fc114be4c1d62b373ad068069c642b9c3d42bd03002eb68d8876cbb4b",
+  "codec_sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "artifacts": {
+    "0-literal.mjs": {
+      "sha256": "62d0618c78d4d4d1d8a5041f4c8e505e17a82ac8b440bc04131d2e064a1f7376",
+      "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/0-literal.mjs",
+      "sizes": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/0-literal.mjs",
+        "raw": 34037,
+        "gzip9": 1728,
+        "brotli11": 958
+      }
+    },
+    "1-front-coded.mjs": {
+      "sha256": "e1546b1bb35c0482a2dd470b4163c32a24a80726082da1971dfb8c77ec2eaa80",
+      "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/1-front-coded.mjs",
+      "sizes": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/1-front-coded.mjs",
+        "raw": 30655,
+        "gzip9": 487,
+        "brotli11": 272
+      }
+    },
+    "2-columns.mjs": {
+      "sha256": "371847febcf1435b6da0e36cc6302329fe27a7bb613498e7ca1fdce9affe3bdd",
+      "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/2-columns.mjs",
+      "sizes": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/2-columns.mjs",
+        "raw": 33119,
+        "gzip9": 1372,
+        "brotli11": 538
+      }
+    },
+    "3-dictionary.mjs": {
+      "sha256": "8aa0bf92a281d1877f37e531c5cbf844c843d2ded5c29572edd5634da6a5954f",
+      "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/3-dictionary.mjs",
+      "sizes": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/3-dictionary.mjs",
+        "raw": 6380,
+        "gzip9": 1221,
+        "brotli11": 565
+      }
+    },
+    "5-lazy-front-coded.mjs": {
+      "sha256": "be12da9b17970ab3dba2f4f0de2d9629964e6c24701f9f34d9103b4399650111",
+      "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/5-lazy-front-coded.mjs",
+      "sizes": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/5-lazy-front-coded.mjs",
+        "raw": 30691,
+        "gzip9": 508,
+        "brotli11": 286
+      }
+    },
+    "6-lazy-columns.mjs": {
+      "sha256": "81213d2c49423ce053a1f682acc58330fdfcfd37201c4fa72cbbaa6615566460",
+      "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/6-lazy-columns.mjs",
+      "sizes": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/6-lazy-columns.mjs",
+        "raw": 33155,
+        "gzip9": 1403,
+        "brotli11": 579
+      }
+    },
+    "7-lazy-dictionary.mjs": {
+      "sha256": "ed74a5b6c8dd80c0aa80e3c4fb15d502af439033c356a31035dbd6cfc4730708",
+      "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/7-lazy-dictionary.mjs",
+      "sizes": {
+        "path": "/home/azureuser/lilscript-work/q4-data-qualification/forms/7-lazy-dictionary.mjs",
+        "raw": 6416,
+        "gzip9": 1251,
+        "brotli11": 589
+      }
+    }
+  },
+  "controls": [
+    [
+      {
+        "engine": "v20.19.0",
+        "iterations": 262144,
+        "oracle": 14516224,
+        "metrics": {
+          "startup_wall_ns": 1326345,
+          "startup_cpu_us": 1340,
+          "first_access_wall_ns": 39204,
+          "first_access_cpu_us": 36,
+          "steady_wall_ns": 7261666,
+          "steady_cpu_us": 7262,
+          "unused_heap_bytes": 72264,
+          "first_access_heap_bytes": 736,
+          "rss_bytes": 48799744
+        }
+      },
+      {
+        "engine": "v20.19.0",
+        "iterations": 262144,
+        "oracle": 14516224,
+        "metrics": {
+          "startup_wall_ns": 1289897,
+          "startup_cpu_us": 1502,
+          "first_access_wall_ns": 38042,
+          "first_access_cpu_us": 35,
+          "steady_wall_ns": 7066790,
+          "steady_cpu_us": 7066,
+          "unused_heap_bytes": 72264,
+          "first_access_heap_bytes": 736,
+          "rss_bytes": 48525312
+        }
+      }
+    ],
+    [
+      {
+        "engine": "v20.19.0",
+        "iterations": 262144,
+        "oracle": 14516224,
+        "metrics": {
+          "startup_wall_ns": 1311838,
+          "startup_cpu_us": 1522,
+          "first_access_wall_ns": 34455,
+          "first_access_cpu_us": 31,
+          "steady_wall_ns": 6995356,
+          "steady_cpu_us": 6995,
+          "unused_heap_bytes": 72264,
+          "first_access_heap_bytes": 736,
+          "rss_bytes": 48713728
+        }
+      },
+      {
+        "engine": "v20.19.0",
+        "iterations": 262144,
+        "oracle": 14516224,
+        "metrics": {
+          "startup_wall_ns": 1310806,
+          "startup_cpu_us": 1321,
+          "first_access_wall_ns": 39144,
+          "first_access_cpu_us": 36,
+          "steady_wall_ns": 7356413,
+          "steady_cpu_us": 7358,
+          "unused_heap_bytes": 72264,
+          "first_access_heap_bytes": 736,
+          "rss_bytes": 48844800
+        }
+      }
+    ],
+    [
+      {
+        "engine": "v20.19.0",
+        "iterations": 262144,
+        "oracle": 14516224,
+        "metrics": {
+          "startup_wall_ns": 1367913,
+          "startup_cpu_us": 1375,
+          "first_access_wall_ns": 38692,
+          "first_access_cpu_us": 36,
+          "steady_wall_ns": 7062022,
+          "steady_cpu_us": 7063,
+          "unused_heap_bytes": 72264,
+          "first_access_heap_bytes": 736,
+          "rss_bytes": 49061888
+        }
+      },
+      {
+        "engine": "v20.19.0",
+        "iterations": 262144,
+        "oracle": 14516224,
+        "metrics": {
+          "startup_wall_ns": 1323700,
+          "startup_cpu_us": 1792,
+          "first_access_wall_ns": 32641,
+          "first_access_cpu_us": 30,
+          "steady_wall_ns": 7160096,
+          "steady_cpu_us": 7160,
+          "unused_heap_bytes": 72264,
+          "first_access_heap_bytes": 736,
+          "rss_bytes": 48787456
+        }
+      }
+    ]
+  ],
+  "pairs": {
+    "1-front-coded.mjs": [
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1289947,
+            "startup_cpu_us": 1289,
+            "first_access_wall_ns": 39033,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 7300448,
+            "steady_cpu_us": 7301,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48975872
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1446831,
+            "startup_cpu_us": 1761,
+            "first_access_wall_ns": 38482,
+            "first_access_cpu_us": 35,
+            "steady_wall_ns": 2417841,
+            "steady_cpu_us": 2417,
+            "unused_heap_bytes": 115912,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1419589,
+            "startup_cpu_us": 1566,
+            "first_access_wall_ns": 39534,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 2389557,
+            "steady_cpu_us": 2390,
+            "unused_heap_bytes": 115912,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48840704
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1392669,
+            "startup_cpu_us": 1357,
+            "first_access_wall_ns": 41077,
+            "first_access_cpu_us": 37,
+            "steady_wall_ns": 7890384,
+            "steady_cpu_us": 7890,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1336504,
+            "startup_cpu_us": 1342,
+            "first_access_wall_ns": 39273,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 7146180,
+            "steady_cpu_us": 7148,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1445128,
+            "startup_cpu_us": 1889,
+            "first_access_wall_ns": 37631,
+            "first_access_cpu_us": 34,
+            "steady_wall_ns": 2516685,
+            "steady_cpu_us": 2516,
+            "unused_heap_bytes": 115912,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48807936
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1439788,
+            "startup_cpu_us": 1739,
+            "first_access_wall_ns": 43001,
+            "first_access_cpu_us": 40,
+            "steady_wall_ns": 2490246,
+            "steady_cpu_us": 2490,
+            "unused_heap_bytes": 115912,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1474944,
+            "startup_cpu_us": 1963,
+            "first_access_wall_ns": 34735,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7759749,
+            "steady_cpu_us": 7751,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48705536
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1344820,
+            "startup_cpu_us": 1364,
+            "first_access_wall_ns": 39104,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 7407239,
+            "steady_cpu_us": 7407,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48676864
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1505020,
+            "startup_cpu_us": 1508,
+            "first_access_wall_ns": 37791,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 2615560,
+            "steady_cpu_us": 2615,
+            "unused_heap_bytes": 115912,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48717824
+          }
+        }
+      }
+    ],
+    "2-columns.mjs": [
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1250503,
+            "startup_cpu_us": 1476,
+            "first_access_wall_ns": 33333,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7070769,
+            "steady_cpu_us": 7072,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48054272
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1365882,
+            "startup_cpu_us": 1623,
+            "first_access_wall_ns": 38171,
+            "first_access_cpu_us": 34,
+            "steady_wall_ns": 2697735,
+            "steady_cpu_us": 2697,
+            "unused_heap_bytes": 120184,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48852992
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1305807,
+            "startup_cpu_us": 1530,
+            "first_access_wall_ns": 38282,
+            "first_access_cpu_us": 35,
+            "steady_wall_ns": 2354862,
+            "steady_cpu_us": 2354,
+            "unused_heap_bytes": 120184,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1304805,
+            "startup_cpu_us": 1745,
+            "first_access_wall_ns": 33502,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7051422,
+            "steady_cpu_us": 7052,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48787456
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1321246,
+            "startup_cpu_us": 1550,
+            "first_access_wall_ns": 33283,
+            "first_access_cpu_us": 30,
+            "steady_wall_ns": 7049088,
+            "steady_cpu_us": 7049,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 49070080
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1339840,
+            "startup_cpu_us": 1800,
+            "first_access_wall_ns": 32621,
+            "first_access_cpu_us": 30,
+            "steady_wall_ns": 2395699,
+            "steady_cpu_us": 2396,
+            "unused_heap_bytes": 120184,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1289286,
+            "startup_cpu_us": 1292,
+            "first_access_wall_ns": 48841,
+            "first_access_cpu_us": 42,
+            "steady_wall_ns": 2472022,
+            "steady_cpu_us": 2472,
+            "unused_heap_bytes": 120328,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1366130,
+            "startup_cpu_us": 1378,
+            "first_access_wall_ns": 39534,
+            "first_access_cpu_us": 37,
+            "steady_wall_ns": 7238773,
+            "steady_cpu_us": 7239,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48852992
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1375607,
+            "startup_cpu_us": 1606,
+            "first_access_wall_ns": 33633,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7105874,
+            "steady_cpu_us": 7106,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48807936
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1336094,
+            "startup_cpu_us": 1779,
+            "first_access_wall_ns": 32781,
+            "first_access_cpu_us": 30,
+            "steady_wall_ns": 2627282,
+            "steady_cpu_us": 2627,
+            "unused_heap_bytes": 120184,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48840704
+          }
+        }
+      }
+    ],
+    "3-dictionary.mjs": [
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1320464,
+            "startup_cpu_us": 1778,
+            "first_access_wall_ns": 52478,
+            "first_access_cpu_us": 37,
+            "steady_wall_ns": 7265594,
+            "steady_cpu_us": 7266,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48713728
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1591572,
+            "startup_cpu_us": 2201,
+            "first_access_wall_ns": 32992,
+            "first_access_cpu_us": 30,
+            "steady_wall_ns": 2692114,
+            "steady_cpu_us": 2692,
+            "unused_heap_bytes": 54464,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48545792
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1188206,
+            "startup_cpu_us": 1485,
+            "first_access_wall_ns": 33363,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 2549116,
+            "steady_cpu_us": 2550,
+            "unused_heap_bytes": 54464,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48676864
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1328950,
+            "startup_cpu_us": 1581,
+            "first_access_wall_ns": 34414,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7032207,
+            "steady_cpu_us": 7033,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48676864
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1273286,
+            "startup_cpu_us": 1753,
+            "first_access_wall_ns": 33933,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7075788,
+            "steady_cpu_us": 7076,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48840704
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1208604,
+            "startup_cpu_us": 1215,
+            "first_access_wall_ns": 37810,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 2541241,
+            "steady_cpu_us": 2542,
+            "unused_heap_bytes": 54464,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48668672
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1295498,
+            "startup_cpu_us": 1306,
+            "first_access_wall_ns": 39433,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 2603678,
+            "steady_cpu_us": 2605,
+            "unused_heap_bytes": 54464,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48656384
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1309324,
+            "startup_cpu_us": 1328,
+            "first_access_wall_ns": 40606,
+            "first_access_cpu_us": 38,
+            "steady_wall_ns": 7015004,
+            "steady_cpu_us": 7015,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48807936
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1300497,
+            "startup_cpu_us": 1324,
+            "first_access_wall_ns": 38703,
+            "first_access_cpu_us": 305,
+            "steady_wall_ns": 7234706,
+            "steady_cpu_us": 7237,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48807936
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1311577,
+            "startup_cpu_us": 1325,
+            "first_access_wall_ns": 38432,
+            "first_access_cpu_us": 35,
+            "steady_wall_ns": 2676946,
+            "steady_cpu_us": 2678,
+            "unused_heap_bytes": 54464,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48656384
+          }
+        }
+      }
+    ],
+    "5-lazy-front-coded.mjs": [
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1355289,
+            "startup_cpu_us": 1320,
+            "first_access_wall_ns": 40095,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 7148194,
+            "steady_cpu_us": 7148,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48713728
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 873858,
+            "startup_cpu_us": 1761,
+            "first_access_wall_ns": 607448,
+            "first_access_cpu_us": 1385,
+            "steady_wall_ns": 2704988,
+            "steady_cpu_us": 2705,
+            "unused_heap_bytes": 31256,
+            "first_access_heap_bytes": 85960,
+            "rss_bytes": 48984064
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 903363,
+            "startup_cpu_us": 874,
+            "first_access_wall_ns": 628829,
+            "first_access_cpu_us": 1200,
+            "steady_wall_ns": 2726780,
+            "steady_cpu_us": 2727,
+            "unused_heap_bytes": 31256,
+            "first_access_heap_bytes": 85960,
+            "rss_bytes": 49180672
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1391137,
+            "startup_cpu_us": 1665,
+            "first_access_wall_ns": 32211,
+            "first_access_cpu_us": 29,
+            "steady_wall_ns": 7094874,
+            "steady_cpu_us": 7096,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48836608
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1341063,
+            "startup_cpu_us": 1356,
+            "first_access_wall_ns": 33854,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7356404,
+            "steady_cpu_us": 7356,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48533504
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 892242,
+            "startup_cpu_us": 909,
+            "first_access_wall_ns": 627606,
+            "first_access_cpu_us": 1206,
+            "steady_wall_ns": 2657800,
+            "steady_cpu_us": 2659,
+            "unused_heap_bytes": 31256,
+            "first_access_heap_bytes": 85960,
+            "rss_bytes": 49369088
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 946173,
+            "startup_cpu_us": 1400,
+            "first_access_wall_ns": 605744,
+            "first_access_cpu_us": 1306,
+            "steady_wall_ns": 2680272,
+            "steady_cpu_us": 2680,
+            "unused_heap_bytes": 31256,
+            "first_access_heap_bytes": 85960,
+            "rss_bytes": 49164288
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1297581,
+            "startup_cpu_us": 1552,
+            "first_access_wall_ns": 33963,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7556809,
+            "steady_cpu_us": 7557,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48807936
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1324391,
+            "startup_cpu_us": 1336,
+            "first_access_wall_ns": 40516,
+            "first_access_cpu_us": 37,
+            "steady_wall_ns": 7408952,
+            "steady_cpu_us": 7410,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48975872
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 900287,
+            "startup_cpu_us": 1371,
+            "first_access_wall_ns": 598371,
+            "first_access_cpu_us": 1272,
+            "steady_wall_ns": 2807410,
+            "steady_cpu_us": 2808,
+            "unused_heap_bytes": 31256,
+            "first_access_heap_bytes": 85960,
+            "rss_bytes": 49168384
+          }
+        }
+      }
+    ],
+    "6-lazy-columns.mjs": [
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1388491,
+            "startup_cpu_us": 1394,
+            "first_access_wall_ns": 40155,
+            "first_access_cpu_us": 37,
+            "steady_wall_ns": 7286803,
+            "steady_cpu_us": 7288,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48918528
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 926977,
+            "startup_cpu_us": 926,
+            "first_access_wall_ns": 457959,
+            "first_access_cpu_us": 1077,
+            "steady_wall_ns": 2796580,
+            "steady_cpu_us": 2797,
+            "unused_heap_bytes": 33696,
+            "first_access_heap_bytes": 87800,
+            "rss_bytes": 49201152
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 944309,
+            "startup_cpu_us": 938,
+            "first_access_wall_ns": 477184,
+            "first_access_cpu_us": 1108,
+            "steady_wall_ns": 2881990,
+            "steady_cpu_us": 2887,
+            "unused_heap_bytes": 33696,
+            "first_access_heap_bytes": 87800,
+            "rss_bytes": 49201152
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1330323,
+            "startup_cpu_us": 1759,
+            "first_access_wall_ns": 34044,
+            "first_access_cpu_us": 32,
+            "steady_wall_ns": 7063355,
+            "steady_cpu_us": 7063,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48807936
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1296098,
+            "startup_cpu_us": 1497,
+            "first_access_wall_ns": 39775,
+            "first_access_cpu_us": 37,
+            "steady_wall_ns": 7422668,
+            "steady_cpu_us": 7422,
+            "unused_heap_bytes": 72336,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48807936
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 998010,
+            "startup_cpu_us": 1595,
+            "first_access_wall_ns": 490619,
+            "first_access_cpu_us": 1200,
+            "steady_wall_ns": 2794927,
+            "steady_cpu_us": 2796,
+            "unused_heap_bytes": 33696,
+            "first_access_heap_bytes": 87800,
+            "rss_bytes": 49168384
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 963675,
+            "startup_cpu_us": 965,
+            "first_access_wall_ns": 462627,
+            "first_access_cpu_us": 947,
+            "steady_wall_ns": 2886809,
+            "steady_cpu_us": 2888,
+            "unused_heap_bytes": 33696,
+            "first_access_heap_bytes": 87800,
+            "rss_bytes": 49037312
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1297010,
+            "startup_cpu_us": 1422,
+            "first_access_wall_ns": 33132,
+            "first_access_cpu_us": 30,
+            "steady_wall_ns": 7153494,
+            "steady_cpu_us": 7152,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48840704
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1303522,
+            "startup_cpu_us": 1724,
+            "first_access_wall_ns": 33443,
+            "first_access_cpu_us": 31,
+            "steady_wall_ns": 7316139,
+            "steady_cpu_us": 7317,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 49049600
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 896700,
+            "startup_cpu_us": 1122,
+            "first_access_wall_ns": 479258,
+            "first_access_cpu_us": 1093,
+            "steady_wall_ns": 2857113,
+            "steady_cpu_us": 2857,
+            "unused_heap_bytes": 33696,
+            "first_access_heap_bytes": 87800,
+            "rss_bytes": 49102848
+          }
+        }
+      }
+    ],
+    "7-lazy-dictionary.mjs": [
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1295036,
+            "startup_cpu_us": 1728,
+            "first_access_wall_ns": 32421,
+            "first_access_cpu_us": 30,
+            "steady_wall_ns": 7175996,
+            "steady_cpu_us": 7176,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48672768
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 862156,
+            "startup_cpu_us": 879,
+            "first_access_wall_ns": 475541,
+            "first_access_cpu_us": 1292,
+            "steady_wall_ns": 2976617,
+            "steady_cpu_us": 2977,
+            "unused_heap_bytes": 6960,
+            "first_access_heap_bytes": 48784,
+            "rss_bytes": 49070080
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 877845,
+            "startup_cpu_us": 881,
+            "first_access_wall_ns": 411521,
+            "first_access_cpu_us": 863,
+            "steady_wall_ns": 2881829,
+            "steady_cpu_us": 2881,
+            "unused_heap_bytes": 6960,
+            "first_access_heap_bytes": 48784,
+            "rss_bytes": 48975872
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1437513,
+            "startup_cpu_us": 1444,
+            "first_access_wall_ns": 34465,
+            "first_access_cpu_us": 32,
+            "steady_wall_ns": 7140740,
+            "steady_cpu_us": 7140,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1320544,
+            "startup_cpu_us": 1330,
+            "first_access_wall_ns": 39294,
+            "first_access_cpu_us": 36,
+            "steady_wall_ns": 7059608,
+            "steady_cpu_us": 7055,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48844800
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 866704,
+            "startup_cpu_us": 841,
+            "first_access_wall_ns": 437279,
+            "first_access_cpu_us": 1199,
+            "steady_wall_ns": 2943365,
+            "steady_cpu_us": 2943,
+            "unused_heap_bytes": 6960,
+            "first_access_heap_bytes": 48784,
+            "rss_bytes": 49299456
+          }
+        }
+      },
+      {
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 927097,
+            "startup_cpu_us": 1175,
+            "first_access_wall_ns": 445244,
+            "first_access_cpu_us": 1317,
+            "steady_wall_ns": 2979052,
+            "steady_cpu_us": 2979,
+            "unused_heap_bytes": 6960,
+            "first_access_heap_bytes": 48784,
+            "rss_bytes": 49098752
+          }
+        },
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1288855,
+            "startup_cpu_us": 1744,
+            "first_access_wall_ns": 33613,
+            "first_access_cpu_us": 32,
+            "steady_wall_ns": 7289759,
+            "steady_cpu_us": 7291,
+            "unused_heap_bytes": 72336,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48713728
+          }
+        }
+      },
+      {
+        "reference": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 1319323,
+            "startup_cpu_us": 1327,
+            "first_access_wall_ns": 39374,
+            "first_access_cpu_us": 37,
+            "steady_wall_ns": 7047916,
+            "steady_cpu_us": 7049,
+            "unused_heap_bytes": 72264,
+            "first_access_heap_bytes": 736,
+            "rss_bytes": 48836608
+          }
+        },
+        "candidate": {
+          "engine": "v20.19.0",
+          "iterations": 262144,
+          "oracle": 14516224,
+          "metrics": {
+            "startup_wall_ns": 895027,
+            "startup_cpu_us": 902,
+            "first_access_wall_ns": 499165,
+            "first_access_cpu_us": 1239,
+            "steady_wall_ns": 2865049,
+            "steady_cpu_us": 2866,
+            "unused_heap_bytes": 6960,
+            "first_access_heap_bytes": 48784,
+            "rss_bytes": 49201152
+          }
+        }
+      }
+    ]
+  },
+  "complete": true,
+  "summary": {
+    "1-front-coded.mjs": {
+      "startup_wall_ns": {
+        "interval": {
+          "median": 1.081274728695163,
+          "low": 0.97616451878851,
+          "high": 1.1216205006872375,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.032321499978434254,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "startup_cpu_us": {
+        "interval": {
+          "median": 1.1540162122328665,
+          "low": 0.8858889454915945,
+          "high": 1.4076005961251863,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.30327272727272736,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "first_access_wall_ns": {
+        "interval": {
+          "median": 0.9664228723404256,
+          "low": 0.9581901051613068,
+          "high": 1.2379732258528862,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.1563889176057066,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "steady_wall_ns": {
+        "interval": {
+          "median": 0.33119077075817815,
+          "low": 0.3028441961760036,
+          "high": 0.35310862792465586,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.051613813507132456,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "steady_cpu_us": {
+        "interval": {
+          "median": 0.33105054102177783,
+          "low": 0.302915082382763,
+          "high": 0.35304441744295934,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.0518942101501072,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "rss_bytes": {
+        "interval": {
+          "median": 0.999916142557652,
+          "low": 0.9973237434138998,
+          "high": 1.0028593053569927,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.005623636058418646,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "unused_heap_bytes": {
+        "reference": {
+          "median": 72264,
+          "min": 72264,
+          "max": 72264,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 115912,
+          "min": 115912,
+          "max": 115912,
+          "stdev": 0.0
+        }
+      },
+      "first_access_heap_bytes": {
+        "reference": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        }
+      }
+    },
+    "2-columns.mjs": {
+      "startup_wall_ns": {
+        "interval": {
+          "median": 1.0007679308402404,
+          "low": 0.9437505947457416,
+          "high": 1.0922660721325739,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.032321499978434254,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "startup_cpu_us": {
+        "interval": {
+          "median": 1.0995934959349594,
+          "low": 0.8767908309455588,
+          "high": 1.1612903225806452,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.30327272727272736,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "first_access_wall_ns": {
+        "interval": {
+          "median": 1.1426780490716972,
+          "low": 0.9746677370439747,
+          "high": 1.2354176152172813,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.1563889176057066,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "steady_wall_ns": {
+        "interval": {
+          "median": 0.3414973780777488,
+          "low": 0.3339556191644749,
+          "high": 0.3815334654547476,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.051613813507132456,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "steady_cpu_us": {
+        "interval": {
+          "median": 0.34148363033568174,
+          "low": 0.33380601247872943,
+          "high": 0.3813631221719457,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.0518942101501072,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "rss_bytes": {
+        "interval": {
+          "median": 1.0006713662302786,
+          "low": 0.9954090150250418,
+          "high": 1.0166212069553358,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.005623636058418646,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "unused_heap_bytes": {
+        "reference": {
+          "median": 72264,
+          "min": 72264,
+          "max": 72264,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 120184,
+          "min": 120184,
+          "max": 120328,
+          "stdev": 64.39875775199394
+        }
+      },
+      "first_access_heap_bytes": {
+        "reference": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        }
+      }
+    },
+    "3-dictionary.mjs": {
+      "startup_wall_ns": {
+        "interval": {
+          "median": 0.9894403524261375,
+          "low": 0.8940938334775574,
+          "high": 1.2053126779677448,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.032321499978434254,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "startup_cpu_us": {
+        "interval": {
+          "median": 0.983433734939759,
+          "low": 0.6930975470621791,
+          "high": 1.2379077615298089,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.30327272727272736,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "first_access_wall_ns": {
+        "interval": {
+          "median": 0.9711126434517067,
+          "low": 0.628682495521933,
+          "high": 1.114254560457372,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.1563889176057066,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "steady_wall_ns": {
+        "interval": {
+          "median": 0.3700144829658593,
+          "low": 0.35914600607027797,
+          "high": 0.3711584483772212,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.051613813507132456,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "steady_cpu_us": {
+        "interval": {
+          "median": 0.3700428354290452,
+          "low": 0.3592425098925947,
+          "high": 0.3713471133285816,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.0518942101501072,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "rss_bytes": {
+        "interval": {
+          "median": 0.9968949311849614,
+          "low": 0.9964776920496478,
+          "high": 1.0,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.005623636058418646,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "unused_heap_bytes": {
+        "reference": {
+          "median": 72264,
+          "min": 72264,
+          "max": 72264,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 54464,
+          "min": 54464,
+          "max": 54464,
+          "stdev": 0.0
+        }
+      },
+      "first_access_heap_bytes": {
+        "reference": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        }
+      }
+    },
+    "5-lazy-front-coded.mjs": {
+      "startup_wall_ns": {
+        "interval": {
+          "median": 0.6653244478447321,
+          "low": 0.6447761326182091,
+          "high": 0.7291822244622879,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.032321499978434254,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "startup_cpu_us": {
+        "interval": {
+          "median": 0.9020618556701031,
+          "low": 0.5249249249249249,
+          "high": 1.334090909090909,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.30327272727272736,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "first_access_wall_ns": {
+        "interval": {
+          "median": 17.835409121691253,
+          "low": 14.76875802152236,
+          "high": 19.52218186333861,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.1563889176057066,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "steady_wall_ns": {
+        "interval": {
+          "median": 0.378415583012996,
+          "low": 0.35468304147954516,
+          "high": 0.38433099728057185,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.051613813507132456,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "steady_cpu_us": {
+        "interval": {
+          "median": 0.37842753217683267,
+          "low": 0.3546380838957258,
+          "high": 0.3843010146561443,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.0518942101501072,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "rss_bytes": {
+        "interval": {
+          "median": 1.0070452067432694,
+          "low": 1.0039307518608347,
+          "high": 1.017216642754663,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.005623636058418646,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "unused_heap_bytes": {
+        "reference": {
+          "median": 72264,
+          "min": 72264,
+          "max": 72264,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 31256,
+          "min": 31256,
+          "max": 31256,
+          "stdev": 0.0
+        }
+      },
+      "first_access_heap_bytes": {
+        "reference": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 85960,
+          "min": 85960,
+          "max": 85960,
+          "stdev": 0.0
+        }
+      }
+    },
+    "6-lazy-columns.mjs": {
+      "startup_wall_ns": {
+        "interval": {
+          "median": 0.7098343785682124,
+          "low": 0.6676146982587572,
+          "high": 0.7700112182875061,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.032321499978434254,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "startup_cpu_us": {
+        "interval": {
+          "median": 0.6642754662840746,
+          "low": 0.5332575326890279,
+          "high": 1.0654642618570473,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.30327272727272736,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "first_access_wall_ns": {
+        "interval": {
+          "median": 13.963147410358566,
+          "low": 11.404781471796788,
+          "high": 14.330592351164668,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.1563889176057066,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "steady_wall_ns": {
+        "interval": {
+          "median": 0.39052196793964683,
+          "low": 0.3765394060464512,
+          "high": 0.40801998483723384,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.051613813507132456,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "steady_cpu_us": {
+        "interval": {
+          "median": 0.3904605712723794,
+          "low": 0.3767178658043654,
+          "high": 0.408749823021379,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.0518942101501072,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "rss_bytes": {
+        "interval": {
+          "median": 1.0057774428535544,
+          "low": 1.0010855949895616,
+          "high": 1.0080563947633434,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.005623636058418646,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "unused_heap_bytes": {
+        "reference": {
+          "median": 72264,
+          "min": 72264,
+          "max": 72336,
+          "stdev": 32.19937887599697
+        },
+        "candidate": {
+          "median": 33696,
+          "min": 33696,
+          "max": 33696,
+          "stdev": 0.0
+        }
+      },
+      "first_access_heap_bytes": {
+        "reference": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 87800,
+          "min": 87800,
+          "max": 87800,
+          "stdev": 0.0
+        }
+      }
+    },
+    "7-lazy-dictionary.mjs": {
+      "startup_wall_ns": {
+        "interval": {
+          "median": 0.6657390219268036,
+          "low": 0.6106692600345179,
+          "high": 0.7193183096624524,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.032321499978434254,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "startup_cpu_us": {
+        "interval": {
+          "median": 0.6323308270676692,
+          "low": 0.5086805555555556,
+          "high": 0.6797287113790504,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.30327272727272736,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "first_access_wall_ns": {
+        "interval": {
+          "median": 12.67752831817951,
+          "low": 11.128391102967374,
+          "high": 14.667684525461892,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.1563889176057066,
+        "tolerance": 0.1,
+        "verdict": "inconclusive"
+      },
+      "steady_wall_ns": {
+        "interval": {
+          "median": 0.40866261833896017,
+          "low": 0.40357567983150205,
+          "high": 0.4169303734711616,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.051613813507132456,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "steady_cpu_us": {
+        "interval": {
+          "median": 0.40858592785626113,
+          "low": 0.4035014005602241,
+          "high": 0.4171509567682495,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.0518942101501072,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "rss_bytes": {
+        "interval": {
+          "median": 1.0079038089632557,
+          "low": 1.0026834381551362,
+          "high": 1.0093081761006288,
+          "confidence": 0.95,
+          "pairs": 5,
+          "bootstrap_draws": 2000,
+          "seed": 0
+        },
+        "control_spread": 0.005623636058418646,
+        "tolerance": 0.1,
+        "verdict": "within-declared-limit"
+      },
+      "unused_heap_bytes": {
+        "reference": {
+          "median": 72264,
+          "min": 72264,
+          "max": 72336,
+          "stdev": 32.19937887599697
+        },
+        "candidate": {
+          "median": 6960,
+          "min": 6960,
+          "max": 6960,
+          "stdev": 0.0
+        }
+      },
+      "first_access_heap_bytes": {
+        "reference": {
+          "median": 736,
+          "min": 736,
+          "max": 736,
+          "stdev": 0.0
+        },
+        "candidate": {
+          "median": 48784,
+          "min": 48784,
+          "max": 48784,
+          "stdev": 0.0
+        }
+      }
+    }
+  }
+}

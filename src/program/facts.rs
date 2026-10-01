@@ -881,6 +881,7 @@ pub(super) struct Work<'ledger> {
     truncated: bool,
 }
 impl<'ledger> Work<'ledger> {
+    pub(super) fn used(&self) -> u64 { self.used }
     pub(super) fn truncated(&self) -> bool {
         self.truncated
     }

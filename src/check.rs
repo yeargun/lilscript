@@ -1038,6 +1038,9 @@ pub struct Symbol<'src> {
 /// every module that declares it.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Attributes {
+    pub define: bool,
+    /// Required compile-time data/function contract, never an optimization hint.
+    pub constant: bool,
     pub pure: bool,
     pub debug: bool,
 }
@@ -3448,6 +3451,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     };
                     let id = self.declare(function.name, ty)?;
                     self.declarations.symbols[id.0 as usize].attributes = Attributes {
+                        define: false,
+                        constant: function.declared_const,
                         pure: function.declared_pure,
                         debug: function.declared_debug,
                     };
@@ -3474,6 +3479,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             .contains_key(extern_decl.name.name);
                     let symbol = self.declare_foreign(extern_decl.name, ty, true)?;
                     let attributes = Attributes {
+                        define: false,
+                        constant: false,
                         pure: extern_decl.declared_pure,
                         debug: extern_decl.declared_debug,
                     };
@@ -4439,6 +4446,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         &mut self,
         decl: &'ast VarDecl<'ast, 'src>,
     ) -> Result<(), AdmittedCheckError> {
+        if decl.declared_define && decl.ty.is_auto() { return Err(AdmittedCheckError::new(decl.span, "`define` requires an explicit scalar type")); }
+        if decl.declared_const && decl.initializer.is_none() {
+            return Err(AdmittedCheckError::new(decl.span, "a `const` declaration requires an initializer"));
+        }
         // A local may be declared without a value: every read must then be
         // definitely assigned (R3). A module's own bindings keep their
         // initializers until the initialization order proves reads (M6.5).
@@ -4470,7 +4481,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ));
             }
             let ty = inferred;
-            self.declare(decl.name, ty)?;
+            let id = self.declare(decl.name, ty)?;
+            self.declarations.symbols[id.0 as usize].attributes.define = decl.declared_define;
+            self.declarations.symbols[id.0 as usize].attributes.constant = decl.declared_const;
             return Ok(());
         }
 
@@ -4481,6 +4494,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         } else {
             self.declare(decl.name, binding_ty)?
         };
+        self.declarations.symbols[id.0 as usize].attributes.define = decl.declared_define;
+        self.declarations.symbols[id.0 as usize].attributes.constant = decl.declared_const;
+        if decl.declared_define && !matches!(declared, Type::Int | Type::Float | Type::Bool | Type::String) {
+            return Err(AdmittedCheckError::new(decl.span, "`define` requires int, float, bool or string"));
+        }
         let previous = self.initializing;
         self.initializing = Some((id, self.callable_depth));
         self.initializing_symbols.push(id);
@@ -6096,6 +6114,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ident.span,
                         "mutable-reference arguments require lexical storage, not a foreign binding",
                     ));
+                }
+                if self.declarations.symbols[id.0 as usize].attributes.constant {
+                    return Err(AdmittedCheckError::new(ident.span, "cannot assign or pass a mutable reference to a `const` binding"));
                 }
                 self.declarations.assigned_symbols.insert(id);
                 self.record_read_initialization(expression.id, id);

@@ -59,7 +59,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M8.2 | [G3](plan.md#g3), complete | Logical normalization remains a classified, decreasing target rule with capture/HTMLDDA guards; printer recognizers moved to proved formation |
 | M8.3 | [G3](plan.md#g3), complete | Loop, statement, compound, quote and edition-gated modern forms have stable sites and prepared printer forms |
 | M8.4 | [D2](plan.md#d2) | Host modules |
-| M8.5 | [Q4](plan.md#q4) | Runtime helpers as prelude code |
+| M8.5 | [Q4](plan.md#q4), complete | Typed target helpers with actual module ownership, shared dependencies, demand and full artifact costs; [mechanism decision](q4-acceptance.md) |
 | M8.6 | [D2](plan.md#d2) | Source maps |
 | M8.7 | [C3](plan.md#c3), complete | Source allowlist is empty and enforced; generic policy/provenance replaces library citations |
 | M9.1 | [Q1](plan.md#q1), complete | Shared family/site/alternative contract, per-helper choices, bounded coupled moves and replay admission |
@@ -68,21 +68,21 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M9.5 | [G1](plan.md#g1), complete | Live printed-order allocation, independent local/root frequency, hygienic reuse, full continuations and controlled joint alphabets |
 | M9.6 | [G2](plan.md#g2) | Complete in G2: private generic/observed eligibility, inherited/sibling slot reuse and reflected boundaries |
 | M9.7 | [Q1](plan.md#q1), complete | Record/product/call layouts use the common family contract with typed proof payloads and compatible recipe combinations |
-| M9.8 | [Q4](plan.md#q4) | the rest, after M10.3 |
+| M9.8 | [Q4](plan.md#q4), complete | Exact eager data forms, final pooling/naming and explicit opt-in lazy caching; objective/runtime evidence retained |
 | M9.9 | [S3](plan.md#s3), complete | Constant signatures, alpha-equivalent bodies and opt-in parameterized helpers compete on final bytes |
 | M9.10 | [Q3](plan.md#q3), complete | C3 evidence retained; objective priors and data estimates qualified, unsupported global proxy changes rejected |
 | M9.11 | [G3](plan.md#g3), complete | Effect-free declaration/closure/literal groups, module/anchor barriers and gzip-window evidence |
 | M9.12 | [G3](plan.md#g3), complete | Optional forms and receiver aliases compete through the common exact artifact path |
 | M10.9 | [S4](plan.md#s4), transition [V2](plan.md#v2) | R2 unified absence/pins/defaults/optional keys, checked `a.get(i)` and R11 `charCodeAt` number/NaN implemented on both targets; qualified default adoption remains V2 |
-| M10.11 | [S4](plan.md#s4) | Preserve Y4; `inline for` expansion, resource/replay admission and independent TOML permission implemented; `@pool` consumed through formation/replay; `@choose` complete for documented regional families with hard permissions and stable pinned sites |
+| M10.11 | [S4](plan.md#s4), [Q4](plan.md#q4) | Q4 implements checked scalar defines and TOML overrides, exact policy identity and bounded required evaluation. Preserve Y4; `inline for` expansion, resource/replay admission and independent TOML permission implemented; `@pool` consumed through formation/replay; `@choose` complete for documented regional families with hard permissions and stable pinned sites |
 | M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
 | M10.14 | [S4](plan.md#s4), complete under current contract | Public adapters preserve constructibility; the Y3 amendment remains unapproved |
-| M10.3 | [Q4](plan.md#q4) | Const data (R9) |
-| M10.19 | [Q4](plan.md#q4) | Specialization over const data |
+| M10.3 | [Q4](plan.md#q4), complete; [D2](plan.md#d2), [N2](plan.md#n2) | Checked required evaluation and private immutable graphs; supported JS public data freezes exactly. D2 owns stored public product graphs; N2 static storage/native ABI |
+| M10.19 | [Q4](plan.md#q4), complete | Bounded uniform static-schema parameter forwarding, ordinary aggregate folding and existing per-call choices |
 | M10.1 | [S4](plan.md#s4) | Implemented: declared data/accessor shapes, contextual generic literals, tags, development checks and concrete product storage; unrestricted public presence needs the [separate ABI](s4-public-abi.md), native storage remains N2 |
 | M10.8 | [S4](plan.md#s4) | Implemented: declared-key shape spread, shared-key intersection checks, optional defaults and CreateDataProperty behavior; existing dictionary spread retained |
 | M10.5 | [S4](plan.md#s4) | Implemented: disjoint class/tagged-shape payload matches and sealed virtual/override calls, scopes, defaults/rest and initialization order; erased generic receivers/methods, applied payloads and suspending captured arms also implemented |
-| M10.6 | [S4](plan.md#s4) | Implemented: ABI enums/flags, canonical storage, domain checks and shared/native evaluation (R8); private alternatives Q4, qualified source-default transition D3/V2 |
+| M10.6 | [S4](plan.md#s4) | Implemented: ABI enums/flags, canonical storage, domain checks and shared/native evaluation (R8); canonical scalar/pooling/table alternatives Q4 (arbitrary enum recoding is not claimed), qualified source-default transition D3/V2 |
 | M10.18 | [S4](plan.md#s4), complete under current contract | Value updates and `with` implemented; `ref` remains supported until a separate Y2 amendment |
 | M10.10 | [S4](plan.md#s4) | Implemented: internal constructor visibility, root ABI publication, canonical first-class/dynamic observations and zero-use singleton retirement (R16); delivery production remains D1–D3 |
 | M10.17 | [S4](plan.md#s4) | Host catalog, configurable JS/native providers, generic extern schemas and closed private erased product/container/callback transport implemented; supported public codecs and diagnostics complete; wider ABI proposals remain [explicit](s4-public-abi.md) |
@@ -127,7 +127,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M3.5 | [Q3](plan.md#q3), resolved | Decoder-inclusive estimates use each objective; legal negative alternatives remain available |
 | M3.9 | [Q2](plan.md#q2), [D3](plan.md#d3) | Unchanged-file codec receipts and complete builds have bounded persistent reuse; fingerprinted choices replay through current proof/admission owners. Per-module elaboration remains owned by D3 with its graph/session integration. |
 | M5.6 | [Q2](plan.md#q2), resolved | Entry graph and cycle checking use admitted shared graph routines; delivery placement/simulation/setters now admitted; source arena edits admitted; rendered bundle admission complete; source global analysis/planning admission is implemented; scope audit complete with explicit partial allocator coverage |
-| M8.5 / M3.3 | [Q4](plan.md#q4) | table decoders sit at the first module's root. |
+| M8.5 / M3.3 | [Q4](plan.md#q4), resolved | Table decoders and const helpers have their actual owning module; preserved-module production artifacts are qualified. |
 | M8.7 | [C3](plan.md#c3), resolved | NO3's second half is empty; every retired threshold has a generic owner and historical provenance outside compiler sources. |
 | M9.1 / M9.5 | [G1](plan.md#g1), complete | Equal exact objective costs compare complete raw bytes before identities; memo/replay retain the full naming choice |
 | M7.9 | [S3](plan.md#s3), resolved | Field-written reference parameters forward the evaluated reference when whole-cell writes, ref and captures are absent; value-copy parameters retain their snapshot. |

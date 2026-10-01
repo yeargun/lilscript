@@ -552,6 +552,10 @@ impl<'src> Program<'src> {
 
 #[derive(Debug, Clone)]
 pub struct Cell {
+    /// Configured scalar declaration; defaults and overrides are checked once.
+    pub declared_define: bool,
+    /// Deep-immutable compile-time data, or a required const function.
+    pub declared_const: bool,
     /// For a checked binding, its own symbol (`cells[i]` is symbol `i`). For
     /// a synthetic cell, an optional source binding supplying provenance.
     /// Expression-level temporaries have no checked binding to borrow.

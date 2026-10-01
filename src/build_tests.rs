@@ -1144,10 +1144,10 @@ fn scalar_objects_public_construction_preserves_callback_initialization_errors()
 }
 
 #[test]
-fn service_reports_unsupported_permissions_separately_from_policy_identity() {
+fn q4_service_reports_lazy_data_availability_and_explicit_permissions() {
     let result = compile_source(
         "print(7);",
-        &config("[policy.tactics]\nrecurring-reconstruction='on'"),
+        &config("[policy.tactics]\nrecurring-reconstruction='on'\nstartup-reconstruction='on'"),
         ServiceOptions::default(),
     )
     .unwrap();
@@ -1160,7 +1160,7 @@ fn service_reports_unsupported_permissions_separately_from_policy_identity() {
         "7\n"
     );
     let report = result.report();
-    assert!(report["policy_diagnostics"]["javascript"]
+    assert!(!report["policy_diagnostics"]["javascript"]
         .as_array()
         .unwrap()
         .iter()
@@ -1169,8 +1169,8 @@ fn service_reports_unsupported_permissions_separately_from_policy_identity() {
     let tactic =
         &report["javascript_policy"]["tactics"][TacticId::RecurringReconstruction as usize];
     assert_eq!(tactic["state"]["permission"], "on");
-    assert_eq!(tactic["available"], false);
-    assert_eq!(tactic["state"]["enabled"], false);
+    assert_eq!(tactic["available"], true);
+    assert_eq!(tactic["state"]["enabled"], true);
 }
 
 #[test]

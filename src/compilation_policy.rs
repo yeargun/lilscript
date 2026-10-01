@@ -44,7 +44,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version63 qualifies six target-local proofs with complete dependency and storage keys.
 // Version64 protects effort checkpoints, bounds assignment evidence, ranks data
 // with objective fragments and admits fixed batches of independent file scores.
-pub const POLICY_ALGORITHM_VERSION: u32 = 64;
+pub const POLICY_ALGORITHM_VERSION: u32 = 65;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -629,6 +629,7 @@ pub struct ResolvedPolicy {
     execution: crate::config::ExecutionConfig,
     source_contract: crate::config::LanguageConfig,
     hosts: crate::config::HostConfig,
+    defines: crate::config::Defines,
     contract: CompilationContract,
     objective: Option<OptimizationObjective>,
     effort: u8,
@@ -660,6 +661,7 @@ impl ResolvedPolicy {
             execution: Default::default(),
             source_contract,
             hosts: Default::default(),
+            defines: Default::default(),
             contract,
             objective,
             effort,
@@ -696,6 +698,12 @@ impl ResolvedPolicy {
         self
     }
     pub fn hosts(&self) -> &crate::config::HostConfig { &self.hosts }
+    pub(crate) fn with_defines(mut self, defines: crate::config::Defines) -> Self {
+        self.defines = defines;
+        self.fingerprint = Sha256::digest(self.receipt().to_string().as_bytes()).into();
+        self
+    }
+    pub fn defines(&self) -> &crate::config::Defines { &self.defines }
     pub fn contract(&self) -> &CompilationContract {
         &self.contract
     }
@@ -1081,7 +1089,7 @@ impl ResolvedPolicy {
             }),
         };
         let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "effort_overrides":self.effort_overrides,"search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"protect_effort":o.search.protect_effort,"objective_prior":o.search.objective_prior,"proxy_pruning":o.search.proxy_pruning,"deferred_naming_starts":o.search.deferred_naming_starts,"deferred_naming_starts_enabled":self.deferred_naming_starts_enabled(),"deferred_naming_polish":o.search.deferred_naming_polish,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
-        json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "configuration_version":self.configuration_version, "source_contract":self.source_contract, "host":self.hosts, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
+        json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "configuration_version":self.configuration_version, "source_contract":self.source_contract, "defines":self.defines, "host":self.hosts, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
             let spec = id.spec();
             let available = !spec.producers.is_empty() && (!spec.javascript_only || self.javascript_contract().is_some());
             json!({"id":id, "state":self.tactic(id), "available":available, "definition":spec})
@@ -1971,40 +1979,20 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_producers_keep_requested_permissions_and_explain_the_refusal() {
-        for tactic in [TacticId::RecurringReconstruction] {
-            for permission in ["auto", "on", "off"] {
-                let p = js(&format!(
-                    "[policy.tactics]\n{}='{permission}'",
-                    tactic.spec().name
-                ));
-                assert!(!p.tactic(tactic).enabled);
-                assert_eq!(
-                    p.tactic(tactic).permission,
-                    match permission {
-                        "on" => TacticPermission::On,
-                        "off" => TacticPermission::Off,
-                        _ => TacticPermission::Auto,
-                    }
-                );
-                assert_eq!(
-                    p.diagnostics()
-                        .iter()
-                        .any(|text| text.contains("no implementation")),
-                    permission == "on"
-                );
-                assert_eq!(
-                    p.admit(
-                        &[usage(tactic, RuntimeRisk::Neutral)],
-                        CandidateCost::default(),
-                        CandidateCost::default()
-                    ),
-                    Err(AdmissionError::ForbiddenTactic(tactic))
-                );
-                let receipt = p.receipt();
-                let row = &receipt["tactics"][tactic as usize];
-                assert_eq!(row["available"], false);
-                assert_eq!(row["definition"]["producers"], serde_json::json!([]));
+    fn q4_lazy_data_requires_explicit_recurring_and_startup_permissions() {
+        for level in [0, 13, 14, 15, 16] {
+            for startup in ["auto", "on", "off"] {
+                for recurring in ["auto", "on", "off"] {
+                    let p = js(&format!("effort.level={level}\n[policy]\nversion=3\n[policy.tactics]\nstartup-reconstruction='{startup}'\nrecurring-reconstruction='{recurring}'"));
+                    let rules = crate::js::TargetRules::from_policy(&p);
+                    assert_eq!(rules.lazy_data, startup == "on" && recurring == "on");
+                    let map = crate::representation::ChoiceMap::SEEDS.with(crate::representation::ChoiceKey {
+                        family: crate::representation::ChoiceFamily::DataEncoding,
+                        site: crate::representation::SiteId::Formed(0),
+                    }, crate::representation::AltId(6));
+                    assert_eq!(map.check_target_policy(&p).is_ok(), rules.lazy_data);
+                    assert!(map.uses().any(|usage| usage.tactic == TacticId::RecurringReconstruction && usage.risk == RuntimeRisk::Recurring));
+                }
             }
         }
     }
