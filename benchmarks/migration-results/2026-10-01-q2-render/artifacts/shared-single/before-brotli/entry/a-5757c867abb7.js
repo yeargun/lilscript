@@ -1,0 +1,1 @@
+console.log("core loaded");let bump=function(){a=a+1|0},read=function(){return a},a=0,twice=function(){bump();bump();return read()};export{twice,bump,read};

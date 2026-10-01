@@ -374,79 +374,121 @@ impl DeliveryPlan {
     /// Every file's name; `hashes` gives each file's hex digest when a
     /// template needs one.
     pub fn file_names(&self, hashes: Option<&[String]>) -> Vec<String> {
-        self.naming
-            .iter()
-            .enumerate()
-            .map(|(index, name)| {
-                super::names::expand(
-                    &name.template,
-                    &super::names::Fields {
-                        name: &name.name,
-                        index: name.index,
-                        path: &name.path,
-                        ext: &name.ext,
-                        hash: hashes.map_or("", |hashes| hashes[index].as_str()),
-                    },
-                )
-            })
-            .collect()
+        self.file_names_in(hashes, Retained, &mut AllocationBudget::new(None))
+            .expect("file names")
+    }
+    pub(crate) fn file_names_in(
+        &self,
+        hashes: Option<&[String]>,
+        class: AllocationClass,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<String>, AllocationError> {
+        let mut names = budget.vector(class, self.naming.len())?;
+        for (index, name) in self.naming.iter().enumerate() {
+            names.push(super::names::expand_in(
+                &name.template,
+                &super::names::Fields {
+                    name: &name.name,
+                    index: name.index,
+                    path: &name.path,
+                    ext: &name.ext,
+                    hash: hashes.map_or("", |hashes| hashes[index].as_str()),
+                },
+                class,
+                budget,
+            )?);
+        }
+        Ok(names)
     }
 
     /// Each file a static entry's facade preloads (`preload`): the lazily
     /// loaded files its closure loads, or every one.
     pub fn preloads(&self, file: usize) -> Vec<usize> {
+        self.preloads_in(file, Retained, &mut AllocationBudget::new(None))
+            .expect("preload list")
+    }
+    pub(crate) fn preloads_in(
+        &self,
+        file: usize,
+        class: AllocationClass,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<usize>, AllocationError> {
         let FileRole::Entry(entry) = self.files[file].role else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
+        let mut loaded = Vec::new();
         match self.preload {
-            crate::config::PreloadPolicy::None => Vec::new(),
-            crate::config::PreloadPolicy::All => (0..self.files.len())
-                .filter(|&index| matches!(self.files[index].role, FileRole::Lazy(_)))
-                .collect(),
+            crate::config::PreloadPolicy::None => {}
+            crate::config::PreloadPolicy::All => {
+                for (index, file) in self.files.iter().enumerate() {
+                    budget.work(WorkKind::Render, 1)?;
+                    if matches!(file.role, FileRole::Lazy(_)) {
+                        budget.push(class, &mut loaded, index)?;
+                    }
+                }
+            }
             crate::config::PreloadPolicy::Entry => {
-                let mut loaded = Vec::new();
                 if let Some(delivery) = self.entries.get(entry as usize) {
                     for &member in &delivery.closure {
                         for &target in &self.files[member as usize].links.dynamic {
+                            budget.work(WorkKind::Render, loaded.len() as u64 + 1)?;
                             if !loaded.contains(&(target as usize)) {
-                                loaded.push(target as usize);
+                                budget.push(class, &mut loaded, target as usize)?;
                             }
                         }
                     }
                 }
-                loaded
             }
         }
+        Ok(loaded)
     }
 
     /// What an artifact keeps of this plan once its tree is gone.
     pub fn layout(&self) -> DeliveredLayout {
-        DeliveredLayout {
-            mode: self.mode,
-            format: self.format,
-            entries: self.entries.clone(),
-            entry_names: self.entry_names.clone(),
-            files: self
-                .files
-                .iter()
-                .map(|file| LayoutFile {
-                    role: file.role,
-                    label: file.label.bits().collect(),
-                    modules: file.modules.clone(),
-                    anchored: file.anchored,
-                    imports: file
-                        .links
-                        .imports
-                        .iter()
-                        .map(|&(source, _)| source)
-                        .collect(),
-                    dynamic: file.links.dynamic.clone(),
+        self.layout_in(&mut AllocationBudget::new(None))
+            .expect("delivered layout")
+    }
+    pub(crate) fn layout_in(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<DeliveredLayout, AllocationError> {
+        budget.retained_phase(|budget| {
+            let entries = super::cloning::map(&self.entries, budget, |entry, budget| {
+                Ok(EntryDelivery {
+                    name: budget.string(Retained, &entry.name)?,
+                    file: entry.file,
+                    dynamic: entry.dynamic,
+                    closure: budget.copy_slice(Retained, &entry.closure)?,
                 })
-                .collect(),
-            request_bytes: self.request_bytes,
-            depth_bytes: self.depth_bytes,
-            setters: self.setters.len(),
-        }
+            })?;
+            let entry_names = super::cloning::map(&self.entry_names, budget, |name, budget| {
+                budget.string(Retained, name)
+            })?;
+            let files = super::cloning::map(&self.files, budget, |file, budget| {
+                Ok(LayoutFile {
+                    role: file.role,
+                    label: collect_in(file.label.bits(), Retained, budget)?,
+                    modules: budget.copy_slice(Retained, &file.modules)?,
+                    anchored: file.anchored,
+                    imports: collect_in(
+                        file.links.imports.iter().map(|&(source, _)| source),
+                        Retained,
+                        budget,
+                    )?,
+                    dynamic: budget.copy_slice(Retained, &file.links.dynamic)?,
+                })
+            })?;
+            Ok(DeliveredLayout {
+                mode: self.mode,
+                format: self.format,
+                entries,
+                entry_names,
+                files,
+                request_bytes: self.request_bytes,
+                depth_bytes: self.depth_bytes,
+                setters: self.setters.len(),
+            })
+        })
     }
 }
 
@@ -487,45 +529,102 @@ impl DeliveredLayout {
     /// the declared cost of every file beyond the first and of every static
     /// import level beyond the first. `sizes` holds one size per file.
     pub fn rows(&self, sizes: &[usize]) -> Vec<u64> {
-        self.entries
-            .iter()
-            .map(|entry| {
-                let bytes = entry
-                    .closure
-                    .iter()
-                    .map(|&file| sizes.get(file as usize).copied().unwrap_or(0) as u64)
-                    .sum::<u64>();
-                let requests = (entry.closure.len() as u64).saturating_sub(1);
-                let depth = self.depth(entry.file as usize);
+        self.rows_in(sizes, Retained, &mut AllocationBudget::new(None))
+            .expect("delivered rows")
+    }
+    pub(crate) fn rows_in(
+        &self,
+        sizes: &[usize],
+        class: AllocationClass,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<u64>, AllocationError> {
+        let mut rows = budget.vector(class, self.entries.len())?;
+        for entry in &self.entries {
+            budget.work(WorkKind::Render, entry.closure.len() as u64)?;
+            let bytes = entry.closure.iter().try_fold(0u64, |total, &file| {
+                total
+                    .checked_add(sizes.get(file as usize).copied().unwrap_or(0) as u64)
+                    .ok_or(AllocationError::Capacity)
+            })?;
+            let requests = (entry.closure.len() as u64).saturating_sub(1);
+            let depth = if self.depth_bytes == 0 {
+                0
+            } else {
+                self.depth_in(entry.file as usize, budget)?
+            };
+            rows.push(
                 bytes
                     .saturating_add(self.request_bytes.saturating_mul(requests))
-                    .saturating_add(self.depth_bytes.saturating_mul(depth.saturating_sub(1)))
-            })
-            .collect()
+                    .saturating_add(self.depth_bytes.saturating_mul(depth.saturating_sub(1))),
+            );
+        }
+        Ok(rows)
     }
 
-    /// The longest chain of static imports from `file`.
-    fn depth(&self, file: usize) -> u64 {
-        let mut memo = vec![None; self.files.len()];
-        fn visit(layout: &DeliveredLayout, file: usize, memo: &mut Vec<Option<u64>>) -> u64 {
-            if let Some(depth) = memo[file] {
-                return depth;
+    /// The same depth-first cycle convention as the old recursive walk, with
+    /// admitted explicit frames rather than an unbounded native stack.
+    fn depth_in(
+        &self,
+        file: usize,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<u64, AllocationError> {
+        if file >= self.files.len() {
+            return Ok(0);
+        }
+        let mut phase = budget.scope();
+        let mut memo = phase.filled(Scratch, self.files.len(), None::<u64>)?;
+        let mut stack = phase.copy_slice(Scratch, &[(file, 0usize, 0u64)])?;
+        memo[file] = Some(0);
+        while let Some(&(file, next, depth)) = stack.last() {
+            phase.work(WorkKind::Render, 1)?;
+            if let Some(&source) = self.files[file].imports.get(next) {
+                let source = source as usize;
+                stack.last_mut().unwrap().1 += 1;
+                match memo.get(source).ok_or(AllocationError::Capacity)? {
+                    Some(depth) => {
+                        let parent = stack.last_mut().unwrap();
+                        parent.2 = depth.saturating_add(1).max(parent.2);
+                    }
+                    None => {
+                        memo[source] = Some(0);
+                        phase.push(Scratch, &mut stack, (source, 0, 0))?;
+                    }
+                }
+            } else {
+                stack.pop();
+                memo[file] = Some(depth);
+                match stack.last_mut() {
+                    Some(parent) => parent.2 = parent.2.max(depth.saturating_add(1)),
+                    None => return Ok(depth),
+                }
             }
-            memo[file] = Some(0);
-            let depth = layout.files[file]
-                .imports
-                .iter()
-                .map(|&source| 1 + visit(layout, source as usize, memo))
-                .max()
-                .unwrap_or(0);
-            memo[file] = Some(depth);
-            depth
         }
-        if file < self.files.len() {
-            visit(self, file, &mut memo)
-        } else {
-            0
+        Ok(0)
+    }
+
+    pub(crate) fn heap_bytes(&self) -> Result<u64, AllocationError> {
+        let mut bytes = 0u64;
+        let mut add = |n: u64| -> Result<(), AllocationError> {
+            bytes = bytes.checked_add(n).ok_or(AllocationError::Capacity)?;
+            Ok(())
+        };
+        add(vector_bytes(&self.entries)?)?;
+        add(vector_bytes(&self.entry_names)?)?;
+        add(vector_bytes(&self.files)?)?;
+        for entry in &self.entries {
+            add(entry.name.capacity() as u64)?;
+            add(vector_bytes(&entry.closure)?)?;
         }
+        for name in &self.entry_names {
+            add(name.capacity() as u64)?;
+        }
+        for file in &self.files {
+            add(vector_bytes(&file.label)?)?;
+            add(vector_bytes(&file.modules)?)?;
+            add(vector_bytes(&file.imports)?)?;
+            add(vector_bytes(&file.dynamic)?)?;
+        }
+        Ok(bytes)
     }
 
     /// A label as entry names.

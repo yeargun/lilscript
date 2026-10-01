@@ -1,0 +1,44 @@
+{
+  "version": 3,
+  "codec": "gzip",
+  "outputs": [
+    {
+      "mode": "preserve-modules",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "main",
+          "file": "entry/main-9487731e370c.js",
+          "dynamic": false,
+          "closure": [
+            "entry/main-9487731e370c.js"
+          ],
+          "row": 64,
+          "raw_row": 48
+        }
+      ],
+      "files": [
+        {
+          "file": "entry/main-9487731e370c.js",
+          "role": "entry",
+          "label": [
+            "main"
+          ],
+          "modules": [
+            "main.lil"
+          ],
+          "anchored": false,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 48,
+          "codec_bytes": 64,
+          "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13"
+        }
+      ],
+      "side_effects": [],
+      "codec_total": 64,
+      "rows_total": 64,
+      "setters": 0
+    }
+  ]
+}

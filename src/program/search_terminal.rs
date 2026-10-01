@@ -581,11 +581,14 @@ impl Judge<'_> {
     ) -> Result<bool, SearchError> {
         let codec = self.codec;
         let (held, held_size) = held;
-        let rows = formations.with_arena(|arena, _, budget| {
-            Ok::<_, CandidateError>((
-                arena.rows(challenger, codec, budget)?,
-                arena.rows(held, codec, budget)?,
-            ))
+        let (dominant, non_growing) = formations.with_arena(|arena, _, budget| {
+            arena.compare_rows(challenger, held, codec, budget, |challenger, held| {
+                (
+                    dominates(challenger, held),
+                    challenger.len() == held.len()
+                        && challenger.iter().zip(held).all(|(a, b)| a <= b),
+                )
+            })
         })?;
         let base = self
             .baseline
@@ -600,10 +603,9 @@ impl Judge<'_> {
             .map_err(SearchError::from)?
             .ok_or(CandidateError::NotJavaScript)?;
         if order == Ordering::Less {
-            return Ok(dominates(&rows.0, &rows.1));
+            return Ok(dominant);
         }
-        if order != Ordering::Equal || rows.0.len() != rows.1.len()
-            || !rows.0.iter().zip(&rows.1).all(|(a, b)| a <= b) {
+        if order != Ordering::Equal || !non_growing {
             return Ok(false);
         }
         // A codec tie may still remove delivered source bytes. The tuple

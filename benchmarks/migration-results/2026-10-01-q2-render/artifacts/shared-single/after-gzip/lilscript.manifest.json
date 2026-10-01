@@ -1,0 +1,75 @@
+{
+  "version": 3,
+  "codec": "gzip",
+  "outputs": [
+    {
+      "mode": "single",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "a",
+          "file": "entry/a-b461db9791e3.js",
+          "dynamic": false,
+          "closure": [
+            "entry/a-b461db9791e3.js"
+          ],
+          "row": 128,
+          "raw_row": 156
+        },
+        {
+          "name": "b",
+          "file": "entry/b-c1e037039bc9.js",
+          "dynamic": false,
+          "closure": [
+            "entry/b-c1e037039bc9.js"
+          ],
+          "row": 124,
+          "raw_row": 156
+        }
+      ],
+      "files": [
+        {
+          "file": "entry/a-b461db9791e3.js",
+          "role": "entry",
+          "label": [
+            "a"
+          ],
+          "modules": [
+            "a.lil",
+            "core.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 156,
+          "codec_bytes": 128,
+          "sha256": "bb54e657d40385502f2deeaddf399dd65485adc823bff824c639c51bde93985a"
+        },
+        {
+          "file": "entry/b-c1e037039bc9.js",
+          "role": "entry",
+          "label": [
+            "b"
+          ],
+          "modules": [
+            "core.lil",
+            "b.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 156,
+          "codec_bytes": 124,
+          "sha256": "a4d6dea0dcac341761289b864f9960d743661ed50c529b415db320881332c882"
+        }
+      ],
+      "side_effects": [
+        "entry/a-b461db9791e3.js",
+        "entry/b-c1e037039bc9.js"
+      ],
+      "codec_total": 252,
+      "rows_total": 252,
+      "setters": 0
+    }
+  ]
+}

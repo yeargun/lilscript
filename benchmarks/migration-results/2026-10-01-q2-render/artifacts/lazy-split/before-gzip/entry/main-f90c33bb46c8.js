@@ -1,0 +1,1 @@
+typeof document!="undefined"&&["../chunks/feature-0-70039ba0750c.js"].forEach(a=>{let b=document.createElement("link");b.rel="modulepreload",b.href=a,document.head.append(b)});import("../chunks/feature-0-70039ba0750c.js").catch(e=>Promise.reject({specifier:"./feature",message:String(e)})).then(a=>void console.log(a.answer(40))).catch(a=>void console.log(a.message));

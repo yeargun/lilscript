@@ -1,0 +1,1 @@
+import{bump,read}from"../chunks/core-0-c1f1b5281e15.js";let twice=function(){bump();bump();return read()};export{twice,bump,read};

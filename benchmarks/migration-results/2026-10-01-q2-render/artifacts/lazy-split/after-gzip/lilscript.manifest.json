@@ -1,0 +1,74 @@
+{
+  "version": 3,
+  "codec": "gzip",
+  "outputs": [
+    {
+      "mode": "split",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "main",
+          "file": "entry/main-f90c33bb46c8.js",
+          "dynamic": false,
+          "closure": [
+            "entry/main-f90c33bb46c8.js"
+          ],
+          "row": 255,
+          "raw_row": 368
+        },
+        {
+          "name": "feature",
+          "file": "chunks/feature-0-70039ba0750c.js",
+          "dynamic": true,
+          "closure": [
+            "chunks/feature-0-70039ba0750c.js"
+          ],
+          "row": 68,
+          "raw_row": 52
+        }
+      ],
+      "files": [
+        {
+          "file": "entry/main-f90c33bb46c8.js",
+          "role": "entry",
+          "label": [
+            "main"
+          ],
+          "modules": [
+            "main.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [
+            "chunks/feature-0-70039ba0750c.js"
+          ],
+          "bytes": 368,
+          "codec_bytes": 255,
+          "sha256": "890d278f18f5a0fd4a62fc770a38d54b415c407174c196e40de0d663d68c756d"
+        },
+        {
+          "file": "chunks/feature-0-70039ba0750c.js",
+          "role": "lazy",
+          "label": [
+            "feature"
+          ],
+          "modules": [
+            "feature.lil"
+          ],
+          "anchored": false,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 52,
+          "codec_bytes": 68,
+          "sha256": "5e40eaf75d78a72ec267d1497faf05660f830d233789f55163fb4f8031b06a4a"
+        }
+      ],
+      "side_effects": [
+        "entry/main-f90c33bb46c8.js"
+      ],
+      "codec_total": 323,
+      "rows_total": 323,
+      "setters": 0
+    }
+  ]
+}

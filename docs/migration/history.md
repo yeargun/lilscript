@@ -1473,3 +1473,23 @@ bytes, including retained compaction capacity. Tiny CPU samples support no speed
 claim. Four initial failures and their repairs are retained; only those four
 checks were repeated. No full suite/fleet/ratchet/port rerun or baseline change.
 Q2 remains active for its other owners and reuse requirements.
+
+## 2026-10-01: Q2 rendered bundles and artifact metadata
+
+Rendering admits names, hash walks, specifiers, preloads, host wrappers, layout
+and file metadata, and objective rows. One reservation transfers the complete
+bundle; refusals release provisional and completed files while preserving
+installed naming caches. Borrowed UTF-8 and stack-based numeric spelling remove
+temporary copies. Iterative delivery depth avoids unbounded recursion and no
+longer runs when its penalty is zero.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-render/README.md):
+algorithm 53 pin `q2-render-1`, SHA-256
+`81a85ed68567bbabfbd4cf99f6252b796386050ad9a046def2c86818295c73cf`.
+26 focused checks and 54 paired release checks pass, with unchanged files and
+search counts. Selected totals remain 2,292 raw / 2,046 gzip / 1,567 Brotli bytes.
+Newly counted baseline work rises 65–1,576 units; optional work 3,315–160,140;
+peak storage 0–1,096 bytes. Tiny CPU samples support no speed claim. Two initial
+build mistakes and their fixes are retained. No full suite/fleet/ratchet/port
+rerun. Q2 remains active for shared formation, elaboration, global analysis and
+remaining dependency scheduling.

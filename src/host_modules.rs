@@ -10,6 +10,12 @@
 //! imports, and the host modules they import, become one expression that
 //! evaluates each module once, in dependency order, in its own scope.
 
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -99,107 +105,145 @@ impl HostDelivery {
     /// dependency order, each in its own function scope; the result lists
     /// each module's namespace object by position.
     pub fn expression(&self, strict: bool) -> String {
-        let names = self.scope_names();
-        let mut text = String::from("(()=>{");
-        if strict {
-            text.push_str("\"use strict\";");
-        }
-        text.push_str("let ");
-        for (index, module) in self.modules.iter().enumerate() {
-            if index != 0 {
-                text.push(',');
+        self.expression_in(strict, &mut AllocationBudget::new(None))
+            .expect("host expression")
+    }
+    pub(crate) fn expression_in(
+        &self,
+        strict: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<String, AllocationError> {
+        budget.retained_phase(|budget| {
+            let names = self.scope_names_in(budget)?;
+            let mut text = budget.string(Retained, "(()=>{")?;
+            if strict {
+                budget.push_str(Retained, &mut text, "\"use strict\";")?;
             }
-            text.push_str(&names[index]);
-            text.push_str("=(()=>{");
-            for (source, bindings) in &module.imports {
-                for (imported, local) in bindings {
-                    match imported {
-                        None => {
-                            text.push_str("const ");
-                            text.push_str(local);
-                            text.push('=');
-                            text.push_str(&names[*source]);
-                            text.push(';');
-                        }
-                        Some(imported) => {
-                            text.push_str("const{");
-                            text.push_str(imported);
-                            if imported != local {
-                                text.push(':');
-                                text.push_str(local);
+            budget.push_str(Retained, &mut text, "let ")?;
+            for (index, module) in self.modules.iter().enumerate() {
+                if index != 0 {
+                    budget.push_char(Retained, &mut text, ',')?;
+                }
+                budget.push_str(Retained, &mut text, &names[index])?;
+                budget.push_str(Retained, &mut text, "=(()=>{")?;
+                for (source, bindings) in &module.imports {
+                    for (imported, local) in bindings {
+                        match imported {
+                            None => {
+                                budget.push_str(Retained, &mut text, "const ")?;
+                                budget.push_str(Retained, &mut text, local)?;
+                                budget.push_char(Retained, &mut text, '=')?;
+                                budget.push_str(Retained, &mut text, &names[*source])?;
+                                budget.push_char(Retained, &mut text, ';')?;
                             }
-                            text.push_str("}=");
-                            text.push_str(&names[*source]);
-                            text.push(';');
+                            Some(imported) => {
+                                budget.push_str(Retained, &mut text, "const{")?;
+                                budget.push_str(Retained, &mut text, imported)?;
+                                if imported != local {
+                                    budget.push_char(Retained, &mut text, ':')?;
+                                    budget.push_str(Retained, &mut text, local)?;
+                                }
+                                budget.push_str(Retained, &mut text, "}=")?;
+                                budget.push_str(Retained, &mut text, &names[*source])?;
+                                budget.push_char(Retained, &mut text, ';')?;
+                            }
                         }
                     }
                 }
-            }
-            text.push_str(&module.body);
-            text.push_str(";return{");
-            for (position, (exported, local)) in module.exports.iter().enumerate() {
-                if position != 0 {
-                    text.push(',');
+                budget.push_str(Retained, &mut text, &module.body)?;
+                budget.push_str(Retained, &mut text, ";return{")?;
+                for (position, (exported, local)) in module.exports.iter().enumerate() {
+                    if position != 0 {
+                        budget.push_char(Retained, &mut text, ',')?;
+                    }
+                    if exported == local {
+                        budget.push_str(Retained, &mut text, local)?;
+                    } else {
+                        budget.push_str(Retained, &mut text, exported)?;
+                        budget.push_char(Retained, &mut text, ':')?;
+                        budget.push_str(Retained, &mut text, local)?;
+                    }
                 }
-                if exported == local {
-                    text.push_str(local);
-                } else {
-                    text.push_str(exported);
-                    text.push(':');
-                    text.push_str(local);
+                budget.push_str(Retained, &mut text, "}})()")?;
+            }
+            budget.push_str(Retained, &mut text, ";return[")?;
+            for index in 0..self.modules.len() {
+                if index != 0 {
+                    budget.push_char(Retained, &mut text, ',')?;
                 }
+                budget.push_str(Retained, &mut text, &names[index])?;
             }
-            text.push_str("}})()");
-        }
-        text.push_str(";return[");
-        for index in 0..self.modules.len() {
-            if index != 0 {
-                text.push(',');
-            }
-            text.push_str(&names[index]);
-        }
-        text.push_str("]})()");
-        text
+            budget.push_str(Retained, &mut text, "]})()")?;
+            Ok(text)
+        })
     }
 
     /// With one module that imports no other, `(()=>{...;return{...}})()`:
     /// its namespace object directly.
     pub fn single(&self, strict: bool) -> Option<String> {
+        self.single_in(strict, &mut AllocationBudget::new(None))
+            .expect("single host expression")
+    }
+    pub(crate) fn single_in(
+        &self,
+        strict: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Option<String>, AllocationError> {
         let [module] = self.modules.as_slice() else {
-            return None;
+            return Ok(None);
         };
         if !module.imports.is_empty() {
-            return None;
+            return Ok(None);
         }
-        let mut text = String::from("(()=>{");
-        if strict {
-            text.push_str("\"use strict\";");
-        }
-        text.push_str(&module.body);
-        text.push_str(";return{");
-        for (position, (exported, local)) in module.exports.iter().enumerate() {
-            if position != 0 {
-                text.push(',');
+        budget.retained_phase(|budget| {
+            let mut text = budget.string(Retained, "(()=>{")?;
+            if strict {
+                budget.push_str(Retained, &mut text, "\"use strict\";")?;
             }
-            if exported == local {
-                text.push_str(local);
-            } else {
-                text.push_str(exported);
-                text.push(':');
-                text.push_str(local);
+            budget.push_str(Retained, &mut text, &module.body)?;
+            budget.push_str(Retained, &mut text, ";return{")?;
+            for (position, (exported, local)) in module.exports.iter().enumerate() {
+                if position != 0 {
+                    budget.push_char(Retained, &mut text, ',')?;
+                }
+                if exported == local {
+                    budget.push_str(Retained, &mut text, local)?;
+                } else {
+                    budget.push_str(Retained, &mut text, exported)?;
+                    budget.push_char(Retained, &mut text, ':')?;
+                    budget.push_str(Retained, &mut text, local)?;
+                }
             }
-        }
-        text.push_str("}})()");
-        Some(text)
+            budget.push_str(Retained, &mut text, "}})()")?;
+            Ok(Some(text))
+        })
     }
 
     /// Scope-local names for each module's namespace, distinct from every
     /// identifier host code spells.
-    fn scope_names(&self) -> Vec<String> {
-        let mut names = Vec::with_capacity(self.modules.len());
+    fn scope_names_in(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<String>, AllocationError> {
+        let mut names = budget.vector(Scratch, self.modules.len())?;
         let mut counter = 0usize;
         while names.len() < self.modules.len() {
-            let candidate = format!("h{counter}");
+            let candidate = budget.format(Scratch, format_args!("h{counter}"))?;
+            let scan = self.reserved.iter().map(String::len).sum::<usize>()
+                + self
+                    .modules
+                    .iter()
+                    .map(|module| {
+                        module.body.len()
+                            + module
+                                .imports
+                                .iter()
+                                .flat_map(|(_, bindings)| bindings)
+                                .map(|(_, local)| local.len())
+                                .sum::<usize>()
+                    })
+                    .sum::<usize>();
+            budget.work(WorkKind::Render, scan as u64)?;
             counter += 1;
             let taken = self.reserved.iter().any(|name| *name == candidate)
                 || self.modules.iter().any(|module| {
@@ -212,9 +256,13 @@ impl HostDelivery {
                 });
             if !taken {
                 names.push(candidate);
+            } else {
+                let bytes = candidate.capacity() as u64;
+                drop(candidate);
+                budget.release(Scratch, bytes)?;
             }
         }
-        names
+        Ok(names)
     }
 }
 

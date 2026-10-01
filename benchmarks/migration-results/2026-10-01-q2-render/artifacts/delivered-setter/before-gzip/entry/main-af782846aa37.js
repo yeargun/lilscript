@@ -1,0 +1,1 @@
+import{c,a,b}from"../modules/lib-7be19b3b1001.js";b(a+read()|0);b(a+c(3)|0);console.log(a);

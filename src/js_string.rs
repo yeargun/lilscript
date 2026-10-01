@@ -29,10 +29,7 @@ pub(crate) fn contents(
 ) -> fmt::Result {
     debug_assert!(matches!(quote, '\'' | '"' | '`'));
     if let Some(value) = value.as_unicode() {
-        for ch in value.chars() {
-            character(out, ch, quote, after_dollar)?;
-            after_dollar = ch == '$';
-        }
+        return unicode_contents(out, value, quote, after_dollar);
     } else {
         // Keep lone surrogates exact; valid pairs can use their UTF-8 spelling.
         // Each decoded segment is independent after a surrogate escape.
@@ -48,6 +45,21 @@ pub(crate) fn contents(
                 }
             }
         }
+    }
+    Ok(())
+}
+
+/// Borrowed UTF-8 spellings, including generated specifiers and export names.
+pub(crate) fn unicode_contents(
+    out: &mut impl Write,
+    value: &str,
+    quote: char,
+    mut after_dollar: bool,
+) -> fmt::Result {
+    debug_assert!(matches!(quote, '\'' | '"' | '`'));
+    for ch in value.chars() {
+        character(out, ch, quote, after_dollar)?;
+        after_dollar = ch == '$';
     }
     Ok(())
 }

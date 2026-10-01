@@ -73,7 +73,10 @@ impl<'a> Output<'a> {
     pub(super) fn from_module(module: &'a Module) -> Result<Self, String> {
         Self::from_module_in(
             module,
-            naming::Eligibility::Search { alphabets: true, compact: true },
+            naming::Eligibility::Search {
+                alphabets: true,
+                compact: true,
+            },
             None,
             AllocationBudget::new(None),
         )
@@ -133,11 +136,8 @@ impl<'a> Output<'a> {
 
     /// The layout of the tree's delivery plan, when the output is several
     /// files (plan M3.3).
-    pub(crate) fn delivery_layout(&self) -> Option<delivery::DeliveredLayout> {
-        self.module
-            .delivery
-            .as_ref()
-            .map(delivery::DeliveryPlan::layout)
+    pub(crate) fn has_delivery_plan(&self) -> bool {
+        self.module.delivery.is_some()
     }
 
     pub(crate) fn is_accounted(&self) -> bool {
@@ -278,19 +278,31 @@ impl<'a> Output<'a> {
         Ok((text, charge, literals))
     }
 
-    /// Every file of the tree's delivery plan (plan M3.3), each separately
-    /// charged: one naming of the whole output, then each file printed with
+    /// Every file of the tree's delivery plan (plan M3.3): one admitted
+    /// bundle, one naming of the whole output, then each file printed with
     /// it. When a file name is its content hash, the files print once with
     /// provisional names, hash bottom-up over static imports, and print
     /// again with the final names (design §8).
+    /// `file` moves name/code into an inline artifact record without allocating
+    /// additional payload. The single returned charge owns the complete bundle.
     #[allow(clippy::type_complexity)]
-    pub(crate) fn render_plan_with_literals_admitted<Owner: Eq + Copy>(
+    pub(crate) fn render_plan_with_literals_admitted<Owner: Eq + Copy, T>(
         &self,
         plan: &naming::Plan,
         literals: LiteralOutput,
         limit: usize,
         owner: Owner,
-    ) -> Result<(Vec<RenderedFile<Owner>>, LiteralOutput), OutputError> {
+        mut file: impl FnMut(String, String) -> T,
+    ) -> Result<
+        (
+            Vec<T>,
+            delivery::DeliveredLayout,
+            RetainedCharge<Owner>,
+            LiteralOutput,
+        ),
+        OutputError,
+    > {
+        use AllocationClass::{Retained, Scratch};
         if !self.is_accounted() {
             return Err(AllocationError::Unaccounted.into());
         }
@@ -300,100 +312,114 @@ impl<'a> Output<'a> {
             .as_ref()
             .ok_or(OutputError::Invalid("the tree has no delivery plan"))?;
         self.naming.check_in(plan)?;
-        let literals = {
-            let mut budget = self.budget.borrow_mut();
-            budget.work(WorkKind::Analysis, 1)?;
-            if literals == LiteralOutput::Observed && !self.permits_observed_literals {
-                return Err(OutputError::Invalid(
-                    "observed literal output requires target-compaction permission",
-                ));
-            }
-            if self.has_literal_alternative {
-                literals
-            } else {
-                LiteralOutput::Original
-            }
-        };
         let mut budget = self.budget.borrow_mut();
+        budget.work(WorkKind::Analysis, 1)?;
+        if literals == LiteralOutput::Observed && !self.permits_observed_literals {
+            return Err(OutputError::Invalid(
+                "observed literal output requires target-compaction permission",
+            ));
+        }
+        let literals = if self.has_literal_alternative {
+            literals
+        } else {
+            LiteralOutput::Original
+        };
         let mut render = budget.scope();
         let result = (|| {
             let names = self.basis.names_in(plan, &mut render)?;
-            let print_all = |file_names: &[String], budget: &mut AllocationBudget<'_>| {
-                let mut texts = Vec::with_capacity(delivery.files.len());
-                let mut used = 0usize;
-                for file in 0..delivery.files.len() {
-                    let text = print::render_planned_file_admitted(
-                        self.module,
-                        &names,
-                        self.literal_alternatives,
-                        literals,
-                        limit.saturating_sub(used),
-                        budget,
-                        &print::PlannedPrint {
-                            plan: delivery,
-                            file,
-                            names: file_names,
+            // Keep installed naming caches, but roll all incomplete bundle
+            // storage back before this preparation returns an error.
+            render.retained_phase(|render| {
+                let print_all = |file_names: &[String],
+                                 budget: &mut AllocationBudget<'_>|
+                 -> Result<Vec<String>, OutputError> {
+                    let mut texts = budget.vector(Retained, delivery.files.len())?;
+                    let mut used = 0usize;
+                    for file in 0..delivery.files.len() {
+                        let text = print::render_planned_file_admitted(
+                            self.module,
+                            &names,
+                            self.literal_alternatives,
+                            literals,
+                            limit.saturating_sub(used),
+                            budget,
+                            &print::PlannedPrint {
+                                plan: delivery,
+                                file,
+                                names: file_names,
+                            },
+                            self.hosts,
+                        )
+                        .map_err(|error| match error {
+                            print::PrintError::Admission(error) => OutputError::Admission(error),
+                            print::PrintError::ByteLimit => OutputError::ByteLimit,
+                            print::PrintError::Container => {
+                                OutputError::Invalid("unsupported output container")
+                            }
+                        })?;
+                        used = used
+                            .checked_add(text.len())
+                            .ok_or(AllocationError::Capacity)?;
+                        texts.push(text);
+                    }
+                    Ok(texts)
+                };
+                let file_names = if !delivery.needs_hash() {
+                    delivery.file_names_in(None, Retained, render)?
+                } else {
+                    render.with_temporary(
+                        |budget| {
+                            let provisional = delivery.file_names_in(None, Scratch, budget)?;
+                            let texts = print_all(&provisional, budget)?;
+                            let hashes = content_hashes(delivery, &texts, budget)?;
+                            drop_strings(texts, Retained, budget)?;
+                            drop_strings(provisional, Scratch, budget)?;
+                            Ok::<_, OutputError>(hashes)
                         },
-                        self.hosts,
-                    )
-                    .map_err(|error| match error {
-                        print::PrintError::Admission(error) => OutputError::Admission(error),
-                        print::PrintError::ByteLimit => OutputError::ByteLimit,
-                        print::PrintError::Container => {
-                            OutputError::Invalid("unsupported output container")
-                        }
-                    })?;
-                    used += text.len();
-                    texts.push(text);
+                        |hashes, budget| {
+                            Ok::<_, OutputError>(delivery.file_names_in(
+                                Some(hashes),
+                                Retained,
+                                budget,
+                            )?)
+                        },
+                    )?
+                };
+                let mut sorted = render.vector(Scratch, file_names.len())?;
+                sorted.extend(file_names.iter().map(String::as_str));
+                sorted.sort_unstable();
+                if sorted.windows(2).any(|pair| pair[0] == pair[1]) {
+                    return Err(OutputError::Invalid(
+                        "two delivered files get one name: lengthen `[hash:N]`",
+                    ));
                 }
-                Ok::<_, OutputError>(texts)
-            };
-            if !delivery.needs_hash() {
-                let file_names = delivery.file_names(None);
-                let texts = print_all(&file_names, &mut render)?;
-                return Ok((file_names, texts));
-            }
-            let provisional = delivery.file_names(None);
-            let texts = print_all(&provisional, &mut render)?;
-            let hashes = content_hashes(delivery, &texts, &mut render)?;
-            drop(texts);
-            let file_names = delivery.file_names(Some(&hashes));
-            let mut sorted = file_names.clone();
-            sorted.sort_unstable();
-            if sorted.windows(2).any(|pair| pair[0] == pair[1]) {
-                return Err(OutputError::Invalid(
-                    "two delivered files get one name: lengthen `[hash:N]`",
-                ));
-            }
-            let texts = print_all(&file_names, &mut render)?;
-            Ok((file_names, texts))
+                drop_vec(sorted, Scratch, render)?;
+                let texts = print_all(&file_names, render)?;
+                let layout = delivery.layout_in(render)?;
+                let containers = crate::output_budget::vector_bytes(&file_names)?
+                    .checked_add(crate::output_budget::vector_bytes(&texts)?)
+                    .ok_or(AllocationError::Capacity)?;
+                let mut files = render.vector(Retained, texts.len())?;
+                let mut bytes = layout
+                    .heap_bytes()?
+                    .checked_add(crate::output_budget::vector_bytes(&files)?)
+                    .ok_or(AllocationError::Capacity)?;
+                for (name, code) in file_names.into_iter().zip(texts) {
+                    bytes = bytes
+                        .checked_add(name.capacity() as u64)
+                        .and_then(|sum| sum.checked_add(code.capacity() as u64))
+                        .ok_or(AllocationError::Capacity)?;
+                    files.push(file(name, code));
+                }
+                render.release(Retained, containers)?;
+                render.work(WorkKind::Render, 0)?;
+                Ok((files, layout, bytes))
+            })
         })();
         render.finish_retained()?;
-        let (file_names, texts) = result?;
-        let mut files = Vec::with_capacity(texts.len());
-        for (name, code) in file_names.into_iter().zip(texts) {
-            // The printer retained the text; the name is admitted here.
-            let bytes = u64::try_from(code.capacity() + name.capacity())
-                .map_err(|_| AllocationError::Capacity)?;
-            let admitted = u64::try_from(name.capacity())
-                .map_err(|_| AllocationError::Capacity)
-                .and_then(|name| budget.retain(AllocationClass::Retained, name))
-                .and_then(|()| budget.detach_retained(owner, bytes));
-            match admitted {
-                Ok(charge) => files.push(RenderedFile { name, code, charge }),
-                Err(error) => {
-                    budget.with_ledger(|ledger| {
-                        if let Some((ledger, _)) = ledger {
-                            for file in files {
-                                let _ = file.charge.discard(&owner, ledger);
-                            }
-                        }
-                    });
-                    return Err(error.into());
-                }
-            }
-        }
-        Ok((files, literals))
+        let (files, layout, bytes) = result?;
+        let charge = budget.detach_retained(owner, bytes)?;
+        Ok((files, layout, charge, literals))
     }
 
     pub(crate) fn source_candidates_admitted(&self) -> Result<&[BindingId], OutputError> {
@@ -515,11 +541,29 @@ impl Module {
     }
 }
 
-/// One delivered file of a plan, with its retained charge.
-pub(crate) struct RenderedFile<Owner> {
-    pub name: String,
-    pub code: String,
-    pub charge: RetainedCharge<Owner>,
+fn drop_vec<T>(
+    values: Vec<T>,
+    class: AllocationClass,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    let bytes = crate::output_budget::vector_bytes(&values)?;
+    drop(values);
+    budget.release(class, bytes)
+}
+fn drop_strings(
+    values: Vec<String>,
+    class: AllocationClass,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    let bytes =
+        values
+            .iter()
+            .try_fold(crate::output_budget::vector_bytes(&values)?, |sum, text| {
+                sum.checked_add(text.capacity() as u64)
+                    .ok_or(AllocationError::Capacity)
+            })?;
+    drop(values);
+    budget.release(class, bytes)
 }
 
 /// Each file's hex SHA-256 over its text printed with provisional names and
@@ -533,43 +577,52 @@ fn content_hashes(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<String>, OutputError> {
     use sha2::{Digest, Sha256};
-    let own = texts
-        .iter()
-        .map(|text| Sha256::digest(text.as_bytes()))
-        .collect::<Vec<_>>();
-    budget.work(
-        WorkKind::Render,
-        texts.iter().map(|text| text.len() as u64).sum::<u64>(),
-    )?;
-    let count = texts.len();
-    budget.work(
-        WorkKind::Render,
-        (count as u64).saturating_mul(count as u64),
-    )?;
-    let mut hashes = Vec::with_capacity(count);
-    for file in 0..count {
-        let mut reached = vec![false; count];
-        let mut pending = vec![file];
-        while let Some(current) = pending.pop() {
-            if std::mem::replace(&mut reached[current], true) {
-                continue;
+    use AllocationClass::{Retained, Scratch};
+    budget.retained_phase(|budget| {
+        let mut own = budget.vector(Scratch, texts.len())?;
+        for text in texts {
+            budget.work(WorkKind::Render, text.len() as u64)?;
+            own.push(Sha256::digest(text.as_bytes()));
+        }
+        let count = texts.len();
+        let mut hashes = budget.vector(Retained, count)?;
+        let mut reached = budget.filled(Scratch, count, false)?;
+        let mut pending = Vec::new();
+        for file in 0..count {
+            budget.work(WorkKind::Render, count as u64)?;
+            reached.fill(false);
+            pending.clear();
+            budget.push(Scratch, &mut pending, file)?;
+            while let Some(current) = pending.pop() {
+                budget.work(WorkKind::Render, 1)?;
+                if std::mem::replace(&mut reached[current], true) {
+                    continue;
+                }
+                let links = &plan.files[current].links;
+                for target in links
+                    .imports
+                    .iter()
+                    .map(|&(source, _)| source)
+                    .chain(links.dynamic.iter().copied())
+                {
+                    budget.push(Scratch, &mut pending, target as usize)?;
+                }
+                let preloads = plan.preloads_in(current, Scratch, budget)?;
+                budget.extend_copy(Scratch, &mut pending, &preloads)?;
+                drop_vec(preloads, Scratch, budget)?;
             }
-            let links = &plan.files[current].links;
-            pending.extend(links.imports.iter().map(|&(source, _)| source as usize));
-            pending.extend(links.dynamic.iter().map(|&target| target as usize));
-            // The preload prelude spells the files it preloads too.
-            pending.extend(plan.preloads(current));
+            let mut digest = Sha256::new();
+            digest.update(own[file]);
+            for (other, _) in reached
+                .iter()
+                .enumerate()
+                .filter(|&(other, &seen)| seen && other != file)
+            {
+                budget.work(WorkKind::Render, own[other].len() as u64)?;
+                digest.update(own[other]);
+            }
+            hashes.push(budget.format(Retained, format_args!("{:x}", digest.finalize()))?);
         }
-        let mut digest = Sha256::new();
-        digest.update(own[file]);
-        for (other, _) in reached
-            .iter()
-            .enumerate()
-            .filter(|&(other, &seen)| seen && other != file)
-        {
-            digest.update(own[other]);
-        }
-        hashes.push(format!("{:x}", digest.finalize()));
-    }
-    Ok(hashes)
+        Ok(hashes)
+    })
 }

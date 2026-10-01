@@ -1,0 +1,1 @@
+import {bump,read} from "./core";export int twice(){bump();bump();return read();}export {bump,read};

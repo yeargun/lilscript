@@ -188,7 +188,6 @@ pub struct ArtifactFile {
     pub code: String,
     /// This file's own codec sizes, measured once.
     sizes: CachedSizes,
-    charge: RetainedCharge<RevisionId>,
 }
 
 impl ArtifactFile {
@@ -327,7 +326,7 @@ impl Record {
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<usize>, CandidateError> {
-        let mut sizes = Vec::with_capacity(self.files.len());
+        let mut sizes = budget.vector(AllocationClass::Retained, self.files.len())?;
         for file in &self.files {
             budget.work(WorkKind::Codec, 1)?;
             let size = match file.sizes.measured(codec) {
@@ -358,12 +357,14 @@ impl Record {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<u64>, CandidateError> {
         match &self.layout {
-            None => Ok(vec![
-                self.measure(codec, settings, cache, owner, budget)? as u64
-            ]),
-            Some(layout) => {
-                Ok(layout.rows(&self.file_sizes(codec, settings, cache, owner, budget)?))
+            None => {
+                let size = self.measure(codec, settings, cache, owner, budget)? as u64;
+                Ok(budget.copy_slice(AllocationClass::Retained, &[size])?)
             }
+            Some(layout) => budget.with_temporary(
+                |budget| self.file_sizes(codec, settings, cache, owner, budget),
+                |sizes, budget| Ok(layout.rows_in(sizes, AllocationClass::Retained, budget)?),
+            ),
         }
     }
     /// The proxy judge's size under `codec`: gzip and raw are their own
@@ -426,14 +427,19 @@ impl Record {
             // The sum of the entries' rows: shared code weighs by how many
             // entries load it. A refusal in any file, a zero score, or an
             // overflowing sum never publishes a partial coordinate.
-            Some(layout) => {
-                let rows = layout.rows(&self.file_sizes(codec, settings, cache, owner, budget)?);
-                let total = rows
-                    .iter()
-                    .try_fold(0u64, |sum, row| sum.checked_add(*row))
-                    .ok_or(AllocationError::Capacity)?;
-                usize::try_from(total).map_err(|_| AllocationError::Capacity)?
-            }
+            Some(layout) => budget.with_temporary(
+                |budget| self.file_sizes(codec, settings, cache, owner, budget),
+                |sizes, budget| {
+                    let mut phase = budget.scope();
+                    let rows = layout.rows_in(sizes, AllocationClass::Scratch, &mut phase)?;
+                    let total = rows.iter().try_fold(0u64, |sum, row| {
+                        sum.checked_add(*row).ok_or(AllocationError::Capacity)
+                    })?;
+                    Ok::<_, CandidateError>(
+                        usize::try_from(total).map_err(|_| AllocationError::Capacity)?,
+                    )
+                },
+            )?,
         };
         // Other completed codecs retain their independent monotone entries.
         self.sizes.publish(codec, size)
@@ -461,13 +467,10 @@ impl Record {
         release(charge, owner, budget);
         let files = files
             .into_iter()
-            .map(|file| {
-                release(file.charge, owner, budget);
-                DeliveredFile {
-                    sizes: file.sizes.get(),
-                    name: file.name,
-                    code: file.code,
-                }
+            .map(|file| DeliveredFile {
+                sizes: file.sizes.get(),
+                name: file.name,
+                code: file.code,
             })
             .collect();
         (text, files, layout)
@@ -477,49 +480,16 @@ impl Record {
             text,
             files,
             charge,
+            layout,
             provenance,
             identity,
             ..
         } = self;
-        drop(text);
-        for file in files {
-            drop(file.code);
-            release(file.charge, owner, budget);
-        }
+        drop((text, files, layout));
         discard_provenance(provenance, owner, budget);
         discard_identity(identity, owner, budget);
         release(charge, owner, budget);
     }
-}
-
-/// The heap bytes a layout holds, charged with its record.
-fn layout_bytes(layout: &crate::js::delivery::DeliveredLayout) -> u64 {
-    let words = |count: usize| (count * size_of::<u64>()) as u64;
-    let files = layout
-        .files
-        .iter()
-        .map(|file| {
-            size_of::<crate::js::delivery::LayoutFile>() as u64
-                + words(
-                    file.label.len() + file.modules.len() + file.imports.len() + file.dynamic.len(),
-                )
-        })
-        .sum::<u64>();
-    let entries = layout
-        .entries
-        .iter()
-        .map(|entry| {
-            size_of::<crate::js::delivery::EntryDelivery>() as u64
-                + entry.name.len() as u64
-                + words(entry.closure.len())
-        })
-        .sum::<u64>();
-    let names = layout
-        .entry_names
-        .iter()
-        .map(|name| (name.len() + size_of::<String>()) as u64)
-        .sum::<u64>();
-    files + entries + names
 }
 
 fn discard_provenance(
@@ -1131,19 +1101,35 @@ impl ArtifactArena {
             layout: layout.expect("checked above"),
         })
     }
-    /// Each entry's row under `codec` (design §10): one row for one file.
-    pub(super) fn rows(
+    /// Compare temporary entry rows without returning unowned vector backing.
+    pub(super) fn compare_rows<R>(
         &self,
-        id: ArtifactId,
+        left: ArtifactId,
+        right: ArtifactId,
         codec: CompressionCostModel,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<Vec<u64>, CandidateError> {
-        self.get(id.0)?.rows(
-            codec,
-            &self.settings,
-            &mut self.measurements.borrow_mut(),
-            self.owner,
-            budget,
+        inspect: impl FnOnce(&[u64], &[u64]) -> R,
+    ) -> Result<R, CandidateError> {
+        budget.with_temporary(
+            |budget| {
+                let mut measurements = self.measurements.borrow_mut();
+                let left = self.get(left.0)?.rows(
+                    codec,
+                    &self.settings,
+                    &mut measurements,
+                    self.owner,
+                    budget,
+                )?;
+                let right = self.get(right.0)?.rows(
+                    codec,
+                    &self.settings,
+                    &mut measurements,
+                    self.owner,
+                    budget,
+                )?;
+                Ok::<_, CandidateError>((left, right))
+            },
+            |rows, _| Ok(inspect(&rows.0, &rows.1)),
         )
     }
     pub(super) fn discard(
@@ -1276,41 +1262,53 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         }
         self.output
             .with_allocation_budget(|budget| self.staging.prepare_insert(budget))?;
-        let (text, charge, literals, files, layout) = match self.output.delivery_layout() {
-            Some(layout) => {
-                let (rendered, literals) = self.output.render_plan_with_literals_admitted(
+        let (text, charge, literals, files, layout) = if self.output.has_delivery_plan() {
+            let (files, layout, charge, literals) =
+                self.output.render_plan_with_literals_admitted(
                     plan,
                     literals,
                     byte_limit,
                     self.staging.owner,
+                    |name, code| ArtifactFile {
+                        sizes: CachedSizes::new(code.len()),
+                        name,
+                        code,
+                    },
                 )?;
-                let files = rendered
-                    .into_iter()
-                    .map(|file| ArtifactFile {
-                        sizes: CachedSizes::new(file.code.len()),
-                        name: file.name,
-                        code: file.code,
-                        charge: file.charge,
-                    })
-                    .collect::<Vec<_>>();
-                // The record's own charge covers the layout it keeps.
-                let bytes = layout_bytes(&layout);
-                let (text, charge) = self.output.with_allocation_budget(|budget| {
-                    budget
-                        .retain(AllocationClass::Retained, bytes)
-                        .and_then(|()| budget.detach_retained(self.staging.owner, bytes))
-                        .map(|charge| (String::new(), charge))
+            (String::new(), charge, literals, files, Some(layout))
+        } else {
+            let (text, charge, literals) = self.output.render_with_literals_admitted(
+                plan,
+                literals,
+                byte_limit,
+                self.staging.owner,
+            )?;
+            (text, charge, literals, Vec::new(), None)
+        };
+        // The artifact reservation is already detached. Failed row admission
+        // must destroy the complete bundle before returning that reservation.
+        let raw = self
+            .output
+            .with_allocation_budget(|budget| -> Result<usize, CandidateError> {
+                let Some(layout) = &layout else {
+                    return Ok(text.len());
+                };
+                let mut phase = budget.scope();
+                let mut sizes = phase.vector(AllocationClass::Scratch, files.len())?;
+                sizes.extend(files.iter().map(|file| file.code.len()));
+                let rows = layout.rows_in(&sizes, AllocationClass::Scratch, &mut phase)?;
+                let total = rows.iter().try_fold(0u64, |sum, row| {
+                    sum.checked_add(*row).ok_or(AllocationError::Capacity)
                 })?;
-                (text, charge, literals, files, Some(layout))
-            }
-            None => {
-                let (text, charge, literals) = self.output.render_with_literals_admitted(
-                    plan,
-                    literals,
-                    byte_limit,
-                    self.staging.owner,
-                )?;
-                (text, charge, literals, Vec::new(), None)
+                Ok(usize::try_from(total).map_err(|_| AllocationError::Capacity)?)
+            });
+        let raw = match raw {
+            Ok(raw) => raw,
+            Err(error) => {
+                drop((text, files, layout));
+                self.output
+                    .with_allocation_budget(|budget| release(charge, self.staging.owner, budget));
+                return Err(error);
             }
         };
         let actual_output = OutputTactics {
@@ -1337,30 +1335,13 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         }) {
             Ok(retained) => retained,
             Err(error) => {
-                drop(text);
-                self.output.with_allocation_budget(|budget| {
-                    release(charge, self.staging.owner, budget);
-                    for file in files {
-                        release(file.charge, self.staging.owner, budget);
-                    }
-                });
+                drop((text, files, layout));
+                self.output
+                    .with_allocation_budget(|budget| release(charge, self.staging.owner, budget));
                 return Err(error);
             }
         };
         let (provenance, identity) = retained;
-        // Raw bytes rank like every codec: a plan's raw score is the sum of
-        // its entries' rows.
-        let raw = match &layout {
-            None => text.len(),
-            Some(layout) => {
-                let sizes = files.iter().map(|file| file.code.len()).collect::<Vec<_>>();
-                let total = layout
-                    .rows(&sizes)
-                    .iter()
-                    .fold(0u64, |total, row| total.saturating_add(*row));
-                usize::try_from(total).unwrap_or(usize::MAX)
-            }
-        };
         let sizes = CachedSizes::new(raw);
         // The printed tree's structural digest, for a file printed whole
         // (plan task M2.5); a delivery plan's files are parsed without one.
@@ -1369,14 +1350,11 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
             None => match self.output.structure_digest() {
                 Ok(structure) => Some(structure),
                 Err(error) => {
-                    drop(text);
+                    drop((text, files, layout));
                     self.output.with_allocation_budget(|budget| {
                         discard_provenance(provenance, self.staging.owner, budget);
                         discard_identity(identity, self.staging.owner, budget);
                         release(charge, self.staging.owner, budget);
-                        for file in files {
-                            release(file.charge, self.staging.owner, budget);
-                        }
                     });
                     return Err(error.into());
                 }

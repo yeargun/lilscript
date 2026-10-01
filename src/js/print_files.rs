@@ -32,22 +32,33 @@ pub(in crate::js) fn render_planned_file_admitted(
     let plan = planned.plan;
     let file = &plan.files[planned.file];
     let own = planned.names[planned.file].as_str();
-    let specifier = |target: u32| -> String {
-        crate::js::names::specifier(own, &planned.names[target as usize])
-    };
-    let lazy = file
-        .links
-        .dynamic
-        .iter()
-        .filter_map(|&target| match plan.files[target as usize].role {
-            FileRole::Lazy(loaded) => Some((loaded, specifier(target))),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
     let mut phase = budget.scope();
+    let mut lazy = phase
+        .vector(AllocationClass::Scratch, file.links.dynamic.len())
+        .map_err(PrintError::Admission)?;
+    for &target in &file.links.dynamic {
+        if let FileRole::Lazy(loaded) = plan.files[target as usize].role {
+            let path = crate::js::names::specifier_in(
+                own,
+                &planned.names[target as usize],
+                AllocationClass::Scratch,
+                &mut phase,
+            )
+            .map_err(PrintError::Admission)?;
+            lazy.push((loaded, path));
+        }
+    }
     let forms = match module.print_forms.as_ref() {
         Some(forms) => std::borrow::Cow::Borrowed(forms),
-        None => std::borrow::Cow::Owned(crate::js::spellings::PrintForms::new(module, false, AllocationClass::Scratch, &mut phase).map_err(PrintError::Admission)?),
+        None => std::borrow::Cow::Owned(
+            crate::js::spellings::PrintForms::new(
+                module,
+                false,
+                AllocationClass::Scratch,
+                &mut phase,
+            )
+            .map_err(PrintError::Admission)?,
+        ),
     };
     let mut printer = Printer {
         module,
@@ -65,7 +76,7 @@ pub(in crate::js) fn render_planned_file_admitted(
         lazy: &lazy,
     };
     match plan.format {
-        JavaScriptFormat::Esm => esm(&mut printer, plan, planned, hosts, &specifier),
+        JavaScriptFormat::Esm => esm(&mut printer, plan, planned, hosts),
         _ => return Err(PrintError::Container),
     }
     let Buffer { text, error, .. } = printer.output;
@@ -73,6 +84,7 @@ pub(in crate::js) fn render_planned_file_admitted(
         drop(text);
         return Err(error);
     }
+    drop((forms, lazy));
     phase.finish_retained().map_err(PrintError::Admission)?;
     Ok(text)
 }
@@ -82,7 +94,7 @@ fn export_name(printer: &mut Printer<'_, '_, '_>, name: &str) {
     if identifier_name(name) {
         printer.text(name);
     } else {
-        printer.string(&StringValue::from(name));
+        printer.unicode_string(name);
     }
 }
 
@@ -91,29 +103,40 @@ fn esm(
     plan: &DeliveryPlan,
     planned: &PlannedPrint<'_>,
     hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
-    specifier: &dyn Fn(u32) -> String,
 ) {
     let file = &plan.files[planned.file];
     let names = printer.names;
     // The old route's preload prelude, verbatim.
-    let preload = plan.preloads(planned.file);
+    let Some(preload) = printer
+        .output
+        .admit(|budget| plan.preloads_in(planned.file, AllocationClass::Scratch, budget))
+    else {
+        return;
+    };
     if !preload.is_empty() {
         printer.text("typeof document!=\"undefined\"&&[");
         for (index, &target) in preload.iter().enumerate() {
             if index != 0 {
                 printer.text(",");
             }
-            printer.string(&StringValue::from(specifier(target as u32).as_str()));
+            let Some(path) = specifier(printer, planned, target as u32) else {
+                return;
+            };
+            printer.unicode_string(&path);
+            printer.output.drop_string(path, AllocationClass::Scratch);
         }
         printer.text("].forEach(a=>{let b=document.createElement(\"link\");b.rel=\"modulepreload\",b.href=a,document.head.append(b)});");
     }
+    printer.output.drop_vec(preload, AllocationClass::Scratch);
     // Module requests in evaluation order: each file's bindings, its public
     // names re-exported from there, or the bare request for its effects.
     for (source, bindings) in &file.links.imports {
         if !printer.output.work(1 + bindings.len()) {
             return;
         }
-        let path = specifier(*source);
+        let Some(path) = specifier(printer, planned, *source) else {
+            return;
+        };
         if !bindings.is_empty() {
             printer.text("import{");
             for (index, binding) in bindings.iter().enumerate() {
@@ -123,19 +146,19 @@ fn esm(
                 printer.text(names.get(*binding));
             }
             printer.text("}from");
-            printer.string(&StringValue::from(path.as_str()));
+            printer.unicode_string(&path);
             printer.text(";");
         }
         // A public binding this file imports anyway is exported locally.
-        let reexports = file
+        let mut reexports = file
             .links
             .public
             .iter()
             .filter(|(_, binding, from)| from == source && !bindings.contains(binding))
-            .collect::<Vec<_>>();
-        if !reexports.is_empty() {
+            .peekable();
+        if reexports.peek().is_some() {
             printer.text("export{");
-            for (index, (name, binding, _)) in reexports.iter().enumerate() {
+            for (index, (name, binding, _)) in reexports.enumerate() {
                 if index != 0 {
                     printer.text(",");
                 }
@@ -147,13 +170,14 @@ fn esm(
                 }
             }
             printer.text("}from");
-            printer.string(&StringValue::from(path.as_str()));
+            printer.unicode_string(&path);
             printer.text(";");
         } else if bindings.is_empty() {
             printer.text("import");
-            printer.string(&StringValue::from(path.as_str()));
+            printer.unicode_string(&path);
             printer.text(";");
         }
+        printer.output.drop_string(path, AllocationClass::Scratch);
     }
     // The foreign imports this file uses, one declaration per specifier;
     // carried host modules print as host bindings instead.
@@ -168,12 +192,10 @@ fn esm(
         }
     }
     let root = &printer.module.regions[printer.module.root.index()].statements;
-    let order = file
-        .statements
-        .iter()
-        .map(|&statement| statement as usize)
-        .collect::<Vec<_>>();
-    printer.statement_list(root, &order);
+    printer.statement_list(
+        root,
+        file.statements.iter().map(|&statement| statement as usize),
+    );
     // Internal exports under their own names, then the public names this
     // file declares.
     let own = planned.file as u32;
@@ -221,6 +243,21 @@ fn esm(
     }
 }
 
+fn specifier(
+    printer: &mut Printer<'_, '_, '_>,
+    planned: &PlannedPrint<'_>,
+    target: u32,
+) -> Option<String> {
+    printer.output.admit(|budget| {
+        crate::js::names::specifier_in(
+            own_name(planned),
+            &planned.names[target as usize],
+            AllocationClass::Scratch,
+            budget,
+        )
+    })
+}
+
 /// The file's own delivered name.
 fn own_name<'a>(planned: &PlannedPrint<'a>) -> &'a str {
     planned.names[planned.file].as_str()
@@ -229,14 +266,37 @@ fn own_name<'a>(planned: &PlannedPrint<'a>) -> &'a str {
 /// A relative foreign specifier is spelled from the output directory, which
 /// stands for the first entry's source directory (as a one-file output
 /// does); a file delivered `depth` directories below it climbs back first.
+#[cfg(test)]
 pub(super) fn rebased(source: &str, file: &str) -> Option<String> {
+    rebased_in(
+        source,
+        file,
+        AllocationClass::Scratch,
+        &mut AllocationBudget::new(None),
+    )
+    .expect("rebased specifier")
+}
+pub(super) fn rebased_in(
+    source: &str,
+    file: &str,
+    class: AllocationClass,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Option<String>, AllocationError> {
+    budget.work(WorkKind::Render, file.len() as u64 + 1)?;
     let depth = file.matches('/').count();
     if depth == 0 || !(source.starts_with("./") || source.starts_with("../")) {
-        return None;
+        return Ok(None);
     }
-    let mut rebased = "../".repeat(depth);
-    rebased.push_str(source.strip_prefix("./").unwrap_or(source));
-    Some(rebased)
+    let mut result = String::new();
+    for _ in 0..depth {
+        budget.push_str(class, &mut result, "../")?;
+    }
+    budget.push_str(
+        class,
+        &mut result,
+        source.strip_prefix("./").unwrap_or(source),
+    )?;
+    Ok(Some(result))
 }
 
 #[cfg(test)]

@@ -799,15 +799,7 @@ impl JavaScriptTarget<'_, '_> {
         // Every host module the output delivers, lowered into the tree or
         // not: its code runs for the entries reaching a module importing it
         // (design §7.9). Once lowered, the tree no longer imports it.
-        let delivered_hosts = hosts
-            .map(|hosts| {
-                hosts
-                    .modules
-                    .iter()
-                    .map(|host| host.specifier.clone())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+        let delivered_hosts=*hosts;
         // Delivered host code runs inside this module's scope; its globals
         // must stay visible there. A script output runs it strict, as the
         // module it was written as.
@@ -821,12 +813,20 @@ impl JavaScriptTarget<'_, '_> {
         });
         if let Some(hosts) = hosts {
             if module.carried.is_empty() {
-                module.reserved = hosts.reserved.clone();
-                module.carried = hosts
-                    .modules
-                    .iter()
-                    .map(|host| host.specifier.clone())
-                    .collect();
+                let reserved=budget.retained_phase(|budget| {
+                    let mut names=budget.vector(crate::output_budget::AllocationClass::Retained,hosts.reserved.len())?;
+                    for name in &hosts.reserved {names.push(budget.string(crate::output_budget::AllocationClass::Retained,name)?);}
+                    Ok::<_,AllocationError>(names)
+                })?;
+                let carried=budget.retained_phase(|budget| {
+                    let mut names=budget.vector(crate::output_budget::AllocationClass::Retained,hosts.modules.len())?;
+                    for module in &hosts.modules {names.push(budget.string(crate::output_budget::AllocationClass::Retained,&module.specifier)?);}
+                    Ok::<_,AllocationError>(names)
+                })?;
+                for old in [std::mem::replace(&mut module.reserved,reserved),std::mem::replace(&mut module.carried,carried)] {
+                    let bytes=old.iter().try_fold(crate::output_budget::vector_bytes(&old)?,|sum,name|sum.checked_add(name.capacity() as u64).ok_or(AllocationError::Capacity))?;
+                    drop(old);budget.release(crate::output_budget::AllocationClass::Retained,bytes)?;
+                }
             }
         }
         let strict = policy.javascript_contract().is_some_and(|contract| {
@@ -850,7 +850,7 @@ impl JavaScriptTarget<'_, '_> {
                     format => format.extension(),
                 };
                 module.delivery = super::entries::with_entry_graph(
-                    &semantic.program, &delivered_hosts, module_names, budget,
+                    &semantic.program, delivered_hosts.into_iter().flat_map(|hosts|hosts.modules.iter().map(|host|host.specifier.as_str())), module_names, budget,
                     |graph, budget| crate::js::delivery::plan(
                         module, graph, contract, dynamic_import, ext, budget,
                     ),

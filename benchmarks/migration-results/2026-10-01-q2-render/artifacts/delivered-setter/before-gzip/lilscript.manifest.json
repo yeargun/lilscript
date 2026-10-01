@@ -1,0 +1,66 @@
+{
+  "version": 3,
+  "codec": "gzip",
+  "outputs": [
+    {
+      "mode": "preserve-modules",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "main",
+          "file": "entry/main-af782846aa37.js",
+          "dynamic": false,
+          "closure": [
+            "modules/lib-7be19b3b1001.js",
+            "entry/main-af782846aa37.js"
+          ],
+          "row": 197,
+          "raw_row": 176
+        }
+      ],
+      "files": [
+        {
+          "file": "entry/main-af782846aa37.js",
+          "role": "entry",
+          "label": [
+            "main"
+          ],
+          "modules": [
+            "main.lil"
+          ],
+          "anchored": true,
+          "imports": [
+            "modules/lib-7be19b3b1001.js"
+          ],
+          "dynamic_imports": [],
+          "bytes": 91,
+          "codec_bytes": 102,
+          "sha256": "bd0b3f8010b7400a0847f0ef32d885e984d7448cb7b84145877b4cebedb016fb"
+        },
+        {
+          "file": "modules/lib-7be19b3b1001.js",
+          "role": "module",
+          "label": [
+            "main"
+          ],
+          "modules": [
+            "lib.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 85,
+          "codec_bytes": 95,
+          "sha256": "e0ad2aa6cd8a198faa138fda06361e6667a981efe1f19a3f961a091e05d96117"
+        }
+      ],
+      "side_effects": [
+        "entry/main-af782846aa37.js",
+        "modules/lib-7be19b3b1001.js"
+      ],
+      "codec_total": 197,
+      "rows_total": 197,
+      "setters": 1
+    }
+  ]
+}

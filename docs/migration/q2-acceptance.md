@@ -21,7 +21,7 @@ scheduler suffixes remain useful starting points; do not rebuild their owners.
 4. [ ] Finish resource admission for graph/cycle/delivery and analysis/edit
    storage, including failure cleanup. Entry graph, cycle checking and the
    target use index, edit journals, local dirty maps, renumbering plans and complete retained target copies are admitted; delivery placement, simulation and setter payloads are now
-   admitted. Source arena edits are now admitted; global analysis/planning and artifact/render owners still need completion. Count logical work independently from
+   admitted. Source arena edits are now admitted; rendered bundle storage is admitted. Global analysis/planning owners still need completion. Count logical work independently from
    physical cache hits and retain scaling/work/byte telemetry.
 5. [ ] Wire/document cache and scheduling controls with hard TOML behavior,
    lifetime/capacity, invalidation, defaults and tradeoffs. Transparent controls
@@ -142,3 +142,21 @@ judgment counts match. An existing namespace call-convention defect is repaired.
 Retaining arena capacity reduces copying but raises measured peaks modestly;
 newly counted work is explicit. Global analysis/planning, artifact/render,
 shared formation and elaboration remain open.
+
+Next batch: rendered delivery and artifact metadata. Admit final/provisional
+filenames, content-hash walks, preload/specifier scratch, delivered layouts,
+artifact file vectors and objective rows through their existing owners. Release
+provisional print buffers before final printing and transfer one complete
+artifact reservation; a refusal must release every completed file and layout.
+Avoid temporary string copies in the printer and stream number spelling where
+possible. Include carried-host output and preserve exact naming/hash/container
+behavior. Prediction: unchanged funded files and scores, more accurate work
+and memory bills, less temporary copying; focused rendering, delivery, hash,
+refusal and exact-codec checks follow one coherent implementation batch.
+
+The [rendered bundle batch](../../benchmarks/migration-results/2026-10-01-q2-render/README.md)
+completes admission for delivered render buffers, hash/name/specifier/preload
+scratch, host wrappers, artifact file metadata and objective rows. Twenty-six
+focused checks and 54 release checks pass; all files, scores and search counts
+match. Bills rise for newly admitted work/storage. Global analysis/planning,
+shared/incremental formation and per-module elaboration remain open.

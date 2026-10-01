@@ -1,0 +1,1 @@
+import extern {add} from "./host.js";extern int add(int left,int right);export int answer(){return add(20,22);}

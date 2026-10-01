@@ -203,6 +203,7 @@ pub(super) fn render_with_literals_admitted(
         drop(text);
         return Err(error);
     }
+    drop(forms);
     phase.finish_retained().map_err(PrintError::Admission)?;
     Ok(text)
 }
@@ -228,6 +229,35 @@ struct Buffer<'a, 'ledger> {
     error: Option<PrintError>,
 }
 impl Buffer<'_, '_> {
+    fn admit<T>(
+        &mut self,
+        build: impl FnOnce(&mut AllocationBudget<'_>) -> Result<T, AllocationError>,
+    ) -> Option<T> {
+        if self.error.is_some() {
+            return None;
+        }
+        match build(self.budget) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                self.error = Some(PrintError::Admission(error));
+                None
+            }
+        }
+    }
+    fn drop_vec<T>(&mut self, values: Vec<T>, class: AllocationClass) {
+        let bytes = crate::output_budget::vector_bytes(&values);
+        drop(values);
+        if let Err(error) = bytes.and_then(|bytes| self.budget.release(class, bytes)) {
+            self.error.get_or_insert(PrintError::Admission(error));
+        }
+    }
+    fn drop_string(&mut self, value: String, class: AllocationClass) {
+        let bytes = value.capacity() as u64;
+        drop(value);
+        if let Err(error) = self.budget.release(class, bytes) {
+            self.error.get_or_insert(PrintError::Admission(error));
+        }
+    }
     fn work(&mut self, units: usize) -> bool {
         if self.error.is_some() {
             return false;
@@ -374,23 +404,43 @@ impl<'a> Printer<'a, '_, '_> {
                 return;
             }
             if !hosted(hosts, &module.imports[index]) {
-                order.push(index);
+                if self
+                    .output
+                    .admit(|budget| budget.push(AllocationClass::Scratch, &mut order, index))
+                    .is_none()
+                {
+                    return;
+                }
             }
         }
-        let mut done = vec![false; order.len()];
+        let Some(mut done) = self
+            .output
+            .admit(|budget| budget.filled(AllocationClass::Scratch, order.len(), false))
+        else {
+            return;
+        };
+        let mut group: Vec<usize> = Vec::new();
         for first in 0..order.len() {
             if done[first] {
                 continue;
             }
             let source = &module.imports[order[first]].source;
-            let mut group: Vec<usize> = Vec::new();
+            group.clear();
             for later in first..order.len() {
                 if !self.output.work(1) {
                     return;
                 }
                 if !done[later] && module.imports[order[later]].source == *source {
                     done[later] = true;
-                    group.push(order[later]);
+                    if self
+                        .output
+                        .admit(|budget| {
+                            budget.push(AllocationClass::Scratch, &mut group, order[later])
+                        })
+                        .is_none()
+                    {
+                        return;
+                    }
                 }
             }
             let default = group
@@ -435,16 +485,29 @@ impl<'a> Printer<'a, '_, '_> {
                 self.text(" ");
             }
             self.text("from");
-            match file.and_then(|file| {
-                source
-                    .as_unicode()
-                    .and_then(|source| files::rebased(source, file))
-            }) {
-                Some(rebased) => self.string(&crate::literal::StringValue::from(rebased.as_str())),
+            let Some(rebased) = self
+                .output
+                .admit(|budget| match file.zip(source.as_unicode()) {
+                    Some((file, source)) => {
+                        files::rebased_in(source, file, AllocationClass::Scratch, budget)
+                    }
+                    None => Ok(None),
+                })
+            else {
+                return;
+            };
+            match rebased {
+                Some(rebased) => {
+                    self.unicode_string(&rebased);
+                    self.output.drop_string(rebased, AllocationClass::Scratch);
+                }
                 None => self.string(source),
             }
             self.text(";");
         }
+        self.output.drop_vec(group, AllocationClass::Scratch);
+        self.output.drop_vec(done, AllocationClass::Scratch);
+        self.output.drop_vec(order, AllocationClass::Scratch);
     }
 
     /// Formation has already proved the scope and iteration-identity rules.
@@ -477,7 +540,12 @@ impl<'a> Printer<'a, '_, '_> {
         (hosts, strict): (&crate::host_modules::HostDelivery, bool),
         imports: impl Iterator<Item = usize>,
     ) {
-        let mut groups: Vec<Vec<usize>> = vec![Vec::new(); hosts.modules.len()];
+        let Some(mut groups) = self.output.admit(|budget| {
+            budget.vector::<Vec<usize>>(AllocationClass::Scratch, hosts.modules.len())
+        }) else {
+            return;
+        };
+        groups.resize_with(hosts.modules.len(), Vec::new);
         for index in imports {
             let import = &self.module.imports[index];
             if let Some(position) = import
@@ -486,11 +554,20 @@ impl<'a> Printer<'a, '_, '_> {
                 .and_then(|source| hosts.position(source))
             {
                 if !groups[position].contains(&index) {
-                    groups[position].push(index);
+                    if self
+                        .output
+                        .admit(|budget| {
+                            budget.push(AllocationClass::Scratch, &mut groups[position], index)
+                        })
+                        .is_none()
+                    {
+                        return;
+                    }
                 }
             }
         }
         if groups.iter().all(Vec::is_empty) {
+            self.output.drop_vec(groups, AllocationClass::Scratch);
             return;
         }
         let pattern = |printer: &mut Self, group: &[usize]| {
@@ -504,7 +581,7 @@ impl<'a> Printer<'a, '_, '_> {
                 if identifier_name(&import.imported) {
                     printer.text(&import.imported);
                 } else {
-                    printer.string(&StringValue::from(import.imported.as_str()));
+                    printer.unicode_string(&import.imported);
                 }
                 if local != import.imported {
                     printer.text(":");
@@ -514,10 +591,14 @@ impl<'a> Printer<'a, '_, '_> {
             printer.text("}");
         };
         self.text("let");
-        if let Some(single) = hosts.single(strict) {
+        let Some(single) = self.output.admit(|budget| hosts.single_in(strict, budget)) else {
+            return;
+        };
+        if let Some(single) = single {
             pattern(self, &groups[0]);
             self.text("=");
             self.text(&single);
+            self.output.drop_string(single, AllocationClass::Retained);
         } else {
             self.text("[");
             let last = groups.iter().rposition(|group| !group.is_empty()).unwrap();
@@ -530,9 +611,22 @@ impl<'a> Printer<'a, '_, '_> {
                 }
             }
             self.text("]=");
-            self.text(&hosts.expression(strict));
+            let Some(expression) = self
+                .output
+                .admit(|budget| hosts.expression_in(strict, budget))
+            else {
+                return;
+            };
+            self.text(&expression);
+            self.output
+                .drop_string(expression, AllocationClass::Retained);
         }
         self.text(";");
+        for group in &mut groups {
+            self.output
+                .drop_vec(std::mem::take(group), AllocationClass::Scratch);
+        }
+        self.output.drop_vec(groups, AllocationClass::Scratch);
     }
 
     /// Returns only a nonnegative numeric literal, preserving primary precedence.
@@ -676,6 +770,22 @@ impl<'a> Printer<'a, '_, '_> {
         self.string_chosen(value, self.module.quotes);
     }
 
+    fn unicode_string(&mut self, value: &str) {
+        if !self.output.work(value.len().saturating_mul(3)) {
+            return;
+        }
+        let quote =
+            if self.module.quotes && value.matches('"').count() > value.matches('\'').count() {
+                '\''
+            } else {
+                '"'
+            };
+        let mut delimiter = [0; 4];
+        let delimiter = quote.encode_utf8(&mut delimiter);
+        self.text(delimiter);
+        let _ = crate::js_string::unicode_contents(&mut self.output, value, quote, false);
+        self.text(delimiter);
+    }
     fn string_chosen(&mut self, value: &StringValue, compact: bool) {
         let quote = match value.as_unicode() {
             Some(text) if compact && text.matches('"').count() > text.matches('\'').count() => '\'',
@@ -941,8 +1051,10 @@ impl<'a> Printer<'a, '_, '_> {
                     if *value == 0.0 && value.is_sign_negative() {
                         self.text("-0");
                     } else if value.is_finite() {
-                        let spelling = number_spelling(*value);
-                        self.text(&spelling);
+                        if !self.output.work(64) {
+                            return;
+                        }
+                        let _ = write_number(&mut self.output, *value);
                     } else {
                         let _ = write!(self.output, "{value}");
                     }
@@ -951,8 +1063,14 @@ impl<'a> Printer<'a, '_, '_> {
                     if let Some(truthy) = self.observed_literal(id) {
                         self.text(if truthy { "1" } else { "0" });
                     } else {
-                        self.string_delimited(value,
-                            if self.forms.quotes.get(id.index()).copied().unwrap_or(false) { '\'' } else { '"' });
+                        self.string_delimited(
+                            value,
+                            if self.forms.quotes.get(id.index()).copied().unwrap_or(false) {
+                                '\''
+                            } else {
+                                '"'
+                            },
+                        );
                     }
                 }
                 // `!0` and `!1` are the booleans, three and four bytes shorter.
@@ -1204,11 +1322,11 @@ impl<'a> Printer<'a, '_, '_> {
                     // The file's own namespace; a failed load reports the
                     // source specifier, as the old route did.
                     self.text("import(");
-                    self.string(&StringValue::from(chunk.as_str()));
+                    self.unicode_string(chunk);
                     self.text(").catch(e=>");
                     self.expression(*promise, 18);
                     self.text(".reject({specifier:");
-                    self.string(&StringValue::from(specifier.as_str()));
+                    self.unicode_string(specifier);
                     self.text(",message:");
                     self.expression(*string, 18);
                     self.text("(e)}))");
@@ -1229,7 +1347,7 @@ impl<'a> Printer<'a, '_, '_> {
                         if identifier_name(name) || simple_number_key(name, false) {
                             self.text(name);
                         } else {
-                            self.string(&StringValue::from(name.as_str()));
+                            self.unicode_string(name);
                         }
                         self.text(":");
                         self.expression(*value, 2);
@@ -1555,9 +1673,10 @@ impl<'a> Printer<'a, '_, '_> {
 
     /// Selected root statements, in order: adjacent declarations still share
     /// one `let`, and every statement keeps its `;`.
-    fn statement_list(&mut self, statements: &[Statement], order: &[usize]) {
+    fn statement_list(&mut self, statements: &[Statement], order: impl Iterator<Item = usize>) {
         let mut declaring = false;
-        for (position, &index) in order.iter().enumerate() {
+        let mut order = order.peekable();
+        while let Some(index) = order.next() {
             if !self.output.work(1) {
                 return;
             }
@@ -1573,7 +1692,7 @@ impl<'a> Printer<'a, '_, '_> {
                     );
                 }
                 declaring = order
-                    .get(position + 1)
+                    .peek()
                     .is_some_and(|&next| matches!(statements[next], Statement::Let { .. }));
                 if !declaring {
                     self.text(";");
@@ -1827,45 +1946,117 @@ mod budget_tests;
 /// round-trip digits, as a plain decimal without a leading zero (`.5`) or
 /// with a decimal exponent (`1e3`, `15e-5`), whichever is shorter.
 pub(super) fn number_spelling(value: f64) -> String {
-    let sign = if value < 0.0 { "-" } else { "" };
-    // `{:e}` gives the shortest round-trip digits: `d.ddde±x`.
-    let scientific = format!("{:e}", value.abs());
+    let mut result = String::new();
+    write_number(&mut result, value).expect("number text");
+    result
+}
+
+/// LowerExp's finite f64 spelling fits in 32 ASCII bytes. Keep its digits on
+/// the stack and emit only the selected form; no discarded plain/scientific
+/// strings or repeated-zero buffers need heap storage.
+fn write_number(out: &mut impl std::fmt::Write, value: f64) -> std::fmt::Result {
+    struct Scientific {
+        bytes: [u8; 32],
+        len: usize,
+    }
+    impl std::fmt::Write for Scientific {
+        fn write_str(&mut self, text: &str) -> std::fmt::Result {
+            let end = self
+                .len
+                .checked_add(text.len())
+                .filter(|&end| end <= self.bytes.len())
+                .ok_or(std::fmt::Error)?;
+            self.bytes[self.len..end].copy_from_slice(text.as_bytes());
+            self.len = end;
+            Ok(())
+        }
+    }
+    let mut scientific = Scientific {
+        bytes: [0; 32],
+        len: 0,
+    };
+    write!(&mut scientific, "{:e}", value.abs())?;
+    let scientific =
+        std::str::from_utf8(&scientific.bytes[..scientific.len]).expect("ASCII number");
     let (mantissa, exponent) = scientific
         .split_once('e')
-        .expect("LowerExp has an exponent");
-    let exponent: i32 = exponent.parse().expect("LowerExp exponent is an integer");
-    let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
-    let digits = digits.trim_end_matches('0');
-    let digits = if digits.is_empty() { "0" } else { digits };
-    // Value = 0.DIGITS × 10^(exponent + 1).
+        .expect("finite LowerExp exponent");
+    let exponent: i32 = exponent.parse().expect("LowerExp exponent");
+    let mut digits = [0u8; 32];
+    let mut len = 0;
+    for byte in mantissa.bytes().filter(|&byte| byte != b'.') {
+        digits[len] = byte;
+        len += 1;
+    }
+    while len > 1 && digits[len - 1] == b'0' {
+        len -= 1;
+    }
+    let digits = std::str::from_utf8(&digits[..len]).expect("ASCII digits");
     let point = exponent + 1;
-    let count = digits.len() as i32;
-    let plain = if point <= 0 {
-        format!(".{}{digits}", "0".repeat((-point) as usize))
+    let count = len as i32;
+    let shift = point - count;
+    let plain_len = if point <= 0 {
+        1 + (-point) as usize + len
     } else if point >= count {
-        format!("{digits}{}", "0".repeat((point - count) as usize))
+        point as usize
     } else {
-        format!(
+        len + 1
+    };
+    let magnitude = shift.unsigned_abs();
+    let exponent_len = if magnitude < 10 {
+        1
+    } else if magnitude < 100 {
+        2
+    } else {
+        3
+    };
+    let exponential_len = len + 1 + usize::from(shift < 0) + exponent_len;
+    if value < 0.0 {
+        out.write_str("-")?;
+    }
+    if shift != 0 && exponential_len < plain_len {
+        write!(out, "{digits}e{shift}")
+    } else if point <= 0 {
+        out.write_str(".")?;
+        for _ in 0..-point {
+            out.write_str("0")?;
+        }
+        out.write_str(digits)
+    } else if point >= count {
+        out.write_str(digits)?;
+        for _ in count..point {
+            out.write_str("0")?;
+        }
+        Ok(())
+    } else {
+        write!(
+            out,
             "{}.{}",
             &digits[..point as usize],
             &digits[point as usize..]
         )
-    };
-    // DIGITS × 10^(point - count), for integers with trailing zeros and
-    // for small fractions.
-    let shift = point - count;
-    let exponential = format!("{digits}e{shift}");
-    let spelling = if shift != 0 && exponential.len() < plain.len() {
-        exponential
-    } else {
-        plain
-    };
-    format!("{sign}{spelling}")
+    }
 }
 
 #[cfg(test)]
 mod number_spelling_tests {
     use super::number_spelling;
+
+    #[test]
+    fn finite_number_spelling_round_trips_across_exponents_and_signs() {
+        let mut bits = 0x7f4a7c159e3779b9u64;
+        for _ in 0..20_000 {
+            bits ^= bits << 13;
+            bits ^= bits >> 7;
+            bits ^= bits << 17;
+            let value = f64::from_bits(bits);
+            if value.is_finite() && value != 0.0 {
+                let text = number_spelling(value);
+                let parsed: f64 = text.parse().unwrap();
+                assert_eq!(parsed.to_bits(), bits, "{text}");
+            }
+        }
+    }
 
     #[test]
     fn numbers_take_their_shortest_exact_spelling() {

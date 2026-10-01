@@ -178,27 +178,46 @@ pub(crate) fn expand_in(
 /// The specifier one delivered file spells to import another: relative to
 /// the importer's directory, always starting with `./` or `../`.
 pub fn specifier(from: &str, to: &str) -> String {
-    let from_dir: Vec<&str> = {
-        let mut segments = from.split('/').collect::<Vec<_>>();
-        segments.pop();
-        segments
-    };
-    let target: Vec<&str> = to.split('/').collect();
-    let common = from_dir
-        .iter()
-        .zip(&target)
-        .take_while(|(left, right)| left == right)
+    specifier_in(
+        from,
+        to,
+        crate::output_budget::AllocationClass::Retained,
+        &mut crate::output_budget::AllocationBudget::new(None),
+    )
+    .expect("file specifier")
+}
+pub(crate) fn specifier_in(
+    from: &str,
+    to: &str,
+    class: crate::output_budget::AllocationClass,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<String, crate::output_budget::AllocationError> {
+    let directories = from.split('/').count().saturating_sub(1);
+    let common = from
+        .split('/')
+        .take(directories)
+        .zip(to.split('/'))
+        .take_while(|(a, b)| a == b)
         .count()
-        .min(target.len().saturating_sub(1));
+        .min(to.split('/').count().saturating_sub(1));
+    budget.work(
+        crate::compilation_policy::WorkKind::Render,
+        (from.len() + to.len()) as u64,
+    )?;
     let mut out = String::new();
-    for _ in common..from_dir.len() {
-        out.push_str("../");
+    for _ in common..directories {
+        budget.push_str(class, &mut out, "../")?;
     }
     if out.is_empty() {
-        out.push_str("./");
+        budget.push_str(class, &mut out, "./")?;
     }
-    out.push_str(&target[common..].join("/"));
-    out
+    for (index, part) in to.split('/').skip(common).enumerate() {
+        if index != 0 {
+            budget.push_str(class, &mut out, "/")?;
+        }
+        budget.push_str(class, &mut out, part)?;
+    }
+    Ok(out)
 }
 
 #[cfg(test)]

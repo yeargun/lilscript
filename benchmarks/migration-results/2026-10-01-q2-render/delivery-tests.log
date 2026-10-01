@@ -1,0 +1,9 @@
+
+running 4 tests
+test build::delivery_tests::carried_host_code_runs_for_every_entry_reaching_it ... ok
+test build::delivery_tests::embedded_host_modules_become_program_code_in_a_strict_output ... ok
+test build::delivery_tests::hashed_names_cover_every_file_a_file_can_load ... ok
+test build::delivery_tests::relative_host_modules_travel_with_the_output ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2036 filtered out; finished in 4.87s
+

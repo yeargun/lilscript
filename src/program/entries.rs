@@ -10,9 +10,9 @@ use crate::output_budget::{
     AllocationError,
 };
 
-pub(super) fn with_entry_graph<R, E: From<AllocationError>>(
+pub(super) fn with_entry_graph<'a, R, E: From<AllocationError>>(
     program: &Program<'_>,
-    carried: &[String],
+    carried: impl Iterator<Item = &'a str> + Clone,
     paths: &[String],
     budget: &mut AllocationBudget<'_>,
     inspect: impl FnOnce(&EntryGraph, &mut AllocationBudget<'_>) -> Result<R, E>,
@@ -23,9 +23,9 @@ pub(super) fn with_entry_graph<R, E: From<AllocationError>>(
     )
 }
 
-fn entry_graph(
+fn entry_graph<'a>(
     program: &Program<'_>,
-    carried: &[String],
+    carried: impl Iterator<Item = &'a str> + Clone,
     paths: &[String],
     budget: &mut AllocationBudget<'_>,
 ) -> Result<EntryGraph, AllocationError> {
@@ -116,9 +116,9 @@ fn entry_graph(
     for (index, module) in modules.iter().enumerate() {
         let mut carried_here = false;
         for import in &module.foreign_imports {
-            for name in carried {
+            for name in carried.clone() {
                 phase.work(Analysis, name.len().min(import.source.len()) as u64 + 1)?;
-                if *name == import.source {
+                if name == import.source {
                     carried_here = true;
                     break;
                 }

@@ -254,3 +254,140 @@ fn q2_delivery_failed_trial_preserves_the_parent_layout() {
     }
     assert_eq!(ledger.retained_bytes(), 0);
 }
+
+#[test]
+fn q2_rendered_bundle_owns_names_layout_and_files_and_refusals_keep_only_naming_caches() {
+    let (mut module, graph) = fixture(false);
+    let mut contract = DeliveryContract::single();
+    contract.mode = DeliveryMode::PreserveModules;
+    let mut planned = plan(
+        &mut module,
+        &graph,
+        &contract,
+        true,
+        "js",
+        &mut AllocationBudget::new(None),
+    )
+    .unwrap()
+    .unwrap();
+    for name in &mut planned.naming {
+        name.template = "nested/[name]-[index]-[hash:12].[ext]".into();
+    }
+    module.delivery = Some(planned);
+    let policy = crate::config::ProjectConfig::default()
+        .resolve_policy(crate::compilation_policy::CompilationRequest::JavaScript {
+            preserve_root_exports: true,
+        })
+        .unwrap();
+    let mut ledger = ledger(100_000_000, 64 << 20);
+    {
+        let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+        let output = module
+            .prepare_output_with_literals_admitted(&policy, &mut budget)
+            .unwrap();
+        let names = naming::Plan::new(naming::Style::Source);
+        let (files, layout, charge, _) = output
+            .render_plan_with_literals_admitted(
+                &names,
+                LiteralOutput::Original,
+                usize::MAX,
+                7u32,
+                |name, code| (name, code),
+            )
+            .unwrap();
+        let bytes = files.iter().fold(
+            vector_bytes(&files).unwrap() + layout.heap_bytes().unwrap(),
+            |sum, (name, code)| sum + (name.capacity() + code.capacity()) as u64,
+        );
+        assert_eq!(charge.bytes(), bytes);
+        assert!(files.len() > 1);
+        assert!(files
+            .iter()
+            .all(|(name, _)| name.starts_with("nested/") && !name.contains("[hash")));
+        let partial = files[0].1.len() + 1;
+        drop((files, layout));
+        output.with_allocation_budget(|budget| {
+            budget.with_ledger(|ledger| charge.discard(&7, ledger.unwrap().0).unwrap())
+        });
+        let retained = output.with_allocation_budget(|budget| budget.retained_bytes(Retained));
+        for limit in [0, 1, partial] {
+            assert!(matches!(
+                output.render_plan_with_literals_admitted(
+                    &names,
+                    LiteralOutput::Original,
+                    limit,
+                    7u32,
+                    |name, code| (name, code)
+                ),
+                Err(OutputError::ByteLimit)
+            ));
+            assert_eq!(
+                output.with_allocation_budget(|budget| budget.retained_bytes(Retained)),
+                retained,
+                "partial file text and names must be released"
+            );
+            assert_eq!(
+                output.with_allocation_budget(|budget| budget.retained_bytes(Scratch)),
+                0
+            );
+        }
+    }
+    assert_eq!(ledger.retained_bytes(), 0);
+}
+
+#[test]
+fn q2_delivery_metadata_rows_use_admitted_iterative_depth_and_exact_capacity() {
+    let (mut module, graph) = fixture(false);
+    let mut contract = DeliveryContract::single();
+    contract.mode = DeliveryMode::Split;
+    let planned = plan(
+        &mut module,
+        &graph,
+        &contract,
+        true,
+        "js",
+        &mut AllocationBudget::new(None),
+    )
+    .unwrap()
+    .unwrap();
+    let mut ledger = ledger(100_000_000, 64 << 20);
+    {
+        let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+        let layout = planned.layout_in(&mut budget).unwrap();
+        assert_eq!(
+            budget.retained_bytes(Retained),
+            layout.heap_bytes().unwrap()
+        );
+        let sizes = vec![37; layout.files.len()];
+        let rows = layout.rows_in(&sizes, Retained, &mut budget).unwrap();
+        for (entry, row) in layout.entries.iter().zip(&rows) {
+            assert_eq!(*row, 37 * entry.closure.len() as u64);
+        }
+        assert_eq!(
+            budget.retained_bytes(Retained),
+            layout.heap_bytes().unwrap() + vector_bytes(&rows).unwrap()
+        );
+        assert_eq!(budget.retained_bytes(Scratch), 0);
+        drop((layout, rows));
+    }
+    assert_eq!(ledger.retained_bytes(), 0);
+    let mut layout = planned.layout();
+    let template = layout.files[0].clone();
+    layout.files = vec![template; 4096];
+    for (index, file) in layout.files.iter_mut().enumerate() {
+        file.imports = if index == 4095 {
+            Vec::new()
+        } else {
+            vec![index as u32 + 1]
+        };
+    }
+    layout.entries.truncate(1);
+    layout.entries[0].file = 0;
+    layout.entries[0].closure = vec![0];
+    layout.request_bytes = 0;
+    layout.depth_bytes = 2;
+    assert_eq!(layout.rows(&vec![1; 4096]), vec![1 + 2 * 4094]);
+    // A back edge reads the in-progress node as zero, preserving the old rule.
+    layout.files[4095].imports.push(0);
+    assert_eq!(layout.rows(&vec![1; 4096]), vec![1 + 2 * 4095]);
+}

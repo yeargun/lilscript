@@ -20,7 +20,8 @@ local normalization proofs, dependency-qualified effect components and optional
 disk codec/whole-build reuse and explicit decision locks are qualified. Delivery
 planning, trial copies, simulation and setter payloads are admitted; print proofs
 are revalidated after creating setters. Source arena edits and shared copies are
-admitted before allocation, with exact publication checks. Keep logical admission, hard TOML
+admitted before allocation, with exact publication checks. Rendered bundles and
+artifact metadata have complete reservations and refusal cleanup. Keep logical admission, hard TOML
 permissions, source/target identities and selected output independent of cache
 occupancy. Then follow **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 

@@ -1,0 +1,5 @@
+{
+  "setup": "globalThis.emit=console.log;",
+  "exercise": "const main=await load(\"main\");main.run();",
+  "expected": "0.00015\n1.00375\n1.7976931348623157e+308\n-0.7"
+}

@@ -1,0 +1,1 @@
+let e=function answer(e){return e+2|0};Promise.resolve().then(()=>({answer:e})).then(e=>void console.log(e.answer(40))).catch(e=>void console.log(e.message));

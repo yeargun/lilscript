@@ -1,0 +1,27 @@
+
+running 22 tests
+test host_modules::tests::compaction_keeps_the_tokens_apart_that_need_it ... ok
+test host_modules::tests::host_modules_become_one_scoped_expression ... ok
+test host_modules::tests::runtime_typescript_is_refused ... ok
+test host_modules::tests::typescript_strips_to_erased_spans_and_keeps_line_breaks ... ok
+test js::delivery::admission_tests::q2_delivery_failed_trial_preserves_the_parent_layout ... ok
+test js::delivery::admission_tests::q2_delivery_metadata_rows_use_admitted_iterative_depth_and_exact_capacity ... ok
+test js::delivery::admission_tests::q2_delivery_owns_exact_surviving_plan_storage_in_each_mode ... ok
+test js::delivery::admission_tests::q2_delivery_setters_grow_the_existing_module_owner_and_refusals_release ... ok
+test js::delivery::admission_tests::q2_rendered_bundle_owns_names_layout_and_files_and_refusals_keep_only_naming_caches ... ok
+test js::names::tests::specifiers_are_relative ... ok
+test js::names::tests::templates_expand_and_refuse ... ok
+test js::print::budget_tests::a_failed_optional_render_preserves_the_already_rendered_incumbent ... ok
+test js::print::budget_tests::admitted_printer_preserves_utf16_number_template_spelling_and_retains_complete_text ... ok
+test js::print::budget_tests::byte_work_and_relocation_failure_drop_partial_text_before_releasing_its_budget ... ok
+test js::print::files::tests::relative_foreign_specifiers_climb_to_the_output_directory ... ok
+test js::print::number_spelling_tests::finite_number_spelling_round_trips_across_exponents_and_signs ... ok
+test js::print::number_spelling_tests::numbers_take_their_shortest_exact_spelling ... ok
+test program::artifact_lifetime_tests::complete_artifact_scores_are_cached_across_scoped_to_retained_transfer ... ok
+test program::artifact_lifetime_tests::explicit_retention_survives_callback_unwind_and_releases_at_terminal_handoff ... ok
+test program::artifact_lifetime_tests::optional_denial_preserves_incumbent_and_baseline_output_allowance ... ok
+test program::artifact_lifetime_tests::retained_and_scoped_handles_cannot_cross_owner_boundaries_or_revive ... ok
+test program::artifact_lifetime_tests::scoped_artifacts_release_on_success_returned_error_and_unwind ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 2018 filtered out; finished in 0.18s
+
