@@ -1,0 +1,1 @@
+extern int input();int scale(int n,int k){return n*k+k;}int shift(int n,int k){return n+k;}int n=input();print(scale(n,7));print(scale(n+1,7));print(shift(n,3));print(shift(n+1,4));

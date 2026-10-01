@@ -31,6 +31,47 @@ fn s3_call_families_honor_independent_vetoes_and_parameterized_runtime_permissio
     }
 }
 
+#[test]
+fn q1_explicit_sites_keep_permissions_risk_and_alternative_validation() {
+    use crate::program::publication::OutputTactics;
+    use crate::representation::{AltId, ChoiceFamily as F, ChoiceKey, SiteId};
+    for family in [F::ExpressionInlining, F::ConstantArguments, F::HelperSharing,
+        F::ParameterizedHelpers, F::DataEncoding] {
+        let tactic = family.spec().tactic.spec().name;
+        for codec in ["raw", "gzip", "brotli"] {
+            let allowed = js(&format!("objective.codecs='{codec}'\npolicy.tactics.{tactic}='on'"));
+            let mut output = OutputTactics::from_policy(&allowed);
+            let key = ChoiceKey { family, site: SiteId::Symbol(1) };
+            output.choices = output.choices.with(key, AltId(1));
+            assert!(output.check_policy(&allowed).is_ok(), "{family:?}");
+            let denied = js(&format!("objective.codecs='{codec}'\npolicy.tactics.{tactic}='off'"));
+            assert!(output.check_policy(&denied).is_err());
+            output.choices = output.choices.with(key, AltId(255));
+            assert!(output.check_policy(&allowed).is_err());
+        }
+    }
+    let allowed = js("policy.tactics.helper-sharing='on'");
+    let mut output = OutputTactics::from_policy(&allowed);
+    output.families.parameterized_helpers = false;
+    output.choices = output.choices.with(ChoiceKey { family: F::ParameterizedHelpers,
+        site: SiteId::Formed(1) }, AltId(1));
+    assert!(output.check_policy(&js("effort.level=16")).is_err());
+    output.choices = crate::representation::ChoiceMap::SEEDS.with(ChoiceKey {
+        family: F::ProductLayout, site: SiteId::Cell(0) }, AltId(0));
+    assert!(output.check_policy(&allowed).is_err(), "source proofs cannot be target flags");
+}
+
+#[test]
+fn q1_extra_joints_default_at_14_with_explicit_early_override() {
+    for level in [0, 13, 14, 15, 16] {
+        for permission in ["auto", "off", "on"] {
+            let policy = js(&format!("effort.level={level}\npolicy.tactics.representation-joints='{permission}'"));
+            assert_eq!(policy.tactic(TacticId::RepresentationJoints).enabled,
+                permission == "on" || (permission == "auto" && level >= 14));
+        }
+    }
+}
+
 fn js(source: &str) -> ResolvedPolicy {
     resolve(
         source,

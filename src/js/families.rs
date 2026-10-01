@@ -264,6 +264,18 @@ impl HeadChoices {
 }
 
 impl OutputFamilies {
+    /// Whole-family flags are defaults/joint moves for per-site choices.
+    pub fn site_seed(self, family: crate::representation::ChoiceFamily) -> Option<bool> {
+        use crate::representation::ChoiceFamily as F;
+        Some(match family {
+            F::ExpressionInlining => self.expression_inlining,
+            F::ConstantArguments => self.call_specialization,
+            F::HelperSharing => self.helper_sharing,
+            F::ParameterizedHelpers => self.parameterized_helpers,
+            _ => return None,
+        })
+    }
+
     /// No family: an artifact without target compaction.
     pub const NONE: Self = Self {
         block_inlining: false,

@@ -1,0 +1,1 @@
+extern int input();int a(int x){return x*x+x*3+17;}int b(int n){return n*n+n*3+29;}int n=input();print(a(n));print(b(n+1));print(a(n+2));print(b(n+3));

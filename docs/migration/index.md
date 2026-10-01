@@ -7,16 +7,16 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). Q1 is next.
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). G1 is next.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Implement **Q1**: one representation-family interface for per-site and joint
-moves, preserving structural/layout/inline/helper opportunities and the common
-admission path. The [S3 evidence](../../benchmarks/migration-results/2026-10-01-s3-complete/README.md)
-records the completed call work; the [handoff](handoff.md) identifies the retained
-compiler and evidence.
+Implement **G1**: finish lexical name allocation, printed-order/frequency
+alternatives and final delivered-byte ties. Build on Q1's common family/admission
+contract. Its [evidence](../../benchmarks/migration-results/2026-10-01-q1-complete/README.md)
+records per-site call choices and bounded joint moves; the [handoff](handoff.md)
+identifies the retained compiler.
 
 The owner requests substantial implementation batches followed by focused
 checks that answer a correctness or size question. Do not restart the deferred
@@ -37,7 +37,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [~] | [G1](plan.md#g1) Lexical names | Broader final-byte tie and workload qualification; local frequency allocation and protected final refinement are qualified |
 | [~] | [G2](plan.md#g2) Property names | Broader observed/generic eligibility, field ordering and held-out calibration; private-field renaming/reuse is qualified |
 | [~] | [G3](plan.md#g3) JS generation | Per-site spellings, ordering/locality and printer cleanup |
-| [~] | [Q1](plan.md#q1) Choices | One family mechanism, coupled moves and deletion of bespoke mechanisms |
+| [x] | [Q1](plan.md#q1) Choices | Common source/target family contract, per-site call choices, bounded joint moves and replay permissions complete |
 | [~] | [Q2](plan.md#q2) Reuse | Dirty scheduling, incremental formation, persistent reuse and resource completion |
 | [~] | [Q3](plan.md#q3) Search policy | Gzip's policy, calibrated estimates/proxies and useful effort progression |
 | [~] | [Q4](plan.md#q4) Data | Const data, helpers, encodings and schema specialization |

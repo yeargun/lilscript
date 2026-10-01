@@ -1,0 +1,569 @@
+{
+  "id": "s3/guard-return",
+  "effort": 13,
+  "group": "ordinary-permissions",
+  "source_sha256": "bd212ff1e370aa0a4ec0fdf6f56528a538aeda5cb5c4f98cc0144afd8a77baf9",
+  "dependency_sha256": {},
+  "oracle_sha256": "5458b1cbef052e8a901a778d2707dda38a60432bac31a5855380f20ee7bbc626",
+  "expected": "1\n2\n1\n2\n",
+  "lanes": {
+    "raw": {
+      "config_sha256": "df8d2e21438b703f491eef35f39d03beffddaa63bc7250fd95c92ab1e417a5bc",
+      "s3": {
+        "sha256": "6049173124247aeaf4237b4364a182f7516fe8355234ad5b02770c871dede839",
+        "raw": 116,
+        "gzip9": 97,
+        "brotli11": 80,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 1,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 0,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 120,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 24,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 0,
+          "proof_queries": 2,
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": [
+            {
+              "codec": "raw",
+              "examined": 88,
+              "judged": 9,
+              "codec_probes": 0,
+              "before": 116,
+              "after": 116,
+              "choices": [],
+              "extra_joints": [],
+              "outcomes": {
+                "kept": 0,
+                "rejected": 8,
+                "identical": 53,
+                "pruned": 8,
+                "vetoed": 9,
+                "refused": 0,
+                "recalled": 1,
+                "budget": 0,
+                "stopped": 0
+              }
+            }
+          ]
+        }
+      },
+      "q1": {
+        "sha256": "6049173124247aeaf4237b4364a182f7516fe8355234ad5b02770c871dede839",
+        "raw": 116,
+        "gzip9": 97,
+        "brotli11": 80,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 1,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 0,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 120,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 24,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 0,
+          "proof_queries": 2,
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": [
+            {
+              "codec": "raw",
+              "examined": 91,
+              "judged": 9,
+              "codec_probes": 0,
+              "before": 116,
+              "after": 116,
+              "choices": [
+                {
+                  "family": "expression-inlining",
+                  "site": "choose",
+                  "seed": "duplicate-expression",
+                  "delivered": "duplicate-expression",
+                  "offered": [
+                    [
+                      "retained",
+                      0
+                    ],
+                    [
+                      "duplicate-expression",
+                      12
+                    ]
+                  ]
+                }
+              ],
+              "extra_joints": [],
+              "outcomes": {
+                "kept": 0,
+                "rejected": 8,
+                "identical": 53,
+                "pruned": 11,
+                "vetoed": 9,
+                "refused": 0,
+                "recalled": 1,
+                "budget": 0,
+                "stopped": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    "gzip": {
+      "config_sha256": "76f9bf6b6106a457151ee7620c622643a82915f107287509bb30fd8e5e6ed6dc",
+      "s3": {
+        "sha256": "815c49f3332ccb57eca2b56d70d5597390ae3471a236c30e265bac1c7d446471",
+        "raw": 116,
+        "gzip9": 96,
+        "brotli11": 79,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 1,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 0,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 120,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 24,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 2,
+          "proof_queries": 2,
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": [
+            {
+              "codec": "gzip",
+              "examined": 60,
+              "judged": 7,
+              "codec_probes": 14,
+              "before": 104,
+              "after": 96,
+              "choices": [],
+              "extra_joints": [],
+              "outcomes": {
+                "kept": 2,
+                "rejected": 5,
+                "identical": 35,
+                "pruned": 5,
+                "vetoed": 6,
+                "refused": 0,
+                "recalled": 1,
+                "budget": 0,
+                "stopped": 0
+              }
+            }
+          ]
+        }
+      },
+      "q1": {
+        "sha256": "815c49f3332ccb57eca2b56d70d5597390ae3471a236c30e265bac1c7d446471",
+        "raw": 116,
+        "gzip9": 96,
+        "brotli11": 79,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 1,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 0,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 120,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 24,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 2,
+          "proof_queries": 2,
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": [
+            {
+              "codec": "gzip",
+              "examined": 62,
+              "judged": 7,
+              "codec_probes": 14,
+              "before": 104,
+              "after": 96,
+              "choices": [
+                {
+                  "family": "expression-inlining",
+                  "site": "choose",
+                  "seed": "retained",
+                  "delivered": "duplicate-expression",
+                  "offered": [
+                    [
+                      "retained",
+                      0
+                    ],
+                    [
+                      "duplicate-expression",
+                      12
+                    ]
+                  ]
+                }
+              ],
+              "extra_joints": [],
+              "outcomes": {
+                "kept": 2,
+                "rejected": 5,
+                "identical": 37,
+                "pruned": 5,
+                "vetoed": 6,
+                "refused": 0,
+                "recalled": 1,
+                "budget": 0,
+                "stopped": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    "brotli": {
+      "config_sha256": "ecf387f8a8d2d53ec6f4ecb7a926afaa7d030082e202d9d2fe9f303c2df2651f",
+      "s3": {
+        "sha256": "6049173124247aeaf4237b4364a182f7516fe8355234ad5b02770c871dede839",
+        "raw": 116,
+        "gzip9": 97,
+        "brotli11": 80,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 1,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 0,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 120,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 24,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 2,
+          "proof_queries": 2,
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": [
+            {
+              "codec": "brotli",
+              "examined": 228,
+              "judged": 19,
+              "codec_probes": 19,
+              "before": 89,
+              "after": 80,
+              "choices": [],
+              "extra_joints": [],
+              "outcomes": {
+                "kept": 7,
+                "rejected": 10,
+                "identical": 76,
+                "pruned": 0,
+                "vetoed": 24,
+                "refused": 0,
+                "recalled": 92,
+                "budget": 0,
+                "stopped": 0
+              }
+            }
+          ]
+        }
+      },
+      "q1": {
+        "sha256": "6049173124247aeaf4237b4364a182f7516fe8355234ad5b02770c871dede839",
+        "raw": 116,
+        "gzip9": 97,
+        "brotli11": 80,
+        "rules": {
+          "rounds": 2,
+          "folded_values": 0,
+          "folded_calls": 0,
+          "folded_branches": 0,
+          "removed_operations": 0,
+          "removed_stores": 0,
+          "retired_functions": 0,
+          "emptied_units": 0,
+          "unreachable_operations": 0,
+          "inlined_calls": 0,
+          "inlined_bodies": 0,
+          "normalized_returns": 1,
+          "cloned_closure_units": 0,
+          "dropped_parameters": 0,
+          "constant_parameters": 0,
+          "unused_results": 0,
+          "forwarded_definitions": 0,
+          "common_computations": 0,
+          "default_arguments_omitted": 0,
+          "native_defaults": 0,
+          "set_folds": 0,
+          "path_folds": 0,
+          "evaluated_calls": 0,
+          "default_checks_removed": 0,
+          "exposed_allocations": 0,
+          "flattened_namespace_calls": 0,
+          "folded_fields": 0,
+          "removed_field_stores": 0,
+          "collected_field_stores": 0,
+          "scalarized_allocations": 0,
+          "scalar_fields": 0,
+          "elided_record_aliases": 0,
+          "aggregate_analysis_work": 120,
+          "aggregate_limits": 0,
+          "evaluation_refusals": {
+            "host": 24,
+            "engine_dependent": 0,
+            "aggregate": 0,
+            "observable": 0,
+            "unsupported": 0,
+            "limit": 0
+          },
+          "call_frequency_work": 0
+        },
+        "search": {
+          "proposals": 2,
+          "structures": 1,
+          "renders": 3,
+          "codec_probes": 2,
+          "proof_queries": 2,
+          "admitted_artifacts": 3,
+          "stop": null,
+          "terminal": [
+            {
+              "codec": "brotli",
+              "examined": 236,
+              "judged": 19,
+              "codec_probes": 19,
+              "before": 89,
+              "after": 80,
+              "choices": [
+                {
+                  "family": "expression-inlining",
+                  "site": "choose",
+                  "seed": "retained",
+                  "delivered": "duplicate-expression",
+                  "offered": [
+                    [
+                      "retained",
+                      0
+                    ],
+                    [
+                      "duplicate-expression",
+                      12
+                    ]
+                  ]
+                }
+              ],
+              "extra_joints": [],
+              "outcomes": {
+                "kept": 7,
+                "rejected": 10,
+                "identical": 78,
+                "pruned": 0,
+                "vetoed": 24,
+                "refused": 0,
+                "recalled": 98,
+                "budget": 0,
+                "stopped": 0
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

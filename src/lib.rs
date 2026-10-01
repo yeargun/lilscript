@@ -31,6 +31,7 @@ pub mod package;
 pub mod parser;
 pub mod primitive;
 pub mod program;
+pub mod representation;
 pub(crate) mod scalar_transfer;
 #[cfg(test)]
 mod scalar_transfer_tests;

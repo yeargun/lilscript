@@ -1,0 +1,1 @@
+(()=>{let a=(a,b)=>((a*a|0)+(a*3|0)|0)+b|0,c=input();console.log(a(c,17));console.log(a(c+1|0,29));console.log(a(c+2|0,17));console.log(a(c+3|0,29));})();

@@ -7,11 +7,12 @@
 //! membership and compatibility belong to the search owner, not discovery.
 use super::string_family::{StringChoice, ValueRef};
 use super::{CellBinding, CellId, OperationKind, Program, RevisionId, Type, UnitId, ValueId};
-use crate::compilation_policy::{BudgetLedger, ResolvedPolicy, TacticId, WorkKind};
+use crate::compilation_policy::{BudgetLedger, ResolvedPolicy, WorkKind};
 use crate::output_budget::{
     AllocationBudget, AllocationClass::Retained, AllocationError, RetainedCharge,
 };
 use std::mem::size_of;
+use crate::representation::{ChoiceFamily as Family, ChoiceKey, SiteId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum OpportunityView<'a> {
@@ -23,6 +24,26 @@ pub(super) enum OpportunityView<'a> {
         definitions: &'a [ValueRef],
         choice: StringChoice,
     },
+}
+
+impl OpportunityView<'_> {
+    /// The same family/site identity used by target alternatives. Payloads
+    /// remain typed because only a producer can establish a complete proof.
+    pub(super) fn key(self) -> ChoiceKey {
+        let (family, site) = match self {
+            Self::Scalar(cell) => (Family::RecordLayout, SiteId::Cell(cell.index() as u32)),
+            Self::Product(cell) => (Family::ProductLayout, SiteId::Cell(cell.index() as u32)),
+            Self::Inline(cell) => (Family::InlineBody, SiteId::Cell(cell.index() as u32)),
+            Self::Function(body) => (Family::CallLayout, SiteId::Unit(body.index() as u32)),
+            Self::String { definitions, choice } => {
+                let first = definitions[0];
+                (match choice { StringChoice::LiteralAtDefinition => Family::StringLiteral,
+                    StringChoice::SharedLiteral {..} => Family::SharedString },
+                    SiteId::Value { unit: first.unit.index() as u32, value: first.value.index() as u32 })
+            }
+        };
+        ChoiceKey { family, site }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -60,13 +81,11 @@ impl Inventory {
     ) -> Result<Self, AllocationError> {
         let mut phase = budget.scope();
         phase.work(WorkKind::Analysis, 1)?;
-        let permitted = |tactic: TacticId| tactic.spec().producer_enabled(
-            crate::compilation_policy::TacticProducer::StructuralSearch, policy);
-        let scalar = permitted(TacticId::ScalarReplacement);
-        let inline = permitted(TacticId::Inlining);
-        let functions = permitted(TacticId::CallSpecialization);
-        let literal = permitted(TacticId::ConstantFolding);
-        let shared = permitted(TacticId::StringPooling);
+        let scalar = Family::RecordLayout.spec().enabled(policy);
+        let inline = Family::InlineBody.spec().enabled(policy);
+        let functions = Family::CallLayout.spec().enabled(policy);
+        let literal = Family::StringLiteral.spec().enabled(policy);
+        let shared = Family::SharedString.spec().enabled(policy);
         let mut opportunities = Vec::new();
         let mut definitions = Vec::new();
         let mut truncated = false;

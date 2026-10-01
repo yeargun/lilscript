@@ -936,6 +936,7 @@ fn form_head(
             year,
             statements: js::StatementSpellings::NONE,
             choices: None,
+            families: js::OutputFamilies::NONE,
         };
         if let Err(error) = formation
             .module
@@ -1041,6 +1042,7 @@ fn form_tail(
         year,
         statements: families.statements,
         choices: Some(choices),
+        families,
     };
     // The tail's choice sites are this artifact's own.
     module.choice_sites.clear();

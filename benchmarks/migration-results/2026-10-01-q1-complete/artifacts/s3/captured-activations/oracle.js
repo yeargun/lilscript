@@ -1,0 +1,1 @@
+const make=n=>()=>++n;let first,last;for(let i=0;i<2;i++){const next=make(i*10);if(i===0)first=next;else last=next;}console.log(first());console.log(last());console.log(first());

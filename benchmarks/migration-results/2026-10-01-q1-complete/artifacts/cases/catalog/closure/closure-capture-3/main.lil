@@ -1,0 +1,10 @@
+int run() {
+  int factor = 3;
+func(int)->int scale = (int value) => value * factor;
+int total = 0;
+for (int i = 1; i <= 6; i++) {
+  total += scale(i);
+}
+  return total;
+}
+print(run());

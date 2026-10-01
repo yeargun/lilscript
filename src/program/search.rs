@@ -960,12 +960,13 @@ impl JavaScriptSearch<'_, '_> {
         // per-attempt history or repeated source analysis is retained.
         if let Some(inventory) = &self.inventory {
             for index in 0..inventory.len() {
-                let family = match inventory.get(index).unwrap() {
-                    OpportunityView::Scalar(_) | OpportunityView::Product(_) => 0,
-                    OpportunityView::Inline(_) => 1,
-                    OpportunityView::Function(_) => 2,
-                    OpportunityView::String {choice: StringChoice::LiteralAtDefinition, ..} => 3,
-                    OpportunityView::String {choice: StringChoice::SharedLiteral {..}, ..} => 4,
+                let family = match inventory.get(index).unwrap().key().family.spec().tactic {
+                    TacticId::ScalarReplacement => 0,
+                    TacticId::Inlining => 1,
+                    TacticId::CallSpecialization => 2,
+                    TacticId::ConstantFolding => 3,
+                    TacticId::StringPooling => 4,
+                    _ => unreachable!("registered source recipe family"),
                 };
                 let row = &mut families[family];
                 row.discovered += 1;
@@ -1193,6 +1194,8 @@ impl JavaScriptSearch<'_, '_> {
                 .enable_local_facts(request.facts_cache, WorkDomain::Optional)
                 .map_err(CandidateError::from)?;
         }
+        let key = Self::opportunity(self.inventory.as_ref().unwrap(), step).unwrap().key();
+        key.family.spec().check(policy)?;
         self.counters.proof_queries += 1;
         let direct = self.states[0].as_ref().unwrap().candidate;
         let result = (|| -> Result<Seed, CandidateError> {

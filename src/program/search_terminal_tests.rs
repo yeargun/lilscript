@@ -525,12 +525,12 @@ fn the_choice_schedule_resets_every_site_at_once_then_orders_by_stake() {
     let large = site(9, &[(0, 0), (2, 11_000), (3, 19_000)], 3);
     let plain = site(2, &[(0, 0), (2, -40)], 0);
     let sites = [small, large, plain];
-    let schedule = choice_schedule(&sites);
+    let schedule = crate::representation::schedule(&sites, false);
     // Both encoded sites back to their literal at once, largest stake first.
     assert_eq!(schedule[0], [(1, AltId(0)), (0, AltId(0))]);
     // Then the large site's other alternatives, best estimate first, the
-    // literal (its undo) last; then the small one's; the plain site offers
-    // nothing that saves.
+    // literal (its undo) last; then the small one's. A negative raw estimate
+    // still competes: it may improve the selected compressed objective.
     assert_eq!(
         schedule[1..],
         [
@@ -538,10 +538,11 @@ fn the_choice_schedule_resets_every_site_at_once_then_orders_by_stake() {
             vec![(1, AltId(0))],
             vec![(0, AltId(2))],
             vec![(0, AltId(0))],
+            vec![(2, AltId(2))],
         ]
     );
     // One encoded site needs no joint move: its literal is its own trial.
-    assert_eq!(choice_schedule(&sites[..1])[0], [(0, AltId(2))]);
+    assert_eq!(crate::representation::schedule(&sites[..1], false)[0], [(0, AltId(2))]);
 }
 
 /// Dominance (design §10, §14.2): a challenger that shrinks the sum of rows

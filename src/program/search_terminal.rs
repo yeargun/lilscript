@@ -19,7 +19,8 @@
 //! level's number, so from level 14 the walk reaches its fixed point. Then
 //! the tail: a restart from A0 under each other naming seed, walked in passes
 //! of its own and kept only when its result is strictly smaller, and the
-//! structural beam (`beam_move`) until M9.1's rest deletes it.
+//! retained structural candidates. Both stages share the representation family
+//! contract and complete-artifact admission.
 //!
 //! The fast tiers replay a fixed move sequence, and each walk retains its
 //! best admitted result. A wider structural frontier or a shared hard limit
@@ -33,7 +34,7 @@
 //! first, and can lose on the fleet while winning on its own (the terminal
 //! challenger law; migration 7.34–7.37 read +128 over 20 ports that way).
 use super::*;
-use crate::js::{Challenger, ChoiceMap, ChoiceSite, Spelling};
+use crate::js::{Challenger, ChoiceMap, Spelling};
 
 /// What became of one declared challenger on one objective's final candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -876,7 +877,7 @@ impl Walker<'_, '_, '_> {
             passes += 1;
             self.report.passes += 1;
             let pass = self.report.passes;
-            let kept = self.choice_moves(incumbent, pass)?
+            let kept = self.choice_moves(incumbent, pass, false)?
                 | self.challengers(incumbent, pass)?
                 | self.joint_moves(incumbent, pass, JointPhase::Ordinary)?;
             if passes == 1 {
@@ -897,6 +898,7 @@ impl Walker<'_, '_, '_> {
         &mut self,
         incumbent: &mut Incumbent,
         pass: usize,
+        extra_joints: bool,
     ) -> Result<bool, SearchError> {
         if !self.choices_permitted {
             return Ok(false);
@@ -915,7 +917,10 @@ impl Walker<'_, '_, '_> {
             }
         };
         let mut kept = false;
-        for moves in choice_schedule(&sites) {
+        for moves in crate::representation::schedule(&sites, extra_joints) {
+            if extra_joints && (moves.len() < 2 || moves.iter().all(|&(_, alt)| alt == crate::js::AltId(0))) {
+                continue;
+            }
             self.replay(incumbent)?;
             let (site, alternative) = moves[0];
             let estimate = moves
@@ -937,7 +942,7 @@ impl Walker<'_, '_, '_> {
                     sites[site].name.clone()
                 },
                 alternative: if joint {
-                    "canonical"
+                    if moves.iter().all(|&(_, alt)| alt == crate::js::AltId(0)) { "canonical" } else { "joint" }
                 } else {
                     sites[site].name_of(alternative)
                 },
@@ -964,10 +969,11 @@ impl Walker<'_, '_, '_> {
                 record.outcome = ChallengerOutcome::Duplicate;
             } else {
                 self.report.examined += 1;
-                let choices = moved.iter().fold(
-                    incumbent.choices.clone(),
-                    |choices, &(site, alternative)| choices.with(sites[site].key, alternative),
-                );
+                let mut choices = incumbent.choices.with_all(moved.iter().map(|&(site, alternative)|
+                    (sites[site].key, alternative)));
+                if joint && !moves.iter().all(|&(_, alt)| alt == crate::js::AltId(0)) {
+                    choices = choices.from_joint();
+                }
                 let (judgement, proxy, probed) = self.judge_move(
                     incumbent.spelling,
                     &choices,
@@ -1056,7 +1062,7 @@ impl Walker<'_, '_, '_> {
             audit: None,
         };
         let mut kept = false;
-        let mut seen = vec![incumbent.spelling.effective()];
+        let mut seen = vec![(incumbent.spelling.effective(), incumbent.choices.clone())];
         for challenger in Challenger::ORDER {
             self.replay(incumbent)?;
             if self.stopped {
@@ -1076,13 +1082,18 @@ impl Walker<'_, '_, '_> {
             if challenger == Challenger::OtherSeed && self.output.target_compaction {
                 next.families = next.families.permitted(self.judge.policy);
             }
-            if seen.contains(&next.effective()) {
+            let choices = incumbent.choices.retaining(|key| {
+                let before = incumbent.spelling.families.site_seed(key.family);
+                let after = next.families.site_seed(key.family);
+                before == after && !(challenger == Challenger::OtherSeed && after.is_some())
+            });
+            if seen.contains(&(next.effective(), choices.clone())) {
                 self.report
                     .trials
                     .push(trial(challenger, ChallengerOutcome::Duplicate));
                 continue;
             }
-            seen.push(next.effective());
+            seen.push((next.effective(), choices.clone()));
             if (OutputTactics {
                 families: next.families,
                 ..self.output.clone()
@@ -1105,7 +1116,7 @@ impl Walker<'_, '_, '_> {
             }
             let (judgement, proxy, probed) = self.judge_move(
                 next,
-                &incumbent.choices,
+                &choices,
                 &incumbent.plan,
                 incumbent.literals,
                 incumbent,
@@ -1126,6 +1137,7 @@ impl Walker<'_, '_, '_> {
                     let replaced = Incumbent {
                         artifact,
                         spelling: next,
+                        choices,
                         size,
                         qualified: Some(qualified),
                         ..incumbent.clone()
@@ -1441,7 +1453,7 @@ impl Walker<'_, '_, '_> {
         &mut self,
         name: &str,
         start: Incumbent,
-        local_naming: bool,
+        phase: WalkPhase,
     ) -> Result<(), SearchError> {
         let slot = self.report.starts.len();
         self.report.starts.push(StartTrial {
@@ -1455,10 +1467,15 @@ impl Walker<'_, '_, '_> {
             audit: None,
         });
         let mut result = start;
-        if local_naming {
-            self.polish(&mut result)?;
-        } else {
-            self.passes(&mut result)?;
+        match phase {
+            WalkPhase::LocalNaming => self.polish(&mut result)?,
+            WalkPhase::RepresentationJoints => {
+                self.report.passes += 1;
+                if self.choice_moves(&mut result, self.report.passes, true)? {
+                    self.passes(&mut result)?;
+                }
+            }
+            _ => self.passes(&mut result)?,
         }
         self.settle(slot, result)
     }
@@ -1607,6 +1624,7 @@ enum WalkPhase {
     /// Extend the selected result after the earlier walks have converged.
     /// A losing trial cannot redirect their useful trajectories.
     LocalNaming,
+    RepresentationJoints,
     /// Revisit only starts actually pruned by the protected prefix.
     DeferredNaming(NamingStarts),
 }
@@ -1669,58 +1687,6 @@ pub(crate) fn without_local_polish<T>(run: impl FnOnce() -> T) -> T {
     }
     let _reset = Reset(SKIP_LOCAL_POLISH.with(|flag| flag.replace(true)));
     run()
-}
-
-/// The choice schedule of one surveyed artifact, as moves (each a set of
-/// site assignments judged together). First, when two or more sites apply a
-/// non-canonical alternative, every site back to its canonical form at once:
-/// encodings share decoder text a codec matches across tables, so one site
-/// at a time cannot leave a state where several pay together (the families'
-/// `other-objective-seed` challenger is the same whole move). Then every
-/// site, largest stake first, and each site's alternatives other than the one
-/// it applies, best estimate first. An alternative the estimator says saves
-/// nothing is offered only when it is the canonical form (the undo of a
-/// seed).
-fn choice_schedule(sites: &[ChoiceSite]) -> Vec<Vec<(usize, crate::js::AltId)>> {
-    let canonical = crate::js::AltId(0);
-    let mut order: Vec<usize> = (0..sites.len()).collect();
-    order.sort_by(|&a, &b| {
-        sites[b]
-            .stake()
-            .cmp(&sites[a].stake())
-            .then(sites[a].key.cmp(&sites[b].key))
-    });
-    let mut schedule = Vec::new();
-    let encoded: Vec<(usize, crate::js::AltId)> = order
-        .iter()
-        .copied()
-        .filter(|&site| sites[site].applied != canonical)
-        .map(|site| (site, canonical))
-        .collect();
-    if encoded.len() > 1 {
-        schedule.push(encoded);
-    }
-    for site in order {
-        let mut alternatives: Vec<_> = sites[site]
-            .alternatives
-            .iter()
-            .filter(|offered| {
-                offered.alternative != sites[site].applied
-                    && (offered.saving > 0 || offered.alternative == canonical)
-            })
-            .collect();
-        alternatives.sort_by(|a, b| {
-            b.saving
-                .cmp(&a.saving)
-                .then(a.alternative.cmp(&b.alternative))
-        });
-        schedule.extend(
-            alternatives
-                .into_iter()
-                .map(|offered| vec![(site, offered.alternative)]),
-        );
-    }
-    schedule
 }
 
 impl JavaScriptSearch<'_, '_> {
@@ -1859,6 +1825,15 @@ impl JavaScriptSearch<'_, '_> {
                 WalkPhase::LocalNaming,
                 &mut report,
             )?;
+        }
+        // Extra combinations extend the completed ordinary search. Enabling
+        // them cannot spend the budget that produced its protected incumbent.
+        if policy.tactic(TacticId::RepresentationJoints).enabled
+            && report.examined < walk.prefix && report.judged < walk.exact
+        {
+            let selected = self.portfolio.selected[index(codec)].expect("an objective keeps its winner");
+            self.walk_from(policy, objective, codec, "representation-joints", selected,
+                WalkPhase::RepresentationJoints, &mut report)?;
         }
         if policy.deferred_naming_starts_enabled() && !deferred.is_empty() {
             self.walk_from(
@@ -2037,7 +2012,7 @@ impl JavaScriptSearch<'_, '_> {
                             walker.walk_start(
                                 name,
                                 origin.clone(),
-                                matches!(phase, WalkPhase::LocalNaming),
+                                phase,
                             )?;
                             if let WalkPhase::Search { restarts: true } = phase {
                                 for &style in &naming {

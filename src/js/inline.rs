@@ -57,6 +57,17 @@ impl Module {
         strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+        self.inline_expression_functions_chosen(limit, frames_hidden, strict, None, budget)
+    }
+
+    pub(crate) fn inline_expression_functions_chosen(
+        &mut self,
+        limit: usize,
+        frames_hidden: bool,
+        strict: bool,
+        choice: Option<(&ChoiceMap, bool)>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
         self.with_reach(budget, |module, reach, budget| {
             let mut written = vec![false; module.bindings.len()];
             let mut calls = vec![0usize; module.bindings.len()];
@@ -97,12 +108,12 @@ impl Module {
             }
             let mut templates: Vec<Option<Template>> = Vec::new();
             for &region in &reach.regions {
-                for statement in &module.regions[region.index()].statements {
+                for position in 0..module.regions[region.index()].statements.len() {
                     budget.work(Analysis, 1)?;
                     let Statement::Let {
                         binding,
                         value: Some(value),
-                    } = *statement
+                    } = module.regions[region.index()].statements[position]
                     else {
                         continue;
                     };
@@ -124,6 +135,15 @@ impl Module {
                     }
                     if nodes > limit && calls[binding.index()] != 1 {
                         continue;
+                    }
+                    if calls[binding.index()] > 1 {
+                        if let Some((choices, seed)) = choice {
+                            let saving = 20i64.saturating_sub((nodes as i64).saturating_mul(calls[binding.index()].saturating_sub(1) as i64));
+                            if !module.binary_choice(binding, ChoiceFamily::ExpressionInlining,
+                                seed, "duplicate-expression", saving, choices, budget)? {
+                                continue;
+                            }
+                        }
                     }
                     if templates.len() <= binding.index() {
                         templates.resize_with(binding.index() + 1, || None);

@@ -19,6 +19,7 @@ pub const POLICY_SCHEMA_VERSION: u32 = 3;
 /// Omitted policy versions retain the old effort-16 permission contract.
 /// New configurations select version 3 explicitly; no file changes silently.
 pub const LEGACY_POLICY_VERSION: u32 = 2;
+// Version15 unifies representation families and admits per-site call/joint provenance.
 // Version14 completes registry admission and versioned explicit risk permissions.
 // Version13 scopes all tree-only reach consumers.
 // Version12 bounds reach lists once and summarizes references per binding.
@@ -27,7 +28,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version9 resolves independent objective searches with shared baseline admission.
 // Version8 reuses admitted statement mention facts during target forwarding.
 // Version7 jointly identifies private-field and integer-hint formation heads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 14;
+pub const POLICY_ALGORITHM_VERSION: u32 = 15;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -46,7 +47,8 @@ pub const POLICY_ALGORITHM_VERSION: u32 = 14;
 // Version27 makes terminal proxy pruning/auditing explicit and fingerprinted.
 // Version28 admits deferred naming starts after protecting the completed walk.
 // Version29 gates deferred naming at 14 by default and combines it with final refinements.
-pub const SEARCH_SCHEDULE_VERSION: u32 = 29;
+// Version30 adds common per-site moves and a protected, configurable joint tail.
+pub const SEARCH_SCHEDULE_VERSION: u32 = 30;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationRequest {
@@ -462,7 +464,8 @@ pub struct OptimizationObjective {
 /// `StructuralSchedule::at` state. Receipts carry it; a changed value is a
 /// changed schedule.
 // Version 8 gates deferred seeds at 14 by default and adds naming/field refinements.
-pub const WALK_SCHEDULE_VERSION: u32 = 8;
+// Version 9 offers all legal site alternatives and extra joint moves from effort 14.
+pub const WALK_SCHEDULE_VERSION: u32 = 9;
 
 /// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
 /// plan M3.5): budgets are counts (AM1), never the clock.

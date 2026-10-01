@@ -481,6 +481,21 @@ is bounded and extra candidates consume the configured compilation budget;
 independent of this setting. Effort 13 retains the ordinary alternatives;
 14–15 provide more search budget, without changing these semantic permissions.
 
+Call representations can be selected **per helper**. Retaining a large body while
+inlining another small one is a legal mixed choice. Uniform constants and shared
+bodies use the same site/alternative interface as layouts and table encodings;
+all are judged after naming and printing. Raw estimates order trials and do not
+exclude an offered alternative from gzip or Brotli selection.
+
+`representation-joints = "auto"` enables extra bounded combinations at effort
+14 and above. Use `"on"` to explore them at lower effort, or `"off"` to avoid the
+additional formation/codec work. These moves help when several choices pay for
+one helper/decoder together, or when specialization makes another inline choice
+useful. Gains can be very small or absent. Individual choices, existing family
+defaults and canonical rollback remain available with this flag off; the actual
+selected families still require their own permissions. A retained result records
+joint-search provenance and cannot replay under a veto.
+
 The service's finite work and memory ceilings also enter the resolved resource
 policy and its fingerprint. TOML `[policy.resources]` restricts those ceilings;
 the smaller value wins for each resource. The CLI retains its default of

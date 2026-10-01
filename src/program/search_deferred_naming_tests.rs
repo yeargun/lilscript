@@ -115,8 +115,12 @@ fn deferred_naming_protects_the_completed_prefix_and_recovers_an_uphill_start() 
         ("gzip", Objective::Gzip),
         ("brotli", Objective::Brotli),
     ] {
-        let before = compile(name, 13, false, "");
-        let after = compile(name, 13, true, "");
+        // S3 terminal-return inlining now reaches this result in the ordinary
+        // search. Keep that independent tactic off to retain the uphill naming
+        // witness (also reproduced with the immutable S3 compiler).
+        let isolated = "[policy.tactics]\ninlining='off'";
+        let before = compile(name, 13, false, isolated);
+        let after = compile(name, 13, true, isolated);
         verify(&before, codec);
         verify(&after, codec);
         let old = stage(&before);

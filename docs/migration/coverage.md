@@ -62,12 +62,12 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M8.5 | [Q4](plan.md#q4) | Runtime helpers as prelude code |
 | M8.6 | [D2](plan.md#d2) | Source maps |
 | M8.7 | [C3](plan.md#c3), complete | Source allowlist is empty and enforced; generic policy/provenance replaces library citations |
-| M9.1 | [Q1](plan.md#q1) | the rest |
+| M9.1 | [Q1](plan.md#q1), complete | Shared family/site/alternative contract, per-helper choices, bounded coupled moves and replay admission |
 | M9.2 | [Q3](plan.md#q3) | gzip's own prior row |
 | M9.3 | [G3](plan.md#g3) | per-site spellings |
 | M9.5 | [G1](plan.md#g1) | the rest |
 | M9.6 | [G2](plan.md#g2) | Property names |
-| M9.7 | [Q1](plan.md#q1) | Layouts |
+| M9.7 | [Q1](plan.md#q1), complete | Record/product/call layouts use the common family contract with typed proof payloads and compatible recipe combinations |
 | M9.8 | [Q4](plan.md#q4) | the rest, after M10.3 |
 | M9.9 | [S3](plan.md#s3), complete | Constant signatures, alpha-equivalent bodies and opt-in parameterized helpers compete on final bytes |
 | M9.10 | [Q3](plan.md#q3) | Calibration |
@@ -104,7 +104,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M12.5 | [V2](plan.md#v2) | Receipts |
 | M12.6 | [V1](plan.md#v1) | Runtime parity and residual pairing: continuous |
 
-S4 coordinates removal of duplicate fact derivations with their actual S/G/Q consumers. S2 completes source-level namespace flattening in M7.6; S3 completes known private-call transport and folding under complete-use evidence. Target scalar/namespace cleanup still sees bindings created by inlining and representation choices after source rules; Q1/S4 own its replacement and deletion. S3 supplies counted frequency facts to capture placement and Q3. Native capability clauses in M4.5 are shared with N1. M10.18 keeps the current `ref` contract; S2 improves physical value-copy implementation under that contract. The [S2 acceptance record](s2-acceptance.md) makes these dependencies explicit.
+S4 coordinates removal of duplicate fact derivations with their actual S/G/Q consumers. S2 completes source-level namespace flattening in M7.6; S3 completes known private-call transport and folding under complete-use evidence. Target scalar/namespace cleanup still sees bindings created by inlining and representation choices after source rules. Q1 now provides their common family identities; S4 owns the fact-consumer replacement and deletion. S3 supplies counted frequency facts to capture placement and Q3. Native capability clauses in M4.5 are shared with N1. M10.18 keeps the current `ref` contract; S2 improves physical value-copy implementation under that contract. The [S2 acceptance record](s2-acceptance.md) makes these dependencies explicit.
 
 ## Carried-item ownership
 

@@ -1,0 +1,1 @@
+(()=>{let l=0;for(let a=-12;a<=12;++a){let o=a%10|0;l=l+((o+5|0)+(o+1|0)|0)|0}console.log(l);})();

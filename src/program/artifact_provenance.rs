@@ -93,14 +93,23 @@ impl OutputTactics {
                     risk: RuntimeRisk::Startup,
                 });
             }
-            if !self.rules.data_encoding
-                && self.choices.iter().any(|(key, alternative)| {
-                    key.family == crate::js::ChoiceFamily::DataEncoding && alternative.0 != 0
-                })
-            {
-                return Err(AdmissionError::ForbiddenTactic(
-                    TacticId::StartupReconstruction,
-                ));
+            self.choices.check_target_policy(policy)?;
+            // A policy permission alone cannot turn on a producer explicitly
+            // disabled in this formation request.
+            for (key, alternative) in self.choices.iter() {
+                if alternative == crate::js::AltId(0) { continue; }
+                use crate::js::ChoiceFamily as F;
+                let enabled = match key.family {
+                    F::ExpressionInlining => self.rules.inlining,
+                    F::ConstantArguments => self.rules.call_specialization,
+                    F::HelperSharing => self.rules.helper_sharing,
+                    F::ParameterizedHelpers => self.rules.parameterized_helpers,
+                    F::DataEncoding => self.rules.data_encoding,
+                    _ => false,
+                };
+                if !enabled {
+                    return Err(AdmissionError::ForbiddenTactic(key.family.spec().tactic));
+                }
             }
             for usage in self.rules.runtime_uses(self.families) {
                 policy.check_tactic_permissions(std::slice::from_ref(&usage))?;
@@ -214,7 +223,7 @@ impl ArtifactProvenance {
             merge_risk(&mut risks[usage.tactic as usize], usage.risk);
         }
         if output.target_compaction {
-            for usage in output.rules.runtime_uses(output.families) {
+            for usage in output.rules.runtime_uses(output.families).chain(output.choices.uses()) {
                 phase.work(WorkKind::Analysis, 1)?;
                 merge_risk(&mut risks[usage.tactic as usize], usage.risk);
             }
@@ -914,6 +923,28 @@ mod tests {
             evidence.discard(owner, &mut ledger).unwrap();
             assert_eq!(ledger.retained_bytes(), 0);
         }
+    }
+
+    #[test]
+    fn q1_retained_site_risk_and_joint_permission_are_revalidated() {
+        use crate::representation::{AltId, ChoiceFamily as F, ChoiceKey, ChoiceMap, SiteId};
+        let resolved = policy("policy.tactics.helper-sharing='on'\npolicy.tactics.representation-joints='on'");
+        let owner = RevisionId::fresh();
+        let mut ledger = ledger(WORK, MEMORY);
+        let mut output = OutputTactics::from_policy(&resolved);
+        output.families.parameterized_helpers = false;
+        output.choices = ChoiceMap::SEEDS.with(ChoiceKey { family: F::ParameterizedHelpers,
+            site: SiteId::Symbol(0) }, AltId(1)).from_joint();
+        let evidence = build(owner, &mut ledger, WorkDomain::Optional, &resolved,
+            &Plan::new(Style::Scoped), &[], output);
+        assert!(evidence.tactics().contains(&TacticUse { tactic: TacticId::HelperSharing, risk: RuntimeRisk::Recurring }));
+        assert!(evidence.tactics().contains(&TacticUse { tactic: TacticId::RepresentationJoints, risk: RuntimeRisk::Neutral }));
+        for denied in ["policy.tactics.helper-sharing='auto'\npolicy.tactics.representation-joints='on'",
+            "policy.tactics.helper-sharing='on'\npolicy.tactics.representation-joints='off'"] {
+            assert!(admit(&evidence, &policy(denied), &mut ledger).is_err());
+        }
+        evidence.discard(owner, &mut ledger).unwrap();
+        assert_eq!(ledger.retained_bytes(), 0);
     }
 
     #[test]

@@ -246,6 +246,14 @@ declare_tactics! {
         purpose: "Explore lexical allocation styles, name reuse and local refinements under the selected objective.",
         tradeoffs: "Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration; off keeps the baseline allocator."
     },
+    RepresentationJoints {
+        name: "representation-joints", javascript_only: true, minimum_effort: 14, startup_at_level_16: false,
+        analysis: A::TargetSchedule, default: D::On,
+        producers: &[P::OutputFamilies], prerequisites: &[TacticId::TargetCompaction], risks: &[R::Neutral],
+        invalidates: &[I::TargetTail, I::Names, I::RenderedFiles],
+        purpose: "Explore bounded combinations of per-site representations whose individual moves may lose.",
+        tradeoffs: "Automatic from effort 14; explicit on enables it earlier. Adds formation and exact-codec work for possibly tiny gains. Off preserves individual choices, whole-family defaults and canonical rollback; selected families still need their own runtime permissions."
+    },
     NamingAlphabet {
         name: "naming-alphabet", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,
         analysis: A::NamesAndBoundary, default: D::On,

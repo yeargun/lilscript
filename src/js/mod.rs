@@ -22,7 +22,7 @@ use crate::primitive::{IntBinary, Intrinsic};
 
 pub(crate) mod admission;
 mod calls;
-pub mod choices;
+pub use crate::representation as choices;
 pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite, SiteId};
 mod declarations;
 pub(crate) mod delivery;
@@ -3137,6 +3137,38 @@ impl Module {
             }
         }
         false
+    }
+
+    /// Record a proved binary choice before editing its subject. All target
+    /// families use the same stable binding identity and immutable assignment.
+    pub(crate) fn binary_choice(
+        &mut self,
+        binding: BindingId,
+        family: ChoiceFamily,
+        seed: bool,
+        alternative_name: &'static str,
+        saving: i64,
+        choices: &ChoiceMap,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        use crate::representation::ChoiceAlternative;
+        use crate::output_budget::AllocationClass::Retained;
+        let key = ChoiceKey { family, site: match self.bindings[binding.index()].source_symbol {
+            Some(symbol) => SiteId::Symbol(symbol.0),
+            None => SiteId::Formed(binding.index() as u32),
+        }};
+        let seed = AltId(u8::from(seed));
+        let applied = choices.get(key).filter(|choice| choice.0 <= 1).unwrap_or(seed);
+        budget.work(crate::compilation_policy::WorkKind::Analysis, self.choice_sites.len() as u64 + 1)?;
+        if !self.choice_sites.iter().any(|site| site.key == key) {
+            let name = budget.string(Retained, &self.bindings[binding.index()].spelling)?;
+            let alternatives = budget.copy_slice(Retained, &[
+                ChoiceAlternative { alternative: AltId(0), name: "retained", saving: 0 },
+                ChoiceAlternative { alternative: AltId(1), name: alternative_name, saving },
+            ])?;
+            budget.push(Retained, &mut self.choice_sites, ChoiceSite { key, name, alternatives, seed, applied })?;
+        }
+        Ok(applied == AltId(1))
     }
 
     pub(crate) fn new_in(budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {

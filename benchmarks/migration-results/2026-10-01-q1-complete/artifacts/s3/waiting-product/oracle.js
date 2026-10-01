@@ -1,0 +1,1 @@
+let total=0;for(let n=-12;n<=12;n++){const box={value:n%10};total+=box.value+5+box.value+1;}console.log(total);

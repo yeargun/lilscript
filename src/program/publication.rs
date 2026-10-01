@@ -1619,9 +1619,7 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        if !policy.tactic(TacticId::ScalarReplacement).enabled {
-            return Err(CandidateError::ForbiddenTactic(TacticId::ScalarReplacement));
-        }
+        crate::representation::ChoiceFamily::RecordLayout.spec().check(policy).map_err(candidate_permission)?;
         self.check_existing_javascript_contract(policy, domain)?;
         let checkpoint = self.slots[base].checkpoint.as_ref().unwrap();
         let implementations = checkpoint.implementations.as_ref().unwrap();
@@ -1693,9 +1691,7 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        if !policy.tactic(TacticId::ScalarReplacement).enabled {
-            return Err(CandidateError::ForbiddenTactic(TacticId::ScalarReplacement));
-        }
+        crate::representation::ChoiceFamily::ProductLayout.spec().check(policy).map_err(candidate_permission)?;
         self.check_existing_javascript_contract(policy, domain)?;
         let checkpoint = self.slots[base].checkpoint.as_ref().unwrap();
         let implementations = checkpoint.implementations.as_ref().unwrap();
@@ -1754,11 +1750,7 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        if !policy.tactic(TacticId::CallSpecialization).enabled {
-            return Err(CandidateError::ForbiddenTactic(
-                TacticId::CallSpecialization,
-            ));
-        }
+        crate::representation::ChoiceFamily::CallLayout.spec().check(policy).map_err(candidate_permission)?;
         self.check_existing_javascript_contract(policy, domain)?;
         let checkpoint = self.slots[base].checkpoint.as_ref().unwrap();
         let implementations = checkpoint.implementations.as_ref().unwrap();
@@ -1821,9 +1813,7 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        if !policy.tactic(TacticId::Inlining).enabled {
-            return Err(CandidateError::ForbiddenTactic(TacticId::Inlining));
-        }
+        crate::representation::ChoiceFamily::InlineBody.spec().check(policy).map_err(candidate_permission)?;
         self.check_existing_javascript_contract(policy, domain)?;
         if self.local_facts.is_none() {
             return Err(CompilationFactsError::NotEnabled.into());
@@ -1937,13 +1927,10 @@ impl<'src> Compilation<'src> {
         let base = self.candidate_slot(base)?;
         self.free.ok_or(PublicationError::StoreFull)?;
         let start = (self.ledger.work_used(domain), self.ledger.retained_bytes());
-        if !policy.tactic(TacticId::ConstantFolding).enabled {
-            return Err(CandidateError::ForbiddenTactic(TacticId::ConstantFolding));
-        }
-        if matches!(choice, StringChoice::SharedLiteral { .. })
-            && !policy.tactic(TacticId::StringPooling).enabled
-        {
-            return Err(CandidateError::ForbiddenTactic(TacticId::StringPooling));
+        use crate::representation::ChoiceFamily as Family;
+        Family::StringLiteral.spec().check(policy).map_err(candidate_permission)?;
+        if matches!(choice, StringChoice::SharedLiteral { .. }) {
+            Family::SharedString.spec().check(policy).map_err(candidate_permission)?;
         }
         self.check_existing_javascript_contract(policy, domain)?;
         if self.local_facts.is_none() {
@@ -3042,6 +3029,12 @@ fn copy_javascript_contract(
             ..*delivery
         },
     })
+}
+fn candidate_permission(error: crate::compilation_policy::AdmissionError) -> CandidateError {
+    match error {
+        crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => CandidateError::ForbiddenTactic(tactic),
+        error => CandidateError::Admission(error),
+    }
 }
 fn check_candidate_policy(
     map: &ImplementationMap,

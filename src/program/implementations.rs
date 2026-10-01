@@ -14,7 +14,7 @@ use super::string_family::{StringChoice, StringFamily};
 use super::uses::UseIndex;
 use super::Program;
 use crate::compilation_policy::{
-    BudgetError, BudgetLedger, RuntimeRisk, TacticId, TacticUse, WorkDomain, WorkKind,
+    BudgetError, BudgetLedger, TacticUse, WorkDomain, WorkKind,
 };
 use crate::output_budget::{
     AllocationBudget,
@@ -363,26 +363,12 @@ impl ImplementationMap {
     /// Neutral is this recipe's risk class, not a measured runtime guarantee.
     /// The owner still checks tactic permissions and candidate cost constraints.
     pub(super) fn tactics(&self) -> &[TacticUse] {
-        const CALL: TacticUse = TacticUse {
-            tactic: TacticId::CallSpecialization,
-            risk: RuntimeRisk::Neutral,
-        };
-        const SCALAR: TacticUse = TacticUse {
-            tactic: TacticId::ScalarReplacement,
-            risk: RuntimeRisk::Neutral,
-        };
-        const INLINE: TacticUse = TacticUse {
-            tactic: TacticId::Inlining,
-            risk: RuntimeRisk::Neutral,
-        };
-        const FOLD: TacticUse = TacticUse {
-            tactic: TacticId::ConstantFolding,
-            risk: RuntimeRisk::Neutral,
-        };
-        const POOL: TacticUse = TacticUse {
-            tactic: TacticId::StringPooling,
-            risk: RuntimeRisk::Neutral,
-        };
+        use crate::representation::ChoiceFamily as F;
+        const CALL: TacticUse = F::CallLayout.spec().usage();
+        const SCALAR: TacticUse = F::RecordLayout.spec().usage();
+        const INLINE: TacticUse = F::InlineBody.spec().usage();
+        const FOLD: TacticUse = F::StringLiteral.spec().usage();
+        const POOL: TacticUse = F::SharedString.spec().usage();
         let mask = u8::from(!self.records.is_empty() || !self.products.is_empty())
             | (u8::from(!self.helpers.is_empty()) << 1)
             | (u8::from(!self.strings.is_empty()) << 2)

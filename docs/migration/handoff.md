@@ -1,59 +1,54 @@
-# Migration handoff — S3 complete, Q1 next
+# Migration handoff — Q1 complete, G1 next
 
-The owner requests the whole remaining plan, one milestone at a time, with
-substantial implementation batches and focused checks. Commit and push permission
-persists. Do not restart S1's deferred broad qualification or repeatedly run the
+The owner requests the entire remaining plan, one completed milestone at a time,
+with coherent implementation batches and focused checks. Commit/push permission
+persists. Do not resume S1's deferred broad verification or repeatedly run the
 whole library suite.
 
-## Current state
-
 Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
-C1/C2/C3/S1/S2/S3 implementation is complete. S3's [acceptance](s3-acceptance.md)
-and [evidence](../../benchmarks/migration-results/2026-10-01-s3-complete/README.md)
-record its conservative boundaries, tests, independent objective results and work.
-Retained compiler `/home/azureuser/lilscript-work/bin/s3-complete-2/lilscript`,
-SHA-256 `71561803d17e70ac89f5b3b50fd6499fd82edbc3364626d916c1fbead3ba4e50`.
-The source manifest identifies the exact uncommitted-at-build source tree.
+S3 is committed/pushed at `4d6e457f`; C1/C2/C3/S1/S2/S3/Q1 implementation is
+complete. Q1's [contract](q1-acceptance.md) and
+[evidence](../../benchmarks/migration-results/2026-10-01-q1-complete/README.md)
+record the source/target family interface, per-helper calls, bounded joint moves
+and replay admission. Pin `/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript`,
+SHA-256 `bd40f900d5219899f9e129146aedce011162e5d869aacff430b48ea8f19be7a4`.
+Policy algorithm 15 / search 30 / walk 9 identify this result.
 
-S3 supplies terminal-return normalization, cross-module calls, fresh nested
-closure captures, bounded frequency, reference-parameter transport and immutable
-product rematerialization. Source rules no longer duplicate nonempty repeated
-bodies unconditionally. Exact target alternatives handle expression duplication,
-constant signatures and safe primitive helper sharing. Recurring sharing needs
-an explicit permission. Native captured banks and result cleanup are repaired.
+Q1 has 48 distinct passing focused checks. Eighteen programs pass 108 independent
+old/new behavior observations. Ordinary effort-13 totals improve 9 raw / 0 gzip /
+1 Brotli bytes, with no individual growth; opt-in sharing/data rows are unchanged.
+The separate effort-14 mixed-helper row also saves 9 / 0 / 1. Structural work is
+unchanged; terminal judgments rise 368 → 416 over the 54 cells. No CPU or fleet
+claim is made. The accepted ratchet and port outputs remain unchanged.
 
-There are 100 distinct passing focused checks across the batches. Fifteen
-programs pass 90 old/new Node observations at effort 13. Ordinary permissions
-improve totals by 39 raw / 30 gzip / 8 Brotli bytes; one opt-in sharing case saves
-15 / 4 / 1 bytes separately. A two-byte local Brotli naming loss belongs to G1.
-No full-fleet, paired timing or native-complete claim is made.
+## Next
 
-## Next work
+1. Start **G1 only** with a finite contract: live lexical allocation, scope/
+   capture hygiene, printed-order/frequency alternatives, joint alphabets and
+   final-byte ties. The current naming allocator still visits all binding rows,
+   including deleted bindings, despite the verifier already supplying a live
+   mask. Inspect this useful opportunity and the carried naming tie/2-byte loss.
+2. Continue **G2 → G3 → S4 → Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
+   G3 owns receiver aliases. S4 owns R7 adapter contracts and replacements for
+   target fact re-derivations now that Q1 provides common family identities.
+   Q2 owns full dirty/reuse/resource work; Q3 calibrates exploration; Q4 owns
+   general runtime helper/data representations.
+3. Finish and commit each package before starting the next. Do not remove useful
+   source/target coverage without its actual replacement.
 
-1. Start **Q1 only**, with a finite acceptance checklist. Unify representation
-   families, per-site assignments and useful joint moves; preserve old opportunity
-   coverage and use one admission owner. Delete bespoke mechanisms with their
-   replacement, without losing structural or output choices.
-2. Continue **G1 → G2 → G3 → S4 → Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
-   Receiver-alias spelling belongs to G3. Historical shared-adapter/rest behavior
-   belongs to S4's R7 contract; S3 direct-call proofs do not change it.
-3. Target scalar/namespace and alias/literal cleanup stays until Q1/S4's replacement
-   sees formation-created storage. General runtime helper ownership belongs to Q4.
+## Retained constraints
 
-## Evidence and product rules
+Optimize each raw/gzip/Brotli objective independently. Default effort 13 favors
+size; expensive marginal exploration may default to 14/15 with explicit controls.
+`representation-joints` follows this rule and preserves the completed ordinary
+walk. No effort setting grants new runtime risk. Every flag documents its use,
+defaults/gates and size/compile/runtime tradeoffs; cached output must honor vetoes.
 
-S1 retains `s1-complete-4`; its generic/matrix/reference-port results stand. The
-owner explicitly deferred final library/CLI reruns and complete paired CPU work.
-S2 retains `s2-complete-2`; its independent 15-program comparison and native
-profiles stand. The accepted ratchet baseline is unchanged by S2/S3.
+S1 retains `s1-complete-4` and its generic/matrix/reference-port evidence. Final
+library/CLI reruns and complete paired CPU work were owner-deferred. S2 retains
+`s2-complete-2`; S3 retains `s3-complete-2`. S3's 100 focused checks and independent
+size/behavior comparison stand. Full fleet and protected held-out qualification
+remain V1. Native completion and Closure ADVANCED wins remain actual requirements.
 
-Optimize raw/gzip/Brotli separately. Default effort 13 prioritizes size, with
-expensive marginal strategies at 14/15 and explicit overrides. Keep the best
-admitted result, deterministic budgets and complete TOML permissions on every
-route. Document each flag's use, defaults/gates and tradeoffs. No library-name
-heuristics, blended objective or claim of a global optimum.
-
-Use one heavy job at a time. Test a coherent batch to resolve its actual risks;
-reserve broad fleet/held-out qualification for V1 unless a real problem calls for
-it sooner. Stronger mangling, fair Closure ADVANCED wins and native completion
-remain requirements, not claims established by S3.
+Use one heavy job at a time. Implement substantial batches, then check their
+concrete risks. No test or measurement job is left running at this checkpoint.

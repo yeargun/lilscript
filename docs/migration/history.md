@@ -691,3 +691,32 @@ receiver aliasing is G3 spelling work; shared non-private adapters and rest-list
 `arguments` require S4's R7 contract, as the archived A1 diagnosis already states.
 Q1 is next, followed by the existing milestone order. The ratchet baseline and
 port artifacts are unchanged.
+
+## 2026-10-01: Q1 complete — common families and mixed call choices
+
+Q1 moves source/target family metadata, stable site/alternative identities,
+immutable assignments and joint scheduling into `representation.rs`. Structural
+publishers keep typed proof payloads and use the same contract as target data
+and per-helper calls. Three call-rule entries and the data-only choice scheduler
+are replaced. Exact admission retains the original alternatives, honors explicit
+map/replay permissions and no longer excludes a legal choice on a raw estimate.
+
+Extra family and bounded pair moves extend the completed ordinary search under
+`representation-joints`, automatic from 14 with on/off overrides. Provenance
+preserves its veto and each selected family's runtime permission. Algorithm 15,
+search 30 and walk 9 version the changed behavior. G1 follows Q1; full reuse and
+policy calibration remain Q2/Q3, without reopening the completed interface.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q1-complete/README.md)
+pins `q1-complete-2`, records 48 distinct passing focused checks and 108 independent
+old/new observations over 18 programs. Ordinary effort-13 totals save 9 raw and
+1 Brotli byte with unchanged gzip; no cell grows. Separate opt-in sharing and
+data rows are unchanged, and the effort-14 mixed-helper row also saves 9/0/1.
+The measured gain comes from retaining one body while inlining another. It is
+not evidence that extra joints already earn more bytes on these cases.
+
+Structural work is unchanged; terminal exact judgments rise 368 → 416. There is
+no timing claim or full-library/fleet rerun. An older uphill-naming test was
+already stale on pinned S3; an inlining veto restores its intended independent
+naming witness. All corrected checks pass. Final source/compiler identities,
+config reference and exact artifacts are retained; ratchet and ports are unchanged.

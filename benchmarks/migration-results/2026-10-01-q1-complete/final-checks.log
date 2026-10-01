@@ -1,0 +1,512 @@
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+warning: unused import: `crate::program::publication::*`
+ --> src/program/rewrite_tests.rs:9:5
+  |
+9 | use crate::program::publication::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::program::*`
+  --> src/program/rewrite_tests.rs:10:5
+   |
+10 | use crate::program::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::program::*`
+  --> src/program/search_fairness_tests.rs:10:5
+   |
+10 | use crate::program::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::program::publication::*`
+  --> src/program/function_support_tests.rs:11:5
+   |
+11 | use crate::program::publication::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `EvaluationBehavior`
+ --> src/program/reference_core_tests.rs:3:26
+  |
+3 | use super::facts::{self, EvaluationBehavior};
+  |                          ^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/check/narrowing_input_tests.rs:379:9
+    |
+379 |     let mut config = crate::config::ProjectConfig::default();
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/js/typed.rs:130:17
+    |
+130 |             let mut mark = |binding: BindingId, is_array: bool, arrays: &mut Vec<Option<bool>>| {
+    |                 ----^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/js/tests.rs:1843:9
+     |
+1843 |     let mut sum = |module: &mut Module, right: f64| {
+     |         ----^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/demand.rs:2887:13
+     |
+2887 |         let mut config = crate::config::ProjectConfig::default();
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: unreachable pattern
+    --> src/program/from_source.rs:4098:13
+     |
+4098 |             _ => return self.unsupported(statement.span(), "statement conversion"),
+     |             ^ no value can reach this
+     |
+note: multiple earlier patterns match some of the same values
+    --> src/program/from_source.rs:4098:13
+     |
+3838 | /             Stmt::ArrayDestructure {
+3839 | |                 bindings, value, ..
+3840 | |             } => self.array_destructure(unit, region, bindings, value)?,
+     | |_____________- matches some of the same values
+3841 | /             Stmt::RecordDestructure {
+3842 | |                 bindings,
+3843 | |                 rest,
+3844 | |                 value,
+3845 | |                 span,
+3846 | |             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
+     | |_____________- matches some of the same values
+3847 |               Stmt::VarDecl(declaration) => {
+     |               -------------------------- matches some of the same values
+...
+3875 |               Stmt::Expr(expr) => {
+     |               ---------------- matches some of the same values
+...
+4098 |               _ => return self.unsupported(statement.span(), "statement conversion"),
+     |               ^ ...and 14 other patterns collectively make this unreachable
+     = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+   --> src/program/native_plan.rs:808:13
+    |
+808 |             _ => {
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> src/program/native_plan.rs:808:13
+    |
+613 |             Place::Cell(cell) => PlacePlan {
+    |             ----------------- matches some of the same values
+...
+619 |             Place::Value(value) => PlacePlan {
+    |             ------------------- matches some of the same values
+...
+702 |             Place::Index { receiver, key } => {
+    |             ------------------------------ matches some of the same values
+...
+726 |             Place::Member { .. } => {
+    |             -------------------- matches some of the same values
+...
+808 |             _ => {
+    |             ^ ...and 2 other patterns collectively make this unreachable
+
+warning: variable does not need to be mutable
+  --> src/program/product_demand_tests.rs:68:9
+   |
+68 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/exclusive_publication_tests.rs:215:9
+    |
+215 |     let mut config = crate::config::ProjectConfig::default();
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/exclusive_publication_tests.rs:705:17
+    |
+705 |             let mut config = crate::config::ProjectConfig::default();
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/exclusive_publication_tests.rs:1064:17
+     |
+1064 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/search_terminal_tests.rs:454:17
+    |
+454 |             let mut search = compilation
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_support_tests.rs:63:9
+   |
+63 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/value_placement.rs:1063:17
+     |
+1063 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/value_placement.rs:1379:17
+     |
+1379 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/frame_contract_tests.rs:18:9
+   |
+18 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/script_observation_tests.rs:25:9
+   |
+25 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/effects_tests.rs:96:9
+   |
+96 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/helper_context_tests.rs:94:9
+   |
+94 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/javascript_reference_tests.rs:280:13
+    |
+280 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/module_helper_tests.rs:115:13
+    |
+115 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/publication_tests.rs:11:9
+   |
+11 |     let mut config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/publication_tests.rs:844:13
+    |
+844 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/publication_tests.rs:983:13
+    |
+983 |         let mut config: crate::config::ProjectConfig =
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/compilation_facts_tests.rs:57:9
+   |
+57 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/record_javascript_tests.rs:29:9
+   |
+29 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/string_demand_tests.rs:40:9
+   |
+40 |     let mut configuration = crate::config::ProjectConfig::default();
+   |         ----^^^^^^^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/formation_budget_tests.rs:30:9
+   |
+30 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/value_place_tests.rs:98:13
+   |
+98 |         let mut config = crate::config::ProjectConfig::default();
+   |             ----^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_publication_tests.rs:35:9
+   |
+35 |     let mut config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_demand_tests.rs:35:9
+   |
+35 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/cell_location_demand_tests.rs:40:9
+   |
+40 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/reference_support_tests.rs:85:9
+   |
+85 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/reference_support_demand_tests.rs:45:9
+   |
+45 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: multiple methods are never used
+    --> src/check.rs:1498:19
+     |
+1404 | impl<'ast, 'src> CheckedModule<'ast, 'src> {
+     | ------------------------------------------ methods in this implementation
+...
+1498 |     pub(crate) fn dynamic_operation(&self, id: SourceNodeId) -> Option<BuiltinCall> {
+     |                   ^^^^^^^^^^^^^^^^^
+...
+1502 |     pub(crate) fn resolved_operator(&self, node: SourceNodeId) -> Option<ResolvedOperator> {
+     |                   ^^^^^^^^^^^^^^^^^
+...
+1530 |     pub(crate) fn type_check_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+     |                   ^^^^^^^^^^^^^^^
+...
+1534 |     pub(crate) fn optional_present_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^
+...
+1598 |     pub(crate) fn base_class(&self, class: NominalId) -> Option<NominalId> {
+     |                   ^^^^^^^^^^
+...
+1621 |     pub(crate) fn dynamic_import_module(&self, node: SourceNodeId) -> Option<u32> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^
+...
+1625 |     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `dynamic_export_used` is never used
+    --> src/check.rs:1926:19
+     |
+1630 | impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
+     | ------------------------------------------------------ method in this implementation
+...
+1926 |     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `equality_comparable` is never used
+     --> src/check.rs:11409:4
+      |
+11409 | fn equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
+      |    ^^^^^^^^^^^^^^^^^^^
+
+warning: fields `mode`, `expected`, and `actual` are never read
+  --> src/check/type_relation.rs:27:9
+   |
+26 |     Visit {
+   |     ----- fields in this variant
+27 |         mode: RelationMode,
+   |         ^^^^
+28 |         expected: &'a Type<'src>,
+   |         ^^^^^^^^
+29 |         actual: &'a Type<'src>,
+   |         ^^^^^^
+   |
+   = note: `RelationEvent` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `insert_statement` is never used
+    --> src/js/mod.rs:1246:19
+     |
+1155 | impl Module {
+     | ----------- method in this implementation
+...
+1246 |     pub(crate) fn insert_statement(
+     |                   ^^^^^^^^^^^^^^^^
+
+warning: method `conditional_parts` is never used
+    --> src/js/print.rs:1673:8
+     |
+ 356 | impl<'a> Printer<'a, '_, '_> {
+     | ---------------------------- method in this implementation
+...
+1673 |     fn conditional_parts(&mut self, condition: ExprId, yes: ExprId, no: ExprId) {
+     |        ^^^^^^^^^^^^^^^^^
+
+warning: function `verify_edition` is never used
+  --> src/js/verify.rs:23:15
+   |
+23 | pub(super) fn verify_edition(
+   |               ^^^^^^^^^^^^^^
+
+warning: method `push_char` is never used
+   --> src/output_budget.rs:389:19
+    |
+ 76 | impl<'a> AllocationBudget<'a> {
+    | ----------------------------- method in this implementation
+...
+389 |     pub(crate) fn push_char(
+    |                   ^^^^^^^^^
+
+warning: method `extend` is never used
+   --> src/parser_admission.rs:362:19
+    |
+320 | impl<'arena, T> ArenaVec<'arena, T> {
+    | ----------------------------------- method in this implementation
+...
+362 |     pub(super) fn extend(
+    |                   ^^^^^^
+
+warning: field `identity` is never read
+  --> src/program/aggregates.rs:71:9
+   |
+67 | pub(super) struct AllocationFacts {
+   |                   --------------- field in this struct
+...
+71 |     pub identity: AllocationId,
+   |         ^^^^^^^^
+   |
+   = note: `AllocationFacts` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `name` is never read
+   --> src/program/from_source.rs:759:5
+    |
+755 | struct ClassMethod<'src> {
+    |        ----------- field in this struct
+...
+759 |     name: Option<&'src str>,
+    |     ^^^^
+    |
+    = note: `ClassMethod` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: function `share_program` is never used
+    --> src/program/publication.rs:3207:4
+     |
+3207 | fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
+     |    ^^^^^^^^^^^^^
+
+warning: methods `reserve` and `release` are never used
+    --> src/program/publication.rs:3299:8
+     |
+3291 | impl<'a> Workspace<'a> {
+     | ---------------------- methods in this implementation
+...
+3299 |     fn reserve(&mut self, bytes: u64) -> Result<(), PublicationError> {
+     |        ^^^^^^^
+...
+3308 |     fn release(&mut self, bytes: u64) -> Result<(), PublicationError> {
+     |        ^^^^^^^
+
+warning: field `bytes` is never read
+    --> src/program/publication.rs:3326:5
+     |
+3325 | struct PatchPlan {
+     |        --------- field in this struct
+3326 |     bytes: u64,
+     |     ^^^^^
+
+warning: field `span` is never read
+  --> src/program/verify.rs:25:9
+   |
+22 |     TypeMismatch {
+   |     ------------ field in this variant
+...
+25 |         span: crate::span::Span,
+   |         ^^^^
+   |
+   = note: `VerificationError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `lilscript` (lib test) generated 53 warnings (run `cargo fix --lib -p lilscript --tests` to apply 36 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 25.40s
+     Running unittests src/lib.rs (target/debug/deps/lilscript-7ffa315b6261c9c4)
+
+running 8 tests
+test compilation_policy::tactic_tests::q1_extra_joints_default_at_14_with_explicit_early_override ... ok
+test compilation_policy::tactic_tests::q1_explicit_sites_keep_permissions_risk_and_alternative_validation ... ok
+test program::artifact_provenance::tests::q1_retained_site_risk_and_joint_permission_are_revalidated ... ok
+test js::private_calls::tests::q1_each_helper_can_choose_its_own_representation ... ok
+test program::publication::search::terminal::tests::deferred_naming::deferred_naming_protects_the_completed_prefix_and_recovers_an_uphill_start ... ok
+test representation::tests::q1_joint_map_is_atomic_stable_and_keeps_search_provenance ... ok
+test representation::tests::q1_schedule_keeps_negative_estimates_and_bounded_cross_family_moves ... ok
+test program::publication::search::terminal::tests::deferred_naming::deferred_naming_combines_private_fields_and_local_names_with_real_toml_vetoes ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 1829 filtered out; finished in 7.05s
+

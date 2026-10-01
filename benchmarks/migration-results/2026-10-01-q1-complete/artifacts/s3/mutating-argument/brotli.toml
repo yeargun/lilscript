@@ -1,0 +1,20 @@
+[optimization]
+preset = "maximum"
+inlining = true
+scalar_replacement = true
+
+[javascript]
+priority = "size-first"
+strip_debug = false
+strip_console_calls = false
+
+[mangle]
+identifiers = true
+properties = true
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 13
+

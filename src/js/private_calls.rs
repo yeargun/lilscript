@@ -62,6 +62,60 @@ mod tests {
         );
     }
 
+    #[test]
+    fn q1_each_helper_can_choose_its_own_representation() {
+        use crate::build::{compile_source, ServiceOptions};
+        use crate::js::selection::Objective;
+        let literal = "abcdefghijklmnopqrstuvwxyz-constant-payload".repeat(10);
+        let source = format!("extern string text();extern int readInt();string pad(string x){{return x+\"{literal}\";}}int plus(int x){{return x+1;}}print(pad(text()));print(pad(text()));print(plus(readInt()));print(plus(readInt()));");
+        let compile = |level, permission, joints| {
+            let config = toml::from_str(&format!("objective.codecs='raw'\neffort.level={level}\n[javascript]\ncandidate_proposal_limit=0\nterminal_codec_probe_limit=128\n[policy.tactics]\ninlining='{permission}'\nconstant-folding='off'\ncall-specialization='off'\nhelper-sharing='off'\nscalar-replacement='off'\nstring-pooling='off'\nidentifier-mangling='off'\nnaming-search='off'\nrepresentation-joints='{joints}'")).unwrap();
+            compile_source(&source, &config, ServiceOptions::default()).unwrap()
+        };
+        let retained = compile(13, "off", "off");
+        let duplicated = compile(0, "on", "off");
+        let mixed = compile(13, "on", "off");
+        let joint = compile(13, "on", "on");
+        let before = &mixed.report()["search"]["terminal"]["objectives"][0];
+        let after = &joint.report()["search"]["terminal"]["objectives"][0];
+        for field in ["starts", "trials", "choice_trials", "joint_trials", "stops"] {
+            let prefix = before[field].as_array().unwrap();
+            assert_eq!(
+                &after[field].as_array().unwrap()[..prefix.len()],
+                prefix,
+                "{field}"
+            );
+        }
+        assert!(after["after"].as_u64().unwrap() <= before["after"].as_u64().unwrap());
+        assert!(after["choice_trials"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|trial| trial["alternative"] == "joint"));
+        let retained = retained.javascript(Objective::Raw).unwrap().javascript();
+        let duplicated = duplicated.javascript(Objective::Raw).unwrap().javascript();
+        let mixed = mixed.javascript(Objective::Raw).unwrap().javascript();
+        assert!(mixed.len() < retained.len(), "{mixed}\n{retained}");
+        assert!(mixed.len() < duplicated.len(), "{mixed}\n{duplicated}");
+        assert_eq!(mixed.matches(&literal).count(), 1);
+        let actual = std::process::Command::new("node")
+            .args([
+                "-e",
+                &format!("globalThis.text=()=>\"q\";globalThis.readInt=()=>4;{mixed}"),
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            actual.status.success(),
+            "{}",
+            String::from_utf8_lossy(&actual.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(actual.stdout).unwrap(),
+            format!("q{literal}\nq{literal}\n5\n5\n")
+        );
+    }
+
     fn check(source: &str, expected: &str, mode: Mode, changes: bool) {
         use crate::build::{compile_source, ServiceOptions};
         use crate::js::selection::Objective;
@@ -164,6 +218,8 @@ impl Module {
         &mut self,
         mode: Mode,
         frames_hidden: bool,
+        choices: &ChoiceMap,
+        seed: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         if !frames_hidden {
@@ -283,7 +339,7 @@ impl Module {
             match mode {
                 Mode::Specialize => {
                     for candidate in &candidates {
-                        module.specialize_constants(candidate, budget)?;
+                        module.specialize_constants(candidate, choices, seed, budget)?;
                     }
                 }
                 Mode::Share | Mode::Parameterize => {
@@ -312,6 +368,18 @@ impl Module {
                                 &references,
                                 budget,
                             )? {
+                                let (family, name) = if matches!(mode, Mode::Parameterize) {
+                                    (ChoiceFamily::ParameterizedHelpers, "parameterized-helper")
+                                } else {
+                                    (ChoiceFamily::HelperSharing, "shared-helper")
+                                };
+                                let saving = b.nodes.len() as i64 + 12
+                                    - (differences.len() * b.calls.len() * 2) as i64;
+                                if !module.binary_choice(
+                                    b.binding, family, seed, name, saving, choices, budget,
+                                )? {
+                                    continue;
+                                }
                                 module.share_helpers(a, b, &differences, budget)?;
                                 retired[right] = true;
                                 // Added parameters change the representative's
@@ -383,15 +451,17 @@ impl Module {
     fn specialize_constants(
         &mut self,
         candidate: &Candidate,
+        choices: &ChoiceMap,
+        seed: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         let parameters = self.functions[candidate.function.index()]
             .parameters
             .clone();
-        let mut removed = budget.filled(Scratch, parameters.len(), false)?;
-        for (position, &parameter) in parameters.iter().enumerate() {
+        let mut constants = budget.filled(Scratch, parameters.len(), None::<ExprId>)?;
+        for position in 0..parameters.len() {
             budget.work(Analysis, 1)?;
-            let mut constant: Option<Literal> = None;
+            let mut constant: Option<ExprId> = None;
             let mut uniform = true;
             for &call in &candidate.calls {
                 budget.work(Analysis, 1)?;
@@ -402,33 +472,59 @@ impl Module {
                     uniform = false;
                     break;
                 };
-                if let Some(prior) = &constant {
+                if let Some(prior) = constant {
+                    let Expr::Literal(prior) = &self.expressions[prior.index()] else {
+                        unreachable!()
+                    };
                     uniform &= same_literal(prior, value);
                 } else {
-                    constant = Some(value.clone());
+                    constant = Some(arguments[position]);
                 }
             }
             if !uniform {
                 continue;
             }
             let Some(constant) = constant else { continue };
+            constants[position] = Some(constant);
+        }
+        let removed = constants
+            .iter()
+            .filter(|constant| constant.is_some())
+            .count();
+        if removed == 0 {
+            return Ok(());
+        }
+        if !self.binary_choice(
+            candidate.binding,
+            ChoiceFamily::ConstantArguments,
+            seed,
+            "constant-signature",
+            (removed * (candidate.calls.len() + 1) * 2) as i64,
+            choices,
+            budget,
+        )? {
+            return Ok(());
+        }
+        for (position, &parameter) in parameters.iter().enumerate() {
+            let Some(constant) = &constants[position] else {
+                continue;
+            };
             for &id in &candidate.nodes {
                 budget.work(Analysis, 1)?;
                 if self.expressions[id.index()] == Expr::Binding(parameter) {
-                    let value = copy_literal(&constant, budget)?;
+                    let Expr::Literal(constant) = &self.expressions[constant.index()] else {
+                        unreachable!()
+                    };
+                    let value = copy_literal(constant, budget)?;
                     self.set_expression(id, Expr::Literal(value));
                 }
             }
-            removed[position] = true;
-        }
-        if !removed.iter().any(|removed| *removed) {
-            return Ok(());
         }
         let mut position = 0;
         self.function_mut(candidate.function)
             .parameters
             .retain(|_| {
-                let keep = !removed[position];
+                let keep = constants[position].is_none();
                 position += 1;
                 keep
             });
@@ -438,7 +534,7 @@ impl Module {
             };
             let mut position = 0;
             arguments.retain(|_| {
-                let keep = !removed[position];
+                let keep = constants[position].is_none();
                 position += 1;
                 keep
             });

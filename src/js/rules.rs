@@ -41,9 +41,7 @@ declare_rules! {
     SimplifyOperators,
     InlineExpressionFunctions,
     DuplicateExpressionFunctions,
-    SpecializeCalls,
-    ShareHelpers,
-    ParameterizeHelpers,
+    PrivateCallRepresentations,
     InlineStatementFunctions,
     EliminateAliases,
     FoldLiteralOperations,
@@ -106,9 +104,7 @@ impl Rule {
             | Self::ForwardSingleUses
             | Self::SimplifyOperators => context.rules.constant_folding,
             Self::DropUnreferencedFunctions | Self::DropUnreachable => context.prunes,
-            Self::SpecializeCalls => context.rules.call_specialization,
-            Self::ShareHelpers => context.rules.helper_sharing,
-            Self::ParameterizeHelpers => context.rules.parameterized_helpers,
+            Self::PrivateCallRepresentations => context.rules.call_specialization || context.rules.helper_sharing,
             Self::EncodeTables => context.rules.data_encoding,
             Self::PackStringArrays => context.rules.array_packing != ArrayPacking::Disabled,
             Self::SelfMethodCalls
@@ -167,7 +163,7 @@ impl Rule {
             | Self::FoldLiteralOperations => "M5.2 (annotations)",
             Self::FoldLogicalAssignments | Self::FoldLogicalReturns => "M8.2 A2",
             Self::CompressStatements | Self::FlattenBlocks => "M8.3 (per-site spellings)",
-            Self::SpecializeCalls | Self::ShareHelpers | Self::ParameterizeHelpers => "Q1 (per-site call representations)",
+            Self::PrivateCallRepresentations => "Q1 (proved representation alternatives; can increase nodes)",
             Self::EncodeTables | Self::PackStringArrays | Self::PoolStrings => "M9.8",
             Self::GroupPrototypeStores => "M8.7",
         })
@@ -194,6 +190,7 @@ pub(crate) struct Context<'a> {
     pub(crate) year: u16,
     pub(crate) statements: StatementSpellings,
     pub(crate) choices: Option<&'a ChoiceMap>,
+    pub(crate) families: OutputFamilies,
 }
 
 /// Rounds a rule set may take. Each rule's edits remove or move structure,
@@ -239,15 +236,11 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
     let mut rules = Vec::with_capacity(24);
     // String root constants read as their literals, when the artifact's
     // family says so (M7.4's longer values: a choice).
-    if families.call_specialization { rules.push(Rule::SpecializeCalls); }
-    if families.helper_sharing { rules.push(Rule::ShareHelpers); }
-    if families.parameterized_helpers { rules.push(Rule::ParameterizeHelpers); }
-    if families.expression_inlining { rules.push(Rule::DuplicateExpressionFunctions); }
-    // Call representations expose new literal operands after the head settled.
-    // Consume them under constant-folding's independent permission.
-    if families.expression_inlining || families.call_specialization {
-        rules.push(Rule::FoldLiteralOperations);
-    }
+    // Discover every permitted site, even when its family default retains
+    // calls. Explicit site assignments and whole-family joint moves use the
+    // same producers, cleanup and artifact admission.
+    rules.extend([Rule::PrivateCallRepresentations, Rule::DuplicateExpressionFunctions,
+        Rule::FoldLiteralOperations]);
     if families.string_constants {
         rules.push(Rule::ForwardRootStrings);
     }
@@ -466,7 +459,7 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         let Context {
-            rules: _,
+            rules,
             frames_hidden,
             strict,
             pristine,
@@ -475,6 +468,7 @@ impl Module {
             year,
             statements,
             choices,
+            families,
         } = *context;
         // The passes report what they did; the journal is what counts.
         match rule {
@@ -489,11 +483,23 @@ impl Module {
                     self.inline_expression_functions(0, frames_hidden, strict, budget)?;
             }
             Rule::DuplicateExpressionFunctions => {
-                let _ = self.inline_expression_functions(256, frames_hidden, strict, budget)?;
+                if let Some(choices) = choices {
+                    let _ = self.inline_expression_functions_chosen(256, frames_hidden, strict,
+                        Some((choices, families.expression_inlining)), budget)?;
+                }
             }
-            Rule::SpecializeCalls => self.private_calls(super::private_calls::Mode::Specialize, frames_hidden, budget)?,
-            Rule::ShareHelpers => self.private_calls(super::private_calls::Mode::Share, frames_hidden, budget)?,
-            Rule::ParameterizeHelpers => self.private_calls(super::private_calls::Mode::Parameterize, frames_hidden, budget)?,
+            Rule::PrivateCallRepresentations => {
+                if let Some(choices) = choices {
+                    use super::private_calls::Mode;
+                    for (mode, permitted, seed) in [
+                        (Mode::Specialize, rules.call_specialization, families.call_specialization),
+                        (Mode::Share, rules.helper_sharing, families.helper_sharing),
+                        (Mode::Parameterize, rules.parameterized_helpers, families.parameterized_helpers),
+                    ] {
+                        if permitted { self.private_calls(mode, frames_hidden, choices, seed, budget)?; }
+                    }
+                }
+            }
             Rule::InlineStatementFunctions => {
                 let _ = self.inline_statement_functions(frames_hidden, strict, budget)?;
             }
@@ -504,7 +510,12 @@ impl Module {
                 let _ = self.forward_root_constants(ConstantKind::Scalar, budget)?;
             }
             Rule::FoldLiteralOperations => {
-                let _ = self.fold_literal_operations(budget)?;
+                let call_choice = choices.is_some_and(|choices| choices.iter().any(|(key, alt)|
+                    alt != AltId(0) && matches!(key.family,
+                        ChoiceFamily::ExpressionInlining | ChoiceFamily::ConstantArguments)));
+                if choices.is_none() || families.expression_inlining || families.call_specialization || call_choice {
+                    let _ = self.fold_literal_operations(budget)?;
+                }
             }
             Rule::ForwardRootStrings => {
                 let _ = self.forward_root_constants(ConstantKind::String, budget)?;
