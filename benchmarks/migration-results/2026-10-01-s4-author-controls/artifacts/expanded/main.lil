@@ -1,0 +1,1 @@
+export int probe(int n){int total=0;inline for(int i of [0,1,2,3]){total+=n+i;}return total;}

@@ -1,0 +1,1 @@
+let make=function(a){let b=[];{let c=1,d=c*10|0;b.push(()=>{c=c+1|0;d=d+2|0;return(a+(c*100|0)|0)+d|0})}{let c=2,d=c*10|0;b.push(()=>{c=c+1|0;d=d+2|0;return(a+(c*100|0)|0)+d|0})}{let c=3,d=c*10|0;b.push(()=>{c=c+1|0;d=d+2|0;return(a+(c*100|0)|0)+d|0})}return b};export{make};

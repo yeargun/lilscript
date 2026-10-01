@@ -499,22 +499,9 @@ pub enum ForInitializer<'ast, 'src> {
 }
 
 impl<'ast, 'src> Expr<'ast, 'src> {
-    pub fn const_list_literals(&self) -> Option<Vec<&Expr<'ast, 'src>>> {
-        let Expr {
-            kind: ExprKind::ArrayLiteral { elements, .. },
-            ..
-        } = self
-        else {
-            return None;
-        };
-        let mut values = Vec::with_capacity(elements.len());
-        for element in *elements {
-            match element {
-                ArrayElement::Value(value) if value.is_const_scalar() => values.push(value),
-                _ => return None,
-            }
-        }
-        Some(values)
+    pub fn is_const_list(&self) -> bool {
+        let ExprKind::ArrayLiteral { elements, .. } = &self.kind else { return false; };
+        elements.iter().all(|element| matches!(element, ArrayElement::Value(value) if value.is_const_scalar()))
     }
 
     pub const fn is_const_scalar(&self) -> bool {

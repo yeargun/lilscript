@@ -1,0 +1,10 @@
+{
+  "exercise": "const a=m.make(7),b=m.make(9);console.log(JSON.stringify([a[0](),a[0](),a[1](),a[2](),b[0]()]));",
+  "expected": [
+    219,
+    321,
+    329,
+    439,
+    221
+  ]
+}

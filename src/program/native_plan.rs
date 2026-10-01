@@ -2929,14 +2929,16 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             && result == Some(Stored(I32)),
                         "native imul representation",
                     ),
-                    PreparedTarget::ArrayPush { array, .. } => expect(
-                        arguments.len() == 1
-                            && argument(0).is_some_and(|value| {
-                                self.compatible(Stored(self.arrays[array]), value)
-                            })
-                            && result == Some(Stored(I32)),
-                        "native array push operands",
-                    ),
+                    PreparedTarget::ArrayPush { array, .. } => {
+                        let expected = Stored(self.arrays[array]);
+                        let compatible = match argument(0) {
+                            Some(actual) => self.compatible(expected, actual)
+                                || self.admit_adapter(expected, actual, budget)?,
+                            None => false,
+                        };
+                        expect(arguments.len() == 1 && compatible && result == Some(Stored(I32)),
+                            "native array push operands")
+                    },
                     PreparedTarget::ArrayPop { array, .. } => expect(
                         arguments.is_empty()
                             && result.is_some_and(|result| {

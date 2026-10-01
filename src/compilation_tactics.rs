@@ -159,6 +159,14 @@ declare_tactics! {
         purpose: "Replace proved calls with their bodies to expose simplification and remove call overhead.",
         tradeoffs: "Can increase text and compilation work. Shared removal-only inlining also needs dead-code-elimination; target implementations need target-compaction. Off vetoes all optional inlining."
     },
+    LoopUnrolling {
+        name: "loop-unrolling", javascript_only: false, minimum_effort: 0, startup_at_level_16: false,
+        analysis: A::Values, default: D::On,
+        producers: &[P::SharedRules], prerequisites: &[], risks: &[R::Neutral],
+        invalidates: &[I::ProgramFacts, I::TargetHead, I::Names, I::RenderedFiles],
+        purpose: "Honor an authored inline for over a checked constant scalar list on both targets.",
+        tradeoffs: "Auto and on permit the explicit source pin at every effort; ordinary loops are unchanged. Expansion costs list length times body size and may grow compressed bytes while exposing constants and removing loop machinery. Off diagnoses a conflicting inline for instead of ignoring it. Private function inlining is independent."
+    },
     ScalarReplacement {
         name: "scalar-replacement", javascript_only: false, minimum_effort: 0, startup_at_level_16: false,
         analysis: A::OwnershipAndObservations, default: D::Preset,

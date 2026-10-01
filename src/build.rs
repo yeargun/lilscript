@@ -401,6 +401,7 @@ impl Frontend {
         #[cfg(not(test))]
         let permitted_inlining = permitted(TacticId::Inlining);
         Some(RuleRequest {
+            unroll: permitted(TacticId::LoopUnrolling),
             fold: permitted(TacticId::ConstantFolding),
             dead_code: permitted(TacticId::DeadCodeElimination),
             inline: permitted_inlining,

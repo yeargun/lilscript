@@ -8,6 +8,7 @@ use crate::js::PrintPolicy;
 use std::process::Command;
 
 const MODULE: RuleRequest = RuleRequest {
+    unroll: true,
     fold: true,
     dead_code: true,
     inline: true,
@@ -17,6 +18,7 @@ const MODULE: RuleRequest = RuleRequest {
     seal: Seal::Module,
 };
 const SCRIPT: RuleRequest = RuleRequest {
+    unroll: true,
     fold: true,
     dead_code: true,
     inline: true,
@@ -31,6 +33,7 @@ const FOLD_ONLY: RuleRequest = RuleRequest {
     ..MODULE
 };
 const DCE_ONLY: RuleRequest = RuleRequest {
+    unroll: true,
     fold: false,
     inline: false,
     ..MODULE

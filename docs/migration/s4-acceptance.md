@@ -67,8 +67,9 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    shape/class product fields use storage codecs. Erased public generic optional
    presence remains R18, and native shapes remain N2. The detached primitive-method audit passes with the existing
    source-owned refusal and explicit-closure alternative.
-8. [~] Complete R15 author controls: `@pool` is parsed but not consumed,
-   `@choose` is absent and `inline for` still lowers as an ordinary loop.
+8. [~] Complete R15 author controls: shared `inline for` expansion, fresh capture
+   banks, resource admission and the independent hard TOML veto are implemented.
+   `@pool` is parsed but not consumed and `@choose` remains absent.
    Register/document any new behavior controls and their gates, interactions,
    costs and hard vetoes. Keep semantic assumptions separate from effort. Q4 owns
    general const-data encodings and schema specialization; Q2 owns incremental

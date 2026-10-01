@@ -736,6 +736,7 @@ fn s4_optimized_nullable_views_keep_native_unboxing() {
     let (program, _) = super::rules::optimize(
         program,
         super::rules::RuleRequest {
+            unroll: true,
             fold: true,
             dead_code: true,
             inline: false,

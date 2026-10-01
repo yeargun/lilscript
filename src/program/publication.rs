@@ -876,6 +876,7 @@ impl JavaScriptTarget<'_, '_> {
                     semantic.identity,
                     semantic.meaning,
                     &semantic.lineage,
+                    semantic.program.authored_unrolling,
                     *store,
                     budget,
                 )
@@ -2133,6 +2134,9 @@ impl<'src> Compilation<'src> {
             _ => return Err(NativeError::WrongTarget),
         }
         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
+        if checkpoint.semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
+            return Err(NativeError::Admission(crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling)));
+        }
         work(
             &mut self.ledger,
             domain,
@@ -2189,6 +2193,9 @@ impl<'src> Compilation<'src> {
             _ => return Err(NativeError::WrongTarget),
         }
         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
+        if checkpoint.semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
+            return Err(NativeError::Admission(crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling)));
+        }
         work(
             &mut self.ledger,
             domain,
@@ -2655,6 +2662,7 @@ impl<'src> Compilation<'src> {
             checkpoint.semantic.identity,
             checkpoint.semantic.meaning,
             &checkpoint.semantic.lineage,
+            checkpoint.semantic.program.authored_unrolling,
             self.store,
             &mut AllocationBudget::new(Some((&mut self.ledger, domain))),
         )?;
@@ -3082,6 +3090,9 @@ fn check_semantic_policy(
     semantic: &SemanticSnapshot<'_>,
     policy: &ResolvedPolicy,
 ) -> Result<(), CandidateError> {
+    if semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
+        return Err(CandidateError::ForbiddenTactic(TacticId::LoopUnrolling));
+    }
     semantic
         .lineage
         .check_policy(policy)
@@ -3231,6 +3242,7 @@ fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
         tables_revision: program.tables_revision,
         trap_index_reads: program.trap_index_reads,
         source_contract: program.source_contract,
+        authored_unrolling: program.authored_unrolling,
         absence_abi: program.absence_abi,
         units: program.units.clone(),
         cells: program.cells.clone(),

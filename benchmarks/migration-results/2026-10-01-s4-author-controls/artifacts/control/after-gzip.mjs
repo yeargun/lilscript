@@ -1,0 +1,1 @@
+let probe=function(e){let b=0;for(let r=0;r<4;++r)b=b+(e+r|0)|0;return b};export{probe};

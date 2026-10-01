@@ -4454,3 +4454,60 @@ fn s4_host_catalog_binding_configuration_refuses_ambiguous_or_invalid_contracts(
     let error=compile_path(&scratch.0.join("entry.lil"),&config("[host.javascript]\nf='runtime.f'"),ServiceOptions::default()).unwrap_err();
     assert_eq!(error.phase,"check","{error:?}");assert!(format!("{error:?}").contains("conflicts with its import extern"));
 }
+
+
+const INLINE_FOR_CAPTURES: &str = r#"
+    (func()->int)[] reads=[];
+    (func()->int)[] changes=[];
+    inline for(int unused of []){print(999);}
+    inline for(int outer of [1,2]) {
+        int local=outer*10;
+        inline for(int inner of [3,4]) {
+            reads.push(()=>outer*100+local+inner);
+            changes.push(()=>{outer+=1;local+=2;inner+=3;return outer*100+local+inner;});
+        }
+    }
+    print(reads[0]());print(reads[1]());print(reads[2]());print(reads[3]());
+    print(changes[0]());print(reads[0]());print(reads[1]());print(reads[2]());
+    print(changes[3]());print(reads[2]());print(reads[3]());
+    int early(){inline for(int n of [1,2,3]){if(n==2){return n;}}return 99;}
+    print(early());
+    inline for(float x of [1,2.5]){print(x);}
+    inline for(int? x of [null,7]){print(x??9);}
+    inline for(bool x of [true,false]){print(x);}
+    inline for(string x of ["a","b"]){print(x);}
+    (func(int)->int)[] make(int offset){
+        (func(int)->int)[] results=[];
+        inline for(int n of [1,2]){results.push((int x=n)=>{n+=x;return offset+n;});}
+        return results;
+    }
+    auto made=make(100);print(made[0](1));print(made[0](3));print(made[1](2));
+"#;
+const INLINE_FOR_EXPECTED: &str = "113\n114\n223\n224\n218\n218\n216\n223\n329\n325\n329\n2\n1\n2.5\n9\n7\ntrue\nfalse\na\nb\n102\n105\n104\n";
+
+#[test]
+fn s4_inline_for_expands_with_independent_captures_on_both_targets() {
+    for effort in [0,13] {
+        let mut settings=config("[policy.tactics]\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'");
+        settings.effort.level=effort;
+        let built=compile_source(INLINE_FOR_CAPTURES,&settings,ServiceOptions {
+            target: ServiceTarget::All, objectives:Some(Objectives::All), ..ServiceOptions::default()
+        }).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",""),INLINE_FOR_EXPECTED);
+        }
+        assert_eq!(execute_native(built.native_c().unwrap()),INLINE_FOR_EXPECTED);
+        check_scores(&built);
+    }
+}
+
+#[test]
+fn s4_inline_for_permission_conflicts_are_source_diagnostics() {
+    let settings=config("[policy.tactics]\nloop-unrolling='off'");
+    for target in [ServiceTarget::JavaScript,ServiceTarget::Native,ServiceTarget::All] {
+        let error=compile_source("inline for(int x of [1,2]){print(x);}",&settings,ServiceOptions {
+            target, ..ServiceOptions::default()
+        }).unwrap_err();
+        assert!(error.to_string().contains("loop-unrolling='off'"),"{error}");
+    }
+}

@@ -1141,7 +1141,7 @@ impl ProjectConfig {
                 )
             }
             T::StringArrayPacking => compression(CompressionDecision::StringArrayPacking),
-            T::StartupReconstruction | T::RecurringReconstruction | T::NamingAlphabet | T::NamingCompaction | T::RepresentationJoints | T::StatementSpellings | T::DeclarationOrder | T::ReceiverAliases => {
+            T::LoopUnrolling | T::StartupReconstruction | T::RecurringReconstruction | T::NamingAlphabet | T::NamingCompaction | T::RepresentationJoints | T::StatementSpellings | T::DeclarationOrder | T::ReceiverAliases => {
                 (None, None)
             }
             T::NamingSearch => {

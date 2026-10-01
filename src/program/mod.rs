@@ -356,6 +356,8 @@ pub struct Program<'src> {
     /// by every candidate; a dead result cannot erase a required bounds check.
     trap_index_reads: bool,
     source_contract: crate::config::LanguageConfig,
+    /// Authored expansion is retained as permission evidence through replay.
+    authored_unrolling: bool,
     absence_abi: bool,
     units: Vec<FrozenUnit>,
     // Published tables are immutable. Retaining a candidate shares their

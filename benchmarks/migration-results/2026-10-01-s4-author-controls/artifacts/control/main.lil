@@ -1,0 +1,1 @@
+export int probe(int n){int total=0;for(int i=0;i<4;i+=1){total+=n+i;}return total;}

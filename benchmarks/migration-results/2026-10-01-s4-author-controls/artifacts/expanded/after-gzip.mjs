@@ -1,0 +1,1 @@
+let probe=function(a){let b=0;{let c=0;b=b+(a+c)}{let c=1;b=b+(a+c|0)|0}{let c=2;b=b+(a+c|0)|0}{let c=3;b=b+(a+c|0)|0}return b};export{probe};

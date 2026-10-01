@@ -1,0 +1,7 @@
+{
+  "exercise": "console.log(JSON.stringify([m.probe(),m.probe()]));",
+  "expected": [
+    24,
+    24
+  ]
+}

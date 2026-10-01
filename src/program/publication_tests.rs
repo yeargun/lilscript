@@ -1495,3 +1495,28 @@ fn adoption_budget_failures_release_partial_units_tables_and_index() {
         });
     }
 }
+
+
+#[test]
+fn s4_inline_for_replay_and_artifacts_retain_the_hard_veto() {
+    checked("int result=0;inline for(int n of [1,2]){result+=n;}print(result);", |program| {
+        assert!(!program.units.iter().any(|unit|unit.data().operations.iter().any(|op|
+            matches!(op.kind,OperationKind::Loop{..}|OperationKind::ForOf{..}))));
+        let mut compiler=compilation();
+        let source=compiler.adopt_checked(program,WorkDomain::Baseline).unwrap();
+        let on=policy("[objective]\ncodecs=['raw']");let off=policy("[objective]\ncodecs=['raw']\n[policy.tactics]\nloop-unrolling='off'");
+        assert!(matches!(compiler.direct_javascript(source,&off,WorkDomain::Baseline),Err(CandidateError::ForbiddenTactic(crate::compilation_policy::TacticId::LoopUnrolling))));
+        let candidate=compiler.direct_javascript(source,&on,WorkDomain::Baseline).unwrap();
+        assert!(matches!(compiler.with_javascript_output(candidate,&off,|_|()),Err(CandidateError::ForbiddenTactic(crate::compilation_policy::TacticId::LoopUnrolling))));
+        let artifact=compiler.with_javascript_output(candidate,&on,|output| {
+            let artifact=output.render(&crate::js::selection::Plan::new(crate::js::selection::Style::Scoped))?;
+            output.retain_artifact(artifact)
+        }).unwrap().unwrap();
+        let result=compiler.qualify_artifact(artifact,&off,crate::config::CompressionCostModel::Raw,ArtifactRuntimeEvidence::default(),None,WorkDomain::Baseline);
+        assert!(matches!(result,Err(CandidateError::ForbiddenTactic(crate::compilation_policy::TacticId::LoopUnrolling))),"{result:?}");
+        let settings:crate::config::ProjectConfig=toml::from_str("[policy.tactics]\nloop-unrolling='off'").unwrap();
+        let native=settings.resolve_policy(crate::compilation_policy::CompilationRequest::Native).unwrap();
+        assert!(matches!(compiler.with_native_c(source,&native,WorkDomain::Baseline,|_|()),Err(NativeError::Admission(crate::compilation_policy::AdmissionError::ForbiddenTactic(crate::compilation_policy::TacticId::LoopUnrolling)))));
+        assert_eq!(compiler.finish().retained_bytes(),0);
+    });
+}

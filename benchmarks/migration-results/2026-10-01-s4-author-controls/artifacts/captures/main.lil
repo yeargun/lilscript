@@ -1,0 +1,1 @@
+export (func()->int)[] make(int offset){(func()->int)[] reads=[];inline for(int n of [1,2,3]){int local=n*10;reads.push(()=>{n+=1;local+=2;return offset+n*100+local;});}return reads;}

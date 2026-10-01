@@ -1124,3 +1124,26 @@ algorithm 37 / search 32 / walk 10 / local facts 14. No full-library/fleet,
 compile-speed, runtime-parity, native-completion or baseline-update claim.
 The audit also finds `@pool` parsed without a consumer, `@choose` absent and
 `inline for` lowered as an ordinary loop; S4 must close those author controls.
+
+
+## 2026-10-01: S4 authored loop expansion
+
+The [author-control record](../../benchmarks/migration-results/2026-10-01-s4-author-controls/README.md)
+implements the `inline for` portion: shared expansion, fresh physical cells and
+closure banks, empty/nullable scalar lists, admitted work/storage and an
+independent `loop-unrolling` TOML permission. Source, replay, artifact and native
+paths enforce its veto. The checker's const-list query avoids an unused
+allocation; native array push consumes the existing callable adapter for
+compatible default/required views.
+
+Ten focused checks pass, along with the release CLI and schema checks. Four
+matched source/module oracles pass under all objectives; the ordinary-loop
+control is unchanged. Selected totals are **674 raw / 474 gzip / 369 Brotli**,
+changing by **+122 / −48 / −49**. The raw increase is retained: an explicit
+source pin chooses expansion without a guaranteed size win. No full-suite,
+fleet, speed or default-heuristic claim is made.
+
+Pin `s4-inline-for-1`, SHA-256
+`a883f9860bcc5389ab35350579e2f06854aa55d23050cefa6dd67153306b2a4d`;
+algorithm 38 / search 32 / walk 10 / local facts 14. `@pool`, `@choose` and wider
+public ABI contracts remain S4 work. No ratchet baseline or port artifact changed.

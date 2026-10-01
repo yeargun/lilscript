@@ -1,0 +1,8 @@
+[objective]
+codecs='brotli'
+[effort]
+level=13
+[policy.tactics]
+inlining='off'
+constant-folding='off'
+scalar-replacement='off'

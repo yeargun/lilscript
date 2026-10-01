@@ -1,0 +1,1 @@
+let e=r=>{let e=[];{let b=1,t=b;e.push(()=>{t=t+r|0;return t})}{let b=2,t=b;e.push(()=>{t=t+r|0;return t})}return e},probe=function(){let r=e(5);return(r[0]()+r[1]()|0)+r[0]()|0};export{probe};

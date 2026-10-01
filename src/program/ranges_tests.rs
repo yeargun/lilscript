@@ -93,6 +93,7 @@ fn forwarding_keeps_branch_local_range_observations() {
     let arena = bumpalo::Bump::new();
     let input = program(&arena, "export int clamp(int value){if(value < -120){return -120;}if(value > 120){return 120;}return value;}print(clamp(500));");
     let (program, _) = super::super::rules::optimize(input, super::super::rules::RuleRequest {
+        unroll: true,
         fold: true, dead_code: true, inline: false, scalar: false, native: false, pristine_builtins: false,
         seal: Seal::Module,
     }).unwrap();

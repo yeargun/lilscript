@@ -9,6 +9,7 @@ struct SharedIdentity {
     snapshot: RevisionId,
     meaning: RevisionId,
     lineage: RewriteLineage,
+    authored_unrolling: bool,
     identity: ImplementationIdentity,
     fingerprint: u64,
     header_charge: RetainedCharge<RevisionId>,
@@ -25,12 +26,13 @@ impl SharedImplementationIdentity {
         snapshot: RevisionId,
         meaning: RevisionId,
         lineage: &RewriteLineage,
+        authored_unrolling: bool,
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         budget.work(WorkKind::Analysis, 1)?;
         if cached.is_none() {
-            *cached = Some(Self::build(map, snapshot, meaning, lineage, owner, budget)?);
+            *cached = Some(Self::build(map, snapshot, meaning, lineage, authored_unrolling, owner, budget)?);
         }
         Ok(())
     }
@@ -40,6 +42,7 @@ impl SharedImplementationIdentity {
         snapshot: RevisionId,
         meaning: RevisionId,
         lineage: &RewriteLineage,
+        authored_unrolling: bool,
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, AllocationError> {
@@ -75,6 +78,7 @@ impl SharedImplementationIdentity {
             snapshot,
             meaning,
             lineage,
+            authored_unrolling,
             identity,
             fingerprint,
             header_charge,
@@ -95,8 +99,10 @@ impl SharedImplementationIdentity {
     pub(in crate::program) fn snapshot(&self) -> RevisionId {
         self.0.snapshot
     }
-    pub(in crate::program) fn tactics(&self) -> &[crate::compilation_policy::TacticUse] {
-        self.0.lineage.tactics()
+    pub(in crate::program) fn tactics(&self) -> impl Iterator<Item = &crate::compilation_policy::TacticUse> {
+        use crate::compilation_policy::{TacticId, TacticUse, RuntimeRisk};
+        const UNROLL: TacticUse = TacticUse { tactic: TacticId::LoopUnrolling, risk: RuntimeRisk::Neutral };
+        self.0.lineage.tactics().iter().chain(self.0.authored_unrolling.then_some(&UNROLL))
     }
 
     pub(in crate::program) fn owner(&self) -> RevisionId {
@@ -208,6 +214,7 @@ mod tests {
             RevisionId::fresh(),
             RevisionId::fresh(),
             &RewriteLineage::default(),
+            false,
             owner,
             &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional))),
         )
@@ -243,6 +250,7 @@ mod tests {
                 RevisionId::fresh(),
                 RevisionId::fresh(),
                 &RewriteLineage::default(),
+            false,
                 owner,
                 &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional))),
             )
@@ -287,6 +295,7 @@ mod tests {
                 RevisionId::fresh(),
                 RevisionId::fresh(),
                 &RewriteLineage::default(),
+            false,
                 RevisionId::fresh(),
                 &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)))
             ),

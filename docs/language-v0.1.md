@@ -368,10 +368,16 @@ semantics would be target-dependent.
 
 `inline for (T value of [/* const list */])` asks for the loop to be unrolled
 at compile time. The iterable must be an array literal of `int`, `float`,
-`string`, or `bool` values, and `break` and `continue` are rejected, because an
-unrolled loop has no runtime loop to leave. **Until M10.11** the compiler does
-not unroll it: it compiles as an ordinary loop over the literal, with the same
-results. The old `optimization.for_of_specialize_family` key is refused unless
+`string`, `bool`, or `null` values. A `break` or `continue` targeting this loop
+is rejected; nested ordinary loops retain their own control flow. Shared source
+conversion expands the list in order for both targets, with fresh mutable cells
+for the element and body declarations in each iteration. Closures retain that
+iteration's cells; `return`, exceptions and outer captures keep their meaning.
+`policy.tactics.loop-unrolling = "auto"` (the default) and `"on"` honor this pin
+at every effort level. `"off"` diagnoses a conflicting pin. Ordinary loops are
+unchanged and function inlining is independent. Expansion consumes work and
+memory proportional to the expanded body and can increase raw or compressed
+size. The old `optimization.for_of_specialize_family` key is refused unless
 it is `0`.
 
 `Map<K, V>` and `Set<T>` are mutable and invariant. `Map.get(key)` returns

@@ -1,0 +1,1 @@
+export (func()->int)[] make(int start){(func()->int)[] out=[];inline for(int n of [1,2]){int local=n;out.push(()=>{local+=start;return local;});}return out;}

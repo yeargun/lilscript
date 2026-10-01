@@ -1,0 +1,1 @@
+import {make} from "./factory.lil";export int probe(){auto f=make(5);return f[0]()+f[1]()+f[0]();}

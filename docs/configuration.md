@@ -615,6 +615,16 @@ Native supports shared scalar replacement and final-use ownership transfers; cal
 Disabling identifier mangling also disables its dependent naming search and
 alphabet trials, with the reason in the policy diagnostics.
 
+`policy.tactics.loop-unrolling` controls authored `inline for` expansion on
+JavaScript and native. `auto` (default) and `on` honor a checked constant scalar
+list at every effort, including 0; `off` reports a source conflict. It is useful
+when exposing per-element constants matters more than retaining compact loop
+syntax. This pin expands list length times body size, spends admitted compile
+work/memory, and removes loop machinery; neither raw nor codec savings are
+guaranteed. It does not unroll ordinary loops and does not require `inlining`.
+Expanded programs retain this permission through candidate/artifact replay.
+See the [S4 author-control evidence](../benchmarks/migration-results/2026-10-01-s4-author-controls/README.md).
+
 For private calls, `inlining` permits body movement and codec-judged expression
 duplication. Larger bodies can expose simplification but increase output and
 compilation work; the retained-call alternative remains available when that

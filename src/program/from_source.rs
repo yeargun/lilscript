@@ -194,7 +194,7 @@ pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ConversionError> {
     let mut scope = budget.scope();
-    let mut program = convert_source(source, semantics, &mut scope)?;
+    let mut program = convert_source(source, semantics, rules.is_none_or(|r| r.unroll), &mut scope)?;
     hosts::apply(&mut program, semantics.view(), host_config, &mut scope).map_err(|(_, error)| error)?;
     program.trap_index_reads = trap_index_reads;
     verify_conversion(&program, source.span, &mut scope)?;
@@ -224,7 +224,7 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ModuleConversionError> {
     let mut scope = budget.scope();
-    let mut program = convert_modules(sources, semantics, &mut scope)?;
+    let mut program = convert_modules(sources, semantics, rules.is_none_or(|r| r.unroll), &mut scope)?;
     hosts::apply(&mut program, semantics.view(semantics.root()).expect("checked root"), host_config, &mut scope)
         .map_err(|(module, error)| ModuleConversionError { module: module.index(), error })?;
     program.trap_index_reads = trap_index_reads;
@@ -308,7 +308,7 @@ pub fn from_checked_source<'ast, 'src>(
 ) -> Result<Program<'src>, Unsupported> {
     let mut budget = AllocationBudget::new(None);
     let result = (|| {
-        let program = convert_source(source, semantics, &mut budget)?;
+        let program = convert_source(source, semantics, true, &mut budget)?;
         verify_conversion(&program, source.span, &mut budget)?;
         check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
         Ok(program)
@@ -394,6 +394,7 @@ fn verify_module_conversion(
 fn convert_source<'ast, 'src>(
     source: &ast::Program<'ast, 'src>,
     semantics: &CheckedModule<'ast, 'src>,
+    unroll: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Program<'src>, ConversionError> {
     if !semantics.belongs_to(source.source_identity()) {
@@ -418,6 +419,7 @@ fn convert_source<'ast, 'src>(
         &[(module, "main")],
         budget,
     )?;
+    lower.unroll = unroll;
     lower.add_cells(|_| Some(0))?;
     lower.register_source(source)?;
     lower.emit_source(root, source)?;
@@ -434,7 +436,7 @@ pub fn from_checked_modules<'ast, 'src>(
 ) -> Result<Program<'src>, ModuleUnsupported> {
     let mut budget = AllocationBudget::new(None);
     let result = (|| {
-        let program = convert_modules(sources, semantics, &mut budget)?;
+        let program = convert_modules(sources, semantics, true, &mut budget)?;
         verify_module_conversion(
             &program,
             semantics.root(),
@@ -464,6 +466,7 @@ pub fn from_checked_modules<'ast, 'src>(
 fn convert_modules<'ast, 'src>(
     sources: &[ast::Program<'ast, 'src>],
     semantics: &CheckedModules<'ast, 'src>,
+    unroll: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Program<'src>, ModuleConversionError> {
     let fail = |module, feature| ModuleConversionError {
@@ -512,6 +515,7 @@ fn convert_modules<'ast, 'src>(
                 error,
             }
         })?;
+    lower.unroll = unroll;
     for module in 1..sources.len() {
         let view = semantics.view(module).unwrap();
         lower
@@ -769,9 +773,14 @@ fn interface_target(target: crate::check::InterfaceTarget) -> Option<InterfaceTa
 
 #[path = "from_source_variants.rs"]
 mod variants;
+#[path = "from_source_authors.rs"]
+mod authors;
 
 struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     statement_origin: Option<(ModuleId, SourceNodeId)>,
+    unroll: bool,
+    /// Current physical binding for each checked source symbol during expansion.
+    cell_aliases: Vec<CellId>,
     checked_types: Vec<Option<TypeId>>,
     semantics: CheckedView<'sem, 'ast, 'src>,
     /// Every module's view, by module: a field initializer (R3) is lowered
@@ -874,6 +883,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 tables_revision: RevisionId::fresh(),
                 trap_index_reads: false,
                 source_contract: semantics.source_contract(),
+                authored_unrolling: false,
                 absence_abi: semantics.absence_abi(),
                 units: Vec::new(),
                 cells: table(Vec::new(), budget)?,
@@ -895,6 +905,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             class_methods: budget.vector(Scratch, 0)?,
             current_class: None,
             statement_origin: None,
+            unroll: true,
+            cell_aliases: Vec::new(),
             class_values: None,
             field_initializers: Default::default(),
             budget,
@@ -1225,6 +1237,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 .push(Retained, &mut self.program.units, frozen)?;
         }
         drop_vector(units, Scratch, self.budget)?;
+        drop_vector(self.cell_aliases, Scratch, self.budget)?;
         drop_vector(self.allocations, Scratch, self.budget)?;
         drop_vector(self.checked_types, Scratch, self.budget)?;
         drop_vector(self.class_methods, Scratch, self.budget)?;
@@ -1520,14 +1533,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span: name.span,
                 feature: "missing checked binding identity",
             })?;
-        CellId::from_index(symbol.0 as usize).ok_or_else(|| {
-            Unsupported {
-                span: name.span,
-                feature: "semantic cell capacity",
-            }
-            .into()
-        })
+        let source = CellId::from_index(symbol.0 as usize).ok_or(Unsupported {
+            span: name.span, feature: "semantic cell capacity",
+        })?;
+        Ok(self.cell_aliases.get(source.index()).copied().unwrap_or(source))
     }
+
     fn reference(&mut self, unit: UnitId, cell: CellId) -> Result<bool, ConversionError> {
         if self.program.cells[cell.index()].owner == unit {
             return Ok(false);
@@ -1693,8 +1704,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             span,
         )
     }
-    /// `for (T element of array)`, including `inline for`, whose unrolling is
-    /// an optimization rather than a meaning. The array is evaluated once; each
+    /// An ordinary `for (T element of array)`. The array is evaluated once; each
     /// iteration re-reads its length, then initializes a fresh element binding
     /// from the current index, as the array iterator does.
     fn for_of(
@@ -4163,6 +4173,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     *span,
                 )?;
                 self.effect(unit, region, OperationKind::Block(scope), &[], *span)?;
+            }
+            Stmt::ForOf { element, iterable, body, inline: true, span, .. } => {
+                self.inline_for(unit, region, *element, iterable, body, *span)?;
             }
             Stmt::ForOf {
                 element,

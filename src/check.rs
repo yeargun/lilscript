@@ -4246,7 +4246,22 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             } => {
                 self.push_scope()?;
                 let declared = self.resolve_value_type(*element_type, "for-of element")?;
-                let iterable_type = self.analyze_expr(iterable, None)?;
+                let expected = inline.then(|| Type::Array(Box::new(declared.clone())));
+                let iterable_type = self.analyze_expr(iterable, expected.as_ref())?;
+                if *inline {
+                    if !iterable.is_const_list() {
+                        return Err(AdmittedCheckError::new(
+                            iterable.span(),
+                            "`inline for` requires a constant array literal of int, float, string, bool, or null values",
+                        ));
+                    }
+                    if statement_contains_loop_control(body, false) {
+                        return Err(AdmittedCheckError::new(
+                            body.span(),
+                            "`inline for` cannot contain `break` or `continue`",
+                        ));
+                    }
+                }
                 // `for (K k, V v of map)`: a map's entries, in insertion order,
                 // as its key and its value (R14).
                 match (&iterable_type, value) {
@@ -4278,20 +4293,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ));
                     }
                     _ => {}
-                }
-                if *inline {
-                    if iterable.const_list_literals().is_none() {
-                        return Err(AdmittedCheckError::new(
-                            iterable.span(),
-                            "`inline for` requires a constant array literal of int, float, string, or bool values",
-                        ));
-                    }
-                    if statement_contains_loop_control(body, false) {
-                        return Err(AdmittedCheckError::new(
-                            body.span(),
-                            "`inline for` cannot contain `break` or `continue`",
-                        ));
-                    }
                 }
                 let actual = match iterable_type {
                     Type::Array(element) => *element,
