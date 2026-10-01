@@ -1352,6 +1352,7 @@ fn check_source_frontend<'src>(
     let rules = frontend.rules();
     let source_contract = frontend.source_contract();
     let trap_index_reads = frontend.trap_index_reads();
+    let javascript_contract = frontend.javascript.as_ref().and_then(|policy| policy.javascript_contract()).copied();
     let host_config = frontend.javascript.as_ref().or(frontend.native.as_ref()).unwrap().hosts().clone();
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
@@ -1396,7 +1397,7 @@ fn check_source_frontend<'src>(
                         .map_err(|error| ServiceError::resources("frontend resources", error))?;
                     let phase = Instant::now();
                     let (program, rules) = from_checked_source_with_rules(
-                        &syntax, semantics, rules, trap_index_reads, &host_config, budget,
+                        &syntax, semantics, rules, trap_index_reads, &host_config, javascript_contract.as_ref(), budget,
                     )
                     .map_err(|error| match error {
                         ConversionError::Unsupported(error) => ServiceError::module(
@@ -1470,6 +1471,7 @@ fn check_path_frontend<'src, T>(
     let rules = if build { frontend.rules() } else { None };
     let source_contract = frontend.source_contract();
     let trap_index_reads = frontend.trap_index_reads();
+    let javascript_contract = frontend.javascript.as_ref().and_then(|policy| policy.javascript_contract()).copied();
     let host_config = frontend.javascript.as_ref().or(frontend.native.as_ref()).unwrap().hosts().clone();
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
@@ -1564,7 +1566,7 @@ fn check_path_frontend<'src, T>(
                         .map_err(|error| ServiceError::resources("frontend resources", error))?;
                     let phase = Instant::now();
                     let (program, rules) =
-                        from_checked_modules_with_rules(&syntax, semantics, rules, trap_index_reads, &host_config, budget)
+                        from_checked_modules_with_rules(&syntax, semantics, rules, trap_index_reads, &host_config, javascript_contract.as_ref(), budget)
                             .map_err(|error| match error.error {
                                 ConversionError::Unsupported(unsupported) => {
                                     let module = &modules.modules[error.module];

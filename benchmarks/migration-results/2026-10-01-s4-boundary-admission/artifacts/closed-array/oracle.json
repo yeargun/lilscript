@@ -1,0 +1,9 @@
+{
+  "exercise": "let reads=0;console.log(JSON.stringify([m.total([{get x(){reads++;return 3}},{get x(){reads++;return 4}}]),reads,m.first([{x:9}])]));",
+  "expected": [
+    7,
+    2,
+    9
+  ],
+  "setup": ""
+}

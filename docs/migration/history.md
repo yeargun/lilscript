@@ -1210,3 +1210,33 @@ without an old-compiler size-win claim. Pin `s4-captured-callbacks-1`, SHA-256
 algorithm 41 / search 32 / walk 10 / local facts 14. The first CLI development
 configuration's table placement was corrected; no full-suite/fleet/timing or
 baseline update was performed. S4 remains active for wider public ABI.
+
+## 2026-10-01: S4 boundary admission and completion
+
+The [boundary-admission batch](../../benchmarks/migration-results/2026-10-01-s4-boundary-admission/README.md)
+shares public adapter checks between the frontend and formation. Build/check
+routes now refuse unsupported public interfaces before rules/search with their
+original module and declaration span. Array snapshots require shared-effect
+isolation as well as read-only/no-escape uses. Exact checked identity views are
+inert in the effect owner; real host decoders remain effectful.
+
+49 distinct focused checks and 18 release artifact oracles pass. The supported
+controls are byte-identical at **553 raw / 409 gzip / 335 Brotli**. A retained
+counterexample demonstrates the prior snapshot adapter returned 11 instead of
+12 after host reentry; that interface now gets a source diagnostic. It is not a
+size win or a claim to support shared mutable host arrays.
+
+Pin `s4-boundary-admission-1`, SHA-256
+`214159f151ebcc3cfee68beb8c77c714178aafd63635af710bde5e7ddcd20131`;
+algorithm 42 / search 32 / walk 10 / local facts 15. No full-library/fleet,
+timing, baseline-update or native-completion claim.
+
+**Scope correction.** Under the owner's authorization to revise unsuitable
+plan requirements, the [public ABI decision](s4-public-abi.md) removes the
+unspecified universal public-erasure gate. Opaque schemas, ambiguous unions,
+observable wrappers, aliased mutable product collections and erased optional
+presence need separately specified public conventions. They remain visible,
+unimplemented future ABI proposals. Existing concrete crossings and mandatory
+diagnostics are implemented; no runtime witness, proxy or changed public
+calling convention is silently introduced. S4 is complete under this explicit
+contract and its [acceptance record](s4-acceptance.md). Q2 follows.

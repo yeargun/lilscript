@@ -88,7 +88,8 @@ Typed forms should remove avoidable representation and runtime costs, and declar
   calls, constructors and `super`. `legacy` remains the migration default until
   qualified port adoption in D3/V2. Native absent-to-default transport has a
   source diagnostic pending N2. General erased product/union/callable transport
-  remains R18; the absence selector does not claim that wider ABI work complete.
+  follows the [public ABI contract](migration/s4-public-abi.md); the absence
+  selector does not imply unrestricted erased ABI support.
 
 ---
 
@@ -129,8 +130,8 @@ Typed forms should remove avoidable representation and runtime costs, and declar
   intersections, declared-key spread, optional writes/defaults and literal tags
   are implemented on JavaScript. Concrete public product fields use the value
   ABI; development checks preserve accessor evaluation and validate recursive
-  data. Native storage remains N2; erased public generic presence remains S4's
-  R18 work. Micromark adoption belongs to D3, with qualification in V1.
+  data. Native storage remains N2; erased public generic presence is a separate
+  [ABI proposal](migration/s4-public-abi.md). Micromark adoption belongs to D3, with qualification in V1.
 
 ### R8 Closed variant sets
 
@@ -258,8 +259,11 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Status.** Generic functions/methods, observed classes and fixed-schema callable
   crossings are implemented. Closed private product transport also supports
   branches, recursive helpers, collections, nested products, captures and
-  concrete owned callbacks under a complete input proof. Wider public opaque generic product/union transport remains
-  S4 work; native representation qualification remains N2.
+  concrete owned callbacks under a complete input proof. Concrete public codecs
+  include disjoint unions and invocation-only callbacks retained by closures.
+  Unrestricted public erased schemas, ambiguous unions and aliased mutable
+  product collections remain unimplemented [ABI proposals](migration/s4-public-abi.md),
+  outside this migration; native representation qualification remains N2.
 
 ---
 

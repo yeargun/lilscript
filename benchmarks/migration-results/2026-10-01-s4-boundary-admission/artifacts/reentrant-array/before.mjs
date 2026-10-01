@@ -1,0 +1,1 @@
+let a=(a,b)=>{let c=a[0][0];b();return(c*10|0)+a[0][0]|0};function b(a){return[a.x]}function read(c,d){return a(c.map(b),d)}export{read};

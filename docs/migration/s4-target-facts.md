@@ -42,5 +42,6 @@ exact final-artifact admission remain in force.
 
 Q2 owns dirty scheduling, persistent reuse and replacement of the remaining
 private liveness traversal. Q4 owns const-data/prelude producers. These later
-owners are explicit dependencies, not stale S4 transition labels. S4 still owns
-author controls and the remaining public ABI/capability contracts.
+owners are explicit dependencies, not stale S4 transition labels. S4 author
+controls and the [supported public ABI/capability contract](s4-public-abi.md)
+are complete.

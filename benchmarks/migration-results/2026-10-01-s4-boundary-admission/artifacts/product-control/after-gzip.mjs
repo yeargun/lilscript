@@ -1,0 +1,1 @@
+let n=p=>{let n=p[0]+1|0;p[0],p=[n,p[1]];return p};function t(n){return[n.x,n.y]}function e(n){return{x:n[0],y:n[1]}}function increment(r){return e(n(t(r)))}export{increment};

@@ -56,6 +56,13 @@ mod struct_boundaries;
 #[path = "javascript_structs.rs"]
 mod structs;
 
+pub(super) fn check_interfaces(
+    program: &Program<'_>, contract: &JavaScriptCompilationContract,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), (ModuleId, FormationError)> {
+    structs::validate_interfaces(program, contract, budget)
+}
+
 /// The operation's selected result recipe, shared by formation and domain
 /// evidence. A typed result is its type's by R1 (trusted crossings): an
 /// `int` result is an int32 with no code.

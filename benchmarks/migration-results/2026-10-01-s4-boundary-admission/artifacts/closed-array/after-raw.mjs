@@ -1,0 +1,1 @@
+let a=c=>{let d=0;for(let f=0;f<c.length;++f)d=d+c[f][0]|0;return d};function k(j){return[j.x]}function total(i){return a(i.map(k))}function first(l){return l.map(k)[0][0]}export{total,first};

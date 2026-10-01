@@ -1,0 +1,8 @@
+{
+  "source_sha256": "0802e6e18c45f51f98e279fd2a31eac6ca8a523fb94a9884501d32113348b879",
+  "expected": 12,
+  "baseline_observed": 11,
+  "baseline_artifact_sha256": "d635b75c3ba483e9bb05e7f407f7f6b370da3acefe9ec565a8a1d68b59bec05c",
+  "candidate_exit": 1,
+  "candidate_diagnostic": "error: public value-struct ABI adaptation requires a concrete supported public schema and unobserved adapter identity; erased schemas, ambiguous unions and observable copied collections require a different ABI\n --> /home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-s4-boundary-admission/artifacts/reentrant-array/main.lil:1:32\n  |\n 1 | struct Point{int x;}export int read(Point[] values,func()->void poke){int first=values[0].x;poke();return first*10+values[0].x;}\n  |                                ^^^^\n"
+}

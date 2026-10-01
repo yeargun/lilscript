@@ -167,6 +167,16 @@ These are completion milestones. Work on one milestone until its deliverable and
 
 S1 starts with the existing facts. S2 builds the ownership/field facts its transformations need. S3 uses those facts and Q1 for objective-sensitive alternatives. S4 is delivered with its consumers, including shapes, records, sealed calls, enums, const data and host/generic support; it is not an excuse to postpone immediately usable work.
 
+S4's [public ABI contract](s4-public-abi.md) replaces the former open-ended
+“wider opaque transport” item. Concrete schemas, disjoint unions, invocation-only
+callbacks, isolated array snapshots and complete private generic transport have
+implemented producers and shared diagnostics. Unrestricted public erased
+schemas, ambiguous unions, observable wrappers and aliased mutable product
+collections need a separately specified public ABI; they are unimplemented
+future proposals, not silent migration gates. Do not substitute a copied array,
+guessed schema or new public calling convention for that design decision.
+
+
 ### G. Naming and JavaScript generation
 
 | Task | Deliverable | Completion evidence |

@@ -454,7 +454,21 @@ pub(super) fn operation_effects(
                 _ => Effects::UNKNOWN,
             }
         }
-        Op::Call(call) => call_effects(ctx, values, *call),
+        Op::Call(call) => {
+            // A checked view of a value to its identical interned type emits
+            // no conversion or public codec. This is a semantic identity,
+            // distinct from a dynamic-to-product boundary that reads getters.
+            let site = &ctx.data.calls[call.index()];
+            if matches!(site.target, CallTarget::Builtin(BuiltinCall::JsAssume)) {
+                if let (Some(result), Some([CallArgument::Value(argument)])) =
+                    (operation.result, ctx.data.arguments(site.arguments)) {
+                    if ctx.data.values[result.index()].ty == ctx.data.values[argument.index()].ty {
+                        return Effects::NONE;
+                    }
+                }
+            }
+            call_effects(ctx, values, *call)
+        },
         Op::Closure(_)
         | Op::Allocate {
             kind:

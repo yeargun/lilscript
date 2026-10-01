@@ -1,0 +1,1 @@
+struct Point{int x;}export int read(Point[] values,func()->void poke){int first=values[0].x;poke();return first*10+values[0].x;}

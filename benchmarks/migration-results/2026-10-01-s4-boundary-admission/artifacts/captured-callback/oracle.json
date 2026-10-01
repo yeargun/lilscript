@@ -1,0 +1,8 @@
+{
+  "exercise": "const f=m.make(p=>({x:p.x+10}),2);console.log(JSON.stringify([f(3),f(4)]));",
+  "expected": [
+    15,
+    16
+  ],
+  "setup": ""
+}

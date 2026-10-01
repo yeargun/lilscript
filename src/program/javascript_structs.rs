@@ -29,6 +29,54 @@ pub(super) struct FieldRecipe {
     pub(super) schema: usize,
 }
 
+/// One interface proof shared by frontend checking and target admission.
+/// Keep the original cell's owning module and declaration span on refusal.
+pub(super) fn validate_interfaces(
+    program: &Program<'_>, contract: &JavaScriptCompilationContract,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), (ModuleId, FormationError)> {
+    if program.structs.is_empty() && !program.absence_abi { return Ok(()); }
+    if contract.abi.preserve_root_exports {
+        for (_, cell) in program.value_exports() {
+            let declaration = &program.cells[cell.index()];
+            let module = program.units[declaration.owner.index()].data().module;
+            let check = (|| {
+                budget.work(WorkKind::Analysis, 1)?;
+                let ty = &program.types[declaration.ty.index()];
+                if ty.callable_signature().is_some()
+                    && (super::public_structs::carries_product(ty, budget)?
+                        || super::public_structs::carries_absence(program, ty, budget)?) {
+                    require_adapter(program, cell, "public value-struct ABI adaptation", budget)?;
+                }
+                Ok(())
+            })();
+            check.map_err(|error| (module, error))?;
+        }
+    }
+    for class in program.classes.iter().filter(|class| class.observed && !class.external) {
+        let Some(cell) = class.value else { continue; };
+        let declaration = &program.cells[cell.index()];
+        let module = program.units[declaration.owner.index()].data().module;
+        let check = (|| {
+            budget.work(WorkKind::Analysis, 1)?;
+            if super::public_structs::carries_product(&program.types[declaration.ty.index()], budget)? {
+                require_adapter(program, cell, "constructor value-struct ABI adaptation", budget)?;
+            }
+            Ok(())
+        })();
+        check.map_err(|error| (module, error))?;
+    }
+    Ok(())
+}
+
+fn require_adapter(program: &Program<'_>, cell: CellId, feature: &'static str,
+    budget: &mut AllocationBudget<'_>) -> Result<(), FormationError> {
+    if !super::public_structs::adaptable_export(program, cell, budget)? {
+        return Err(Unsupported { span: program.cells[cell.index()].declaration, feature }.into());
+    }
+    Ok(())
+}
+
 pub(super) fn plan<'src>(
     program: &Program<'src>,
     contract: &JavaScriptCompilationContract,
@@ -67,13 +115,7 @@ pub(super) fn plan<'src>(
                 || program.types[program.cells[cell.index()].ty.index()].callable_signature().is_none() {
                 continue;
             }
-            if !super::public_structs::adaptable_export(program, cell, budget)? {
-                return Err(Unsupported {
-                    span: program.cells[cell.index()].declaration,
-                    feature: "public value-struct ABI adaptation",
-                }
-                .into());
-            }
+            require_adapter(program, cell, "public value-struct ABI adaptation", budget)?;
             if let CellBinding::Function(unit) = program.cells[cell.index()].binding {
                 if program
                     .unit(unit)
@@ -103,14 +145,8 @@ pub(super) fn plan<'src>(
     {
         budget.work(WorkKind::Render, 1)?;
         if let Some(cell) = class.value {
-            if boundary_types[program.cells[cell.index()].ty.index()]
-                && !super::public_structs::adaptable_export(program, cell, budget)?
-            {
-                return Err(Unsupported {
-                    span: program.cells[cell.index()].declaration,
-                    feature: "constructor value-struct ABI adaptation",
-                }
-                .into());
+            if boundary_types[program.cells[cell.index()].ty.index()] {
+                require_adapter(program, cell, "constructor value-struct ABI adaptation", budget)?;
             }
         }
     }

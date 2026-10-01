@@ -1,0 +1,1 @@
+struct Point{int x;}export int total(Point[] values){int n=0;for(Point p of values){n+=p.x;}return n;}export int first(Point[] values){Point p=JS.assume(values[0]);return p.x;}

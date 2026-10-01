@@ -1,0 +1,1 @@
+let a=(a,b)=>c=>a([c+b|0])[0];function b(a){return{x:a[0]}}function c(a){return[a.x]}function d(a){return function(d){return c(a(b(d)))}}function make(b,c){return a(d(b),c)}export{make};

@@ -6,6 +6,77 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[test]
+fn s4_public_abi_checks_match_build_diagnostics_before_search() {
+    let cases = [
+        "struct P{int x;}struct Q{int y;}export P|Q copy(P|Q value){return value;}",
+        "struct P{int x;}export void grow(P[] values){values.push(P{1});}",
+        "struct P{int x;}extern void observe(JsValue value);export int run(func(P)->int f){observe(f);return 0;}",
+        "struct P{int x;}export int read(P[] values,func()->void poke){int first=values[0].x;poke();return first*10+values[0].x;}",
+        "struct P{int x;}export int read(P[] values,JsValue alias){int first=values[0].x;alias[0]=JS.object(\"x\",2);return first*10+values[0].x;}",
+        "struct P{int x;}export int read(P[] values,JsValue incoming){int first=values[0].x;P p=JS.assume(incoming);return first+values[0].x+p.x;}",
+        "struct P{int x;}extern Task<int> tick();export async int read(P[] values){int first=values[0].x;await tick();return first+values[0].x;}",
+    ];
+    for effort in [0,13] {
+        let mut settings=config("");settings.effort.level=effort;
+        for source in cases {
+            let checked=check_source(source,&settings).unwrap_err();
+            let compiled=compile_source(source,&settings,ServiceOptions::default()).unwrap_err();
+            assert_eq!(checked.phase,"check","{checked}\n{source}");
+            assert!(checked.to_string().contains("public value-struct ABI adaptation"),"{checked}\n{source}");
+            assert!(checked.diagnostic.is_some());
+            assert_eq!(compiled.phase,checked.phase);
+            assert_eq!(compiled.message,checked.message);
+        }
+    }
+}
+
+#[test]
+fn s4_public_abi_checks_keep_the_reexported_declarations_source_module() {
+    let scratch=Scratch::new();
+    let source="struct P{int x;}struct Q{int y;}export P|Q copy(P|Q value){return value;}";
+    std::fs::write(scratch.0.join("boundary.lil"),source).unwrap();
+    std::fs::write(scratch.0.join("entry.lil"),"import {copy} from \"./boundary.lil\";export {copy};").unwrap();
+    let settings=config("");
+    let checked=check_path(&scratch.0.join("entry.lil"),None,&settings).unwrap_err();
+    let compiled=compile_path(&scratch.0.join("entry.lil"),&settings,ServiceOptions::default()).unwrap_err();
+    assert_eq!(checked.phase,"check","{checked}");
+    assert!(checked.to_string().contains("boundary.lil"),"{checked}");
+    assert!(checked.to_string().contains("public value-struct ABI adaptation"),"{checked}");
+    assert_eq!(compiled.message,checked.message);
+}
+
+#[test]
+fn s4_public_abi_closed_array_snapshots_and_private_bodies_remain_supported() {
+    let source="struct P{int x;}export int total(P[] values){int n=0;for(P p of values){n+=p.x;}return n;}export int first(P[] values){P p=JS.assume(values[0]);return p.x;}";
+    for effort in [0,13] {
+        let mut settings=config("");settings.effort.level=effort;
+        check_source(source,&settings).unwrap();
+        let built=compile_source(source,&settings,ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",r#"
+                let reads=0;const values=[{get x(){reads++;return 3}},{get x(){reads++;return 4}}];
+                console.log(JSON.stringify([library.total(values),reads,library.first([{x:9}])]));
+            "#),"[7,2,9]\n");
+        }
+    }
+    // Source accessibility is not a public ABI in an application request.
+    let source="struct P{int x;}export void grow(P[] values){values.push(P{2});}P[] values=[];grow(values);print(values[0].x);";
+    let built=compile_source(source,&config(""),ServiceOptions{preserve_root_exports:false,..ServiceOptions::default()}).unwrap();
+    assert_eq!(execute_javascript(built.javascript(Objective::Brotli).unwrap().javascript(),"",""),"2\n");
+}
+
+#[test]
+fn s4_public_abi_unused_real_decodes_still_read_the_host_fields() {
+    let source="struct P{int x;}pure P same(P p){return JS.assume(p);}P decode(JsValue p){return JS.assume(p);}export void run(JsValue p){same(P{1});decode(p);}";
+    let built=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",r#"
+            let reads=0;library.run({get x(){reads++;return 2}});console.log(reads);
+        "#),"1\n");
+    }
+}
+
+#[test]
 fn s4_product_unions_preserve_public_schemas_and_private_narrowing() {
     let source=r#"
         struct Point{int x;int y;}

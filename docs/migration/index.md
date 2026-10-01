@@ -7,20 +7,20 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is the sole active milestone**, under its [contract](s4-acceptance.md).
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is the sole active milestone.**
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Complete **S4** under its [acceptance contract](s4-acceptance.md): wider public erased
-product/union/callable crossings. R15 regional `@choose` controls, authored
-string pooling and shared `inline for` expansion, including their TOML/replay
-contracts, are implemented. The
-[shared fact-consumer/removal audit](s4-target-facts.md) is complete.
-Identities, defaults, indexing, fields, shapes, absence, enums, payloads, generic
-sealed calls, closed private generic product transport, platform catalogs and configurable host bindings are implemented;
-[history](history.md) and the [handoff](handoff.md) retain their evidence and pins.
-Then follow **Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
+Complete **Q2**: dirty scheduling, shared formation, persistent transparent
+reuse and resource-accounting completion. Keep logical admission, hard TOML
+permissions, source/target identities and selected output independent of cache
+occupancy. Then follow **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
+
+S4's implemented author controls, fact consumers and supported ABI remain
+qualified in [history](history.md). Unrestricted public erased/identity/mutable
+collection ABIs are explicitly unimplemented future proposals under the
+[scope decision](s4-public-abi.md), not hidden completion claims.
 
 The owner requests substantial implementation batches followed by focused
 checks that answer a correctness or size question. Do not restart the deferred
@@ -37,7 +37,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
-| [~] | [S4](plan.md#s4) Contracts | Wider generic crossings; author controls complete; staged language-default adoption belongs to V2 |
+| [x] | [S4](plan.md#s4) Contracts | Checked contracts, consumers/removals and author controls complete within the explicit public ABI; staged defaults remain V2 |
 | [x] | [G1](plan.md#g1) Lexical names | Live printed-order/frequency allocation, full continuations, final-byte ties and replay controls complete; optional compaction is automatic at 14 |
 | [x] | [G2](plan.md#g2) Property names | Private generic/observed eligibility, inherited/sibling slot reuse, reflected boundaries and adapter-name fixtures complete |
 | [x] | [G3](plan.md#g3) JS generation | Stable per-site forms, guarded aliases, safe locality choices and structural printing complete |

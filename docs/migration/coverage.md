@@ -30,8 +30,8 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M4.2 | [S4](plan.md#s4) | Implemented: type-parameter identity and canonical checked types |
 | M4.3 | [S4](plan.md#s4) | Implemented: defaults evaluated in the selected declaration's scope |
 | M4.4 | [S4](plan.md#s4) | Implemented: statement ids, binder identity and canonical checked types |
-| M4.5 | [S4](plan.md#s4) | Contracts and capabilities at check time |
-| M4.6 | [S4](plan.md#s4) | one operation identity in the IR (M5.2), `hasOwnProperty.call` and effect-free constructions (M10.17) |
+| M4.5 | [S4](plan.md#s4), complete; [N1](plan.md#n1) | Supported source/host/public-ABI checks retain module spans before search; N1 owns native capability completion |
+| M4.6 | [S4](plan.md#s4), complete | One operation catalog, host/provider identities and shared effect transfer; `Object.hasOwn` and detached-method audit resolved |
 | M5.1 | [Q2](plan.md#q2) | `UseIndex`, deleting `drop_unreferenced_functions` |
 | M5.2 | [S4](plan.md#s4), complete | Shared physical binding/operation facts, regenerated after edits; duplicate target derivations removed |
 | M5.3a | [Q2](plan.md#q2) | the program rules' SCC order with a dirty worklist; classifying the remaining rules |
@@ -42,14 +42,14 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M6.2 | [S4](plan.md#s4), complete | Duplicate operation-effect proofs removed; source stamps and conservative physical transfer shared |
 | M6.3 | [S1](plan.md#s1), implementation complete | The `pure` contract. Computed, not consumed |
 | M6.4a | [S1](plan.md#s1), implementation complete | finite sets, `simplify::known`'s constant cases |
-| M6.4b | [S1](plan.md#s1), then [S4](plan.md#s4) | S1 complete: shared primitive classes/ranges and equivalent formation number sources; S4: absorb/delete recipe-dependent `raw_domains.rs` and the target binding-class derivation after S2/Q1 consumers migrate |
+| M6.4b | [S1](plan.md#s1), [S4](plan.md#s4), complete | Shared primitive classes/ranges and target consumers; `raw_domains.rs` and duplicate binding-class derivation removed |
 | M6.5 | [S4](plan.md#s4), complete | One initialization/order owner for constants and placement; reachable writes include generated storage |
 | M6.6 | [S2](plan.md#s2), complete | Bounded allocation/alias/escape facts and complete-use physical ownership witnesses |
 | M6.7 | [S2](plan.md#s2), complete | Field reads, writes, constants, identity and boundary observations |
 | M6.8 | [S3](plan.md#s3), complete | Bounded caller-path frequency, conservative recursion/host/loop handling and counted consumption in capture placement |
 | M7.1 | [S1](plan.md#s1), implementation complete | Removal |
 | M7.3 | [S1](plan.md#s1), implementation complete | callee-built defaults and deletion of the three tree passes (M5.3b) |
-| M7.4 | [S1](plan.md#s1), then [S4](plan.md#s4) | S1 complete: source value/alias forwarding; S4 after Q1: replace/delete target alias and literal normalization for representation-created bindings |
+| M7.4 | [S1](plan.md#s1), [S4](plan.md#s4), complete | Source forwarding and shared target facts; remaining generated-storage normalization has the explicit owner/progress contract |
 | M7.5 | [S3](plan.md#s3), complete | Cross-module calls, terminal returns, fresh nested closures and objective-judged repeated expression bodies |
 | M7.6 | [S2](plan.md#s2), complete; [S3](plan.md#s3), complete | Private lexical namespaces flatten through shared field proofs; known private calls use shared call evidence |
 | M7.7 | [S2](plan.md#s2), complete | Safe fixed-field forwarding, unread fields and overwritten stores; initializer effects and normalization preserved |
@@ -76,16 +76,16 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.9 | [S4](plan.md#s4), transition [V2](plan.md#v2) | R2 unified absence/pins/defaults/optional keys, checked `a.get(i)` and R11 `charCodeAt` number/NaN implemented on both targets; qualified default adoption remains V2 |
 | M10.11 | [S4](plan.md#s4) | Preserve Y4; `inline for` expansion, resource/replay admission and independent TOML permission implemented; `@pool` consumed through formation/replay; `@choose` complete for documented regional families with hard permissions and stable pinned sites |
 | M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
-| M10.14 | [S4](plan.md#s4) | constructibility (Y3) |
+| M10.14 | [S4](plan.md#s4), complete under current contract | Public adapters preserve constructibility; the Y3 amendment remains unapproved |
 | M10.3 | [Q4](plan.md#q4) | Const data (R9) |
 | M10.19 | [Q4](plan.md#q4) | Specialization over const data |
-| M10.1 | [S4](plan.md#s4) | Implemented: declared data/accessor shapes, contextual generic literals, tags, development checks and concrete product storage; erased public presence remains R18, native storage N2 |
+| M10.1 | [S4](plan.md#s4) | Implemented: declared data/accessor shapes, contextual generic literals, tags, development checks and concrete product storage; unrestricted public presence needs the [separate ABI](s4-public-abi.md), native storage remains N2 |
 | M10.8 | [S4](plan.md#s4) | Implemented: declared-key shape spread, shared-key intersection checks, optional defaults and CreateDataProperty behavior; existing dictionary spread retained |
 | M10.5 | [S4](plan.md#s4) | Implemented: disjoint class/tagged-shape payload matches and sealed virtual/override calls, scopes, defaults/rest and initialization order; erased generic receivers/methods, applied payloads and suspending captured arms also implemented |
 | M10.6 | [S4](plan.md#s4) | Implemented: ABI enums/flags, canonical storage, domain checks and shared/native evaluation (R8); private alternatives Q4, qualified source-default transition D3/V2 |
-| M10.18 | [S4](plan.md#s4) | Value structs (R4); `ref` removal after Y2 |
+| M10.18 | [S4](plan.md#s4), complete under current contract | Value updates and `with` implemented; `ref` remains supported until a separate Y2 amendment |
 | M10.10 | [S4](plan.md#s4) | Implemented: internal constructor visibility, root ABI publication, canonical first-class/dynamic observations and zero-use singleton retirement (R16); delivery production remains D1–D3 |
-| M10.17 | [S4](plan.md#s4) | Host catalog, configurable JS/native providers, generic extern schemas and closed private erased product/container/callback transport implemented; wider public product/union ABI remains R18 |
+| M10.17 | [S4](plan.md#s4) | Host catalog, configurable JS/native providers, generic extern schemas and closed private erased product/container/callback transport implemented; supported public codecs and diagnostics complete; wider ABI proposals remain [explicit](s4-public-abi.md) |
 | M11.1 | [N1](plan.md#n1) | Toolchain owner |
 | M11.3 | [N2](plan.md#n2) | Externs per target |
 | M11.4 | [N2](plan.md#n2) | Portable records |
@@ -148,8 +148,8 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M12.2 | [D3](plan.md#d3) | four site receipts. |
 | Architecture §22 | Resolved by this replan: stale active text archived | "today the default strips it" is stale. |
 | A1 | [C3](plan.md#c3), resolved | The missing historical CPU pair is explicitly unavailable; a current repeated per-cell baseline is retained without a cross-version claim. |
-| No owner yet | [S4](plan.md#s4) | Concrete generic structs, nullable/default/rest adapters and invocation-only concrete public callbacks are implemented; disjoint product/primitive unions are implemented; ambiguous unions, mutable collection aliases and identity-observing generic callable transport remain open. |
-| No owner yet | [S4](plan.md#s4) | M4.1: published constructors/prototype methods with struct parameters and dual type/constructor imports/re-exports and observed generic classes are implemented; wider opaque generic transport remains open. |
+| No owner yet | [S4](plan.md#s4) | Concrete generic structs, defaults/rest, disjoint unions and invocation-only callbacks including captures are implemented. Ambiguous unions, mutable collection aliases and observable wrappers are unimplemented [ABI proposals outside this migration](s4-public-abi.md). |
+| No owner yet | [S4](plan.md#s4) | M4.1: published constructors/prototype methods with struct parameters and dual type/constructor imports/re-exports and observed generic classes are implemented; unrestricted opaque public transport is a [separate ABI proposal](s4-public-abi.md). |
 | No owner yet | [C1](plan.md#c1) | `pool_strings` and `pack_string_arrays` ignore their permissions; |
 | No owner yet | [D3](plan.md#d3) | katexlil keeps `src/fontMetricsData.js` for two scripts. |
 | Ledger rows owned by done tasks | [S4](plan.md#s4), resolved | Object.hasOwn's explicit host binding and forwarded-call contract pass eight script/module lanes; stale ledger entry removed |

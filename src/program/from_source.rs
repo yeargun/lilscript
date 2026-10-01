@@ -179,7 +179,7 @@ pub(crate) fn from_checked_source_admitted<'ast, 'src>(
     semantics: &CheckedModule<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ConversionError> {
-    from_checked_source_with_rules(source, semantics, None, false, &Default::default(), budget)
+    from_checked_source_with_rules(source, semantics, None, false, &Default::default(), None, budget)
         .map(|(program, _)| program)
 }
 
@@ -191,6 +191,7 @@ pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
     rules: Option<RuleRequest>,
     trap_index_reads: bool,
     host_config: &crate::config::HostConfig,
+    javascript: Option<&crate::compilation_contract::JavaScriptCompilationContract>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ConversionError> {
     let mut scope = budget.scope();
@@ -199,6 +200,7 @@ pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
     program.trap_index_reads = trap_index_reads;
     verify_conversion(&program, source.span, &mut scope)?;
     check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
+    check_javascript_interfaces(&program, javascript, &mut scope).map_err(|(_, error)| error)?;
     let (program, receipt) = with_rules(program, rules, source.span, &mut scope)?;
     let prepared = publication::PreparedProgram::new(program, &mut scope)
         .map_err(|error| publication_conversion_error(error, source.span))?;
@@ -210,7 +212,7 @@ pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
     semantics: &CheckedModules<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ModuleConversionError> {
-    from_checked_modules_with_rules(sources, semantics, None, false, &Default::default(), budget)
+    from_checked_modules_with_rules(sources, semantics, None, false, &Default::default(), None, budget)
         .map(|(program, _)| program)
 }
 
@@ -221,6 +223,7 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
     rules: Option<RuleRequest>,
     trap_index_reads: bool,
     host_config: &crate::config::HostConfig,
+    javascript: Option<&crate::compilation_contract::JavaScriptCompilationContract>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ModuleConversionError> {
     let mut scope = budget.scope();
@@ -238,6 +241,7 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
         module: module.index(),
         error: ConversionError::Contract(violation),
     })?;
+    check_javascript_interfaces(&program, javascript, &mut scope).map_err(|(module, error)| ModuleConversionError { module: module.index(), error })?;
     let root_span = sources[semantics.root()].span;
     let (program, receipt) =
         with_rules(program, rules, root_span, &mut scope).map_err(|error| {
@@ -253,6 +257,24 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
         }
     })?;
     Ok((prepared, receipt))
+}
+
+fn check_javascript_interfaces(program: &Program<'_>,
+    contract: Option<&crate::compilation_contract::JavaScriptCompilationContract>,
+    budget: &mut AllocationBudget<'_>) -> Result<(), (ModuleId, ConversionError)> {
+    let Some(contract) = contract else { return Ok(()); };
+    super::javascript::check_interfaces(program, contract, budget).map_err(|(module, error)| {
+        use super::javascript::FormationError;
+        let error = match error {
+            FormationError::Unsupported(error) => ConversionError::Contract(ContractViolation {
+                span: error.span,
+                message: format!("{} requires a concrete supported public schema and unobserved adapter identity; erased schemas, ambiguous unions and observable copied collections require a different ABI", error.feature),
+            }),
+            FormationError::Allocation(error) => ConversionError::Resources(error),
+            FormationError::Budget(error) => ConversionError::Resources(error.into()),
+        };
+        (module, error)
+    })
 }
 
 /// Runs the permitted program rules on the owned program. They edit in place,

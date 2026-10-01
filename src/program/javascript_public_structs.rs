@@ -294,8 +294,9 @@ fn call_only_parameter(program: &Program<'_>, unit: UnitId, position: usize,
 /// Whether the function only reads the array its parameter holds: the cell
 /// is never reassigned or captured, and each load of it only indexes an
 /// element to read or reads `length`. A decoded copy of a host array is then
-/// indistinguishable from the array itself, so an exported function may take
-/// an array of structs.
+/// indistinguishable from the array itself only while the body cannot reenter
+/// host code, suspend, or write through another alias. Shared operation effects
+/// establish that isolation; it is not implied by local read-only uses.
 fn read_only_array(
     program: &Program<'_>,
     unit: UnitId,
@@ -307,7 +308,10 @@ fn read_only_array(
         return Ok(false);
     };
     // The parameter, and the synthetic cells a `for...of` copies it into.
-    let mut cells = vec![parameter];
+    let mut scope = budget.scope();
+    let budget = &mut scope;
+    let mut cells = budget.vector(AllocationClass::Scratch, 1)?;
+    budget.push(AllocationClass::Scratch, &mut cells, parameter)?;
     budget.work(WorkKind::Analysis, (data.operations.len() * 2) as u64)?;
     let loads_any = |cells: &[CellId], value: ValueId| {
         matches!(
@@ -324,7 +328,7 @@ fn read_only_array(
                     .first()
                     .is_some_and(|&value| loads_any(&cells, value))
             {
-                cells.push(copy);
+                budget.push(AllocationClass::Scratch, &mut cells, copy)?;
             }
         }
     }
@@ -356,8 +360,28 @@ fn read_only_array(
         }
     }
     let loads = |value: ValueId| loads_any(&cells, value);
+    let effect_context = effects::Context {
+        program, unit, data, graph: None, summaries: None,
+    };
+    let effect_values = effects::DomainFacts { data, domains: &[], roots: &[] };
     for operation in &data.operations {
         let operands = data.operands(operation.operands).unwrap_or(&[]);
+        budget.work(WorkKind::Analysis, operands.len() as u64 + 1)?;
+        // A local read-only use does not isolate the host array. Unknown calls,
+        // suspension or an observable write can change it through another
+        // alias while this body keeps reading its decoded snapshot. Ask the
+        // shared effect owner; no private syntactic callee/purity whitelist.
+        let effect = effects::operation_effects(&effect_context, &effect_values, operation);
+        if effect.runs_user_code || effect.reenters || effect.suspends || effect.obligated()
+            || effect.writes.intersects(effects::Regions::OBSERVABLE) {
+            return Ok(false);
+        }
+        // A trusted dynamic view can introduce a public codec whose getters
+        // run at this boundary, although the source view itself is inert.
+        // Such values must not reenter a snapshot-array body either.
+        if operation.result.is_some_and(|value| matches!(program.types[data.values[value.index()].ty.index()], Type::Dynamic | Type::Unknown)) {
+            return Ok(false);
+        }
         let admitted = match operation.kind {
             // The copy into a tracked synthetic cell is itself tracked.
             OperationKind::Initialize(copy) if cells.contains(&copy) => true,

@@ -10,6 +10,18 @@ use crate::compilation_policy::{
 };
 use crate::js::selection::{Plan, Style};
 
+#[test]
+fn s4_identity_views_preserve_real_boundary_effects() {
+    let [identity, crossing] = summaries(
+        "struct P{int x;}pure P same(P p){return JS.assume(p);}P decode(JsValue p){return JS.assume(p);}",
+        &["same", "decode"],
+    ).try_into().unwrap();
+    let identity: UnitEffects = identity;
+    let crossing: UnitEffects = crossing;
+    assert!(!identity.effects.runs_user_code && !identity.effects.reenters);
+    assert!(crossing.effects.runs_user_code && crossing.effects.reenters);
+}
+
 fn program<'src>(arena: &'src bumpalo::Bump, source: &'src str) -> Program<'src> {
     let syntax = crate::parse_source(arena, source)
         .unwrap_or_else(|error| panic!("parse: {error:?}\n{source}"));

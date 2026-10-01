@@ -866,8 +866,11 @@ struct array elements; a value snapshot reads each public field once.
 Defaults preserve omission and explicit `undefined`; a rest
 parameter receives copies in a fresh array. Ordinary arrays of structs are
 accepted only for parameters whose body provably reads the array without
-exposing its identity or changing its elements. Mutable collections and opaque
-union crossings remain rejected where adaptation would break host sharing.
+exposing its identity, changing its elements, reentering host code, suspending
+or writing through another alias. Mutable collections and opaque union crossings
+remain rejected where adaptation would break host sharing. These public
+interface refusals are shared by build and check routes before optimization;
+see the [public ABI contract](migration/s4-public-abi.md).
 
 Concrete struct-bearing callbacks received by exported functions are adapted
 when all uses only invoke them. Local aliases and nested or returned closures
