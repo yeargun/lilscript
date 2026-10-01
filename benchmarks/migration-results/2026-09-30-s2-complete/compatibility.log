@@ -1,0 +1,110 @@
+Focused compatibility group: program::rules::tests
+
+running 52 tests
+test program::rules::tests::a_copied_body_reads_the_storage_its_function_captured ... ok
+test program::rules::tests::a_default_only_the_callee_builds_still_applies ... ok
+test program::rules::tests::a_duplicate_with_typed_arithmetic_between_its_reads_is_free ... ok
+test program::rules::tests::a_false_branch_leaves_with_the_function_only_it_called ... ok
+test program::rules::tests::a_fold_counts_what_the_output_may_name_at_one_character ... ok
+test program::rules::tests::a_folded_exit_leaves_one_return_that_inlines ... ok
+test program::rules::tests::a_function_called_once_moves_into_its_caller ... ok
+test program::rules::tests::a_loop_whose_test_is_false_never_runs ... ok
+test program::rules::tests::a_parameter_cell_is_a_statement ... ok
+test program::rules::tests::a_parameter_every_call_passes_the_same_constant_becomes_it ... ok
+test program::rules::tests::a_published_signature_stays ... ok
+test program::rules::tests::a_result_cannot_leave_a_scoped_copy ... ok
+test program::rules::tests::a_result_no_call_uses_leaves ... ok
+test program::rules::tests::a_script_keeps_its_root_bindings ... ok
+test program::rules::tests::a_settled_root_condition_chooses_its_branch_only_when_sealed ... ok
+test program::rules::tests::a_signature_changes_for_every_function_that_shares_it ... ok
+test program::rules::tests::a_small_body_is_copied_to_each_call_when_the_program_does_not_grow ... ok
+test program::rules::tests::a_typed_caller_never_triggers_a_default ... ok
+test program::rules::tests::an_argument_is_not_read_after_something_observable ... ok
+test program::rules::tests::an_arrow_held_in_a_local_is_inlined_at_its_calls ... ok
+test program::rules::tests::an_unread_parameter_leaves_every_call ... ok
+test program::rules::tests::bitwise_identities_of_an_int_are_the_int ... ok
+test program::rules::tests::bounded_constant_calls_preserve_nontermination_and_throwing_methods ... ok
+test program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution ... ok
+test program::rules::tests::completed_constant_loops_preserve_control_flow_and_iteration_state ... ok
+test program::rules::tests::conditional_values_keep_the_operand_that_runs ... ok
+test program::rules::tests::constant_call_folding_preserves_argument_effects_and_mutable_captures ... ok
+test program::rules::tests::constant_calls_are_evaluated_for_each_argument_tuple ... ok
+test program::rules::tests::constant_loop_evaluation_preserves_observable_exceptions ... ok
+test program::rules::tests::constant_loops_keep_effects_and_calls_that_exhaust_evaluation ... ok
+test program::rules::tests::constant_numeric_conversion_needs_no_pristine_host_assumption ... ok
+test program::rules::tests::constant_scalar_methods_fold_through_nested_pure_calls ... ok
+test program::rules::tests::default_transport_keeps_observed_argument_count_and_signed_zero ... ok
+test program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects ... ok
+test program::rules::tests::effects_and_their_order_stay ... ok
+test program::rules::tests::exact_values_cross_settled_cells_parameters_and_results ... ok
+test program::rules::tests::finite_call_sets_fold_a_common_branch_without_sampling_overflow ... ok
+test program::rules::tests::finite_values_are_refined_on_each_branch_path ... ok
+test program::rules::tests::forwarded_locals_allow_an_expression_inside_another_calls_arguments ... ok
+test program::rules::tests::forwarded_locals_preserve_an_expression_that_is_still_waiting ... ok
+test program::rules::tests::forwarding_preserves_snapshots_writes_and_argument_evaluation ... ok
+test program::rules::tests::host_annotations_do_not_authorize_common_coercions ... ok
+test program::rules::tests::immutable_scalar_cells_and_common_primitive_operations_forward ... ok
+test program::rules::tests::known_methods_fold_only_with_the_builtin_contract ... ok
+test program::rules::tests::nested_constant_structures_fold_over_rounds ... ok
+test program::rules::tests::operations_after_an_exit_go_and_initializations_stay_whole ... ok
+test program::rules::tests::primitive_truthiness_in_finite_paths_matches_javascript ... ok
+test program::rules::tests::recursion_and_early_returns_stay_calls ... ok
+test program::rules::tests::repeated_parameter_loads_share_one_evaluated_argument ... ok
+test program::rules::tests::rule_views_survive_empty_commits_and_follow_every_edit_owner ... ok
+test program::rules::tests::the_default_fold_bound_keeps_large_constants_as_expressions ... ok
+test program::rules::tests::unread_values_and_stores_leave ... ok
+
+test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 1756 filtered out; finished in 2.78s
+
+Focused compatibility group: program::product_javascript_tests
+
+running 8 tests
+test program::product_javascript_tests::direct_literal_projection_is_a_load_rule_and_keeps_assignment_evaluation ... ok
+test program::product_javascript_tests::flat_product_initializers_keep_unused_effects_and_throw_order ... ok
+test program::product_javascript_tests::flat_product_stores_reload_current_nested_parent_after_rhs_reentry ... ok
+test program::product_javascript_tests::flat_products_preserve_nested_copies_shared_array_leaves_and_factory_activations ... ok
+test program::product_javascript_tests::frozen_product_copies_keep_each_loop_and_branch_activation_separate ... ok
+test program::product_javascript_tests::product_storage_and_captured_helper_oracle_measures_the_complete_compatible_space ... ok
+test program::product_javascript_tests::shared_and_inline_product_helpers_preserve_raw_snapshots ... ok
+test program::product_javascript_tests::zero_optional_work_keeps_the_executable_packed_baseline ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 1800 filtered out; finished in 4.55s
+
+Focused compatibility group: program::record_javascript_tests
+
+running 6 tests
+test program::record_javascript_tests::complete_public_record_artifacts_are_named_and_measured_for_each_codec ... ok
+test program::record_javascript_tests::independent_record_families_compose_without_copying_shared_closure_state ... ok
+test program::record_javascript_tests::private_record_alternatives_preserve_shared_callbacks_reentry_and_loop_activations ... ok
+test program::record_javascript_tests::private_record_payloads_preserve_values_references_and_copy_boundaries ... ok
+test program::record_javascript_tests::rejected_record_families_leave_the_direct_candidate_executable ... ok
+test program::record_javascript_tests::scalar_record_slots_preserve_absence_and_initializer_observations ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 1802 filtered out; finished in 3.51s
+
+
+
+running 4 tests
+test compilation_policy::tactic_tests::explicit_risk_policy_is_effort_independent_and_legacy_is_preserved ... ok
+test compilation_policy::tactic_tests::origins_explain_equivalent_permissions_without_splitting_cache_identity ... ok
+test compilation_policy::tactic_tests::producer_dependencies_do_not_disable_independent_implementations ... ok
+test compilation_policy::tactic_tests::registry_risk_classes_are_an_admission_boundary_even_for_explicit_on ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1804 filtered out; finished in 0.24s
+
+
+
+running 4 tests
+test js::tests::scalar_initialization::scalar_objects_keep_safe_captures_and_uncaptured_effects_eligible ... ok
+test js::tests::scalar_initialization::scalar_objects_preserve_a_captured_initializer_tdz_from_another_binding ... ok
+test js::tests::scalar_initialization::scalar_objects_preserve_an_initializer_self_read ... ok
+test js::tests::scalar_initialization::scalar_objects_preserve_reentry_and_failed_initialization ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1804 filtered out; finished in 0.43s
+
+
+
+running 1 test
+test compilation_policy::tests::registry_dependencies_propagate_parent_vetoes_and_native_availability ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1809 filtered out; finished in 0.00s

@@ -1,0 +1,1 @@
+(()=>{console.log(input()+1);console.log(3);})();

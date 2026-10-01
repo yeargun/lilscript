@@ -1,87 +1,77 @@
-# Migration handoff — S1 checkpoint, S2 active
+# Migration handoff — S2 complete, S3 next
 
-The owner requested committing and pushing S1, then finishing S2. Focused
-checks after substantial implementation batches are authorized where they
-answer correctness or size questions. Do not resume the interrupted S1
-qualification chain or repeatedly run the entire library suite.
+The owner authorized committing/pushing S1 and completing S2, with focused
+checks after substantial implementation batches. Do not restart the stopped
+S1 qualification chain or repeatedly run the entire library suite. This
+checkpoint completes S2; it does not start another milestone.
 
 ## Current state
 
 - Checkout: `/home/azureuser/lilscript`, branch
-  `finer/059-idiom-directed-naming`; pre-S1 HEAD was `9793853b`.
-- C1, C2, C3 and S1 implementation are complete. The S1 checkpoint retains
-  deferred final verification; do not label that verification passed. S2 is
-  the sole active implementation milestone.
-- S1 implements bounded finite/path primitive facts, constant execution,
-  source forwarding, common computations, checked default transport,
-  dead-work cleanup, shared primitive/range facts and a native nullable
-  constant boxing repair. The three old target default passes are deleted.
-- Target alias/root-literal cleanup remains intentionally: it handles storage
-  created after source rules. Q1 supplies representation storage contracts;
-  S4 owns its eventual replacement. Aggregate store collection belongs to S2.
-  These dependency corrections are in `s1-acceptance.md` and `coverage.md`.
-- Retain candidate **s1-complete-4**, compiler SHA-256
-  `628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268`.
-  Every Rust source and Cargo file matches its recorded identity. Do not switch
-  to candidate 5: it recovers two local Brotli bytes but loses 92 raw, 133 gzip
-  and 46 Brotli bytes overall. The checkout source is candidate 4; binaries in
-  `target/release` are not the authoritative qualification pin.
+  `finer/059-idiom-directed-naming`. S1 is committed and pushed at `343a3af0`.
+- C1, C2, C3, S1 and S2 implementation are complete. S1's final library/CLI
+  reruns and complete paired compile-cost study remain explicitly deferred.
+- S2 adds shared aggregate/field facts, fresh store collection, namespace
+  flattening, scalar banks and record-alias normalization. It adds owned
+  JavaScript product updates and native final-use transfers, with TOML gates,
+  invalidation and receipts. The [acceptance record](s2-acceptance.md) explains
+  conservative refusals and the corrected formation dependencies.
+- Retained S2 compiler: `/home/azureuser/lilscript-work/bin/s2-complete-2/lilscript`,
+  SHA-256 `a1c7c7bc8571e1da983b1178dfb2b1924f73a61e9df0ae64aa6b88dad57bdece`.
+  Its [identity](../../benchmarks/migration-results/2026-09-30-s2-complete/identity.json)
+  records every Rust/Cargo source hash. Build outputs are not a substitute for
+  that immutable pin. No test or measurement job is left running.
 
-## Evidence already sufficient to retain
+## Evidence to retain
 
-Reports: `benchmarks/migration-results/2026-10-01-s1-complete/`.
+[S2 evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md):
+22 final S2 checks plus 75 adjacent checks across implementation batches pass;
+native cases execute 21 compiler/sanitizer profiles. Fifteen development
+programs pass 90 old/new behavior observations at effort 13. Exact totals are
+**−59 raw / −47 gzip / −33 Brotli**, with no individual regression. The final
+release build and configuration reference checks pass. This is focused
+evidence, not full-fleet or timing qualification; the accepted ratchet baseline
+is unchanged.
 
-- Generic corpus: 642 programs × three objectives, no behavior failures.
-  Totals change by **−593 raw / −340 gzip / −278 Brotli**. The sole growing
-  corpus subtotal is applications Brotli +2, an equivalent naming change.
-  The supported ratchet override records the exact tradeoff and requires
-  nonincreasing totals independently for all three objectives. Its default
-  gate stays strict. `tests/ratchet/baseline.json` already records candidate 4.
-- Language matrix: 403 cases × 18 lanes; 5,466 pass, 180 ledgered failures,
-  1,608 masked, **zero unexpected failures**. Existing native Record debt is
-  retained under N2; the previous compiler reproduces that refusal.
-- Reference ports: Marked **29/29**, Zod **1,353/1,353**, PostHog **21/21**.
-  Zod's valid result is in `ports-patch-attempt.json`; the other two are in
-  `ports.json`. The first invocation tried to reapply already-landed patches
-  to Marked/PostHog and failed before compiling them; their corrected run uses
-  `--patches none`. Zod has no migration patch and was not needlessly rerun.
-- Runner tests: 20 pass. Generated configuration reference and whitespace
-  checks pass. Focused compiler tests passed in coherent implementation batches.
-- **Deferred:** final full library/CLI run, completed nine-cell paired compile
-  costs, and the retained semantic demonstration run. The interrupted cost
-  run completed only Marked raw/gzip before termination; no complete cost
-  verdict exists. Its initial policy rejection was only changed tactic
-  documentation, not changed effort, permissions, schedule or resource limits.
+[S1 evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md):
+retain `s1-complete-4`, SHA-256
+`628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268`.
+All 642 generic programs pass in each objective; totals improve by
+593 raw / 340 gzip / 278 Brotli. The 403-case × 18-lane language matrix has
+zero unexpected failures; Marked 29/29, Zod 1,353/1,353 and PostHog 21/21 pass.
+Its two-byte local Brotli growth is explicitly accepted with smaller totals.
+Do not revive the rejected candidate 5 or repeat qualification to recover it.
+Native Record debt remains N2. Final library/CLI and complete paired CPU
+verification were deferred by the owner, not passed.
 
 ## Next implementation work
 
-1. The S1 checkpoint retains implementation and existing evidence, with
-   deferred verification explicit. Do not restart qualification or tune
-   another variant to recover the two-byte local loss.
-2. Make **S2 the sole active implementation milestone**. Finish its entire
-   finite contract: allocation escape/alias/uniqueness facts; read/write and
-   observability facts for fields; dead/constant/overwritten fields; private
-   namespace/object flattening; scalar replacement through branches and loops;
-   value-struct move/copy elision in both supported targets. Preserve aliases,
-   captures, initialization/TDZ, host reflection and value-copy semantics.
-   Build on existing record/product families instead of introducing another
-   optimizer. Keep representation alternatives eligible for exact objective
-   judging; wire controls, receipts and documentation with the implementation.
-3. Only after S2 implementation is complete, finish **S3**: remaining inlining,
+1. Start **S3 only**, with a finite acceptance checklist: remaining inlining,
    known-call devirtualization, specialization and identical-body sharing.
-4. Continue the existing dependency order:
+   Cover cross-module calls, nested closures and tail returns. Use S2's facts;
+   make duplication/sharing alternatives available to objective selection.
+2. Include the two historical M7.9 formation costs in S3's call transport:
+   an inline parameter written through a field still needs a cell, and a
+   copied struct argument can hold a waiting operand. Q1 coordinates their
+   representation recipes. S2's source ownership proof alone cannot remove
+   evaluation/snapshot timing requirements at a call.
+3. Then follow the existing order:
    **Q1 → G1 → G2 → G3 → S4 → Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
-   Each milestone needs a bounded implementation checklist; finish it before
-   opening the next. Do not repeatedly return to already-established evidence.
+   Finish each milestone before opening another. Target scalar/namespace and
+   alias/literal cleanup stays until Q1/S4 can replace its proofs for storage
+   introduced after source rules. Do not delete useful coverage early.
 
-## Product rules that remain in force
+## Product rules
 
-Optimize raw, gzip and Brotli independently. Keep effort 13 size-focused;
-expensive marginal strategies may default to 14/15. Preserve the best admitted
-artifact and deterministic effort progression. TOML permissions must control
-initial, searched and reused output, with documented purpose and size/compile/
-runtime tradeoffs. No workload-name heuristics and no blended objective score.
-The ultimate target includes stronger mangling and beating Closure ADVANCED on
-fairly matched workloads; current application wins do not close the remaining
-algorithm/fleet gaps. Use focused tests and matched measurements after substantial changes when
-they resolve a concrete question. Do not repeat the full library suite.
+Optimize raw, gzip and Brotli independently. Keep default effort 13 focused on
+size; expensive marginal strategies may default to 14/15 with explicit flags.
+Preserve the best admitted artifact and deterministic effort progression.
+TOML permissions control initial, searched and reused output; document their
+purpose, defaults/gates and size/compile/runtime tradeoffs. No workload-name
+heuristics or blended scores. Stronger mangling and fair Closure ADVANCED wins
+remain goals, not claims established by this checkpoint.
+
+Use one heavy job at a time. Implement a coherent batch, then use focused
+tests or matched measurements to resolve its concrete risks and effects.
+Broaden verification for an observed failure or unresolved concern, not simply
+because another small edit landed. Keep evidence limitations explicit.

@@ -386,6 +386,8 @@ impl Frontend {
             fold: permitted(TacticId::ConstantFolding),
             dead_code: permitted(TacticId::DeadCodeElimination),
             inline: permitted_inlining,
+            scalar: permitted(TacticId::ScalarReplacement),
+            native: self.native.is_some(),
             pristine_builtins: self
                 .javascript
                 .as_ref()
@@ -925,14 +927,14 @@ impl<'src> CheckedSourceSession<'src> {
             self.phases["javascript_ns"] = json!(nanos(phase));
         }
         let native_cost = if let Some(artifact) = native {
-            let semantic = self
+            let (semantic, ownership_transfers) = self
                 .compilation
                 .with_qualified_native_artifact(&artifact, |view| {
-                    semantic_report(Some(view.snapshot), Some(view.meaning), view.rewrites)
+                    (semantic_report(Some(view.snapshot), Some(view.meaning), view.rewrites), view.ownership_transfers)
                 })
                 .map_err(|error| ServiceError::new("native metadata", error))?;
             let cost = json!({"c_bytes":artifact.c_bytes(), "header_bytes":artifact.header_bytes(),
-                "scope":"C and host-header delivery, not linked executable bytes", "semantic":semantic});
+                "scope":"C and host-header delivery, not linked executable bytes", "semantic":semantic, "ownership_transfers":ownership_transfers});
             let (c, header) = self
                 .compilation
                 .take_qualified_native_artifact(artifact)

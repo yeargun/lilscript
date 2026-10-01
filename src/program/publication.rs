@@ -2145,6 +2145,7 @@ impl<'src> Compilation<'src> {
             &checkpoint.semantic.program,
             &checkpoint.semantic.uses,
             hosts,
+            policy.tactic(TacticId::ScalarReplacement).enabled,
             &mut budget,
         )?;
         budget.work(WorkKind::Render, 0)?;
@@ -2196,6 +2197,7 @@ impl<'src> Compilation<'src> {
             &checkpoint.semantic.program,
             &checkpoint.semantic.uses,
             hosts,
+            policy.tactic(TacticId::ScalarReplacement).enabled,
             &mut budget,
         )?;
         self.artifacts.retain_native(

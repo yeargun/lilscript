@@ -1,0 +1,1 @@
+(()=>{console.log("scalar"+"-"+"replace");console.log(13);})();

@@ -1,0 +1,1 @@
+(()=>{let b={add:d=>d+1,scale:3};console.log((e=>b.add(e))(input()));console.log(3);})();

@@ -313,6 +313,19 @@ impl Formation<'_, '_, '_, '_, '_> {
         if self.demand.product_for_cell(cell).is_some() {
             return self.store_product_field(context, cell, path, replacement, span);
         }
+        // Complete source uses prove that this bank has no live snapshots.
+        // Its nested products were transferred from fresh, unshared values.
+        // Assignment evaluates the current receiver after the captured RHS,
+        // preserving null failures and reentrant replacement of the root.
+        if self.storage.unique(cell) {
+            let mut target = self.cell(context, cell)?;
+            for recipe in path.iter().rev() {
+                self.work(1)?;
+                target = self.slot(target, recipe.slot)?;
+            }
+            self.drop_scratch(path)?;
+            return self.expression(js::Expr::Assign { target, value: replacement });
+        }
         // A source refinement can have become stale during reentry. Access
         // every current parent independently of how many siblings survive;
         // reconstructing a one-field product must not resurrect null storage.

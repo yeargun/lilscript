@@ -3,13 +3,14 @@
 //! conversion and before any target forms it, to their fixed point.
 //! JavaScript, native and every search candidate start from the result.
 //!
-//! A rule never grows the program (L3): it removes operations, and inlining
-//! copies a body only where the copies take no more operations than the body
-//! and the calls they replace. Rules read the
-//! program's facts (effects and the call graph, initialization order) and the
-//! exact values of `values.rs`. They never read a codec, a name plan, a
-//! target or the effort level, so the base they leave is the same at every
-//! level (B5), and a rule phase is never truncated (§8.2): a round ceiling
+//! Primitive rules remove operations; inlining copies a body only where the
+//! copies take no more operations than the body and calls they replace.
+//! Aggregate rules monotonically remove aggregate storage, aliases or stores;
+//! a scalar bank may need more initializers while eliminating its allocation.
+//! Rules use shared effects, calls, initialization, values and the build's
+//! boundary/storage constraints. They never read a codec, name plan or effort
+//! level, so the base they leave is the same at every effort level (B5).
+//! A rule phase is never truncated (§8.2): a round ceiling
 //! that is reached is a compiler bug and fails the build.
 //!
 //! Prior art: Closure's `PhaseOptimizer` loop (`closure-compiler@0da58e1
@@ -22,6 +23,7 @@ mod edit;
 mod evaluate;
 mod fold;
 mod forward;
+mod aggregates;
 mod inline;
 mod params;
 mod unreachable;
@@ -29,6 +31,8 @@ mod values;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod aggregate_tests;
 
 use super::call_graph::Seal;
 use super::effects::ProgramEffects;
@@ -45,6 +49,10 @@ pub(crate) struct RuleRequest {
     /// Removal-only inlining (M7.5a). It retires what it copies, so it runs
     /// only with `dead_code`.
     pub(crate) inline: bool,
+    /// Private aggregate storage and copy elision, independently permitted.
+    pub(crate) scalar: bool,
+    /// At least one requested artifact uses native captured-cell storage.
+    pub(crate) native: bool,
     /// The target contract guarantees original builtin method behavior.
     pub(crate) pristine_builtins: bool,
     /// Modules and application scripts own private roots. An explicitly
@@ -54,7 +62,7 @@ pub(crate) struct RuleRequest {
 
 impl RuleRequest {
     pub(crate) fn any(self) -> bool {
-        self.fold || self.dead_code
+        self.fold || self.dead_code || self.scalar
     }
 
     fn inlining(self) -> bool {
@@ -96,6 +104,16 @@ pub(crate) struct RuleReceipt {
     pub(crate) evaluated_calls: u32,
     pub(crate) evaluation_refusals: [u32; 6],
     pub(crate) default_checks_removed: u32,
+    pub(crate) exposed_allocations: u32,
+    pub(crate) flattened_namespace_calls: u32,
+    pub(crate) folded_fields: u32,
+    pub(crate) removed_field_stores: u32,
+    pub(crate) collected_field_stores: u32,
+    pub(crate) scalarized_allocations: u32,
+    pub(crate) scalar_fields: u32,
+    pub(crate) elided_record_aliases: u32,
+    pub(crate) aggregate_analysis_work: u64,
+    pub(crate) aggregate_limits: u32,
 }
 
 impl RuleReceipt {
@@ -123,6 +141,16 @@ impl RuleReceipt {
             "path_folds": self.path_folds,
             "evaluated_calls": self.evaluated_calls,
             "default_checks_removed": self.default_checks_removed,
+            "exposed_allocations": self.exposed_allocations,
+            "flattened_namespace_calls": self.flattened_namespace_calls,
+            "folded_fields": self.folded_fields,
+            "removed_field_stores": self.removed_field_stores,
+            "collected_field_stores": self.collected_field_stores,
+            "scalarized_allocations": self.scalarized_allocations,
+            "scalar_fields": self.scalar_fields,
+            "elided_record_aliases": self.elided_record_aliases,
+            "aggregate_analysis_work": self.aggregate_analysis_work,
+            "aggregate_limits": self.aggregate_limits,
             "evaluation_refusals": {
                 "host": self.evaluation_refusals[0],
                 "engine_dependent": self.evaluation_refusals[1],
@@ -154,6 +182,7 @@ fn scalar(program: &Program<'_>, ty: TypeId) -> bool {
 /// The program rules, in their structural order (architecture §8.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProgramRule {
+    Aggregates,
     Forward,
     Fold,
     Unreachable,
@@ -217,6 +246,9 @@ pub(crate) fn optimize<'src>(
     if request.inlining() {
         rules.push(ProgramRule::Inline);
     }
+    if request.fold || request.dead_code || request.scalar {
+        rules.push(ProgramRule::Aggregates);
+    }
     if request.dead_code {
         rules.extend([ProgramRule::Parameters, ProgramRule::DeadCode]);
     }
@@ -227,6 +259,7 @@ pub(crate) fn optimize<'src>(
         |editor, rule| {
             let effects = editor.program().effects(request.seal);
             let changed = match rule {
+                ProgramRule::Aggregates => aggregates::apply(editor, &effects, request, &mut receipt).map_err(str::to_string)?,
                 ProgramRule::Forward => forward::apply(editor, &effects, &mut receipt),
                 ProgramRule::Fold => {
                     let values = values::ProgramValues::compute(

@@ -1,0 +1,4 @@
+string left = "scalar";
+string right = "replace";
+print(left + "-" + right);
+print(left.length + right.length);

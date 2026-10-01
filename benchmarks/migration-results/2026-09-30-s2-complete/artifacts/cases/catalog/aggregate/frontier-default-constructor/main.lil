@@ -1,0 +1,13 @@
+class Counter {
+  int value;
+  init() { this.value = 0; }
+  int increment() {
+    this.value += 1;
+    return this.value;
+  }
+}
+int bump(Counter counter = new Counter()) {
+  return counter.increment();
+}
+print(bump());
+print(bump());

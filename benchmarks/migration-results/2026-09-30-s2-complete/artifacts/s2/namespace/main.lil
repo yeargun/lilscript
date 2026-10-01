@@ -1,0 +1,1 @@
+extern int input();JsValue add=(JsValue n)=>JS.add(n,1);JsValue ns=JS.object("add",add,"scale",3);auto use=(int n)=>JS.invoke(ns,"add",n);print(use(input()));print(ns["scale"]);

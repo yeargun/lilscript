@@ -8,6 +8,7 @@
 //! from; a cached view is also checked against its dependencies.
 use super::call_graph::Seal;
 use super::classes::ProgramClasses;
+use super::aggregates::ProgramAggregates;
 use super::effects::ProgramEffects;
 use super::initialization::ProgramInitialization;
 use super::ranges::ProgramRanges;
@@ -98,6 +99,7 @@ struct Slots {
     /// Indexed by `Seal`: value ranges (M6.4b), read by every formation.
     ranges: [OnceLock<Arc<ProgramRanges>>; 2],
     classes: [OnceLock<Arc<ProgramClasses>>; 2],
+    aggregates: [OnceLock<Arc<ProgramAggregates>>; 2],
 }
 
 impl Clone for ProgramViews {
@@ -107,6 +109,13 @@ impl Clone for ProgramViews {
 }
 
 impl<'src> Program<'src> {
+    pub(crate) fn aggregates(&self, seal: Seal) -> Arc<ProgramAggregates> {
+        let slot = &self.views.slots.aggregates[seal as usize];
+        let build = || Arc::new(ProgramAggregates::build(self, &self.effects(seal)));
+        let cached = slot.get_or_init(build);
+        if cached.deps().valid_for(self) { Arc::clone(cached) } else { build() }
+    }
+
     pub(crate) fn primitive_classes(&self, seal: Seal) -> Arc<ProgramClasses> {
         let slot = &self.views.slots.classes[seal as usize];
         let build = || Arc::new(ProgramClasses::build(self, self.effects(seal).graph()));

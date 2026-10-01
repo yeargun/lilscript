@@ -1,0 +1,1 @@
+(()=>{let a=[input(),2],c=()=>{a[0]=a[0]+a[1]|0;return a[0]};console.log(c());console.log(c());console.log(a[1]);})();

@@ -56,6 +56,7 @@ fn default_transport_metadata_obeys_the_current_formation_permission() {
                 fold: true,
                 dead_code: true,
                 inline: false,
+                scalar: false, native: false,
                 pristine_builtins: false,
                 seal: super::call_graph::Seal::Module,
             },

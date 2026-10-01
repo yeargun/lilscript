@@ -453,7 +453,7 @@ stages, prerequisites, analysis requirements and defaults. `auto` follows the
 tactic's own default and its effort gate. A missing producer cannot be enabled
 by a flag: `helper-sharing` and `recurring-reconstruction`
 currently report unavailable, with a diagnostic when explicitly requested on.
-Native has no scalar-replacement or call-specialization producer yet.
+Native supports shared scalar replacement and final-use ownership transfers; call specialization still has no native producer.
 Disabling identifier mangling also disables its dependent naming search and
 alphabet trials, with the reason in the policy diagnostics.
 
@@ -565,12 +565,52 @@ Evaluator attempt counters include repeated analysis rounds; they are distinct
 from the number of calls ultimately removed. The optimizations remove runtime
 work without adding reconstruction or changing the runtime-risk permissions.
 
-`scalar-replacement` permits private record storage alternatives for checked
-payload types, including strings, floats, booleans, references and value structs.
-The proof requires complete constant-key uses, one initialization and safe
-capture timing. Whole-record aliases, escape, reassignment and dynamic keys keep
-their original storage. Reference identity, value-copy boundaries and absent-key
-normalization remain unchanged; each objective judges the complete alternative.
+`constant-folding` also forwards fixed private fields and known lexical
+functions in constant namespaces. `dead-code-elimination` removes unread fields
+and overwritten field stores while keeping argument and initializer effects in
+order. It also collects a contiguous fresh-object construction prefix into its
+allocation. Adding missing ordinary-object properties requires the pristine
+builtin contract because assignment can otherwise invoke a prototype setter;
+records use their null-prototype contract. Neither permission grants scalar storage when `scalar-replacement` is off.
+
+`scalar-replacement` uses allocation identities, complete uses and initialization
+to replace closed array, object and class storage with fields. Immutable aliases
+and captured references share the same bank, with a separate bank for each
+activation. Identity observations, dynamic keys, unknown writers, host escape
+and unsupported capture timing retain the aggregate. The analysis tracks at
+most eight origins, 64 propagation rounds and 16,777,216 propagation operations;
+a missing or exhausted proof never permits a rewrite. Additional scalar/alias
+scans have bounded work, fields are limited to 256 per allocation, and aggregate
+analysis declines programs above 524,288 combined values and cells. This spends compilation work to remove allocations and
+accesses; introducing field locals can change raw and compressed sizes. For
+builds including native output, captured local banks retain packed storage if
+splitting would require more than two cell boxes (the original handle plus
+aggregate); JavaScript-only builds do not have that native allocation limit.
+
+The existing record and product families continue to offer codec-judged layouts.
+Record aliases with proved initialization now share their canonical cell before
+family discovery; record absence normalization stays with that family. Array
+loads that normalize nullable elements retain their original storage, and
+scalar cells retain declared field types even when individual reads are narrowed. Escaping,
+reassigned or dynamic records retain storage. Strings, floats, booleans,
+references and value structs keep their checked payload rules.
+
+For value structs, complete source uses can prove that a fresh product and its
+nested products have no observable snapshots. JavaScript then updates their
+fields directly, including inside branches and loops, without rebuilding every
+ancestor. A live whole-value copy retains persistent storage. Native formation
+can transfer a managed SSA value at its single use within the same region,
+then clear the consumed temporary, avoiding a retain/release pair. An outer
+value reused by a loop cannot be transferred on each iteration. These paths
+are part of `scalar-replacement`; `off` vetoes them in direct output and reused
+formation as well as search. The existing `ref` contract is unchanged.
+
+These bounded proofs use the existing effort policy, including default 13;
+there is no new expensive search tail or level-14/15 strategy in S2. Rule receipts
+separate exposed allocations, folded fields, flattened namespace calls, removed or collected
+stores, scalar banks and elided aliases from analysis work. Native delivery
+reports actual `ownership_transfers`. These counts describe changed work, not
+measured runtime speed or guaranteed compressed-size wins.
 
 `naming-alphabet` permits joint trials that reorder identifier characters by
 their frequency in the currently delivered JavaScript. It also requires

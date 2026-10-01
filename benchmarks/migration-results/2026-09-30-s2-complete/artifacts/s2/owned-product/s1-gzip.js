@@ -1,0 +1,1 @@
+(()=>{let a=[input(),2];for(let b=0;b<4;++b)if(b==2)a=[a[0]+3|0,a[1]];else{let b=a[1]+a[0]|0;a=[a[0],b]}console.log(a[0]);console.log(a[1]);})();

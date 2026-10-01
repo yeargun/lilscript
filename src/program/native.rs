@@ -110,6 +110,7 @@ impl NativeHostBindings<'_> {
 pub(super) struct NativeArtifacts {
     pub(super) c: String,
     pub(super) header: String,
+    pub(super) ownership_transfers: u32,
 }
 
 /// Unqualified inspection text stays allocation-admitted until this facade
@@ -150,6 +151,7 @@ pub(super) struct NativeArtifacts {
 pub struct BudgetedNativeOutput<'budget, 'ledger> {
     text: String,
     header: String,
+    ownership_transfers: u32,
     budget: &'budget mut AllocationBudget<'ledger>,
 }
 impl<'budget, 'ledger> BudgetedNativeOutput<'budget, 'ledger> {
@@ -160,8 +162,13 @@ impl<'budget, 'ledger> BudgetedNativeOutput<'budget, 'ledger> {
         Self {
             text: artifacts.c,
             header: artifacts.header,
+            ownership_transfers: artifacts.ownership_transfers,
             budget,
         }
+    }
+    /// Managed SSA owners transferred without retaining and releasing a copy.
+    pub fn ownership_transfers(&self) -> u32 {
+        self.ownership_transfers
     }
     /// Generated declarations for a separately compiled host translation unit.
     /// Empty when no host bindings were requested. The C artifact is always a
@@ -205,6 +212,7 @@ pub(super) fn form(
     program: &Program<'_>,
     uses: &UseIndex,
     hosts: &NativeHostBindings<'_>,
+    scalar: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<NativeArtifacts, NativeError> {
     let mut phase = budget.scope();
@@ -213,8 +221,22 @@ pub(super) fn form(
         size_of::<NativePlan<'_, '_>>() as u64 + size_of::<Emitter<'_, '_, '_, '_, '_>>() as u64,
     )?;
     let plan = NativePlan::build_with_hosts(program, uses, hosts, &mut phase)?;
+    let storage = if scalar {
+        super::physical_storage::StorageProofs::build(
+            program,
+            uses,
+            super::call_graph::Seal::Module,
+            super::physical_storage::StorageDemand::Transfers,
+            &mut phase,
+        )?
+    } else {
+        super::physical_storage::StorageProofs::default()
+    };
     let mut emitter = Emitter {
         plan: &plan,
+        storage,
+        operation: None,
+        ownership_transfers: 0,
         budget: &mut phase,
         text: String::new(),
         stack: Vec::new(),
@@ -229,12 +251,17 @@ pub(super) fn form(
     let header = mem::take(&mut emitter.text);
     emitter.program()?;
     let text = mem::take(&mut emitter.text);
+    let ownership_transfers = emitter.ownership_transfers;
     drop(emitter);
     drop(plan);
     // All actual plan and emission scratch buffers have gone. Only complete
     // text transfers to the publication owner; a failure exposes no partial C.
     phase.finish_retained()?;
-    Ok(NativeArtifacts { c: text, header })
+    Ok(NativeArtifacts {
+        c: text,
+        header,
+        ownership_transfers,
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -269,6 +296,9 @@ enum Task {
 
 struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     plan: &'plan NativePlan<'program, 'src>,
+    storage: super::physical_storage::StorageProofs,
+    operation: Option<OpId>,
+    ownership_transfers: u32,
     budget: &'budget mut AllocationBudget<'ledger>,
     text: String,
     stack: Vec<Task>,
@@ -586,6 +616,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     } else {
                         if let Some(destination) = destination {
                             let source = unit.regions[region.index()].result.unwrap();
+                            self.operation = None;
                             self.copy_value(id, Destination::Value(destination), source)?;
                         }
                         if self.plan.needs_callable_runtime() {
@@ -627,6 +658,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         op: OpId,
         enclosing_loop: Option<OpId>,
     ) -> Result<(), NativeError> {
+        self.operation = Some(op);
         let unit = self.plan.program.unit(id).unwrap();
         let operation = &unit.operations[op.index()];
         let args = unit.operands(operation.operands).unwrap();
@@ -636,7 +668,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
             OperationKind::Constant(value) => {
                 let value_id = result.unwrap();
                 let destination = Destination::Value(value_id);
-                let to = self.plan.value_type(self.plan.units[id.index()].values[value_id.index()]);
+                let to = self
+                    .plan
+                    .value_type(self.plan.units[id.index()].values[value_id.index()]);
                 let from = match value {
                     Constant::Integer(_) => NativeType::I32,
                     Constant::Number(_) => NativeType::F64,
@@ -652,13 +686,12 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.assignment_start(id, destination, true)?;
                 self.text(&prefix)?;
                 match value {
-                    Constant::Integer(value) => self.write(format_args!(
-                        "ls_from_u32(UINT32_C({}))",
-                        *value as u32
-                    ))?,
-                    Constant::Number(bits) => self.write(format_args!(
-                        "ls_f64_bits(UINT64_C({bits}))"
-                    ))?,
+                    Constant::Integer(value) => {
+                        self.write(format_args!("ls_from_u32(UINT32_C({}))", *value as u32))?
+                    }
+                    Constant::Number(bits) => {
+                        self.write(format_args!("ls_f64_bits(UINT64_C({bits}))"))?
+                    }
                     Constant::Boolean(value) => self.text(if *value { "true" } else { "false" })?,
                     Constant::String(string) => {
                         let value = &self.plan.program.strings[string.index()];

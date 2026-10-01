@@ -1,0 +1,1 @@
+(()=>{let e=0,c;for(let l=0;l<2;++l){let b;e=e+(b=[l+1,l*3+2],c=b,(c[0]*10|0)+c[1]|0)|0}console.log(e);})();

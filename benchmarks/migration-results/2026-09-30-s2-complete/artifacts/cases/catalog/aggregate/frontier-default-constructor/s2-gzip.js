@@ -1,0 +1,1 @@
+(()=>{let l,a,e=l=>{l.a=l.a+1|0;return l.a};console.log(e((l={a:0},l.a=0,l)));console.log(e((a={a:0},a.a=0,a)));})();

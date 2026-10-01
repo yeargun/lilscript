@@ -1,0 +1,1 @@
+(()=>{let d=[3,1,4,1,5,9],l=0,c;for(let e=0;(e+1|0)<d.length;e=e+2|0){let b;l=l+(b=[d[e],d[e+1|0]],c=b,(c[0]*3|0)+(c[1]*5|0)|0)|0}console.log(l);})();

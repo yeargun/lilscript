@@ -1,0 +1,1 @@
+(()=>{let b=input(),a=()=>{b=b+2|0;return b};console.log(a());console.log(a());console.log(2);})();

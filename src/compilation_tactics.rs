@@ -38,6 +38,7 @@ impl TacticDefault {
 pub enum TacticProducer {
     SharedRules,
     JavaScriptFormation,
+    NativeFormation,
     StructuralSearch,
     OutputFamilies,
     Naming,
@@ -97,7 +98,11 @@ impl TacticSpec {
         policy.tactic(self.id).enabled
             && self.producers.contains(&producer)
             && (!self.javascript_only || policy.javascript_contract().is_some())
-            && (policy.javascript_contract().is_some() || producer == TacticProducer::SharedRules)
+            && match producer {
+                TacticProducer::SharedRules => true,
+                TacticProducer::NativeFormation => policy.javascript_contract().is_none(),
+                _ => policy.javascript_contract().is_some(),
+            }
             && self
                 .producer_prerequisites(producer)
                 .iter()
@@ -155,12 +160,12 @@ declare_tactics! {
         tradeoffs: "Can increase text and compilation work. Shared removal-only inlining also needs dead-code-elimination; target implementations need target-compaction. Off vetoes all optional inlining."
     },
     ScalarReplacement {
-        name: "scalar-replacement", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,
+        name: "scalar-replacement", javascript_only: false, minimum_effort: 0, startup_at_level_16: false,
         analysis: A::OwnershipAndObservations, default: D::Preset,
-        producers: &[P::JavaScriptFormation, P::StructuralSearch], prerequisites: &[], risks: &[R::Neutral],
-        invalidates: &[I::TargetHead, I::Names, I::RenderedFiles],
-        purpose: "Replace proved private object storage with independent values.",
-        tradeoffs: "May remove allocations and fields but add locals or longer text. Escape, identity, initialization and capture proofs remain mandatory; off keeps the aggregate representation."
+        producers: &[P::SharedRules, P::JavaScriptFormation, P::NativeFormation, P::StructuralSearch], prerequisites: &[], risks: &[R::Neutral],
+        invalidates: &[I::ProgramFacts, I::TargetHead, I::TargetTail, I::Names, I::RenderedFiles],
+        purpose: "Scalarize private aggregate fields, canonicalize record aliases, update uniquely owned products, and transfer consumed native values.",
+        tradeoffs: "Trades bounded ownership/use analysis for fewer allocations, field stores and retain/release pairs. Captured banks keep their activation; live value snapshots, dynamic keys and host-visible identity retain storage. Record/product layout alternatives remain codec judged. Off vetoes scalar banks, alias elision, owned product updates and native transfers in every route."
     },
     CallSpecialization {
         name: "call-specialization", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,

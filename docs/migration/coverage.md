@@ -44,17 +44,17 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M6.4a | [S1](plan.md#s1), implementation complete | finite sets, `simplify::known`'s constant cases |
 | M6.4b | [S1](plan.md#s1), then [S4](plan.md#s4) | S1 complete: shared primitive classes/ranges and equivalent formation number sources; S4: absorb/delete recipe-dependent `raw_domains.rs` and the target binding-class derivation after S2/Q1 consumers migrate |
 | M6.5 | [S4](plan.md#s4) | deleting `quiet.rs`'s order and `root_constants.rs`'s own proof |
-| M6.6 | [S2](plan.md#s2) | Escape and uniqueness |
-| M6.7 | [S2](plan.md#s2) | Field facts |
+| M6.6 | [S2](plan.md#s2), complete | Bounded allocation/alias/escape facts and complete-use physical ownership witnesses |
+| M6.7 | [S2](plan.md#s2), complete | Field reads, writes, constants, identity and boundary observations |
 | M6.8 | [S3](plan.md#s3) | Frequency |
 | M7.1 | [S1](plan.md#s1), implementation complete | Removal |
 | M7.3 | [S1](plan.md#s1), implementation complete | callee-built defaults and deletion of the three tree passes (M5.3b) |
 | M7.4 | [S1](plan.md#s1), then [S4](plan.md#s4) | S1 complete: source value/alias forwarding; S4 after Q1: replace/delete target alias and literal normalization for representation-created bindings |
 | M7.5 | [S3](plan.md#s3) | Inlining, the rest |
-| M7.6 | [S2](plan.md#s2) | Namespaces and emulated methods |
-| M7.7 | [S2](plan.md#s2) | Fields |
-| M7.8 | [S1](plan.md#s1), with aggregate store collection in [S2](plan.md#s2) | S1 complete: finite/path-sensitive primitive folding, exact methods and bounded calls; S2: array/object store collection once escape and field facts exist |
-| M7.9 | [S2](plan.md#s2) | Scalar replacement and store-copy elision |
+| M7.6 | [S2](plan.md#s2), complete; [S3](plan.md#s3) for remaining call shapes | Private lexical namespaces flatten through shared field proofs; method devirtualization stays with S3 |
+| M7.7 | [S2](plan.md#s2), complete | Safe fixed-field forwarding, unread fields and overwritten stores; initializer effects and normalization preserved |
+| M7.8 | [S1](plan.md#s1) and [S2](plan.md#s2), implementation complete | Primitive folding plus bounded fresh array/object/record store collection with the correct prototype contract |
+| M7.9 | [S2](plan.md#s2), complete; formation dependencies below | Shared scalar banks/record aliases, owned JavaScript product updates and native final-use transfers |
 | M7.10 | [S3](plan.md#s3) | Identical units, after M8.5 |
 | M8.2 | [G3](plan.md#g3) | `fold_logical_*` as formation; the rest lands with each replacement |
 | M8.3 | [G3](plan.md#g3) | loop heads and logical statements as per-site spellings (with M9.3); the second half |
@@ -104,7 +104,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M12.5 | [V2](plan.md#v2) | Receipts |
 | M12.6 | [V1](plan.md#v1) | Runtime parity and residual pairing: continuous |
 
-S4 coordinates removal of duplicate fact derivations with their actual S/G/Q consumers. S2 owns namespace flattening in M7.6 and coordinates method devirtualization with S3. S3 supplies frequency facts to runtime classification and Q3. Native capability clauses in M4.5 are shared with N1. M10.18 keeps the current `ref` contract until an explicit language change; S2 can improve value-copy implementation beforehand.
+S4 coordinates removal of duplicate fact derivations with their actual S/G/Q consumers. S2 completes source-level namespace flattening in M7.6; S3 owns remaining method devirtualization. Target scalar/namespace cleanup still sees bindings created by inlining and representation choices after source rules; Q1/S4 own its replacement and deletion. S3 supplies frequency facts to runtime classification and Q3. Native capability clauses in M4.5 are shared with N1. M10.18 keeps the current `ref` contract; S2 improves physical value-copy implementation under that contract. The [S2 acceptance record](s2-acceptance.md) makes these dependencies explicit.
 
 ## Carried-item ownership
 
@@ -130,8 +130,8 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M8.5 / M3.3 | [Q4](plan.md#q4) | table decoders sit at the first module's root. |
 | M8.7 | [C3](plan.md#c3), resolved | NO3's second half is empty; every retired threshold has a generic owner and historical provenance outside compiler sources. |
 | M9.1 / M9.5 | [G1](plan.md#g1) | a naming-plan tie can land on the worse delivered text. |
-| M7.9 | [S2](plan.md#s2) | a parameter written through a field inlines as a cell; |
-| M7.9 | [S2](plan.md#s2) | a struct copy passed as an argument holds a waiting operand. |
+| M7.9 | [S3](plan.md#s3), with [Q1](plan.md#q1) | A parameter written through a field inlines as a cell; its call-specific bank is created by target inline formation, after S2's source facts. Remove the extra binding with call transport and representation recipes. |
+| M7.9 | [S3](plan.md#s3), with [Q1](plan.md#q1) | A struct argument copy holds a waiting operand in the prepared-call schedule; elide it only after call transport proves evaluation/snapshot timing. S2's owned storage proof does not authorize rescheduling arguments. |
 | M7.5 | [S3](plan.md#s3) | tail-return bodies; |
 | M7.5 | [S3](plan.md#s3) | closures created inside a body; |
 | M7.5 | [S3](plan.md#s3) | bodies across modules. |

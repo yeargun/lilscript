@@ -49,6 +49,7 @@ impl QualifiedNativeArtifact {
 pub struct NativeArtifactView<'a> {
     pub c: &'a str,
     pub header: &'a str,
+    pub ownership_transfers: u32,
     pub retained_capacity: usize,
     pub snapshot: RevisionId,
     pub meaning: RevisionId,
@@ -162,6 +163,7 @@ impl ArtifactArena {
         Ok(inspect(NativeArtifactView {
             c: &record.files.c,
             header: &record.files.header,
+            ownership_transfers: record.files.ownership_transfers,
             retained_capacity: record.files.c.capacity() + record.files.header.capacity(),
             snapshot: record.qualification.snapshot,
             meaning: record.qualification.meaning,

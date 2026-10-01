@@ -1,0 +1,1 @@
+globalThis.input=()=>7;let state=[input(),2],alias=state;const step=()=>{alias[0]+=alias[1];return alias[0]};console.log(step());console.log(step());console.log(state[1]);

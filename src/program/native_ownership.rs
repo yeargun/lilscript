@@ -69,9 +69,19 @@ impl Emitter<'_, '_, '_, '_, '_> {
         source: ValueId,
     ) -> Result<(), NativeError> {
         let to = self.destination_type(unit, destination);
-        self.assignment_start(unit, destination, false)?;
+        let moved = to.managed()
+            && self.plan.units[unit.index()].values[source.index()] == ValueStorage::Value(to)
+            && self
+                .operation
+                .is_some_and(|op| self.storage.transfers(unit, op, source));
+        self.assignment_start(unit, destination, moved)?;
         self.converted(unit, source, to)?;
-        self.assignment_end(unit, destination)
+        self.assignment_end(unit, destination)?;
+        if moved {
+            self.ownership_transfers += 1;
+            self.write(format_args!("ls_v{} = ({to}){{0}};\n", source.index()))?;
+        }
+        Ok(())
     }
     pub(super) fn cell_place(&mut self, unit: UnitId, cell: CellId) -> Result<(), NativeError> {
         if self.plan.global_cell(cell) && self.plan.program.cells[cell.index()].owner != unit {
@@ -206,7 +216,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 for (slot, cell) in frozen.data().captures.iter().copied().enumerate() {
                     self.budget.work(WorkKind::Render, 1)?;
                     if self.plan.boxed_cell(cell) {
-                        self.write(format_args!("ls_native_retain(ls_e{slot});\nenvironment->ls_e{slot} = ls_e{slot};\n"))?;
+                        self.write(format_args!(
+                            "ls_native_retain(ls_e{slot});\nenvironment->ls_e{slot} = ls_e{slot};\n"
+                        ))?;
                     }
                 }
             }

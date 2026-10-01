@@ -1,0 +1,1 @@
+(()=>{let l={__proto__:null,left:1,right:2,middle:3},e={__proto__:null},n=Object.keys(l);for(let t=0;t<n.length;++t){let c=n[t];e[c]=l[c]??null}e.right=11;l.left=21;console.log(e.left??0);console.log(e.right??0);console.log(Object.keys(e).join(","));console.log(JSON.stringify(e));})();

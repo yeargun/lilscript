@@ -129,7 +129,7 @@ fn producer_dependencies_do_not_disable_independent_implementations() {
         for producer in tactic.spec().producers {
             assert_eq!(
                 tactic.spec().producer_enabled(*producer, &native),
-                *producer == P::SharedRules
+                matches!(producer, P::SharedRules | P::NativeFormation)
             );
         }
     }

@@ -612,6 +612,12 @@ fn form_head(
     let mut phase = budget.scope();
     let struct_plan = structs::plan(program, contract, &mut phase)?;
     let reference_plan = references::Plan::new();
+    let storage = if compact && rules.scalar_replacement && !program.structs.is_empty() {
+        match uses {
+            Some(uses) => super::physical_storage::StorageProofs::build(program, uses, super::call_graph::Seal::from_execution(contract.execution), super::physical_storage::StorageDemand::Products, &mut phase)?,
+            None => super::physical_storage::StorageProofs::default(),
+        }
+    } else { super::physical_storage::StorageProofs::default() };
     let private_fields =
         super::private_fields::Plan::new(program, preserved_properties, &mut phase)?;
     let mut records = phase.vector(AllocationClass::Scratch, demand.records().len())?;
@@ -659,6 +665,7 @@ fn form_head(
         entry_depths,
         records,
         struct_plan,
+        storage,
         reference_plan,
         host_factories: Vec::new(),
         index_check: None,
@@ -953,6 +960,7 @@ fn form_head(
         entry_depths,
         records,
         struct_plan,
+        storage,
         reference_plan,
         hint_sites,
         property_sites,
@@ -963,6 +971,7 @@ fn form_head(
     drop(entry_depths);
     drop(records);
     drop(struct_plan);
+    drop(storage);
     drop(reference_plan);
     drop(private_fields);
     // Without pristine builtins the printer hints an integer intrinsic's
@@ -1135,6 +1144,7 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     records: Vec<RecordStorage<'program>>,
     // Target-boundary classification, allocated only for programs with structs.
     struct_plan: structs::Plan,
+    storage: super::physical_storage::StorageProofs,
     reference_plan: references::Plan,
     /// One hoisted `JS.methodN` adapter factory per calling convention.
     host_factories: Vec<(u8, js::BindingId)>,

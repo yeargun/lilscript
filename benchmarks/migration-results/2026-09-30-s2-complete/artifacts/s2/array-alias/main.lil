@@ -1,0 +1,1 @@
+extern int input();int[] state=[input(),2];int[] alias=state;auto step=()=>{alias[0]+=alias[1];return alias[0];};print(step());print(step());print(state[1]);

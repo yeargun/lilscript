@@ -1,0 +1,6 @@
+func(int)->int makeAdder(int base) {
+  return (int value) => base + value;
+}
+func(int)->int add = makeAdder(10);
+print(add(3));
+print(add(8));

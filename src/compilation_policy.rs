@@ -1848,9 +1848,9 @@ mod tests {
         let p = config("[policy.tactics]\nscalar-replacement='on'\ncall-specialization='on'")
             .resolve_policy(CompilationRequest::Native)
             .unwrap();
-        assert!(!p.tactic(TacticId::ScalarReplacement).enabled);
+        assert!(p.tactic(TacticId::ScalarReplacement).enabled);
         assert!(!p.tactic(TacticId::CallSpecialization).enabled);
-        assert_eq!(p.diagnostics().len(), 2);
+        assert_eq!(p.diagnostics().len(), 1);
         for tactic in TacticId::ALL {
             let spec = tactic.spec();
             assert_eq!(spec.id, tactic);

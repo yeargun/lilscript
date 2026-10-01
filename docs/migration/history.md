@@ -621,3 +621,41 @@ paired CPU study are deferred, not claimed as passed. Subsequent work uses
 substantial implementation batches and focused verification of meaningful
 correctness/size questions, without repeated full-library runs. This explicit
 instruction supersedes the earlier broad-test gate before opening S2.
+
+## 2026-10-01: S2 implementation complete — aggregate facts and physical ownership
+
+S1 was committed and pushed at `343a3af0`. S2 completes bounded allocation,
+alias, escape and field facts; fresh store collection; fixed-field forwarding;
+private lexical namespace flattening; scalar banks and record-alias
+normalization. Complete-use physical proofs permit direct updates of owned
+JavaScript value products and native final-use ownership transfers. Aliases,
+snapshots, capture activations, initializer order, declared storage types and
+record/nullable-element normalization are preserved. Unsupported identities
+and observations retain their representation.
+
+The existing `constant-folding`, `dead-code-elimination` and
+`scalar-replacement` permissions control their respective producers. Native
+scalar replacement is registered; invalidation, actual-change receipts and
+the TOML tradeoff reference are updated. Default effort remains 13. Captured
+native banks remain packed when splitting would add allocated boxes.
+
+The [retained S2 evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md)
+pins compiler `s2-complete-2`, source digest
+`96824f2595631cd25339d393b44e2324208638b620102ce6d5d30739dada5d6c`,
+and all source/configuration/oracle/output identities. Twenty-two final S2
+checks and 75 adjacent checks across implementation batches pass; three native
+C variants execute seven compiler/sanitizer profiles each. The final release
+build and generated reference check pass. Fifteen development programs at
+effort 13 pass all 90 old/new behavior observations and improve by
+**59 raw / 47 gzip / 33 Brotli bytes**, with no individual regression. Twelve
+existing cases retain their sizes; the improvements come from the added
+array-alias and namespace cases. The accepted ratchet baseline is unchanged.
+
+The finite [S2 contract](s2-acceptance.md) closes with explicit dependencies:
+S3/Q1 own the historical inline-parameter and waiting-argument costs, whose
+storage is created during call formation; Q1/S4 own replacing later
+scalar/namespace cleanup; Q2 owns frontend-wide accounting and scheduling;
+N2 owns native Record support. These items are not claimed fixed or discarded.
+No full library, port, ratchet or paired timing suite was rerun, and S1's broad
+verification remains deferred as directed. This sample makes no fleet,
+runtime-speed or Closure victory claim. S3 is next.

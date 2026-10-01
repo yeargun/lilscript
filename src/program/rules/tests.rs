@@ -11,6 +11,7 @@ const MODULE: RuleRequest = RuleRequest {
     fold: true,
     dead_code: true,
     inline: true,
+    scalar: false, native: false,
     pristine_builtins: false,
     seal: Seal::Module,
 };
@@ -18,6 +19,7 @@ const SCRIPT: RuleRequest = RuleRequest {
     fold: true,
     dead_code: true,
     inline: true,
+    scalar: false, native: false,
     pristine_builtins: false,
     seal: Seal::StructuralOnly,
 };

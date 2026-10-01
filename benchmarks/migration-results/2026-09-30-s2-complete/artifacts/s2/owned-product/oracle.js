@@ -1,0 +1,1 @@
+globalThis.input=()=>7;let state={point:{x:input(),y:2},z:3};for(let i=0;i<4;i++){if(i===2)state.point.x+=state.z;else state.point.y+=state.point.x;}console.log(state.point.x);console.log(state.point.y);

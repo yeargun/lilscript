@@ -1,0 +1,1 @@
+(()=>{let a={__proto__:null,href:42,title:43},c=a.href??0;a={__proto__:null,href:47,title:0};console.log(c+(a.href??0)|0);})();

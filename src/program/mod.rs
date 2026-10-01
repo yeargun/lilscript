@@ -14,6 +14,10 @@ mod artifacts;
 pub mod call_graph;
 mod callable_inputs;
 mod cell_ssa;
+mod aggregates;
+mod physical_storage;
+#[cfg(test)]
+mod physical_storage_tests;
 mod classes;
 mod dataflow;
 mod defaults;

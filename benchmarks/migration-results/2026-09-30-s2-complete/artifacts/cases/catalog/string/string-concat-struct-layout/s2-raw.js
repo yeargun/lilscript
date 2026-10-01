@@ -1,0 +1,1 @@
+(()=>{console.log("struct"+"-"+"layout");console.log(12);})();

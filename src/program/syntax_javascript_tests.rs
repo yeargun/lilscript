@@ -52,6 +52,7 @@ fn compile_program(source: &str, config: &str, plan: Plan, shared: bool) -> Stri
                     .tactic(crate::compilation_policy::TacticId::DeadCodeElimination)
                     .enabled,
                 inline: false,
+                scalar: false, native: false,
                 pristine_builtins: policy
                     .javascript_contract()
                     .unwrap()

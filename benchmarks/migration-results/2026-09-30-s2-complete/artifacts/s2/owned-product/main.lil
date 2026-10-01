@@ -1,0 +1,1 @@
+extern int input();struct P{int x;int y;}struct Box{P point;int z;}Box state=Box{P{input(),2},3};for(int i=0;i<4;i+=1){if(i==2){state.point.x+=state.z;}else{state.point.y+=state.point.x;}}print(state.point.x);print(state.point.y);

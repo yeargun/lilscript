@@ -1,6 +1,6 @@
 # S1 acceptance and implementation batch
 
-S1 implementation is complete; S2 is now the sole active milestone. S1 closes primitive value propagation,
+S1 implementation is complete; the [current checklist](index.md) owns the next milestone. S1 closes primitive value propagation,
 bounded constant execution, parameter/default transport and the dead work those
 facts expose. Existing S1 work is input to this milestone, not prior acceptance:
 the final source must satisfy this whole contract in one qualification.

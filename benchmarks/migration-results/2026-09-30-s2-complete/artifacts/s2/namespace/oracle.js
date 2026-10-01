@@ -1,0 +1,1 @@
+globalThis.input=()=>7;const ns={add:n=>n+1,scale:3};const use=n=>ns.add(n);console.log(use(input()));console.log(ns.scale);
