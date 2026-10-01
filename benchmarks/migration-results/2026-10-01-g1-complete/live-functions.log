@@ -1,0 +1,10 @@
+running 6 tests
+test js::naming::allocation_tests::g1_compact_order_tracks_printed_owners_not_binding_arena_order ... ok
+test program::artifact_provenance::tests::g1_retained_compact_order_keeps_search_permission_and_distinct_provenance ... ok
+test js::naming::allocation_tests::g1_compact_names_skip_dead_slots_and_keep_public_reflection_and_captures ... ok
+test js::naming::allocation_tests::g1_compact_names_preserve_direct_eval_and_import_bindings ... ok
+test js::naming::allocation_tests::g1_full_continuation_alphabet_is_unique_at_every_length_boundary ... ok
+test program::publication::search::terminal::tests::g1_compact_allocation_preserves_the_completed_search_and_delivers_its_score ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 1837 filtered out; finished in 14.31s
+

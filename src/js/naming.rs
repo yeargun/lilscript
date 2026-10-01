@@ -73,6 +73,9 @@ pub struct Plan {
     /// Allocate each non-root scope by its own static read counts. This is
     /// an exactly judged search alternative; declaration order stays the seed.
     pub local_read_order: bool,
+    /// Allocate only surviving bindings, in printed order, using all legal
+    /// continuation characters. The prior allocator remains an alternative.
+    pub compact_order: bool,
 }
 
 impl Plan {
@@ -89,6 +92,7 @@ impl Plan {
             self_named: raw,
             read_order: raw,
             local_read_order: false,
+            compact_order: false,
         }
     }
 
@@ -111,13 +115,16 @@ impl Plan {
         Ok(NamingProvenance {
             mangling: self.style != Style::Source
                 || self.alphabet != Alphabet::default()
-                || self.local_read_order,
+                || self.local_read_order
+                || self.compact_order,
             alphabet: self.alphabet != Alphabet::default(),
+            compact: self.compact_order,
             // The allocator's seed (`Scoped`) is not a search, at any level;
             // every other plan is one of the search's alternatives.
             search: self.style == Style::Global
                 || self.alphabet != Alphabet::default()
                 || self.local_read_order
+                || self.compact_order
                 || !self.source_names.is_empty()
                 || (self.style == Style::Source && eligibility.permits_search()),
         })
@@ -132,6 +139,7 @@ pub(crate) struct NamingProvenance {
     mangling: bool,
     search: bool,
     alphabet: bool,
+    compact: bool,
 }
 
 impl NamingProvenance {
@@ -163,6 +171,14 @@ impl NamingProvenance {
             tactic: TacticId::NamingAlphabet,
             risk: RuntimeRisk::Neutral,
         };
+        const COMPACT: TacticUse = TacticUse {
+            tactic: TacticId::NamingCompaction,
+            risk: RuntimeRisk::Neutral,
+        };
+        if self.compact {
+            return if self.alphabet { &[MANGLE, SEARCH, ALPHABET, COMPACT] }
+                else { &[MANGLE, SEARCH, COMPACT] };
+        }
         if self.alphabet {
             return &[MANGLE, SEARCH, ALPHABET];
         }
@@ -186,7 +202,7 @@ impl NamingProvenance {
 pub(super) enum Eligibility {
     SourceOnly,
     SeedOnly,
-    Search { alphabets: bool },
+    Search { alphabets: bool, compact: bool },
 }
 
 impl Eligibility {
@@ -201,11 +217,15 @@ impl Eligibility {
         } else {
             Self::Search {
                 alphabets: policy.tactic(TacticId::NamingAlphabet).enabled,
+                compact: policy.tactic(TacticId::NamingCompaction).enabled,
             }
         })
     }
 
     pub(super) fn check_in(self, plan: &Plan) -> Result<(), OutputError> {
+        if plan.compact_order && !matches!(self, Self::Search { compact: true, .. }) {
+            return Err("compact allocation requires effective naming-compaction permission".into());
+        }
         if plan.local_read_order && plan.style != Style::Scoped {
             return Err("local read ordering requires scoped naming".into());
         }
@@ -215,14 +235,16 @@ impl Eligibility {
                     && plan.source_names.is_empty()
                     && plan.alphabet == Alphabet::default()
                     && !plan.local_read_order
+                    && !plan.compact_order
             }
             Self::SeedOnly => {
                 plan.style == Style::Scoped
                     && plan.source_names.is_empty()
                     && plan.alphabet == Alphabet::default()
                     && !plan.local_read_order
+                    && !plan.compact_order
             }
-            Self::Search { alphabets } => alphabets || plan.alphabet == Alphabet::default(),
+            Self::Search { alphabets, .. } => alphabets || plan.alphabet == Alphabet::default(),
         };
         if permitted {
             Ok(())
@@ -268,6 +290,8 @@ pub(super) struct Basis<'a> {
     preferences: Vec<(BindingId, FunctionId, &'a str)>,
     direct_eval: bool,
     scoped: OnceLock<Scoped>,
+    live: Vec<bool>,
+    compact: OnceLock<Compact<'a>>,
     source_candidates: OnceLock<Vec<BindingId>>,
 }
 
@@ -298,6 +322,8 @@ impl<'a> Basis<'a> {
             preferences: Vec::new(),
             direct_eval: false,
             scoped: OnceLock::new(),
+            live: budget.copy_slice(Retained, &structure.live_bindings)?,
+            compact: OnceLock::new(),
             source_candidates: OnceLock::new(),
         };
         basis.hosts.extend_from_slice(&["eval", "arguments"]);
@@ -604,6 +630,11 @@ impl<'a> Basis<'a> {
         } else {
             None
         };
+        let compact = if plan.compact_order {
+            Some(self.compact_in(budget)?)
+        } else {
+            None
+        };
         let mut required = budget.vector(Scratch, self.required.len())?;
         budget.extend_copy(Scratch, &mut required, &self.required)?;
         if self.direct_eval {
@@ -632,7 +663,7 @@ impl<'a> Basis<'a> {
             }
         }
         let (hosts, preferred_names) = if plan.self_named {
-            (&self.hosts_self, &self.preferred_self)
+            (compact.map_or(&self.hosts_self, |c| &c.hosts_self), &self.preferred_self)
         } else {
             (&self.hosts, &self.preferred)
         };
@@ -642,9 +673,11 @@ impl<'a> Basis<'a> {
             .ok_or(AllocationError::Capacity)?;
         let mut reserved = budget.vector(Scratch, count)?;
         budget.extend_copy(Scratch, &mut reserved, hosts)?;
-        for name in required.iter().flatten() {
+        for (id, name) in required.iter().enumerate() {
             budget.work(WorkKind::Render, 1)?;
-            reserved.push(*name);
+            if !plan.compact_order || self.live[id] {
+                if let Some(name) = name { reserved.push(*name); }
+            }
         }
         budget.work(WorkKind::Render, reserved.len() as u64)?;
         let longest = reserved.iter().map(|name| name.len()).max().unwrap_or(0);
@@ -719,22 +752,9 @@ impl<'a> Basis<'a> {
                 budget.string(Scratch, name)?
             } else {
                 loop {
-                    // Fixed stack storage covers every digit of a usize even
-                    // in base two; this encoder uses the existing base54 order.
                     let mut bytes = [0u8; usize::BITS as usize];
-                    let mut index = next;
+                    let length = encode_name(next, plan.alphabet, plan.compact_order, &mut bytes);
                     next = next.checked_add(1).ok_or(AllocationError::Capacity)?;
-                    let alphabet = &plan.alphabet.0;
-                    let mut length = 0;
-                    loop {
-                        bytes[length] = alphabet[index % alphabet.len()];
-                        length += 1;
-                        index /= alphabet.len();
-                        if index == 0 {
-                            break;
-                        }
-                        index -= 1;
-                    }
                     let candidate =
                         std::str::from_utf8(&bytes[..length]).expect("ASCII name alphabet");
                     budget.work(WorkKind::Render, length as u64)?;
@@ -778,13 +798,21 @@ impl<'a> Basis<'a> {
             Ok(())
         };
         if let Some(scoped) = scoped {
-            for (index, &symbol) in scoped.order.iter().enumerate() {
-                let by_reads = if module.bindings[symbol.index()].scope == scoped.root {
+            let (order, by_reads) = compact.map_or(
+                (&scoped.order, &scoped.by_reads),
+                |compact| (&compact.scoped, &compact.by_reads),
+            );
+            for (index, &symbol) in order.iter().enumerate() {
+                let frequency = if module.bindings[symbol.index()].scope == scoped.root {
                     plan.read_order
                 } else {
                     plan.local_read_order
                 };
-                allocate(if by_reads { scoped.by_reads[index] } else { symbol })?;
+                allocate(if frequency { by_reads[index] } else { symbol })?;
+            }
+        } else if let Some(compact) = compact {
+            for &symbol in &compact.printed {
+                allocate(symbol)?;
             }
         } else {
             for id in 0..module.bindings.len() {
@@ -985,3 +1013,23 @@ impl Names {
 #[cfg(test)]
 #[path = "naming_allocation_tests.rs"]
 mod allocation_tests;
+
+/// Bijective shortlex lengths with a 54-character initial alphabet and, in
+/// the compact alternative, 64 continuation characters. Little-endian order
+/// preserves the existing first two alphabetic positions.
+fn encode_name(mut index: usize, alphabet: Alphabet, compact: bool, bytes: &mut [u8]) -> usize {
+    let mut length = 0;
+    loop {
+        let radix = if compact && length != 0 { 64 } else { 54 };
+        let digit = index % radix;
+        bytes[length] = if digit < 54 { alphabet.0[digit] } else { b'0' + (digit - 54) as u8 };
+        length += 1;
+        index /= radix;
+        if index == 0 { return length; }
+        index -= 1;
+    }
+}
+
+#[path = "naming_order.rs"]
+mod order;
+use order::Compact;

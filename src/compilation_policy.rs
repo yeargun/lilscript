@@ -28,7 +28,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version9 resolves independent objective searches with shared baseline admission.
 // Version8 reuses admitted statement mention facts during target forwarding.
 // Version7 jointly identifies private-field and integer-hint formation heads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 15;
+// Version16 admits live printed-order allocation and delivered-raw tie breaks.
+pub const POLICY_ALGORITHM_VERSION: u32 = 16;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -48,7 +49,8 @@ pub const POLICY_ALGORITHM_VERSION: u32 = 15;
 // Version28 admits deferred naming starts after protecting the completed walk.
 // Version29 gates deferred naming at 14 by default and combines it with final refinements.
 // Version30 adds common per-site moves and a protected, configurable joint tail.
-pub const SEARCH_SCHEDULE_VERSION: u32 = 30;
+// Version31 protects the prior search before compact allocation.
+pub const SEARCH_SCHEDULE_VERSION: u32 = 31;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationRequest {
@@ -465,7 +467,8 @@ pub struct OptimizationObjective {
 /// changed schedule.
 // Version 8 gates deferred seeds at 14 by default and adds naming/field refinements.
 // Version 9 offers all legal site alternatives and extra joint moves from effort 14.
-pub const WALK_SCHEDULE_VERSION: u32 = 9;
+// Version10 refines live allocation after the completed naming tails.
+pub const WALK_SCHEDULE_VERSION: u32 = 10;
 
 /// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
 /// plan M3.5): budgets are counts (AM1), never the clock.

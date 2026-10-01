@@ -1,0 +1,42 @@
+[
+  {
+    "functions": 1,
+    "status": 0,
+    "message": ""
+  },
+  {
+    "functions": 2,
+    "status": 0,
+    "message": ""
+  },
+  {
+    "functions": 4,
+    "status": 0,
+    "message": ""
+  },
+  {
+    "functions": 8,
+    "status": 0,
+    "message": ""
+  },
+  {
+    "functions": 16,
+    "status": 0,
+    "message": ""
+  },
+  {
+    "functions": 32,
+    "status": 0,
+    "message": ""
+  },
+  {
+    "functions": 64,
+    "status": 0,
+    "message": ""
+  },
+  {
+    "functions": 128,
+    "status": 1,
+    "message": "lilscript: program rules left an invalid program: semantic operation type mismatch: IntBinary(Add)\nerror: unsupported source: program rules"
+  }
+]

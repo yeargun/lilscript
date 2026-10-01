@@ -273,6 +273,7 @@ impl ArtifactProvenance {
                 self_named: naming.self_named,
                 read_order: naming.read_order,
                 local_read_order: naming.local_read_order,
+            compact_order: naming.compact_order,
             },
             naming_origin,
             output,
@@ -326,17 +327,19 @@ impl ArtifactProvenance {
         if length != Ordering::Equal {
             return Ok(length);
         }
-        budget.work(WorkKind::Analysis, 57)?;
+        budget.work(WorkKind::Analysis, 58)?;
         let spelling = (
             self.naming.self_named,
             self.naming.read_order,
             self.naming.local_read_order,
+            self.naming.compact_order,
             self.naming.alphabet,
         )
             .cmp(&(
                 other.naming.self_named,
                 other.naming.read_order,
                 other.naming.local_read_order,
+                other.naming.compact_order,
                 other.naming.alphabet,
             ));
         if spelling != Ordering::Equal {
@@ -435,7 +438,7 @@ mod tests {
     }
     fn enabled() -> ResolvedPolicy {
         policy(
-            "[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\nscalar-replacement='on'\ndead-code-elimination='on'\ntarget-compaction='on'",
+            "[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\nnaming-compaction='on'\nscalar-replacement='on'\ndead-code-elimination='on'\ntarget-compaction='on'",
         )
     }
 
@@ -489,6 +492,27 @@ mod tests {
         assert!(local.tactics().iter().any(|usage| usage.tactic == TacticId::NamingSearch));
         assert_eq!(plain.compare_output(&local, &mut AllocationBudget::new(None)).unwrap(), Ordering::Less);
         for setting in ["identifier-mangling", "naming-search"] {
+            let disabled = policy(&format!("[policy.tactics]\n{setting}='off'"));
+            assert!(admit(&local, &disabled, &mut ledger).is_err());
+        }
+        for evidence in [plain, local] {
+            evidence.discard(owner, &mut ledger).unwrap();
+        }
+        assert_eq!(ledger.retained_bytes(), 0);
+    }
+    #[test]
+    fn g1_retained_compact_order_keeps_search_permission_and_distinct_provenance() {
+        let resolved = enabled();
+        let owner = RevisionId::fresh();
+        let mut ledger = ledger(WORK, MEMORY);
+        let mut plan = Plan::new(Style::Scoped);
+        let plain = build(owner, &mut ledger, WorkDomain::Optional, &resolved, &plan, &[], NO_OUTPUT);
+        plan.compact_order = true;
+        let local = build(owner, &mut ledger, WorkDomain::Optional, &resolved, &plan, &[], NO_OUTPUT);
+        assert!(local.naming().compact_order);
+        assert!(local.tactics().iter().any(|usage| usage.tactic == TacticId::NamingSearch));
+        assert_eq!(plain.compare_output(&local, &mut AllocationBudget::new(None)).unwrap(), Ordering::Less);
+        for setting in ["identifier-mangling", "naming-search", "naming-compaction"] {
             let disabled = policy(&format!("[policy.tactics]\n{setting}='off'"));
             assert!(admit(&local, &disabled, &mut ledger).is_err());
         }
@@ -668,6 +692,7 @@ mod tests {
             self_named: false,
             read_order: false,
             local_read_order: false,
+            compact_order: false,
         };
         let first = build(
             owner,
@@ -1030,6 +1055,7 @@ mod tests {
             self_named: false,
             read_order: false,
             local_read_order: false,
+            compact_order: false,
         };
         for domain in [WorkDomain::Baseline, WorkDomain::Optional] {
             let mut ledger = ledger(WORK, MEMORY);

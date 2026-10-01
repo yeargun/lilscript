@@ -1,0 +1,5 @@
+Record<int> node = record{href: 42, title: 43};
+int saved = node.href ?? 0;
+func()->void rebind = () => { node = record{href: 47, title: 0}; };
+rebind();
+print(saved + (node.href ?? 0));

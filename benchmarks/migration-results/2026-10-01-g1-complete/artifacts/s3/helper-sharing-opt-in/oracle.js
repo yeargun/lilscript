@@ -1,0 +1,1 @@
+globalThis.input=()=>3;const a=x=>x*x+x*3+17,b=n=>n*n+n*3+29;const n=input();console.log(a(n));console.log(b(n+1));console.log(a(n+2));console.log(b(n+3));

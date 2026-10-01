@@ -6,7 +6,7 @@ use crate::compilation_policy::{
 use crate::output_budget::RetainedCharge;
 
 fn policy() -> ResolvedPolicy {
-    crate::config::ProjectConfig::default()
+    toml::from_str::<crate::config::ProjectConfig>("[policy.tactics]\nnaming-compaction='on'").unwrap()
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,
         })
@@ -144,6 +144,14 @@ fn local_read_order_shortens_hot_locals_without_capturing_or_renaming_other_scop
     assert!(after.get(hot).len() < before.get(hot).len());
     for unchanged in [BindingId::new(0), BindingId::new(1), sibling, sibling_local] {
         assert_eq!(before.get(unchanged), after.get(unchanged));
+    }
+    let compact_seed = Plan { compact_order: true, ..original.clone() };
+    let compact_frequency = Plan { compact_order: true, ..local.clone() };
+    let first = basis.names_in(&compact_seed, &mut budget).unwrap();
+    let second = basis.names_in(&compact_frequency, &mut budget).unwrap();
+    assert!(second.get(hot).len() < first.get(hot).len());
+    for unchanged in [BindingId::new(0), BindingId::new(1), sibling, sibling_local] {
+        assert_eq!(first.get(unchanged), second.get(unchanged));
     }
     let resolved = policy();
     let output = module.prepare_output_with_policy(&resolved).unwrap();
@@ -517,4 +525,118 @@ fn large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation() 
         drop(structure);
     }
     assert_eq!(ledger.retained_bytes(), 0);
+}
+
+#[test]
+fn g1_compact_names_skip_dead_slots_and_keep_public_reflection_and_captures() {
+    let mut module = fixture();
+    let scope = module.regions[module.functions[0].body.index()].scope;
+    // Allocate holes before the late live declaration; dead pins must not
+    // reserve its one-character spelling either.
+    for n in 0..80 {
+        module.binding(Binding { source_symbol: None, scope, spelling: if n == 0 { "b".into() } else { format!("dead{n}") }, pinned: n == 0, class: None, defined: false });
+    }
+    let live = module.binding(Binding { source_symbol: None, scope, spelling: "lateLive".into(), pinned: false, class: None, defined: false });
+    let initial = module.expression(Expr::Literal(Literal::Number(5.0)), None);
+    let read = module.expression(Expr::Binding(live), None);
+    let state = module.expression(Expr::Binding(BindingId::new(0)), None);
+    let sum = module.expression(Expr::Binary { op: Binary::Add, left: state, right: read }, None);
+    let body = module.functions[0].body;
+    module.regions[body.index()].statements = vec![Statement::Let { binding: live, value: Some(initial) }, Statement::Return(Some(sum))];
+    let dead_body = module.region(ScopeId::new(0));
+    module.functions.push(Function { parameters: vec![], body: dead_body, arrow: false,
+        name: FunctionName::Exact("a".into()), strict: false, length: None, suspension: Suspension::None });
+    let mut budget = AllocationBudget::new(None);
+    let verified = verify::verify_in(&module, &mut budget).unwrap();
+    let basis = Basis::new_in(&module, &verified, &mut budget).unwrap();
+    let legacy = Plan { self_named: true, ..Plan::new(Style::Scoped) };
+    let compact = Plan { compact_order: true, ..legacy.clone() };
+    let old = basis.names_in(&legacy, &mut budget).unwrap();
+    let new = basis.names_in(&compact, &mut budget).unwrap();
+    assert!(old.get(live).len() > new.get(live).len());
+    assert_eq!(new.get(BindingId::new(0)), "a");
+    assert_eq!(new.get(module.functions[0].parameters[0]), "b");
+    assert_ne!(new.get(BindingId::new(0)), new.get(live));
+    let code = module.prepare_output_with_policy(&policy()).unwrap().render(&compact).unwrap();
+    let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));console.log(m.read(0),m.read.name,m.read.length);", serde_json::to_string(&code).unwrap());
+    let actual = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+    assert!(actual.status.success(), "{}", String::from_utf8_lossy(&actual.stderr));
+    assert_eq!(actual.stdout, b"12 readState 1\n");
+    for setting in ["identifier-mangling", "naming-search", "naming-compaction"] {
+        let config: crate::config::ProjectConfig = toml::from_str(&format!("[policy.tactics]\n{setting}='off'")).unwrap();
+        let off = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+        assert!(module.prepare_output_with_policy(&off).unwrap().render(&compact).is_err());
+    }
+    let config: crate::config::ProjectConfig = toml::from_str("[policy.tactics]\nnaming-alphabet='off'\nnaming-compaction='on'").unwrap();
+    let off = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+    assert_eq!(module.prepare_output_with_policy(&off).unwrap().render(&compact).unwrap(), code);
+}
+
+#[test]
+fn g1_compact_order_tracks_printed_owners_not_binding_arena_order() {
+    let mut module = fixture();
+    // Both root bindings are unobserved, so printed order has a visible effect.
+    module.functions[0].name = FunctionName::Unobserved;
+    module.regions[0].statements.swap(0, 1);
+    let mut budget = AllocationBudget::new(None);
+    let structure = verify::verify_in(&module, &mut budget).unwrap();
+    let basis = Basis::new_in(&module, &structure, &mut budget).unwrap();
+    let plan = Plan { compact_order: true, ..Plan::new(Style::Scoped) };
+    let names = basis.names_in(&plan, &mut budget).unwrap();
+    assert_eq!(names.get(BindingId::new(1)), "a");
+    assert_eq!(names.get(BindingId::new(0)), "b");
+    assert_eq!(names.get(BindingId::new(2)), "a"); // reuses the noncaptured root name
+    assert_eq!(basis.compact_in(&mut budget).unwrap().printed, [BindingId::new(1), BindingId::new(2), BindingId::new(0)]);
+}
+
+#[test]
+fn g1_full_continuation_alphabet_is_unique_at_every_length_boundary() {
+    let mut seen = std::collections::HashSet::new();
+    for index in 0..(54 + 54 * 64 + 54 * 64 * 64) {
+        let mut bytes = [0; usize::BITS as usize];
+        let len = encode_name(index, Alphabet::default(), true, &mut bytes);
+        let name = std::str::from_utf8(&bytes[..len]).unwrap().to_owned();
+        assert!(!name.as_bytes()[0].is_ascii_digit());
+        assert_eq!(len, if index < 54 { 1 } else if index < 54 + 54 * 64 { 2 } else { 3 });
+        assert!(seen.insert(name));
+    }
+    assert!(seen.contains("a0") && seen.contains("_9"));
+    let mut bytes = [0; usize::BITS as usize];
+    let len = encode_name(usize::MAX, Alphabet::default(), true, &mut bytes);
+    assert!(len <= bytes.len());
+}
+
+#[test]
+fn g1_compact_names_preserve_direct_eval_and_import_bindings() {
+    for eval in [false, true] {
+        let mut module = fixture();
+        let body = module.functions[0].body;
+        let returned = if eval {
+            let callee = module.expression(Expr::Host("eval".into()), None);
+            let code = module.expression(Expr::Literal(Literal::String("retainedState+unusedInput".into())), None);
+            module.expression(Expr::Call { callee, arguments: vec![code], invocation: Invocation::DirectEval }, None)
+        } else {
+            let imported = module.binding(Binding { source_symbol: None, scope: ScopeId::new(0), spelling: "importedValue".into(), pinned: false, class: None, defined: false });
+            module.imports.push(Import { source: "data:text/javascript,export const publicAmount=12".into(), imported: "publicAmount".into(), binding: imported });
+            module.expression(Expr::Binding(imported), None)
+        };
+        module.regions[body.index()].statements = vec![Statement::Return(Some(returned))];
+        let plan = Plan { compact_order: true, ..Plan::new(Style::Scoped) };
+        let code = module.prepare_output_with_policy(&policy()).unwrap().render(&plan).unwrap();
+        let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));console.log(m.read(5));", serde_json::to_string(&code).unwrap());
+        let actual = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+        assert!(actual.status.success(), "{code}: {}", String::from_utf8_lossy(&actual.stderr));
+        assert_eq!(actual.stdout, b"12\n");
+    }
+}
+
+#[test]
+fn g1_compact_permission_starts_at_fourteen_and_accepts_an_explicit_thirteen_override() {
+    for (level, mode, expected) in [(13,"auto",false),(14,"auto",true),(13,"on",true),(15,"off",false)] {
+        let config: crate::config::ProjectConfig = toml::from_str(&format!("effort.level={level}\n[policy.tactics]\nnaming-compaction='{mode}'")).unwrap();
+        let resolved = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+        assert_eq!(crate::representation::ChoiceFamily::NameAllocation.spec().enabled(&resolved), expected);
+        let plan = Plan { compact_order: true, ..Plan::new(Style::Scoped) };
+        assert_eq!(plan.check_policy(&resolved).is_ok(), expected);
+    }
 }

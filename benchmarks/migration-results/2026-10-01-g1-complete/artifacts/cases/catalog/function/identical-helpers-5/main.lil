@@ -1,0 +1,8 @@
+int doubleA(int value) {
+  return value + value;
+}
+int doubleB(int value) {
+  return value + value;
+}
+print(doubleA(5));
+print(doubleB(8));

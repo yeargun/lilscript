@@ -720,3 +720,28 @@ no timing claim or full-library/fleet rerun. An older uphill-naming test was
 already stale on pinned S3; an inlining veto restores its intended independent
 naming witness. All corrected checks pass. Final source/compiler identities,
 config reference and exact artifacts are retained; ratchet and ports are unchanged.
+
+## 2026-10-01: G1 lexical allocation and delivered-byte ties complete
+
+G1 completes its [contract](g1-acceptance.md): a verifier-backed live allocator,
+printed/frequency orders, complete continuation alphabet, common family identity,
+retained permissions and raw-byte ties after the exact primary objective. The
+old allocator remains an eligible prior. `naming-compaction` is independently
+controlled, automatic at 14 and explicitly available at 13; no effort grants
+runtime risk. The docs explain the situation and tradeoffs.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-g1-complete/README.md)
+pins `g1-complete-2` (`26a73739890c11d9534873969cba6c4a18fbf52e36d91d8f724bdacb89137b0c`),
+algorithm 16 / search 31 / walk 10, and records 39 distinct passing focused checks.
+All objective sizes are unchanged on 18 small configurations and a medium C3
+training module. All 108 small executions and 48 medium input observations pass.
+Candidate 1's extra default-13 trials found no bytes; this justified gating that
+strategy at 14. Final small-cohort judgments are 416 → 422, versus 437 in candidate
+1. Medium work is unchanged. No CPU/fleet/Closure gain is asserted. S3's local
+captured-activation +2 Brotli remains unrecovered negative evidence.
+
+An unrelated source-rule refusal on C3 `records-128` reproduces in both Q1 and
+G1, before naming; its 64-helper prefix passes while 128 fails. Reproduction is
+retained and S4 explicitly owns the fact/type transport fix. No passing result is
+claimed for that module. G2 is next; broad/native/final qualification remains
+with its owning milestones. No full-library rerun or ratchet update was made.

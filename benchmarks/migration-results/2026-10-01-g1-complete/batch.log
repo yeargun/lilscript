@@ -1,0 +1,51 @@
+running 37 tests
+test js::naming::allocation_tests::name_index_checks_exact_scope_and_name_even_in_a_collision_cluster ... ok
+test js::naming::allocation_tests::g1_compact_order_tracks_printed_owners_not_binding_arena_order ... ok
+test js::naming::allocation_tests::installed_lazy_caches_survive_failed_prints_and_release_with_output ... ok
+test js::naming::allocation_tests::preparation_exhaustion_and_invalid_target_release_every_partial_buffer ... ok
+test js::naming::allocation_tests::partial_lazy_cache_admission_failure_does_not_install_or_leak_it ... ok
+test js::naming::allocation_tests::prepared_output_matches_all_inspection_styles_and_transfers_only_artifact_capacity ... ok
+test js::output_policy_tests::enabled_search_renders_every_style_and_prepared_permissions_do_not_change ... ok
+test js::naming::allocation_tests::local_read_order_shortens_hot_locals_without_capturing_or_renaming_other_scopes ... ok
+test js::output_policy_tests::naming_search_off_keeps_the_allocators_seed_and_rejects_manual_overrides ... ok
+test js::output_policy_tests::policy_free_research_output_stays_explicit_and_native_policy_is_rejected ... ok
+test js::naming::allocation_tests::g1_compact_names_skip_dead_slots_and_keep_public_reflection_and_captures ... ok
+test js::output_policy_tests::target_edition_backstop_checks_reachable_optional_catch_binding ... ok
+test js::output_policy_tests::target_edition_backstop_rejects_live_nullish_but_allows_unused_arena_nodes ... ok
+test program::artifact_provenance::tests::detached_plan_owns_original_domain_and_rejected_admission_releases_storage ... ok
+test program::artifact_provenance::tests::explicit_encoded_sites_cannot_bypass_a_disabled_encoding_rule ... ok
+test program::artifact_provenance::tests::full_plan_is_canonical_but_overrides_still_require_search ... ok
+test program::artifact_provenance::tests::g1_retained_compact_order_keeps_search_permission_and_distinct_provenance ... ok
+test js::naming::allocation_tests::g1_compact_names_preserve_direct_eval_and_import_bindings ... ok
+test program::artifact_provenance::tests::naming_records_actual_choices_and_revalidates_equal_cached_bytes ... ok
+test program::artifact_provenance::tests::level_16_grants_declared_startup_risk_and_a_tactic_override_still_wins ... ok
+test program::artifact_provenance::tests::q1_retained_site_risk_and_joint_permission_are_revalidated ... ok
+test js::naming::allocation_tests::large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation ... ok
+test js::output_policy_tests::identifier_mangling_off_restricts_render_to_source ... ok
+test program::artifact_provenance::tests::retained_alphabet_keeps_its_own_veto_and_parent_permissions ... ok
+test program::artifact_provenance::tests::retained_local_read_order_keeps_search_permission_and_distinct_provenance ... ok
+test program::artifact_provenance::tests::source_baseline_and_searched_source_keep_different_permission_dependencies ... ok
+test program::artifact_provenance::tests::structural_and_output_tactics_are_actual_and_not_lost_to_cost_reuse ... ok
+test program::artifact_provenance::tests::retained_target_rule_permissions_survive_score_reuse ... ok
+test program::artifact_provenance::tests::unknown_runtime_cost_remains_unknown_under_policy_constraints ... ok
+test program::artifact_provenance::tests::reconstruction_risks_survive_retention_and_cannot_replay_under_weaker_permissions ... ok
+test js::naming::allocation_tests::observed_alphabet_preserves_captures_public_names_and_each_permission_boundary ... ok
+test js::naming::allocation_tests::g1_full_continuation_alphabet_is_unique_at_every_length_boundary ... ok
+test js::private_calls::tests::q1_each_helper_can_choose_its_own_representation ... ok
+test program::publication::search::terminal::tests::deferred_naming::deferred_naming_protects_the_completed_prefix_and_recovers_an_uphill_start ... ok
+test program::publication::search::terminal::tests::private_properties_polish_protects_the_completed_search_and_replays ... ok
+
+thread 'program::publication::search::terminal::tests::local_read_order_polish_protects_the_completed_search_under_each_objective' (63367) panicked at src/program/search_terminal_tests.rs:242:13:
+assertion failed: trials[0].pass > prefix_passes
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test program::publication::search::terminal::tests::local_read_order_polish_protects_the_completed_search_under_each_objective ... FAILED
+test program::publication::search::terminal::tests::g1_compact_allocation_preserves_the_completed_search_and_delivers_its_score ... ok
+
+failures:
+
+failures:
+    program::publication::search::terminal::tests::local_read_order_polish_protects_the_completed_search_under_each_objective
+
+test result: FAILED. 36 passed; 1 failed; 0 ignored; 0 measured; 1806 filtered out; finished in 14.68s
+
+error: test failed, to rerun pass `--lib`

@@ -232,12 +232,11 @@ fn local_read_order_polish_protects_the_completed_search_under_each_objective() 
             assert_eq!(replay(stage), stage.after);
             let trials = stage.joint_trials.iter().filter(|trial| trial.name == "naming:local-read-order").collect::<Vec<_>>();
             assert_eq!(trials.len(), 1);
-            // The deferred tail now follows local polish. Compare against
-            // the completed prefix in the run without that polish, not its
-            // later deferred passes.
+            // Compare the completed prefix before later joint, deferred
+            // and compact-allocation stages in the counterfactual run.
             let original_stage = &original.report.objectives[0];
             let prefix_passes = original_stage.starts.iter()
-                .find(|start| start.name.starts_with("deferred-naming"))
+                .find(|start| start.name.starts_with("deferred-naming") || start.name == "compact-allocation" || start.name == "representation-joints")
                 .map_or(original_stage.passes, |start| start.pass - 1);
             assert!(trials[0].pass > prefix_passes);
             if source == geometry {
@@ -369,7 +368,8 @@ fn replay(stage: &TerminalObjective) -> usize {
         let mut incumbent = start;
         for pass in passes {
             for (delta, size) in kept(pass) {
-                assert!(delta < 0);
+                // Exact codec ties may reduce raw delivered bytes.
+                assert!(delta <= 0);
                 assert_eq!(size as i64, incumbent as i64 + delta);
                 incumbent = size;
             }
@@ -396,7 +396,7 @@ fn replay(stage: &TerminalObjective) -> usize {
         assert_eq!(start.size, Some(end), "{start:?}");
         assert_eq!(start.delta, Some(end as i64 - best as i64), "{start:?}");
         if start.outcome == ChallengerOutcome::Kept {
-            assert!(end < best);
+            assert!(end <= best);
             best = end;
         }
     }
@@ -558,4 +558,30 @@ fn dominance_refuses_a_smaller_sum_that_grows_one_row() {
     assert!(dominates(&[100, 90], &[100, 100]));
     // Plans of other entries never compare.
     assert!(!dominates(&[50], &[100, 100]));
+}
+
+#[test]
+fn g1_compact_allocation_preserves_the_completed_search_and_delivers_its_score() {
+    for (name, codec) in [("raw", Objective::Raw), ("gzip", Objective::Gzip), ("brotli", Objective::Brotli)] {
+        let policy = policy_with_search(name, 13, "[policy.tactics]\nnaming-compaction='on'");
+        let old = without_compact_allocation(|| search(&policy, Objectives::One(codec), true));
+        let new = search(&policy, Objectives::One(codec), true);
+        let before = &old.report.objectives[0];
+        let after = &new.report.objectives[0];
+        let a = serde_json::to_value(before).unwrap();
+        let b = serde_json::to_value(after).unwrap();
+        for field in ["starts", "trials", "choice_trials", "joint_trials", "stops"] {
+            let prefix = a[field].as_array().unwrap();
+            assert_eq!(&b[field].as_array().unwrap()[..prefix.len()], prefix, "{name}/{field}");
+        }
+        assert!(after.starts.iter().any(|s| s.name == "compact-allocation"));
+        assert!(after.after <= before.after);
+        assert_eq!(replay(after), after.after);
+        let (size, javascript) = new.winners[index(codec)].as_ref().unwrap();
+        assert_eq!(*size, after.after);
+        let model = match codec { Objective::Raw => crate::config::CompressionCostModel::Raw,
+            Objective::Gzip => crate::config::CompressionCostModel::Gzip,
+            Objective::Brotli => crate::config::CompressionCostModel::Brotli };
+        assert_eq!(crate::compression::measure(javascript.as_bytes(), model).unwrap(), *size);
+    }
 }

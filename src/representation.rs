@@ -25,12 +25,14 @@ pub enum ChoiceFamily {
     HelperSharing,
     ParameterizedHelpers,
     DataEncoding,
+    NameAllocation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
     SourceRecipe,
     TargetSite,
+    Naming,
 }
 
 /// Metadata shared by discovery, explicit assignments and replay admission.
@@ -49,6 +51,7 @@ impl FamilySpec {
     }
     pub fn producer(self) -> TacticProducer {
         match (self.stage, self.family) {
+            (Stage::Naming, _) => TacticProducer::Naming,
             (Stage::SourceRecipe, _) => TacticProducer::StructuralSearch,
             (_, ChoiceFamily::DataEncoding) => TacticProducer::JavaScriptFormation,
             _ => TacticProducer::OutputFamilies,
@@ -73,7 +76,7 @@ impl FamilySpec {
     }
 }
 impl ChoiceFamily {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::RecordLayout,
         Self::ProductLayout,
         Self::InlineBody,
@@ -85,6 +88,7 @@ impl ChoiceFamily {
         Self::HelperSharing,
         Self::ParameterizedHelpers,
         Self::DataEncoding,
+        Self::NameAllocation,
     ];
     pub const fn spec(self) -> FamilySpec {
         use ChoiceFamily as F;
@@ -129,6 +133,7 @@ impl ChoiceFamily {
                 RuntimeRisk::Recurring,
                 2,
             ),
+            F::NameAllocation => (Stage::Naming, T::NamingCompaction, RuntimeRisk::Neutral, 2),
             F::DataEncoding => (
                 Stage::TargetSite,
                 T::StartupReconstruction,

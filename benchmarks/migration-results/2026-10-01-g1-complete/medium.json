@@ -1,0 +1,429 @@
+{
+  "scope": "one frozen medium C3 training workload; records-128 is recorded separately as an existing compiler refusal; independent Python-generated oracles; no held-out tuning or CPU claim",
+  "format": "esm",
+  "effort": 13,
+  "manifest_sha256": "d45cf8843838a3f9158b32b413e70fcde0e6269239170251f4e57cce7d6bb845",
+  "compilers": {
+    "q1": {
+      "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript",
+      "sha256": "bd40f900d5219899f9e129146aedce011162e5d869aacff430b48ea8f19be7a4"
+    },
+    "g1": {
+      "path": "/home/azureuser/lilscript-work/bin/g1-complete-2/lilscript",
+      "sha256": "26a73739890c11d9534873969cba6c4a18fbf52e36d91d8f724bdacb89137b0c"
+    }
+  },
+  "totals": {
+    "raw": {
+      "before": 8763,
+      "after": 8763,
+      "delta": 0
+    },
+    "gzip": {
+      "before": 3986,
+      "after": 3986,
+      "delta": 0
+    },
+    "brotli": {
+      "before": 2743,
+      "after": 2743,
+      "delta": 0
+    }
+  },
+  "rows": [
+    {
+      "id": "arithmetic-128",
+      "split": "training",
+      "family": "arithmetic",
+      "entry": "arithmetic-128.lil",
+      "source_sha256": "a5b4038b7d686af83f91b62982ca69f1c6e82cd3911749000872327c5fee9305",
+      "source_bytes": 16914,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        1079136121,
+        -1362457763,
+        -1006213481,
+        1367031259,
+        519206428,
+        -451009660,
+        730649542,
+        -718334923
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning.",
+      "lanes": {
+        "raw": {
+          "config_sha256": "eebf3b8e2b61145f33cf07f1c0ee4c5f78ced95cae04e4d709c7eb5fd194d2f9",
+          "q1": {
+            "sha256": "af0f116b4de24fe6692103f3ed86033cb015cd3b84e486c2e600ace389c92f25",
+            "raw": 8763,
+            "gzip9": 3988,
+            "brotli11": 2746,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 88,
+              "judged": 4
+            },
+            "starts": [
+              {
+                "name": "level-0",
+                "pass": 1,
+                "outcome": "kept",
+                "start": 8822,
+                "size": 8815,
+                "delta": -7,
+                "proxy": null
+              },
+              {
+                "name": "naming:Global",
+                "pass": 3,
+                "outcome": "pruned",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": 2
+              },
+              {
+                "name": "naming:Source",
+                "pass": 3,
+                "outcome": "pruned",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": 1797
+              },
+              {
+                "name": "local-naming",
+                "pass": 3,
+                "outcome": "kept",
+                "start": 8815,
+                "size": 8763,
+                "delta": -52,
+                "proxy": null
+              }
+            ],
+            "allocation": []
+          },
+          "g1": {
+            "sha256": "af0f116b4de24fe6692103f3ed86033cb015cd3b84e486c2e600ace389c92f25",
+            "raw": 8763,
+            "gzip9": 3988,
+            "brotli11": 2746,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 88,
+              "judged": 4
+            },
+            "starts": [
+              {
+                "name": "level-0",
+                "pass": 1,
+                "outcome": "kept",
+                "start": 8822,
+                "size": 8815,
+                "delta": -7,
+                "proxy": null
+              },
+              {
+                "name": "naming:Global",
+                "pass": 3,
+                "outcome": "pruned",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": 2
+              },
+              {
+                "name": "naming:Source",
+                "pass": 3,
+                "outcome": "pruned",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": 1797
+              },
+              {
+                "name": "local-naming",
+                "pass": 3,
+                "outcome": "kept",
+                "start": 8815,
+                "size": 8763,
+                "delta": -52,
+                "proxy": null
+              }
+            ],
+            "allocation": []
+          }
+        },
+        "gzip": {
+          "config_sha256": "9debd572defe32bb1527344cafb9ca5519f1bfefbc898bd8df9d93f7f4922738",
+          "q1": {
+            "sha256": "f76d951bbb8d7d3098e34a83a6d6db91a4d2846826a8d703d3f3bbb435bbbb5f",
+            "raw": 8815,
+            "gzip9": 3986,
+            "brotli11": 2790,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 4
+            },
+            "starts": [
+              {
+                "name": "search",
+                "pass": 1,
+                "outcome": "kept",
+                "start": 3987,
+                "size": 3986,
+                "delta": -1,
+                "proxy": null
+              },
+              {
+                "name": "level-0",
+                "pass": 3,
+                "outcome": "rejected",
+                "start": 3987,
+                "size": 3986,
+                "delta": 0,
+                "proxy": null
+              },
+              {
+                "name": "naming:Global",
+                "pass": 5,
+                "outcome": "identical",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": null
+              },
+              {
+                "name": "naming:Source",
+                "pass": 5,
+                "outcome": "pruned",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": 147
+              },
+              {
+                "name": "local-naming",
+                "pass": 5,
+                "outcome": "identical",
+                "start": 3986,
+                "size": 3986,
+                "delta": 0,
+                "proxy": null
+              }
+            ],
+            "allocation": []
+          },
+          "g1": {
+            "sha256": "f76d951bbb8d7d3098e34a83a6d6db91a4d2846826a8d703d3f3bbb435bbbb5f",
+            "raw": 8815,
+            "gzip9": 3986,
+            "brotli11": 2790,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 4
+            },
+            "starts": [
+              {
+                "name": "search",
+                "pass": 1,
+                "outcome": "kept",
+                "start": 3987,
+                "size": 3986,
+                "delta": -1,
+                "proxy": null
+              },
+              {
+                "name": "level-0",
+                "pass": 3,
+                "outcome": "rejected",
+                "start": 3987,
+                "size": 3986,
+                "delta": 0,
+                "proxy": null
+              },
+              {
+                "name": "naming:Global",
+                "pass": 5,
+                "outcome": "identical",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": null
+              },
+              {
+                "name": "naming:Source",
+                "pass": 5,
+                "outcome": "pruned",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": 147
+              },
+              {
+                "name": "local-naming",
+                "pass": 5,
+                "outcome": "identical",
+                "start": 3986,
+                "size": 3986,
+                "delta": 0,
+                "proxy": null
+              }
+            ],
+            "allocation": []
+          }
+        },
+        "brotli": {
+          "config_sha256": "b7ebb3bb0cfafdcb8307a97037a59e9a46d54f7189c3e713da6704ebf8a0b1b9",
+          "q1": {
+            "sha256": "47f04e3f357aa7ecaf7a232f1f2224d3d03369589213f9ada94e1d9121c33154",
+            "raw": 8770,
+            "gzip9": 3992,
+            "brotli11": 2743,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 172,
+              "judged": 17
+            },
+            "starts": [
+              {
+                "name": "search",
+                "pass": 1,
+                "outcome": "identical",
+                "start": 2782,
+                "size": 2782,
+                "delta": 0,
+                "proxy": null
+              },
+              {
+                "name": "level-0",
+                "pass": 2,
+                "outcome": "rejected",
+                "start": 2782,
+                "size": 2782,
+                "delta": 0,
+                "proxy": null
+              },
+              {
+                "name": "naming:Global",
+                "pass": 3,
+                "outcome": "identical",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": null
+              },
+              {
+                "name": "naming:Source",
+                "pass": 3,
+                "outcome": "rejected",
+                "start": 2894,
+                "size": 2782,
+                "delta": 0,
+                "proxy": 109
+              },
+              {
+                "name": "local-naming",
+                "pass": 5,
+                "outcome": "kept",
+                "start": 2782,
+                "size": 2743,
+                "delta": -39,
+                "proxy": null
+              }
+            ],
+            "allocation": []
+          },
+          "g1": {
+            "sha256": "47f04e3f357aa7ecaf7a232f1f2224d3d03369589213f9ada94e1d9121c33154",
+            "raw": 8770,
+            "gzip9": 3992,
+            "brotli11": 2743,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 172,
+              "judged": 17
+            },
+            "starts": [
+              {
+                "name": "search",
+                "pass": 1,
+                "outcome": "identical",
+                "start": 2782,
+                "size": 2782,
+                "delta": 0,
+                "proxy": null
+              },
+              {
+                "name": "level-0",
+                "pass": 2,
+                "outcome": "rejected",
+                "start": 2782,
+                "size": 2782,
+                "delta": 0,
+                "proxy": null
+              },
+              {
+                "name": "naming:Global",
+                "pass": 3,
+                "outcome": "identical",
+                "start": null,
+                "size": null,
+                "delta": null,
+                "proxy": null
+              },
+              {
+                "name": "naming:Source",
+                "pass": 3,
+                "outcome": "rejected",
+                "start": 2894,
+                "size": 2782,
+                "delta": 0,
+                "proxy": 109
+              },
+              {
+                "name": "local-naming",
+                "pass": 5,
+                "outcome": "kept",
+                "start": 2782,
+                "size": 2743,
+                "delta": -39,
+                "proxy": null
+              }
+            ],
+            "allocation": []
+          }
+        }
+      }
+    }
+  ]
+}

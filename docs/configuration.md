@@ -673,6 +673,25 @@ admission. The explanation records the delivered `local_read_order`; permitting
 the trial does not force it. Scope interference, required public names and host
 identifiers constrain both orders.
 
+Policy algorithm 16 / walk schedule 10 add `naming-compaction`, a final
+compact-allocation trial. Its `auto` gate is effort 14; explicit `on` enables
+it at 13. The initial small and medium qualification cohorts found no byte
+savings from the additional work, so default effort 13 keeps it disabled. It uses the verifier's surviving bindings, their printed
+first-occurrence order and all legal identifier continuation characters (digits
+never start a name). Removed bindings no longer consume short names. Scope
+reuse and the independent root/local frequency choices remain available. This
+is useful after inlining and dead-code removal leave holes in the binding arena;
+compressed benefit is measured, not inferred from shorter identifiers.
+
+The trial follows the completed search and retains its winner. It can add a
+render and exact codec judgment, plus refinements if it wins, without adding
+runtime work. `naming-compaction`, `naming-search` and `identifier-mangling`
+control it in rendering, search and replay; `naming-alphabet` independently controls reordered alphabets.
+The receipt records `compact_order`. Equal exact-objective scores prefer fewer
+complete delivered raw bytes, then stable identities. No rename runs after
+selection. The allocation does not change public/host spellings, reflection,
+direct eval constraints or capture interference.
+
 Several older keys set a tactic's permission. An explicit `true` is `on` and an
 explicit `false` is `off`; a `[policy.tactics]` value that contradicts one is an
 error. Contradictions between explicit legacy aliases also fail, including

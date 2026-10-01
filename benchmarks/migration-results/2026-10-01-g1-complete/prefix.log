@@ -1,0 +1,5 @@
+running 1 test
+test program::publication::search::terminal::tests::local_read_order_polish_protects_the_completed_search_under_each_objective ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1842 filtered out; finished in 47.50s
+

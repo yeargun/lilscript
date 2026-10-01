@@ -30,14 +30,15 @@ fn compile_mode(codec: &str, level: u8, deferred: &str, extra: &str) -> ServiceC
         "objective.codecs='{codec}'\neffort.level={level}\n[target.javascript]\nformat='bare'\n[policy.search]\n{deferred}{extra}"
     ))
     .unwrap();
-    compile_source(
+    // Isolate deferred-start scheduling; G1 tests its subsequent allocation tail.
+    super::without_compact_allocation(|| compile_source(
         DISPATCH,
         &config,
         ServiceOptions {
             preserve_root_exports: false,
             ..ServiceOptions::default()
         },
-    )
+    ))
     .unwrap()
 }
 
@@ -242,7 +243,7 @@ fn deferred_naming_combines_private_fields_and_local_names_with_real_toml_vetoes
                 "objective.codecs='{name}'\neffort.level=14\n[policy.search]\ndeferred_naming_starts={starts}\ndeferred_naming_polish={polish}\n[policy.tactics]\nscalar-replacement='off'\ninlining='off'\n{extra}"
             ))
             .unwrap();
-            compile_source(source, &config, ServiceOptions::default()).unwrap()
+            super::without_compact_allocation(|| compile_source(source, &config, ServiceOptions::default())).unwrap()
         };
         let protected = compile(false, false, "");
         let ordinary = compile(true, false, "");

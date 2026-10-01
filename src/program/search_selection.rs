@@ -364,6 +364,11 @@ impl Portfolio {
                 .compare_evidence(cost, previous, base)?
                 .ok_or(CandidateError::NotJavaScript)?;
             if order == Ordering::Equal {
+                // Complete rendered bytes settle an exact-objective tie before
+                // internal recipe or naming identities.
+                order = entry.raw.cmp(&incumbent.raw);
+            }
+            if order == Ordering::Equal {
                 order = states[state]
                     .as_ref()
                     .unwrap()

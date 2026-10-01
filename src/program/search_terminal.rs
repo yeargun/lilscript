@@ -40,9 +40,9 @@ use crate::js::{Challenger, ChoiceMap, Spelling};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ChallengerOutcome {
-    /// The complete artifact shrank under the objective's codec: kept.
+    /// The complete artifact improved under (objective, raw): kept.
     Kept,
-    /// Scored, and not smaller: discarded.
+    /// Scored, and did not improve the complete score: discarded.
     Rejected,
     /// It rendered the incumbent's exact bytes: nothing to score.
     Identical,
@@ -384,6 +384,7 @@ enum Judgement {
     },
     Rejected {
         size: usize,
+        raw: usize,
     },
     Pruned,
     Identical,
@@ -479,6 +480,7 @@ impl Judge<'_> {
             self_named: spelling.self_named,
             read_order: spelling.read_order,
             local_read_order: plan.local_read_order,
+            compact_order: plan.compact_order,
         };
         let rendered = formations
             .form(tactics, |target| {
@@ -564,7 +566,7 @@ impl Judge<'_> {
     }
 
     /// Whether `challenger` replaces `held`: strictly smaller as a complete
-    /// artifact under the objective, and no entry's row grows (dominance,
+    /// artifact under (objective, raw), and no entry's objective row grows (dominance,
     /// design §10; one file is one row).
     fn wins(
         &self,
@@ -593,7 +595,19 @@ impl Judge<'_> {
             )
             .map_err(SearchError::from)?
             .ok_or(CandidateError::NotJavaScript)?;
-        Ok(order == Ordering::Less && dominates(&rows.0, &rows.1))
+        if order == Ordering::Less {
+            return Ok(dominates(&rows.0, &rows.1));
+        }
+        if order != Ordering::Equal || rows.0.len() != rows.1.len()
+            || !rows.0.iter().zip(&rows.1).all(|(a, b)| a <= b) {
+            return Ok(false);
+        }
+        // A codec tie may still remove delivered source bytes. The tuple
+        // (objective, raw) strictly decreases, so ties cannot create cycles.
+        Ok(formations.with_arena(|arena, _, _| {
+            Ok::<_, CandidateError>(arena.with_artifact(challenger, |v| v.sizes.raw)?
+                < arena.with_artifact(held, |v| v.sizes.raw)?)
+        })?)
     }
 
     /// Form, render and judge one move against the incumbent: the proxy
@@ -617,6 +631,7 @@ impl Judge<'_> {
             Ok(measured) => measured,
             Err(judgement) => return Ok((judgement, proxy, probed)),
         };
+        let raw = formations.with_arena(|arena, _, _| arena.with_artifact(challenged, |view| view.sizes.raw))?;
         let wins = self.wins(
             formations,
             challenged,
@@ -640,7 +655,7 @@ impl Judge<'_> {
                 proxy,
                 probed,
             )),
-            Ok(false) => Ok((Judgement::Rejected { size }, proxy, probed)),
+            Ok(false) => Ok((Judgement::Rejected { size, raw }, proxy, probed)),
             Err(error) if error.optional_memory_refusal() || resource(&error) => {
                 Ok((Judgement::Stopped, proxy, probed))
             }
@@ -653,11 +668,11 @@ impl Judge<'_> {
 #[derive(Debug, Clone, Copy)]
 enum Recall {
     /// Measured exactly at this size.
-    Measured(usize),
+    Measured { size: usize, raw: usize },
     /// Pruned; the proxy size of its artifact.
     Pruned(usize),
     /// It rendered the bytes of an incumbent of this size.
-    Identical(usize),
+    Identical { size: usize, raw: usize },
     Refused,
 }
 
@@ -671,6 +686,7 @@ struct Assignment {
     alphabet: crate::js::selection::Alphabet,
     source_names: Vec<crate::js::BindingId>,
     local_read_order: bool,
+    compact_order: bool,
     literals: crate::js::LiteralOutput,
 }
 
@@ -808,14 +824,17 @@ impl Walker<'_, '_, '_> {
             source_names: plan.source_names.clone(),
             literals,
             local_read_order: plan.local_read_order,
+            compact_order: plan.compact_order,
         };
         let recalled = self
             .memo
             .iter()
             .find(|(assignment, _)| *assignment == key)
             .map(|&(_, recall)| recall);
+        let held_raw = self.formations.with_arena(|arena, _, _| arena.with_artifact(incumbent.artifact, |view| view.sizes.raw))?;
         match recalled {
-            Some(Recall::Measured(size) | Recall::Identical(size)) if size >= incumbent.size => {
+            Some(Recall::Measured { size, raw } | Recall::Identical { size, raw })
+                if (size, raw) >= (incumbent.size, held_raw) => {
                 return Ok((Judgement::Recalled { size: Some(size) }, None, false));
             }
             Some(Recall::Refused) => {
@@ -847,11 +866,13 @@ impl Walker<'_, '_, '_> {
             incumbent,
         )?;
         let recall = match &judgement {
-            Judgement::Kept { size, .. } | Judgement::Rejected { size } => {
-                Some(Recall::Measured(*size))
+            Judgement::Kept { artifact, size, .. } => {
+                let raw = self.formations.with_arena(|arena, _, _| arena.with_artifact(*artifact, |view| view.sizes.raw))?;
+                Some(Recall::Measured { size: *size, raw })
             }
+            Judgement::Rejected { size, raw } => Some(Recall::Measured { size: *size, raw: *raw }),
             Judgement::Pruned => proxy.map(|proxy| Recall::Pruned(proxy.size)),
-            Judgement::Identical => Some(Recall::Identical(incumbent.size)),
+            Judgement::Identical => Some(Recall::Identical { size: incumbent.size, raw: held_raw }),
             Judgement::Refused => Some(Recall::Refused),
             Judgement::Stopped | Judgement::Recalled { .. } => None,
         };
@@ -1010,7 +1031,7 @@ impl Walker<'_, '_, '_> {
                             sites[site].applied = alternative;
                         }
                     }
-                    Judgement::Rejected { size } => {
+                    Judgement::Rejected { size, .. } => {
                         self.report.choices_scored += 1;
                         record.outcome = ChallengerOutcome::Rejected;
                         record.size = Some(size);
@@ -1145,7 +1166,7 @@ impl Walker<'_, '_, '_> {
                     self.replace(incumbent, replaced);
                     (ChallengerOutcome::Kept, Some(size), Some(delta))
                 }
-                Judgement::Rejected { size } => {
+                Judgement::Rejected { size, .. } => {
                     self.report.scored += 1;
                     let delta = size as i64 - incumbent.size as i64;
                     (ChallengerOutcome::Rejected, Some(size), Some(delta))
@@ -1198,10 +1219,13 @@ impl Walker<'_, '_, '_> {
             SequentialAlphabet,
             ObservedAlphabet,
             LocalReadOrder,
+            CompactOrder,
             PrivateProperties,
         }
         let mut joints: Vec<(String, Joint)> = Vec::new();
-        if matches!(phase, JointPhase::LocalBindings) {
+        if matches!(phase, JointPhase::CompactAllocation) {
+            joints.push(("naming:compact-order".into(), Joint::CompactOrder));
+        } else if matches!(phase, JointPhase::LocalBindings) {
             joints.push(("naming:local-read-order".into(), Joint::LocalReadOrder));
         } else if matches!(phase, JointPhase::PrivateProperties) {
             joints.push(("properties:private-fields".into(), Joint::PrivateProperties));
@@ -1265,6 +1289,14 @@ impl Walker<'_, '_, '_> {
                             continue;
                         }
                         spelling.families.property_mangling ^= true;
+                    }
+                    Joint::CompactOrder => {
+                        if !crate::representation::ChoiceFamily::NameAllocation.spec().enabled(self.judge.policy) {
+                            record.outcome = ChallengerOutcome::Vetoed;
+                            self.report.joint_trials.push(record);
+                            continue;
+                        }
+                        plan.compact_order ^= true;
                     }
                     Joint::LocalReadOrder => {
                         let policy = self.judge.policy;
@@ -1356,7 +1388,7 @@ impl Walker<'_, '_, '_> {
                         self.replace(incumbent, next);
                         ChallengerOutcome::Kept
                     }
-                    Judgement::Rejected { size } => {
+                    Judgement::Rejected { size, .. } => {
                         record.size = Some(size);
                         record.delta = Some(size as i64 - incumbent.size as i64);
                         ChallengerOutcome::Rejected
@@ -1382,7 +1414,7 @@ impl Walker<'_, '_, '_> {
 
     /// Settle a start's result against the objective's winner (the
     /// portfolio's selected entry): a result the walk retains replaces the
-    /// winner on a strict exact win and is discarded otherwise. The start's
+    /// winner on a strict (objective, raw) win and is discarded otherwise. The start's
     /// record, `starts[index]`, takes the verdict.
     fn settle(&mut self, slot: usize, result: Incumbent) -> Result<(), SearchError> {
         let codec = self.codec;
@@ -1469,6 +1501,12 @@ impl Walker<'_, '_, '_> {
         let mut result = start;
         match phase {
             WalkPhase::LocalNaming => self.polish(&mut result)?,
+            WalkPhase::CompactAllocation => {
+                self.report.passes += 1;
+                if self.joint_moves(&mut result, self.report.passes, JointPhase::CompactAllocation)? {
+                    self.passes(&mut result)?;
+                }
+            }
             WalkPhase::RepresentationJoints => {
                 self.report.passes += 1;
                 if self.choice_moves(&mut result, self.report.passes, true)? {
@@ -1545,6 +1583,7 @@ impl Walker<'_, '_, '_> {
             self_named: origin.spelling.self_named,
             read_order: origin.spelling.read_order,
             local_read_order: style == Style::Scoped && origin.plan.local_read_order,
+            compact_order: origin.plan.compact_order,
         };
         let (measured, proxy, probed) = self.judge.measure(
             self.formations,
@@ -1611,6 +1650,7 @@ impl Walker<'_, '_, '_> {
 
 #[derive(Clone, Copy)]
 enum JointPhase {
+    CompactAllocation,
     Ordinary,
     LocalBindings,
     PrivateProperties,
@@ -1625,6 +1665,7 @@ enum WalkPhase {
     /// A losing trial cannot redirect their useful trajectories.
     LocalNaming,
     RepresentationJoints,
+    CompactAllocation,
     /// Revisit only starts actually pruned by the protected prefix.
     DeferredNaming(NamingStarts),
 }
@@ -1661,6 +1702,7 @@ impl NamingStarts {
 
 #[cfg(test)]
 thread_local! {
+    static SKIP_COMPACT_ALLOCATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static SKIP_LOCAL_POLISH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static SKIP_PROPERTY_POLISH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
@@ -1674,6 +1716,18 @@ pub(crate) fn without_property_polish<T>(run: impl FnOnce() -> T) -> T {
         }
     }
     let _reset = Reset(SKIP_PROPERTY_POLISH.with(|value| value.replace(true)));
+    run()
+}
+
+#[cfg(test)]
+pub(crate) fn without_compact_allocation<T>(run: impl FnOnce() -> T) -> T {
+    struct Reset(bool);
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            SKIP_COMPACT_ALLOCATION.with(|flag| flag.set(self.0));
+        }
+    }
+    let _reset = Reset(SKIP_COMPACT_ALLOCATION.with(|flag| flag.replace(true)));
     run()
 }
 
@@ -1845,6 +1899,19 @@ impl JavaScriptSearch<'_, '_> {
                 WalkPhase::DeferredNaming(deferred),
                 &mut report,
             )?;
+        }
+        // The compact allocator extends the completed legacy trajectory,
+        // including optional deferred starts. Each objective keeps its prior.
+        #[cfg(test)]
+        let compact = !SKIP_COMPACT_ALLOCATION.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let compact = true;
+        if compact && walk.starts && crate::representation::ChoiceFamily::NameAllocation.spec().enabled(policy)
+            && report.examined < walk.prefix && report.judged < walk.exact
+        {
+            let selected = self.portfolio.selected[index(codec)].expect("an objective keeps its winner");
+            self.walk_from(policy, objective, codec, "compact-allocation", selected,
+                WalkPhase::CompactAllocation, &mut report)?;
         }
         let delivered =
             self.portfolio.selected[index(codec)].expect("an objective keeps its winner");

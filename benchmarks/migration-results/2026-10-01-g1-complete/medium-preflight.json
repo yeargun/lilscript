@@ -1,0 +1,30 @@
+[
+  {
+    "version": "q1",
+    "inlining": true,
+    "scalar_replacement": true,
+    "status": 1,
+    "message": "lilscript: program rules left an invalid program: semantic operation type mismatch: IntBinary(Add)\nerror: unsupported source: program rules"
+  },
+  {
+    "version": "g1",
+    "inlining": true,
+    "scalar_replacement": true,
+    "status": 1,
+    "message": "lilscript: program rules left an invalid program: semantic operation type mismatch: IntBinary(Add)\nerror: unsupported source: program rules"
+  },
+  {
+    "version": "g1",
+    "inlining": false,
+    "scalar_replacement": true,
+    "status": 1,
+    "message": "lilscript: program rules left an invalid program: semantic operation type mismatch: IntBinary(Add)\nerror: unsupported source: program rules"
+  },
+  {
+    "version": "g1",
+    "inlining": true,
+    "scalar_replacement": false,
+    "status": 1,
+    "message": "lilscript: program rules left an invalid program: semantic operation type mismatch: IntBinary(Add)\nerror: unsupported source: program rules"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "codec": "raw",
+    "q1": {
+      "size": 3681,
+      "raw": 3681,
+      "allocation": [],
+      "judged": 1
+    },
+    "g1": {
+      "size": 3681,
+      "raw": 3681,
+      "allocation": [
+        {
+          "name": "naming:compact-order",
+          "pass": 3,
+          "outcome": "identical",
+          "size": null,
+          "delta": null,
+          "proxy": null
+        }
+      ],
+      "judged": 1
+    }
+  },
+  {
+    "codec": "gzip",
+    "q1": {
+      "size": 434,
+      "raw": 3681,
+      "allocation": [],
+      "judged": 5
+    },
+    "g1": {
+      "size": 434,
+      "raw": 3681,
+      "allocation": [
+        {
+          "name": "naming:compact-order",
+          "pass": 4,
+          "outcome": "identical",
+          "size": null,
+          "delta": null,
+          "proxy": null
+        }
+      ],
+      "judged": 21
+    }
+  },
+  {
+    "codec": "brotli",
+    "q1": {
+      "size": 252,
+      "raw": 3681,
+      "allocation": [],
+      "judged": 494
+    },
+    "g1": {
+      "size": 252,
+      "raw": 3681,
+      "allocation": [
+        {
+          "name": "naming:compact-order",
+          "pass": 8,
+          "outcome": "identical",
+          "size": null,
+          "delta": null,
+          "proxy": null
+        }
+      ],
+      "judged": 494
+    }
+  }
+]

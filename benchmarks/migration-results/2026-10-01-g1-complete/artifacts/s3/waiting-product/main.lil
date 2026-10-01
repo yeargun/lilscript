@@ -1,0 +1,22 @@
+struct Box {
+  int value;
+}
+
+int digit(int value) {
+  return value % 10;
+}
+
+int offset(int value) {
+  return value + 5;
+}
+
+int increment(Box box) {
+  return box.value + 1;
+}
+
+int total = 0;
+for (int value = -12; value <= 12; value++) {
+  Box box = Box{digit(value)};
+  total += offset(box.value) + increment(box);
+}
+print(total);

@@ -1,0 +1,1 @@
+(()=>{let l,e=[1,2];console.log((s=>{"use strict";return(s[0]+s[1]|0)+3|0})((l=e,(()=>{e[0];e[0],e=[9,e[1]]})(),l)));console.log(e[0]);})();

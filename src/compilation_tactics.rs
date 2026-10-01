@@ -244,7 +244,15 @@ declare_tactics! {
         producers: &[P::Naming], prerequisites: &[TacticId::IdentifierMangling], risks: &[R::Neutral],
         invalidates: &[I::Names, I::RenderedFiles],
         purpose: "Explore lexical allocation styles, name reuse and local refinements under the selected objective.",
-        tradeoffs: "Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration; off keeps the baseline allocator."
+        tradeoffs: "Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration. The separately controlled naming-compaction alternative skips dead bindings and uses printed order/full identifier continuations; the prior result remains eligible. Off keeps the baseline allocator."
+    },
+    NamingCompaction {
+        name: "naming-compaction", javascript_only: true, minimum_effort: 14, startup_at_level_16: false,
+        analysis: A::NamesAndBoundary, default: D::On,
+        producers: &[P::Naming], prerequisites: &[TacticId::IdentifierMangling, TacticId::NamingSearch], risks: &[R::Neutral],
+        invalidates: &[I::Names, I::RenderedFiles],
+        purpose: "Try live printed-order allocation without dead identifier reservations.",
+        tradeoffs: "Automatic from 14; explicit on enables the final trial at 13. Useful after binding deletion or large-scope rewrites, with full identifier continuation characters. Adds rendering/codec work without runtime work; qualification found no byte gain on the initial small and medium cohorts. Off preserves other naming strategies and the prior allocator."
     },
     RepresentationJoints {
         name: "representation-joints", javascript_only: true, minimum_effort: 14, startup_at_level_16: false,
