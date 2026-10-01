@@ -71,3 +71,10 @@ structural/scheduled summary reuse. Cold/reused all-objective parity passes;
 an existing conditional-choice convergence defect is repaired. Other global
 rule dependencies, analysis storage, formation and persistent build/lock work
 stay open.
+
+The [whole-build cache batch](../../benchmarks/migration-results/2026-10-01-q2-build-cache/README.md)
+implements bounded, content-addressed completed build reuse and strict TOML/CLI
+controls. Fresh graph/host identities and full config/compiler/limits qualify
+hits; all-objective logical/output parity passes. This closes whole-build
+persistence, not the per-module elaboration cache, decision lock or incremental
+formation requirements.

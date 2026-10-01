@@ -207,7 +207,7 @@ impl EntryGraph {
 }
 
 /// A file's role.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum FileRole {
     /// An entry's facade (or, in `single`, its whole file): named by
     /// `entry_names`; nothing imports it.
@@ -274,7 +274,7 @@ pub struct PlannedFile {
 
 /// One entry of a delivery: its facade and every file it loads, in
 /// evaluation order (the rows the objective scores, design §10).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EntryDelivery {
     pub name: String,
     pub file: u32,
@@ -412,7 +412,7 @@ impl DeliveryPlan {
 /// What an artifact keeps of its delivery plan: every file's role, label,
 /// source modules and links (as file positions), and every entry's closure
 /// (design §10: the rows the objective scores, and manifest v3).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DeliveredLayout {
     pub mode: DeliveryMode,
     pub format: crate::config::JavaScriptFormat,
@@ -428,7 +428,7 @@ pub struct DeliveredLayout {
 }
 
 /// One delivered file of a layout.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LayoutFile {
     pub role: FileRole,
     /// Entry bits: static entries in name order, then lazily loaded ones.

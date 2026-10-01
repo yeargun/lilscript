@@ -211,7 +211,7 @@ impl std::fmt::Debug for ArtifactFile {
 /// A delivered file of a plan, detached from artifact storage, with the
 /// codec sizes the search measured (manifest v3 reads these; it never
 /// encodes again).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DeliveredFile {
     pub name: String,
     pub code: String,

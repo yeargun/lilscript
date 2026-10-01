@@ -1,0 +1,11 @@
+[delivery]
+mode='preserve-modules'
+
+[cache]
+build_reuse=false
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13

@@ -1,0 +1,9 @@
+
+[cache]
+build_reuse=false
+[optimization]
+preset='maximum'
+[objective]
+codecs='raw'
+[effort]
+level=13

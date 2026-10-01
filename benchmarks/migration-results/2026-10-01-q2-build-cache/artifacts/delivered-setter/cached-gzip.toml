@@ -1,0 +1,12 @@
+[delivery]
+mode='preserve-modules'
+
+[cache]
+build_reuse=true
+directory="/home/azureuser/lilscript-work/cache/q2-build-cache-evidence/delivered-setter/gzip"
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13

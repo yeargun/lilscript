@@ -1,0 +1,18 @@
+{
+  "explicit_cli_directory_preserves_build_and_normalization_vetoes": {
+    "build_reuse": false,
+    "normalization_reuse": false,
+    "codec_reuse": true,
+    "directory": "/tmp/lilscript-q2-cache-cli-6csh2m3h/cache"
+  },
+  "off_disables_all_reuse": {
+    "build_reuse": false,
+    "normalization_reuse": false,
+    "codec_reuse": false,
+    "directory": null
+  },
+  "cli_cold_warm_hits": [
+    false,
+    true
+  ]
+}

@@ -700,7 +700,7 @@ pub struct ProjectConfig {
     pub objective: ObjectiveConfig,
     /// `[effort]`: the level, a work budget with a versioned schedule.
     pub effort: EffortConfig,
-    /// Physical codec measurement reuse; never an optimization permission.
+    /// Physical build/analysis/codec reuse; never an optimization permission.
     pub cache: CacheConfig,
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
@@ -712,11 +712,14 @@ pub struct ProjectConfig {
     pub config_dir: Option<PathBuf>,
 }
 
-/// Physical reuse of complete compression measurements. These controls do not
+/// Physical reuse of compilation and compression. These controls do not
 /// change candidate permissions, search order or cold logical resource bills.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CacheConfig {
+    /// Reuse completed builds when directory is set (default true). Full input,
+    /// configuration, compiler and limits must match. False forces compilation.
+    pub build_reuse: bool,
     /// Reuse stable local normalization proofs (default true). False audits
     /// physical rule execution with the same logical work and admission.
     pub normalization_reuse: bool,
@@ -726,14 +729,16 @@ pub struct CacheConfig {
     pub codec_reuse: bool,
     /// Optional persistent cache directory, relative to this config file.
     /// Omitted keeps all reuse within the build and writes nothing to disk.
-    /// A fixed 4096-slot receipt file uses at most 393216 bytes. Hits replay
-    /// cold work/scratch; IO errors or invalid entries fall back to encoding.
+    /// Fixed slot files bound build and codec storage. Complete build hits
+    /// retain the cold logical receipt; codec hits replay work/scratch.
+    /// IO errors and invalid records fall back to cold execution.
     pub directory: Option<PathBuf>,
 }
 
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
+            build_reuse: true,
             normalization_reuse: true,
             codec_reuse: true,
             directory: None,

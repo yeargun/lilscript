@@ -1,0 +1,10 @@
+
+[cache]
+build_reuse=true
+directory="/home/azureuser/lilscript-work/cache/q2-build-cache-evidence/spellings/raw"
+[optimization]
+preset='maximum'
+[objective]
+codecs='raw'
+[effort]
+level=13

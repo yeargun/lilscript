@@ -110,7 +110,7 @@ struct Args {
     #[arg(long)]
     config: Option<PathBuf>,
 
-    /// Persist codec measurements in DIR; off disables codec and local-rule reuse.
+    /// Persist build/codec results in DIR; off disables build, codec and rule reuse.
     /// Overrides [cache]; relative paths start in the current directory.
     #[arg(long, value_name = "DIR|off")]
     cache: Option<String>,
@@ -223,7 +223,10 @@ fn run() -> Result<(), String> {
         eprintln!("warning: {config_label}: {warning}");
     }
     if let Some(cache) = &args.cache {
-        if cache == "off" { loaded.config.cache.normalization_reuse = false; }
+        if cache == "off" {
+            loaded.config.cache.normalization_reuse = false;
+            loaded.config.cache.build_reuse = false;
+        }
         loaded.config.cache.codec_reuse = cache != "off";
         loaded.config.cache.directory = if cache == "off" { None } else {
             if cache.is_empty() { return Err("--cache requires a directory or off".into()); }

@@ -3,6 +3,7 @@ mod arena_budget;
 pub mod ast;
 pub mod ast_walk;
 pub mod build;
+mod cache_identity;
 pub(crate) mod catalog;
 pub mod check;
 pub mod compilation_contract;

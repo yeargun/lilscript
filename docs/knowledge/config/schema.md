@@ -94,10 +94,11 @@ Source contracts are independent of target, effort and optional tactics.
 
 ## `[cache]` — closed
 
-Physical reuse of complete compression measurements.
+Physical reuse of compilation and compression.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
+| `build_reuse` | `bool` | `true` | Reuse completed builds when directory is set (default true). |
 | `normalization_reuse` | `bool` | `true` | Reuse stable local normalization proofs (default true). |
 | `codec_reuse` | `bool` | `true` | Reuse exact-byte codec receipts across artifacts (default true). |
 | `directory` | `Option<PathBuf>` | `None` | Optional persistent cache directory, relative to this config file. |

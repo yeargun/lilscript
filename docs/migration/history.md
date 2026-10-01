@@ -1377,3 +1377,30 @@ Pin `q2-effect-components-2`, SHA-256
 `4cd627217bd2d5a5208fe65aee4bca6d56f74a1e9fd3afdcdeee8afbd507eac8`,
 algorithm 48. Other global dependencies, formation, build/elaboration caches,
 decision replay and resource owners remain Q2 work. No full suite/fleet rerun.
+
+## 2026-10-01: Q2 bounded content-addressed build reuse
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-build-cache/README.md).
+Strict `cache.build_reuse` and `--cache` control completed artifact reuse. Fresh
+source/host graph identities, full configuration/ceilings and the shared running
+compiler/encoder fingerprint qualify bounded checksummed records. All-objective,
+multi-file and native handoffs retain their cold logical receipt; physical audit
+and deadline requests bypass whole-build hits. Session callbacks remain cold.
+Old physical timings are explicitly separated from current cache work.
+
+12 focused tests, schema agreement, release CLI controls and 72 release
+artifact/runtime checks pass. All outputs match algorithm 48: 6,615 raw /
+1,715 gzip / 1,001 Brotli. Three cold/warm pairs per case/objective preserve
+logical bills and search counts. Warm CPU samples are .00–.01 seconds versus
+.05–.15 on the larger cold controls; cache misses add about .01–.02 seconds.
+The tiny gzip case has no clear benefit, and .00 is measurement resolution.
+Warm hits execute zero effect summaries, target passes or encodes, but still
+parse/discover file graphs and decode cached outputs. No fleet or memory claim.
+
+Pin `q2-build-cache-1`, SHA-256
+`8776c5e0224e0a6b1ef2e5d94cb83bc18bf7bac26906eae7f5ce3d7da6268a93`,
+algorithm 49. A fixed 64-slot cache has at most 268,440,576 bytes of file extent,
+with each payload bounded by 4 MiB and one eighth of the retained-byte ceiling.
+Initial invalid fixtures and the reader's overstrict low-effort score check
+were corrected and only affected checks rerun. Per-module elaboration, decision
+locks, incremental formation and remaining resource owners stay Q2 work.

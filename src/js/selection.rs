@@ -55,7 +55,7 @@ impl Objectives {
 
 /// Missing scores are unmeasured, never a fabricated zero or an estimate.
 /// Raw length is available even when it is only a tie-breaker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Sizes {
     pub raw: usize,
     pub gzip9: Option<usize>,

@@ -1140,10 +1140,45 @@ lilscript-fmt src --check
 
 ```toml
 [cache]
+build_reuse = true
 normalization_reuse = true
 codec_reuse = true
 # directory = ".lilscript/cache"
 ```
+
+`cache.build_reuse` defaults to `true` and requires `cache.directory`. It stores
+completed build outputs and their logical receipts. A warm identical build skips
+checking, normalization, formation, search and encoding. File builds still
+rediscover and parse the current dependency graph and prepare embedded host
+code: changed imports, package resolution, symlink targets, source bytes, host
+code/linkage, configuration, requested objectives, service limits and compiler
+or encoder identity prevent stale reuse. Changed builds may pay for this
+preflight as well as their normal frontend work; tiny builds may gain nothing.
+
+The cache stores detached artifacts, not live checked programs. The checked
+session/callback APIs always execute their frontend. This cache does not reuse
+individual modules after a graph changes. Whole-build hits are also disabled
+when either `normalization_reuse` or `codec_reuse` is false, when a physical
+verification audit is active, or when the policy sets a wall-clock deadline.
+Set `build_reuse=false` to audit compilation while keeping codec reuse.
+
+`build-v1.bin` has 64 fixed slots of 4,194,384 bytes, at most 268,440,576 bytes
+of file extent (unused regions can be sparse). Each JSON payload is at most
+4 MiB and at most one eighth of the effective retained-byte ceiling. A collision
+replaces one record; corrupt, truncated, oversized or concurrently inconsistent
+records and IO failures cause a cold build. Complete checksums cover keys,
+lengths and payloads. The directory is local trusted compiler storage, not an
+artifact interchange or a source-proof format. Returned artifact/receipt buffers
+and cache IO are separate from the cold compiler's retained-memory ledger.
+
+A hit retains the exact cold logical/search/resource receipt for its identical
+request. It performs no extra search and grants no new permission. The report's
+`build_cache.hit`, `state`, `key`, times and serialized byte count describe the
+current lookup; total elapsed time includes cache lookup/write overhead on a
+miss, with the compiler portion in `cold_compilation_ns`. A hit moves old
+phase/codec timing into `cold_phases_ns` and
+`cold_codec_cache`, reports current cache elapsed time, and reports zero current
+encodes. This distinguishes saved logical work from physical work performed now.
 
 `cache.normalization_reuse` defaults to `true`. Source return normalization and
 unreachable-code removal reuse answers only for the same immutable body revision
@@ -1206,10 +1241,11 @@ dependent on elapsed time. Report fields `codec_cache.memory_hits`,
 `codec_cache.disk_hits`, `codec_cache.encodes` and
 `codec_cache.disk_write_errors` distinguish reuse from logical codec judgments.
 
-`--cache DIR` enables persistent codec reuse at that directory; relative CLI
-paths start in the current working directory. `--cache off` disables codec and local normalization proof reuse
-and disk access. Both override TOML. `--print-policy` reports the effective
+`--cache DIR` enables persistent codec reuse at that directory and allows build
+reuse when `build_reuse` remains true; relative CLI paths start in the current
+working directory. It preserves explicit `build_reuse=false` and
+`normalization_reuse=false`. `--cache off` disables build, codec and normalization
+reuse and disk access. Explicit CLI settings override their TOML counterparts. `--print-policy` reports the effective
 settings under execution/resolution, outside the semantic fingerprint. Unknown
-keys, non-boolean `codec_reuse` values and an empty directory are errors. These
-controls currently own codec measurements; build/elaboration caching and
-explicit decision-lock replay remain migration work.
+keys, non-boolean reuse flags and an empty directory are errors. Per-module
+elaboration caching and explicit decision-lock replay remain migration work.

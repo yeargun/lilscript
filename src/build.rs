@@ -1,5 +1,8 @@
 //! The build: source to delivered artifacts, the compiler's public API.
 //! Unsupported input is diagnosed here; no text rewrite runs.
+#[path = "build_cache.rs"]
+mod cache;
+
 use std::fmt;
 use std::path::Path;
 use std::time::Instant;
@@ -268,7 +271,7 @@ impl std::error::Error for ServiceError {
 }
 
 /// The service returns immutable delivered bytes with their exact scores.
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 pub struct ServiceJavaScript {
     /// The one delivered file; empty when a delivery plan places the output
     /// in several files.
@@ -306,7 +309,7 @@ impl ServiceJavaScript {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 pub struct ServiceCompilation {
     javascript: Vec<ServiceJavaScript>,
     winners: [Option<usize>; 3],
@@ -1452,7 +1455,7 @@ pub fn with_checked_source<R>(
     let mut frontend = Frontend::new(config, options)?;
     let program = check_source_frontend(&mut frontend, source)?;
     let started = frontend.started;
-    let session = frontend.adopt(program, json!({"root": 0, "modules": [{"path": "<source>", "bytes": source.len(), "sha256": digest(source.as_bytes())}]}))
+    let session = frontend.adopt(program, source_inputs(source))
         .map_err(|(error, _ledger)| error)?;
     let (outcome, finished) = run_client(session, client);
     Ok(finish_factory(outcome, finished, started, None))
@@ -1521,12 +1524,7 @@ fn check_path_frontend<'src, T>(
             Err(reason) => frontend.phases["host_modules_external"] = json!(reason),
         }
     }
-    let inputs = json!({"root": modules.root(), "entries": modules.roots.iter().zip(&modules.root_names).map(|(module, name)| json!({"name": name, "module": module})).collect::<Vec<_>>(), "modules": modules.modules.iter().map(|module| json!({
-        "path": module.path, "bytes": module.source.len(), "sha256": digest(module.source.as_bytes()),
-        "dependencies": module.dependencies, "dynamic_dependencies": module.dynamic_dependencies,
-    })).collect::<Vec<_>>(), "host_modules": frontend.hosts.modules.iter().map(|module| json!({
-        "specifier": module.specifier, "delivered_bytes": module.delivered_bytes(),
-    })).collect::<Vec<_>>()});
+    let inputs = module_inputs(&modules, &frontend.hosts);
     arena
         .with_ledger(|ledger, domain| ledger.charge(domain, WorkKind::Analysis, bytes))
         .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
@@ -1966,9 +1964,13 @@ pub fn compile_source(
     config: &ProjectConfig,
     options: ServiceOptions,
 ) -> Result<ServiceCompilation, ServiceError> {
+    let mut cache = cache::Request::source(source, config, options)?;
+    if let Some(output) = cache.as_mut().and_then(cache::Request::read) { return Ok(output); }
     let (output, finished) =
         with_checked_source(source, config, options, |session| session.compile_targets())?;
-    finish_output(output, finished)
+    let mut output = finish_output(output, finished)?;
+    if let Some(cache) = &mut cache { cache.write(&mut output); }
+    Ok(output)
 }
 
 pub fn compile_path(
@@ -1986,10 +1988,34 @@ pub fn compile_entries(
     config: &ProjectConfig,
     options: ServiceOptions,
 ) -> Result<ServiceCompilation, ServiceError> {
+    let mut cache = cache::Request::entries(entries, config, options)?;
+    if let Some(output) = cache.as_mut().and_then(cache::Request::read) { return Ok(output); }
     let (output, finished) = with_checked_entries(entries, config, options, |session| {
         session.compile_targets()
     })?;
-    finish_output(output, finished)
+    let mut output = finish_output(output, finished)?;
+    if let Some(cache) = &mut cache { cache.write(&mut output); }
+    Ok(output)
+}
+
+/// The bytes and resolved graph actually checked. Embedded host identities
+/// include code and linkage, not just the delivered body's byte count.
+fn source_inputs(source: &str) -> Value {
+    json!({"root": 0, "modules": [{"path": "<source>", "bytes": source.len(), "sha256": digest(source.as_bytes())}]})
+}
+
+fn module_inputs<S: AsRef<str>>(modules: &ModuleSet<S>, hosts: &crate::host_modules::HostDelivery) -> Value {
+    json!({"root": modules.root(),
+        "entries": modules.roots.iter().zip(&modules.root_names).map(|(module, name)| json!({"name": name, "module": module})).collect::<Vec<_>>(),
+        "modules": modules.modules.iter().map(|module| json!({
+            "path": module.path, "bytes": module.source.as_ref().len(), "sha256": digest(module.source.as_ref().as_bytes()),
+            "dependencies": module.dependencies, "dynamic_dependencies": module.dynamic_dependencies,
+        })).collect::<Vec<_>>(),
+        "host_modules": hosts.modules.iter().map(|module| json!({
+            "specifier": module.specifier, "stem": module.stem, "delivered_bytes": module.delivered_bytes(),
+            "sha256": digest(module.body().as_bytes()), "exports": module.exports(), "imports": module.imports(),
+        })).collect::<Vec<_>>(), "host_reserved": hosts.reserved,
+    })
 }
 
 fn finish_output(

@@ -68,6 +68,19 @@ eligibility no longer mutates an unselected condition. No clear CPU gain or
 complete source-analysis memory claim. Previous/current effect analyses are
 phase-local; the remaining source resource owner must admit their overlap.
 
+The [whole-build cache batch](../../benchmarks/migration-results/2026-10-01-q2-build-cache/README.md)
+pins `q2-build-cache-1`, SHA-256
+`8776c5e0224e0a6b1ef2e5d94cb83bc18bf7bac26906eae7f5ce3d7da6268a93`,
+algorithm 49. Optional `cache.build_reuse` stores complete handoffs and cold
+logical receipts in 64 bounded slots. Fresh graph/host identities and complete
+configuration/compiler/limits gate hits. 12 focused tests, schema/release CLI
+controls and 72 release oracles pass; all prior outputs and current logical
+bills match. Warm generic samples drop to .00–.01 CPU seconds; cold cache IO
+adds .01–.02 seconds and tiny gzip has no clear benefit. No broader claim.
+Per-module elaboration and decision-lock replay remain, as do formation and
+remaining resource owners. Low-effort handoffs can carry unmeasured codec
+scores: preserve None, never invent a score. Native public exports still refuse.
+
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased
 schemas, ambiguous unions, observable wrappers, mutable aliased product
@@ -85,7 +98,7 @@ hard TOML/replay permissions. The shared fact/removal audit is complete.
    The use-index consumer, module graph, local dirty maps and renumbering plans
    are complete. Remaining global rule dependencies, placement storage,
    source analysis/edit owners, cross-candidate formation,
-   build/elaboration reuse and explicit decision-lock replay remain.
+   per-module elaboration reuse and explicit decision-lock replay remain.
 
 2. Finish Q2 before **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
    Q3 owns markedlil candidate growth and G3's 48 → 292 spelling judgments for

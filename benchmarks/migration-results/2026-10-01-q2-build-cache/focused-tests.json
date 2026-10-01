@@ -1,0 +1,24 @@
+{
+  "logs": [
+    "/tmp/lilscript-q2-build-cache-tests.log",
+    "/tmp/lilscript-q2-build-cache-rerun.log",
+    "/tmp/lilscript-q2-build-cache-final-tests.log",
+    "/tmp/lilscript-q2-build-cache-native-rerun.log"
+  ],
+  "passed": 12,
+  "failed": 0,
+  "tests": {
+    "build::cache::tests::q2_build_cache_corrupt_colliding_concurrent_and_oversized_records_are_misses": "ok",
+    "build::cache::tests::q2_build_cache_io_failure_preserves_build_and_diagnostics": "ok",
+    "build::cache::tests::q2_build_cache_keys_cover_contracts_requests_and_disable_physical_audits": "ok",
+    "build::cache::tests::q2_build_cache_multi_file_and_native_handoffs_remain_complete": "ok",
+    "build::cache::tests::q2_build_cache_rediscovers_retargeted_symlinks_without_editing_old_files": "ok",
+    "build::cache::tests::q2_build_cache_source_preserves_all_objectives_logical_limits_and_hard_vetoes": "ok",
+    "build::cache::tests::q2_build_cache_transitive_graph_host_linkage_and_current_resolution_are_inputs": "ok",
+    "config::cache_tests::q2_cache_controls_are_strict_relative_and_outside_semantic_identity": "ok",
+    "program::artifacts::compression_cache::disk::tests::q2_disk_collisions_and_concurrent_writers_stay_bounded": "ok",
+    "program::artifacts::compression_cache::disk::tests::q2_disk_receipts_bind_complete_keys_and_reject_corruption": "ok",
+    "program::artifacts::compression_cache::persistent_tests::q2_disk_hits_replay_cold_work_and_refuse_cold_resource_limits": "ok",
+    "program::artifacts::compression_cache::persistent_tests::q2_unavailable_disk_storage_falls_back_to_encoding": "ok"
+  }
+}
