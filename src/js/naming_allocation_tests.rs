@@ -640,3 +640,44 @@ fn g1_compact_permission_starts_at_fourteen_and_accepts_an_explicit_thirteen_ove
         assert_eq!(plan.check_policy(&resolved).is_ok(), expected);
     }
 }
+
+#[test]
+fn g1_compact_names_visit_class_constructors_and_prototype_methods() {
+    let mut module = fixture();
+    let mut function = |parameter_name: &str, constructor: bool| {
+        let body = module.region(ScopeId::new(0));
+        let parameter = module.binding(Binding { source_symbol: None,
+            scope: module.regions[body.index()].scope, spelling: parameter_name.into(),
+            pinned: false, class: None, defined: false });
+        let argument = module.expression(Expr::Binding(parameter), None);
+        let state = module.expression(Expr::Binding(BindingId::new(0)), None);
+        let sum = module.expression(Expr::Binary { op: Binary::Add, left: state, right: argument }, None);
+        if constructor {
+            let this = module.expression(Expr::This, None);
+            let field = module.expression(Expr::Member { object: this, property: Property::Named("value".into()) }, None);
+            let set = module.expression(Expr::Assign { target: field, value: sum }, None);
+            module.regions[body.index()].statements.push(Statement::Evaluate(set));
+        } else {
+            module.regions[body.index()].statements.push(Statement::Return(Some(sum)));
+        }
+        let id = FunctionId::new(module.functions.len());
+        module.functions.push(Function { parameters: vec![parameter], body, arrow: false,
+            name: FunctionName::Unobserved, strict: false, length: None, suspension: Suspension::None });
+        id
+    };
+    let constructor = function("constructorInput", true);
+    let method = function("methodInput", false);
+    let class = module.expression(Expr::Class { name: "Box".into(), base: None,
+        constructor: Some(constructor), methods: vec![("read".into(), method)] }, None);
+    let binding = module.binding(Binding { source_symbol: None, scope: ScopeId::new(0),
+        spelling: "classValue".into(), pinned: false, class: None, defined: false });
+    module.reserved.push("Box".into());
+    module.regions[0].statements.push(Statement::Let { binding, value: Some(class) });
+    module.exports.push(Export { binding, name: "Box".into() });
+    let compact = Plan { compact_order: true, ..Plan::new(Style::Scoped) };
+    let code = module.prepare_output_with_policy(&policy()).unwrap().render(&compact).unwrap();
+    let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));const box=new m.Box(5);console.log(box.value,box.read(3),m.Box.name,m.Box.length,box.read.length);", serde_json::to_string(&code).unwrap());
+    let actual = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+    assert!(actual.status.success(), "{code}: {}", String::from_utf8_lossy(&actual.stderr));
+    assert_eq!(actual.stdout, b"12 10 Box 1 1\n");
+}

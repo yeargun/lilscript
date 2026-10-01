@@ -29,7 +29,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version8 reuses admitted statement mention facts during target forwarding.
 // Version7 jointly identifies private-field and integer-hint formation heads.
 // Version16 admits live printed-order allocation and delivered-raw tie breaks.
-pub const POLICY_ALGORITHM_VERSION: u32 = 16;
+// Version17 includes class constructors/methods in live naming ownership.
+pub const POLICY_ALGORITHM_VERSION: u32 = 17;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

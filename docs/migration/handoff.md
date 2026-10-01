@@ -13,7 +13,9 @@ record live printed-order allocation, full identifier continuations and exact
 primary/raw ties with replay-safe memoization. Pin
 `/home/azureuser/lilscript-work/bin/g1-complete-2/lilscript`, SHA-256
 `26a73739890c11d9534873969cba6c4a18fbf52e36d91d8f724bdacb89137b0c`.
-Policy algorithm 16 / search 31 / walk 10 identify it.
+Policy algorithm 16 / search 31 / walk 10 identify that pin. A source follow-up
+(algorithm 17) also visits class constructor/method naming owners, with one
+additional passing Node check; include it in G2's next release build.
 
 39 distinct focused checks pass. Eighteen small configurations and one medium
 C3 training workload retain every objective size; 108 small executions and 48

@@ -745,3 +745,9 @@ G1, before naming; its 64-helper prefix passes while 128 fails. Reproduction is
 retained and S4 explicitly owns the fact/type transport fix. No passing result is
 claimed for that module. G2 is next; broad/native/final qualification remains
 with its owning milestones. No full-library rerun or ratchet update was made.
+
+G1 class-owner audit follow-up: compact order now visits class constructors and
+prototype methods explicitly. A targeted Node check passes (40 distinct G1
+checks total); omitted owners previously refused the optional candidate at
+verification. Algorithm 17 marks the source correction. G1's immutable pin and
+cohort measurements stay intact; G2's release will include the correction.

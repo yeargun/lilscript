@@ -80,3 +80,16 @@ fixing the fact/type transport failure** before its completion and V1 qualificat
 No full-library/fleet rerun, accepted ratchet change, port rebuild or native
 qualification was performed in G1. The generated configuration reference and
 `git diff --check` pass.
+
+## Class-owner audit follow-up
+
+Before G2 changes property allocation, its constructor audit found that compact
+printed order must explicitly descend through `Expr::Class` constructors and
+methods: expression children alone only visit the base. The source follow-up
+adds those owners, with a [passing independent Node check](class-owners.log)
+for constructor/method parameters, captures, names and arity. This is the 40th
+distinct focused check. It prevents a refused optional compact trial on such
+classes; the verifier had rejected the incomplete assignment, so it could not
+be delivered. Policy algorithm 17 identifies this correction. The immutable
+16/31/10 pin and cohort evidence above remain unchanged; the correction will be
+included in G2's next release build instead of repeating the entire G1 cohort.

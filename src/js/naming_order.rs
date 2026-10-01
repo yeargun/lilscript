@@ -64,6 +64,11 @@ impl<'a> Basis<'a> {
                 Event::Expression(id) => match &module.expressions[id.index()] {
                     Expr::Binding(binding) => push(Event::Binding(*binding))?,
                     Expr::Function(function) => push(Event::Function(*function))?,
+                    Expr::Class { base, constructor, methods, .. } => {
+                        if let Some(base) = base { push(Event::Expression(*base))?; }
+                        if let Some(constructor) = constructor { push(Event::Function(*constructor))?; }
+                        for (_, method) in methods { push(Event::Function(*method))?; }
+                    }
                     expression => expression.visit_children(|id| push(Event::Expression(id)))?,
                 },
                 Event::Statement(region, index) => {
