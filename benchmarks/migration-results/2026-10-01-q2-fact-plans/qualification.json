@@ -1,0 +1,60 @@
+{
+  "algorithm": 56,
+  "runs": [
+    {
+      "log": "initial-focused.log",
+      "result": "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 2020 filtered out; finished in 1.91s"
+    },
+    {
+      "log": "owner-followup.log",
+      "result": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 2048 filtered out; finished in 0.01s"
+    },
+    {
+      "log": "completed-focused.log",
+      "result": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 2038 filtered out; finished in 1.11s"
+    }
+  ],
+  "distinct_passed": 39,
+  "checks": [
+    "program::classes::tests::classes_follow_closed_producers_and_revision_owners",
+    "program::classes::tests::q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal",
+    "program::defaults::admission_tests::activation_observations_propagate_only_through_inheriting_closures",
+    "program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations",
+    "program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates",
+    "program::rules::aggregate_tests::s2_aliases_share_mutable_array_fields_and_keep_effect_order",
+    "program::rules::aggregate_tests::s2_capture_has_one_bank_per_loop_activation",
+    "program::rules::aggregate_tests::s2_closure_reentry_sees_completed_allocation",
+    "program::rules::aggregate_tests::s2_early_capture_and_throwing_initializers_keep_failure_order",
+    "program::rules::aggregate_tests::s2_field_constants_respect_alias_writers",
+    "program::rules::aggregate_tests::s2_fresh_field_collection_obeys_the_pristine_contract",
+    "program::rules::aggregate_tests::s2_namespace_reads_and_calls_remove_private_receiver",
+    "program::rules::aggregate_tests::s2_nullable_control_join_does_not_claim_an_allocation",
+    "program::rules::aggregate_tests::s2_open_script_roots_remain_observable",
+    "program::rules::aggregate_tests::s2_private_class_fields_and_alias_mutation",
+    "program::rules::aggregate_tests::s2_record_absence_and_special_keys_keep_normalization",
+    "program::rules::aggregate_tests::s2_record_aliases_share_captured_writes_and_absence",
+    "program::rules::aggregate_tests::s2_record_undefined_payload_keeps_nullish_normalization",
+    "program::rules::aggregate_tests::s2_scalar_cells_keep_nullable_declared_storage_types",
+    "program::rules::aggregate_tests::s2_scalar_permission_is_independent_of_field_folding",
+    "program::rules::aggregate_tests::s2_store_collection_keeps_record_absence_and_reads",
+    "program::rules::aggregate_tests::s2_unread_fields_preserve_calls_and_overwritten_stores",
+    "program::rules::aggregate_tests::s2_whole_identity_dynamic_keys_and_escape_retain_storage",
+    "program::rules::tests::a_false_branch_leaves_with_the_function_only_it_called",
+    "program::rules::tests::a_published_signature_stays",
+    "program::rules::tests::a_result_no_call_uses_leaves",
+    "program::rules::tests::a_script_keeps_its_root_bindings",
+    "program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution",
+    "program::rules::tests::default_transport_keeps_observed_argument_count_and_signed_zero",
+    "program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects",
+    "program::rules::tests::effects_and_their_order_stay",
+    "program::rules::tests::forwarded_locals_allow_an_expression_inside_another_calls_arguments",
+    "program::rules::tests::forwarded_locals_preserve_an_expression_that_is_still_waiting",
+    "program::rules::tests::forwarding_preserves_snapshots_writes_and_argument_evaluation",
+    "program::rules::tests::host_annotations_do_not_authorize_common_coercions",
+    "program::rules::tests::immutable_scalar_cells_and_common_primitive_operations_forward",
+    "program::rules::tests::q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules",
+    "program::rules::tests::repeated_parameter_loads_share_one_evaluated_argument",
+    "program::rules::tests::unread_values_and_stores_leave"
+  ],
+  "scope": "Focused debug library checks; no release or fleet measurement."
+}

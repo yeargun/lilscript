@@ -40,7 +40,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version 40 carries regional representation pins through source/target edits.
 // Version51 admits delivery placement, trials, simulation and setter payloads.
 // Version55 admits shared source analyses and deterministic effect-summary stages.
-pub const POLICY_ALGORITHM_VERSION: u32 = 55;
+// Version56 admits primitive/aggregate/default facts and forwarding/liveness plans.
+pub const POLICY_ALGORITHM_VERSION: u32 = 56;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

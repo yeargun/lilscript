@@ -6,9 +6,16 @@
 //! including recursive calls and loop-carried stores. Classes describe normal
 //! results; initialization and evaluation effects require separate proofs.
 
+use super::analysis_storage as storage;
 use super::call_graph::{CallGraph, Callee, EdgeKind, Seal};
 use super::views::Deps;
 use super::*;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Class(u8);
@@ -52,160 +59,179 @@ impl ProgramClasses {
     }
 
     pub(super) fn build(program: &Program<'_>, graph: &CallGraph) -> Self {
-        let mut units: Vec<Vec<Class>> = program
-            .units
-            .iter()
-            .map(|unit| vec![Class::UNKNOWN; unit.data().values.len()])
-            .collect();
-        let mut cells = vec![Class::UNKNOWN; program.cells.len()];
-        let mut results = vec![Class::UNKNOWN; program.units.len()];
-        let direct_eval = program.units.iter().any(|unit| {
-            unit.data().calls.iter().any(|call| {
-                matches!(
-                    call.target,
-                    CallTarget::Value {
-                        invocation: Invocation::DirectEval,
-                        ..
-                    }
-                )
-            })
-        });
-        let free: Vec<_> = program
-            .units
-            .iter()
-            .map(|unit| super::defaults::arguments_free(program, unit.id()))
-            .collect();
-        let closed: Vec<_> = program
-            .cells
-            .iter()
-            .enumerate()
-            .map(|(index, cell)| {
-                let id = CellId::from_index(index).expect("a cell index");
-                !direct_eval
-                    && !graph.storage(id).referenced
-                    && !program.is_reference_parameter(id)
-                    && matches!(cell.binding, CellBinding::Local | CellBinding::Parameter(_))
-                    && free[cell.owner.index()]
-                    && (graph.seal() == Seal::Module
-                        || program
-                            .unit(cell.owner)
-                            .is_none_or(|unit| unit.kind != UnitKind::ModuleInitialization))
-            })
-            .collect();
-        // Each round is sound without convergence. A long dependency chain
-        // keeps unknown facts after the bound rather than guessing a class.
-        for _ in 0..16 {
-            let mut changed = false;
-            let mut producers = vec![Class::EMPTY; cells.len()];
-            for frozen in &program.units {
-                let unit = frozen.id();
-                let data = frozen.data();
-                let mut returned = Class::UNDEFINED;
-                for operation in &data.operations {
-                    if let Some(value) = operation.result {
-                        let class =
-                            transfer(data, operation, &units[unit.index()], &cells, |call| {
-                                match graph.callee(unit, call) {
-                                    Callee::Unit(callee)
-                                        if program.unit(callee).is_some_and(|body| {
-                                            body.suspension == Suspension::None
-                                                && body.constructor_of.is_none()
-                                        }) =>
-                                    {
-                                        results[callee.index()]
-                                    }
-                                    Callee::Intrinsic(
-                                        crate::primitive::ResolvedIntrinsic::Method(
-                                            crate::primitive::Intrinsic::FloatToInt,
-                                        ),
-                                    ) => Class::NUMBER,
-                                    _ => Class::UNKNOWN,
-                                }
-                            });
-                        let next = units[unit.index()][value.index()].meet(class);
-                        changed |= next != units[unit.index()][value.index()];
-                        units[unit.index()][value.index()] = next;
-                    }
-                    let argument = data
-                        .operands(operation.operands)
-                        .and_then(|operands| operands.first())
-                        .map_or(Class::UNKNOWN, |value| units[unit.index()][value.index()]);
-                    match operation.kind {
-                        OperationKind::Initialize(cell) => {
-                            producers[cell.index()] = producers[cell.index()].join(argument)
-                        }
-                        OperationKind::Store(place) => {
-                            if let Place::Cell(cell) = data.places[place.index()] {
-                                producers[cell.index()] = producers[cell.index()].join(argument);
-                            }
-                        }
-                        OperationKind::ForIn { key, .. } => {
-                            producers[key.index()] = producers[key.index()].join(Class::STRING)
-                        }
-                        OperationKind::ForOf { item, .. } => {
-                            producers[item.index()] = Class::UNKNOWN
-                        }
-                        OperationKind::Try {
-                            catch: Some((Some(cell), _)),
+        Self::build_in(program, graph, &mut AllocationBudget::new(None))
+            .expect("inspection classes")
+    }
+    pub(super) fn build_in(
+        program: &Program<'_>,
+        graph: &CallGraph,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        budget.retained_phase(|budget| {
+            let mut units = budget.vector(Retained, program.units.len())?;
+            for unit in &program.units {
+                units.push(budget.filled(Retained, unit.data().values.len(), Class::UNKNOWN)?);
+                budget.work(WorkKind::Analysis, unit.data().calls.len() as u64)?;
+            }
+            let mut cells = budget.filled(Retained, program.cells.len(), Class::UNKNOWN)?;
+            let mut results = budget.filled(Scratch, program.units.len(), Class::UNKNOWN)?;
+            let direct_eval = program.units.iter().any(|unit| {
+                unit.data().calls.iter().any(|call| {
+                    matches!(
+                        call.target,
+                        CallTarget::Value {
+                            invocation: Invocation::DirectEval,
                             ..
-                        } => producers[cell.index()] = Class::UNKNOWN,
-                        OperationKind::Return => returned = returned.join(argument),
-                        _ => {}
-                    }
-                }
-                let next = results[unit.index()].meet(returned);
-                changed |= next != results[unit.index()];
-                results[unit.index()] = next;
-                for (position, &parameter) in data.parameters.iter().enumerate() {
-                    let mut passed = Class::EMPTY;
-                    match graph.complete_callers(unit) {
-                        Some(edges) if !edges.is_empty() => {
-                            for edge in edges {
-                                let caller = program.unit(edge.caller).expect("a caller");
-                                let site = &caller.calls[edge.call.index()];
-                                let arguments = caller.arguments(site.arguments).unwrap_or(&[]);
-                                let class = if edge.kind != EdgeKind::Call
-                                    || site.contract.instantiation.is_some()
-                                {
-                                    Class::UNKNOWN
-                                } else {
-                                    match arguments.get(position) {
-                                        Some(CallArgument::Value(value)) => {
-                                            units[edge.caller.index()][value.index()]
+                        }
+                    )
+                })
+            });
+            let free = super::defaults::arguments_free_all_in(program, budget)?;
+            let closed = storage::collect(
+                program.cells.iter().enumerate().map(|(index, cell)| {
+                    let id = CellId::from_index(index).expect("a cell index");
+                    !direct_eval
+                        && !graph.storage(id).referenced
+                        && !program.is_reference_parameter(id)
+                        && matches!(cell.binding, CellBinding::Local | CellBinding::Parameter(_))
+                        && free[cell.owner.index()]
+                        && (graph.seal() == Seal::Module
+                            || program
+                                .unit(cell.owner)
+                                .is_none_or(|unit| unit.kind != UnitKind::ModuleInitialization))
+                }),
+                Scratch,
+                budget,
+            )?;
+            storage::release(free, Retained, budget)?;
+            let mut producers = budget.filled(Scratch, cells.len(), Class::EMPTY)?;
+            // Each round is sound without convergence. A long dependency chain
+            // keeps unknown facts after the bound rather than guessing a class.
+            for _ in 0..16 {
+                let mut changed = false;
+                budget.work(WorkKind::Analysis, cells.len() as u64)?;
+                producers.fill(Class::EMPTY);
+                for frozen in &program.units {
+                    let unit = frozen.id();
+                    let data = frozen.data();
+                    let mut returned = Class::UNDEFINED;
+                    for operation in &data.operations {
+                        budget.work(
+                            WorkKind::Analysis,
+                            data.operands(operation.operands)
+                                .map_or(0, |operands| operands.len())
+                                as u64
+                                + 1,
+                        )?;
+                        if let Some(value) = operation.result {
+                            let class =
+                                transfer(data, operation, &units[unit.index()], &cells, |call| {
+                                    match graph.callee(unit, call) {
+                                        Callee::Unit(callee)
+                                            if program.unit(callee).is_some_and(|body| {
+                                                body.suspension == Suspension::None
+                                                    && body.constructor_of.is_none()
+                                            }) =>
+                                        {
+                                            results[callee.index()]
                                         }
-                                        None => Class::UNDEFINED,
+                                        Callee::Intrinsic(
+                                            crate::primitive::ResolvedIntrinsic::Method(
+                                                crate::primitive::Intrinsic::FloatToInt,
+                                            ),
+                                        ) => Class::NUMBER,
                                         _ => Class::UNKNOWN,
                                     }
-                                };
-                                passed = passed.join(class);
-                                if position
-                                    >= arguments.len().saturating_sub(site.omit_trailing as usize)
-                                {
-                                    passed = passed.join(Class::UNDEFINED);
+                                });
+                            let next = units[unit.index()][value.index()].meet(class);
+                            changed |= next != units[unit.index()][value.index()];
+                            units[unit.index()][value.index()] = next;
+                        }
+                        let argument = data
+                            .operands(operation.operands)
+                            .and_then(|operands| operands.first())
+                            .map_or(Class::UNKNOWN, |value| units[unit.index()][value.index()]);
+                        match operation.kind {
+                            OperationKind::Initialize(cell) => {
+                                producers[cell.index()] = producers[cell.index()].join(argument)
+                            }
+                            OperationKind::Store(place) => {
+                                if let Place::Cell(cell) = data.places[place.index()] {
+                                    producers[cell.index()] =
+                                        producers[cell.index()].join(argument);
                                 }
                             }
+                            OperationKind::ForIn { key, .. } => {
+                                producers[key.index()] = producers[key.index()].join(Class::STRING)
+                            }
+                            OperationKind::ForOf { item, .. } => {
+                                producers[item.index()] = Class::UNKNOWN
+                            }
+                            OperationKind::Try {
+                                catch: Some((Some(cell), _)),
+                                ..
+                            } => producers[cell.index()] = Class::UNKNOWN,
+                            OperationKind::Return => returned = returned.join(argument),
+                            _ => {}
                         }
-                        _ => passed = Class::UNKNOWN,
                     }
-                    producers[parameter.index()] = producers[parameter.index()].join(passed);
+                    let next = results[unit.index()].meet(returned);
+                    changed |= next != results[unit.index()];
+                    results[unit.index()] = next;
+                    for (position, &parameter) in data.parameters.iter().enumerate() {
+                        let mut passed = Class::EMPTY;
+                        match graph.complete_callers(unit) {
+                            Some(edges) if !edges.is_empty() => {
+                                for edge in edges {
+                                    budget.work(WorkKind::Analysis, 1)?;
+                                    let caller = program.unit(edge.caller).expect("a caller");
+                                    let site = &caller.calls[edge.call.index()];
+                                    let arguments = caller.arguments(site.arguments).unwrap_or(&[]);
+                                    let class = if edge.kind != EdgeKind::Call
+                                        || site.contract.instantiation.is_some()
+                                    {
+                                        Class::UNKNOWN
+                                    } else {
+                                        match arguments.get(position) {
+                                            Some(CallArgument::Value(value)) => {
+                                                units[edge.caller.index()][value.index()]
+                                            }
+                                            None => Class::UNDEFINED,
+                                            _ => Class::UNKNOWN,
+                                        }
+                                    };
+                                    passed = passed.join(class);
+                                    if position
+                                        >= arguments
+                                            .len()
+                                            .saturating_sub(site.omit_trailing as usize)
+                                    {
+                                        passed = passed.join(Class::UNDEFINED);
+                                    }
+                                }
+                            }
+                            _ => passed = Class::UNKNOWN,
+                        }
+                        producers[parameter.index()] = producers[parameter.index()].join(passed);
+                    }
+                }
+                for (index, cell) in cells.iter_mut().enumerate() {
+                    if closed[index] && producers[index] != Class::EMPTY {
+                        let next = cell.meet(producers[index]);
+                        changed |= next != *cell;
+                        *cell = next;
+                    }
+                }
+                if !changed {
+                    break;
                 }
             }
-            for (index, cell) in cells.iter_mut().enumerate() {
-                if closed[index] && producers[index] != Class::EMPTY {
-                    let next = cell.meet(producers[index]);
-                    changed |= next != *cell;
-                    *cell = next;
-                }
-            }
-            if !changed {
-                break;
-            }
-        }
-        Self {
-            deps: Deps::of_program(program),
-            units,
-            cells,
-        }
+            Ok(Self {
+                deps: Deps::of_program_in(program, budget)?,
+                units,
+                cells,
+            })
+        })
     }
 }
 

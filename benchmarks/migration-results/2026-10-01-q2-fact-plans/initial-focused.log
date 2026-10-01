@@ -1,0 +1,35 @@
+
+running 30 tests
+test program::defaults::admission_tests::activation_observations_propagate_only_through_inheriting_closures ... ok
+test program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations ... ok
+test program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates ... ok
+test program::rules::aggregate_tests::s2_aliases_share_mutable_array_fields_and_keep_effect_order ... ok
+test program::rules::aggregate_tests::s2_capture_has_one_bank_per_loop_activation ... ok
+test program::rules::aggregate_tests::s2_closure_reentry_sees_completed_allocation ... ok
+test program::rules::aggregate_tests::s2_early_capture_and_throwing_initializers_keep_failure_order ... ok
+test program::rules::aggregate_tests::s2_field_constants_respect_alias_writers ... ok
+test program::rules::aggregate_tests::s2_fresh_field_collection_obeys_the_pristine_contract ... ok
+test program::rules::aggregate_tests::s2_namespace_reads_and_calls_remove_private_receiver ... ok
+test program::rules::aggregate_tests::s2_nullable_control_join_does_not_claim_an_allocation ... ok
+test program::rules::aggregate_tests::s2_open_script_roots_remain_observable ... ok
+test program::rules::aggregate_tests::s2_private_class_fields_and_alias_mutation ... ok
+test program::rules::aggregate_tests::s2_record_absence_and_special_keys_keep_normalization ... ok
+test program::rules::aggregate_tests::s2_record_aliases_share_captured_writes_and_absence ... ok
+test program::rules::aggregate_tests::s2_record_undefined_payload_keeps_nullish_normalization ... ok
+test program::rules::aggregate_tests::s2_scalar_cells_keep_nullable_declared_storage_types ... ok
+test program::rules::aggregate_tests::s2_scalar_permission_is_independent_of_field_folding ... ok
+test program::rules::aggregate_tests::s2_store_collection_keeps_record_absence_and_reads ... ok
+test program::rules::aggregate_tests::s2_unread_fields_preserve_calls_and_overwritten_stores ... ok
+test program::rules::aggregate_tests::s2_whole_identity_dynamic_keys_and_escape_retain_storage ... ok
+test program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution ... ok
+test program::rules::tests::default_transport_keeps_observed_argument_count_and_signed_zero ... ok
+test program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects ... ok
+test program::rules::tests::forwarded_locals_allow_an_expression_inside_another_calls_arguments ... ok
+test program::rules::tests::forwarded_locals_preserve_an_expression_that_is_still_waiting ... ok
+test program::rules::tests::forwarding_preserves_snapshots_writes_and_argument_evaluation ... ok
+test program::rules::tests::host_annotations_do_not_authorize_common_coercions ... ok
+test program::rules::tests::immutable_scalar_cells_and_common_primitive_operations_forward ... ok
+test program::rules::tests::repeated_parameter_loads_share_one_evaluated_argument ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 2020 filtered out; finished in 1.91s
+

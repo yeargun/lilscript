@@ -230,3 +230,11 @@ choices remain unchanged; all tested cache vetoes preserve logical admission.
 The larger artifact stays 31,882 bytes with 354 judgments; one 55.24-second CPU
 sample is not a speed claim. Remaining class/aggregate/exact-value, rule-planning,
 default-verification and local-fact initialization owners stay open.
+
+The [primitive/aggregate and rule-plan batch](../../benchmarks/migration-results/2026-10-01-q2-fact-plans/README.md)
+admits class/aggregate views, activation/default transport, forwarding and
+cascading dead-code plans. It removes per-origin/key/operand-list allocations
+and repeated activation walks. Thirty-nine distinct focused checks pass across
+the connected changes; two test corrections and their earlier failures remain
+in the evidence. This extends task 4, with exact-value evaluation and other rule
+planners still open. No release/fleet measurement or broad speed claim is made.

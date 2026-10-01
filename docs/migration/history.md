@@ -1549,3 +1549,22 @@ Peak admission is 30,854,238 bytes and all handoff charges release. No full
 suite/fleet/ratchet rerun or port distribution changes. Q2 continues with the
 remaining global fact/planning consumers, dirty dependencies, changed-unit
 formation and per-module elaboration.
+
+## 2026-10-01: Q2 primitive/aggregate facts and forwarding/liveness plans
+
+Algorithm 56 admits class/aggregate views, activation/default transport and the
+forwarding/dead-code planners. Bounded origin sets live inline; activation
+observations propagate once; forwarding compares arena operands without owned
+keys; cascading liveness streams reads. Source edits retain their existing
+owner, and temporary plans release before publication or after refusal.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-fact-plans/README.md):
+39 distinct focused checks pass across the connected changes. The initial run
+passed 30; a missing nested-module filter exposed a new test's incorrect
+assumption about retaining two generations at a one-generation limit. The
+corrected owner check and connected dead-code changes pass their 12-check
+follow-up. A prior test-only StringId comparison build error is also recorded.
+No full suite, release rebuild, ports, ratchet or fleet comparison. No measured
+compression or CPU improvement is claimed. Q2 remains active for exact-value
+and remaining planning owners, dirty dependencies, incremental formation and
+per-module elaboration.

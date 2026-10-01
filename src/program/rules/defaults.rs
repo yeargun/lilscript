@@ -3,6 +3,8 @@
 //! Each affected call gains its missing arguments once; later folding can remove
 //! entry guards. Arguments/reflection must be unobservable for that activation.
 use super::{edit, storage, RuleReceipt};
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::AllocationBudget;
 use crate::output_budget::AllocationClass::{Retained, Scratch};
 use crate::program::call_graph::{CallGraph, Callee};
 use crate::program::*;
@@ -13,67 +15,99 @@ pub(super) fn apply(
     receipt: &mut RuleReceipt,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
 ) -> Result<bool, super::RuleError> {
-    let program = editor.program();
-    let defaults: Vec<_> = program
-        .units()
-        .iter()
-        .map(|u| super::super::defaults::entry_literals(u.data()))
-        .collect();
-    let free: Vec<_> = program
-        .units()
-        .iter()
-        .map(|u| {
-            graph.complete_callers(u.id()).is_some()
-                && super::super::defaults::arguments_free(program, u.id())
-        })
-        .collect();
-    let mut plans = Vec::new();
-    for unit in program.units() {
-        let data = unit.data();
-        for (index, op) in data.operations.iter().enumerate() {
-            let OperationKind::Call(call) = op.kind else {
-                continue;
-            };
-            let site = &data.calls[call.index()];
-            if site.contract.defaults != DefaultConvention::ApplyAtCallee
-                || site.contract.instantiation.is_some()
-            {
-                continue;
-            }
-            let Callee::Unit(body) = graph.callee(unit.id(), call) else {
-                continue;
-            };
-            if !free[body.index()] {
-                continue;
-            }
-            let args = data.arguments(site.arguments).ok_or("call arguments")?;
-            let entries = &defaults[body.index()];
-            if args.len() >= entries.len() {
-                continue;
-            }
-            let target = program.unit(body).ok_or("default owner")?;
-            let mut added = Vec::new();
-            for position in args.len()..entries.len() {
-                let Some(value) = entries[position].clone() else {
-                    added.clear();
-                    break;
+    budget.with_temporary_context(
+        editor,
+        |editor, budget| plan(editor.program(), graph, budget),
+        |plans, editor, budget| apply_plans(editor, plans, receipt, budget),
+    )
+}
+
+type Plan = (UnitId, OpId, CallId, Vec<(Constant, TypeId)>);
+
+fn plan(
+    program: &Program<'_>,
+    graph: &CallGraph,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Plan>, super::RuleError> {
+    budget.retained_phase(|budget| {
+        let mut defaults = budget.vector(Scratch, program.units().len())?;
+        for unit in program.units() {
+            defaults.push(super::super::defaults::entry_literals_in(
+                unit.data(),
+                budget,
+            )?);
+        }
+        let mut free = super::super::defaults::arguments_free_all_in(program, budget)?;
+        for unit in program.units() {
+            free[unit.id().index()] &= graph.complete_callers(unit.id()).is_some();
+        }
+        let mut plans = Vec::new();
+        for unit in program.units() {
+            let data = unit.data();
+            for (index, op) in data.operations.iter().enumerate() {
+                budget.work(WorkKind::Analysis, 1)?;
+                let OperationKind::Call(call) = op.kind else {
+                    continue;
                 };
-                // A scalar catalog/nominal type is preserved by the copied
-                // constant; no allocation or symbol read moves across a call.
-                added.push((value, program.cells[target.parameters[position].index()].ty));
-            }
-            if !added.is_empty() {
-                plans.push((
-                    unit.id(),
-                    OpId::from_index(index).ok_or("operation capacity")?,
-                    call,
-                    added,
-                ));
+                let site = &data.calls[call.index()];
+                if site.contract.defaults != DefaultConvention::ApplyAtCallee
+                    || site.contract.instantiation.is_some()
+                {
+                    continue;
+                }
+                let Callee::Unit(body) = graph.callee(unit.id(), call) else {
+                    continue;
+                };
+                if !free[body.index()] {
+                    continue;
+                }
+                let args = data.arguments(site.arguments).ok_or("call arguments")?;
+                let entries = &defaults[body.index()];
+                if args.len() >= entries.len() {
+                    continue;
+                }
+                let target = program.unit(body).ok_or("default owner")?;
+                let mut added = budget.vector(Retained, entries.len() - args.len())?;
+                for position in args.len()..entries.len() {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    let Some(value) = entries[position].clone() else {
+                        added.clear();
+                        break;
+                    };
+                    added.push((value, program.cells[target.parameters[position].index()].ty));
+                }
+                if added.is_empty() {
+                    storage::release_vec(added, Retained, budget)?;
+                } else {
+                    budget.push(
+                        Retained,
+                        &mut plans,
+                        (
+                            unit.id(),
+                            OpId::from_index(index).ok_or("operation capacity")?,
+                            call,
+                            added,
+                        ),
+                    )?;
+                }
             }
         }
-    }
+        for values in defaults {
+            storage::release_vec(values, Retained, budget)?;
+        }
+        storage::release_vec(free, Retained, budget)?;
+        Ok(plans)
+    })
+}
+
+fn apply_plans(
+    editor: &mut edit::Editor<'_>,
+    plans: &[Plan],
+    receipt: &mut RuleReceipt,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let changed = !plans.is_empty();
-    for (unit, op, call, added) in plans {
+    for &(unit, op, call, ref added) in plans {
         let data = editor.unit_mut_in(unit, budget)?;
         let region = data.operations[op.index()].region;
         let span = data.operations[op.index()].span;
@@ -86,9 +120,9 @@ pub(super) fn apply(
         for (value, ty) in added {
             let (operation, value) = edit::push_operation_in(
                 data,
-                OperationKind::Constant(value),
+                OperationKind::Constant(value.clone()),
                 &[],
-                Some(ty),
+                Some(*ty),
                 region,
                 span,
                 budget,

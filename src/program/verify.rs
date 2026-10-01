@@ -311,8 +311,11 @@ fn verify_default_transport(
                 })
                 .sum(),
         )?;
-        let graph = super::call_graph::CallGraph::build(program, super::call_graph::Seal::Module);
-        let proof = super::defaults::plan(program, &graph);
+        let mut phase = budget.scope();
+        let graph = super::call_graph::CallGraph::build_in(
+            program, super::call_graph::Seal::Module, &mut phase,
+        )?;
+        let proof = super::defaults::plan_in(program, &graph, &mut phase)?;
         if proof.calls.iter().any(|&(unit, call, _)| {
             program.unit(unit).unwrap().calls[call.index()].omit_trailing != 0
         }) || proof

@@ -364,8 +364,11 @@ pub(crate) fn optimize_admitted<'src>(
                     ProgramRule::Returns => dirty::LocalRule::Returns,
                     _ => dirty::LocalRule::Unreachable,
                 };
-                let created = matches!(rule, ProgramRule::Unreachable)
-                    .then(|| created_units(editor.program()));
+                let created = if matches!(rule, ProgramRule::Unreachable) {
+                    Some(created_units_in(editor.program(), budget)?)
+                } else {
+                    None
+                };
                 let units = dirty.select(
                     editor.program(),
                     kind,
@@ -383,11 +386,34 @@ pub(crate) fn optimize_admitted<'src>(
                         budget,
                     )?,
                 };
+                if let Some(created) = created {
+                    storage::release_vec(
+                        created,
+                        crate::output_budget::AllocationClass::Retained,
+                        budget,
+                    )?;
+                }
                 editor.commit_in(budget)?;
                 return Ok(changed);
             }
             let effects = editor.program().effects_in(request.seal, budget)?;
             receipt.observe_effects(&effects, &mut last_effects);
+            if matches!(
+                rule,
+                ProgramRule::Aggregates
+                    | ProgramRule::Forward
+                    | ProgramRule::Fold
+                    | ProgramRule::Inline
+                    | ProgramRule::DeadCode
+            ) {
+                // These transfers consume the immutable class view throughout
+                // their planning phase; mutation commits invalidate it below.
+                drop(
+                    editor
+                        .program()
+                        .primitive_classes_in(request.seal, budget)?,
+                );
+            }
             let changed = match rule {
                 ProgramRule::Defaults => {
                     defaults::apply(editor, effects.graph(), &mut receipt, budget)?
@@ -458,16 +484,28 @@ pub(crate) fn optimize_admitted<'src>(
     if request.fold {
         let effects = editor.program().effects_in(request.seal, budget)?;
         receipt.observe_effects(&effects, &mut last_effects);
-        let plan = super::defaults::plan(editor.program(), effects.graph());
+        budget.with_temporary_context(
+            &mut editor,
+            |editor, budget| {
+                Ok::<_, RuleError>(super::defaults::plan_in(
+                    editor.program(),
+                    effects.graph(),
+                    budget,
+                )?)
+            },
+            |plan, editor, budget| {
+                for &(unit, call, omitted) in &plan.calls {
+                    editor.unit_mut_in(unit, budget)?.calls[call.index()].omit_trailing = omitted;
+                    receipt.default_arguments_omitted += omitted;
+                }
+                for &(unit, length) in &plan.lengths {
+                    editor.unit_mut_in(unit, budget)?.native_default_length = length;
+                    receipt.native_defaults += u32::from(length.is_some());
+                }
+                Ok(())
+            },
+        )?;
         drop(effects);
-        for (unit, call, omitted) in plan.calls {
-            editor.unit_mut_in(unit, budget)?.calls[call.index()].omit_trailing = omitted;
-            receipt.default_arguments_omitted += omitted;
-        }
-        for (unit, length) in plan.lengths {
-            editor.unit_mut_in(unit, budget)?.native_default_length = length;
-            receipt.native_defaults += u32::from(length.is_some());
-        }
         editor.commit_in(budget)?;
     }
     let program = editor.finish_in(budget)?;
@@ -489,54 +527,82 @@ fn behaviors(
     unit: UnitId,
     values: Option<&values::ProgramValues>,
 ) -> Vec<EvaluationBehavior> {
-    let data = program.unit(unit).expect("a program unit");
-    let initialization = effects.initialization();
-    let classes = program.primitive_classes(effects.graph().seal());
-    let mut domains: Vec<bool> = (0..data.values.len())
-        .map(|index| {
-            classes
-                .value(unit, ValueId::from_index(index).unwrap())
-                .primitive()
-        })
-        .collect();
-    let mut behaviors = Vec::with_capacity(data.operations.len());
-    for (index, operation) in data.operations.iter().enumerate() {
-        let mut behavior = facts::operation_evaluation_behavior(
-            program,
-            Some(effects),
-            unit,
-            data,
-            operation,
-            &domains,
-        );
-        if let OperationKind::Load(place) = operation.kind {
-            if let Some(&Place::Cell(cell)) = data.places.get(place.index()) {
-                let passive = EvaluationBehavior {
-                    reads: behavior.reads,
-                    may_throw: true,
-                    ..EvaluationBehavior::TOTAL
-                };
-                if behavior == passive
-                    && matches!(behavior.reads, MemoryAccess::Cell(_))
-                    && initialization.initialized(
-                        program,
-                        unit,
-                        OpId::from_index(index).unwrap(),
-                        cell,
-                    )
-                {
-                    behavior.may_throw = false;
+    behaviors_in(
+        program,
+        effects,
+        unit,
+        values,
+        &mut crate::output_budget::AllocationBudget::new(None),
+    )
+    .expect("inspection operation behaviors")
+}
+
+fn behaviors_in(
+    program: &Program<'_>,
+    effects: &ProgramEffects,
+    unit: UnitId,
+    values: Option<&values::ProgramValues>,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<Vec<EvaluationBehavior>, crate::output_budget::AllocationError> {
+    use crate::output_budget::AllocationClass::{Retained, Scratch};
+    budget.retained_phase(|budget| {
+        let data = program.unit(unit).expect("a program unit");
+        let initialization = effects.initialization();
+        let classes = program.primitive_classes(effects.graph().seal());
+        let mut domains = storage::collect(
+            (0..data.values.len()).map(|index| {
+                classes
+                    .value(unit, ValueId::from_index(index).unwrap())
+                    .primitive()
+            }),
+            Scratch,
+            budget,
+        )?;
+        let mut behaviors = budget.vector(Retained, data.operations.len())?;
+        for (index, operation) in data.operations.iter().enumerate() {
+            budget.work(
+                crate::compilation_policy::WorkKind::Analysis,
+                data.operands(operation.operands)
+                    .map_or(0, |values| values.len()) as u64
+                    + 1,
+            )?;
+            let mut behavior = facts::operation_evaluation_behavior(
+                program,
+                Some(effects),
+                unit,
+                data,
+                operation,
+                &domains,
+            );
+            if let OperationKind::Load(place) = operation.kind {
+                if let Some(&Place::Cell(cell)) = data.places.get(place.index()) {
+                    let passive = EvaluationBehavior {
+                        reads: behavior.reads,
+                        may_throw: true,
+                        ..EvaluationBehavior::TOTAL
+                    };
+                    if behavior == passive
+                        && matches!(behavior.reads, MemoryAccess::Cell(_))
+                        && initialization.initialized(
+                            program,
+                            unit,
+                            OpId::from_index(index).unwrap(),
+                            cell,
+                        )
+                    {
+                        behavior.may_throw = false;
+                    }
                 }
             }
+            if let Some(result) = operation.result {
+                domains[result.index()] |=
+                    facts::primitive_result_domain(program, data, operation, &domains)
+                        || values.is_some_and(|values| values.exact(unit, result).is_some());
+            }
+            behaviors.push(behavior);
         }
-        if let Some(result) = operation.result {
-            domains[result.index()] |=
-                facts::primitive_result_domain(program, data, operation, &domains)
-                    || values.is_some_and(|values| values.exact(unit, result).is_some());
-        }
-        behaviors.push(behavior);
-    }
-    behaviors
+        Ok(behaviors)
+    })
 }
 
 /// The operations of a module initializer's instantiation prefix: the named
@@ -550,25 +616,39 @@ fn prefix(data: &UnitData) -> &[OpId] {
 /// `Closure` of a created unit names (a named function's is its prefix pair).
 /// A body nothing creates never runs; its operations are not evidence.
 pub(super) fn created_units(program: &Program<'_>) -> Vec<bool> {
-    let mut created = vec![false; program.units.len()];
-    let mut pending: Vec<UnitId> = program
-        .units
-        .iter()
-        .filter(|unit| unit.data().kind == UnitKind::ModuleInitialization)
-        .map(FrozenUnit::id)
-        .collect();
-    for unit in &pending {
-        created[unit.index()] = true;
-    }
-    while let Some(unit) = pending.pop() {
-        let data = program.unit(unit).expect("a program unit");
-        for operation in &data.operations {
-            if let OperationKind::Closure(body) = operation.kind {
-                if !std::mem::replace(&mut created[body.index()], true) {
-                    pending.push(body);
+    created_units_in(
+        program,
+        &mut crate::output_budget::AllocationBudget::new(None),
+    )
+    .expect("inspection created bodies")
+}
+
+pub(super) fn created_units_in(
+    program: &Program<'_>,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<Vec<bool>, crate::output_budget::AllocationError> {
+    use crate::output_budget::AllocationClass::{Retained, Scratch};
+    budget.retained_phase(|budget| {
+        let mut created = budget.filled(Retained, program.units.len(), false)?;
+        let mut pending = budget.vector(Scratch, program.units.len())?;
+        for unit in &program.units {
+            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            if unit.data().kind == UnitKind::ModuleInitialization {
+                created[unit.id().index()] = true;
+                pending.push(unit.id());
+            }
+        }
+        while let Some(unit) = pending.pop() {
+            let data = program.unit(unit).expect("a program unit");
+            for operation in &data.operations {
+                budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                if let OperationKind::Closure(body) = operation.kind {
+                    if !std::mem::replace(&mut created[body.index()], true) {
+                        pending.push(body);
+                    }
                 }
             }
         }
-    }
-    created
+        Ok(created)
+    })
 }

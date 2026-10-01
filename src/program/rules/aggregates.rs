@@ -20,7 +20,7 @@ pub(super) fn apply(
     if request.dead_code && collect_stores(editor, request.pristine_builtins, receipt, budget)? {
         return Ok(true);
     }
-    let facts = editor.program().aggregates(request.seal);
+    let facts = editor.program().aggregates_in(request.seal, budget)?;
     if !facts.complete {
         receipt.aggregate_limits += 1;
         return Ok(false);

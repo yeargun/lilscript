@@ -1,0 +1,19 @@
+
+running 2 tests
+test program::classes::tests::classes_follow_closed_producers_and_revision_owners ... ok
+test program::classes::tests::q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal ... FAILED
+
+failures:
+
+---- program::classes::tests::q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal stdout ----
+
+thread 'program::classes::tests::q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal' (1039703) panicked at src/program/classes_tests.rs:132:22:
+called `Result::unwrap()` on an `Err` value: Budget(MemoryExhausted(Baseline))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    program::classes::tests::q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 2048 filtered out; finished in 0.01s
+

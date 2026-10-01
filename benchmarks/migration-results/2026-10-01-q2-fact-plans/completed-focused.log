@@ -1,0 +1,17 @@
+
+running 12 tests
+test program::classes::tests::classes_follow_closed_producers_and_revision_owners ... ok
+test program::classes::tests::q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal ... ok
+test program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations ... ok
+test program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates ... ok
+test program::rules::tests::a_false_branch_leaves_with_the_function_only_it_called ... ok
+test program::rules::tests::a_published_signature_stays ... ok
+test program::rules::tests::a_result_no_call_uses_leaves ... ok
+test program::rules::tests::a_script_keeps_its_root_bindings ... ok
+test program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution ... ok
+test program::rules::tests::effects_and_their_order_stay ... ok
+test program::rules::tests::q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules ... ok
+test program::rules::tests::unread_values_and_stores_leave ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 2038 filtered out; finished in 1.11s
+

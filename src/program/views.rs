@@ -120,8 +120,8 @@ struct Slots {
     effects: [OnceLock<Cached<ProgramEffects>>; 2],
     /// Indexed by `Seal`: value ranges (M6.4b), read by every formation.
     ranges: [OnceLock<Arc<ProgramRanges>>; 2],
-    classes: [OnceLock<Arc<ProgramClasses>>; 2],
-    aggregates: [OnceLock<Arc<ProgramAggregates>>; 2],
+    classes: [OnceLock<Cached<ProgramClasses>>; 2],
+    aggregates: [OnceLock<Cached<ProgramAggregates>>; 2],
 }
 
 #[derive(Debug)]
@@ -179,6 +179,16 @@ impl ProgramViews {
         }
         // Both physical modes retain the same dependency-qualified stages.
         // A veto executes their cold builders without changing reservations.
+        for slot in &mut self.slots.classes {
+            if let Some(value) = slot.take() {
+                value.discard(budget)?;
+            }
+        }
+        for slot in &mut self.slots.aggregates {
+            if let Some(value) = slot.take() {
+                value.discard(budget)?;
+            }
+        }
         self.slots = Slots::default();
         Ok(())
     }
@@ -196,6 +206,16 @@ impl ProgramViews {
                 value.discard(budget)?;
             }
         }
+        for slot in &mut self.slots.classes {
+            if let Some(value) = slot.take() {
+                value.discard(budget)?;
+            }
+        }
+        for slot in &mut self.slots.aggregates {
+            if let Some(value) = slot.take() {
+                value.discard(budget)?;
+            }
+        }
         self.slots = Slots::default();
         Ok(())
     }
@@ -205,27 +225,85 @@ impl<'src> Program<'src> {
     pub(crate) fn aggregates(&self, seal: Seal) -> Arc<ProgramAggregates> {
         let slot = &self.views.slots.aggregates[seal as usize];
         let build = || Arc::new(ProgramAggregates::build(self, &self.effects(seal)));
-        let cached = slot.get_or_init(build);
-        if cached.deps().valid_for(self) {
-            Arc::clone(cached)
+        let cached = slot.get_or_init(|| Cached {
+            value: build(),
+            bytes: 0,
+        });
+        if cached.value.deps().valid_for(self) {
+            Arc::clone(&cached.value)
         } else {
             build()
         }
+    }
+    pub(crate) fn aggregates_in(
+        &self,
+        seal: Seal,
+        budget: &mut crate::output_budget::AllocationBudget<'_>,
+    ) -> Result<Arc<ProgramAggregates>, crate::output_budget::AllocationError> {
+        // Dependencies use this parent owner, never the child's fresh-output
+        // scope: each cache slot releases exactly its own reservation.
+        let effects = self.effects_in(seal, budget)?;
+        let slot = &self.views.slots.aggregates[seal as usize];
+        if slot.get().is_none() {
+            let cached = budget.retained_phase(|budget| {
+                let value = ProgramAggregates::build_in(self, &effects, budget)?;
+                let value = super::analysis_storage::shared(value, budget)?;
+                Ok::<_, crate::output_budget::AllocationError>(Cached {
+                    value,
+                    bytes: budget.retained_bytes(crate::output_budget::AllocationClass::Retained),
+                })
+            })?;
+            slot.set(cached)
+                .expect("one compiler owns analysis publication");
+        }
+        let cached = slot.get().unwrap();
+        if !cached.value.deps().valid_for(self) || (budget.is_accounted() && cached.bytes == 0) {
+            return Err(crate::output_budget::AllocationError::WrongOwner);
+        }
+        Ok(Arc::clone(&cached.value))
     }
 
     pub(crate) fn primitive_classes(&self, seal: Seal) -> Arc<ProgramClasses> {
         let slot = &self.views.slots.classes[seal as usize];
         let build = || Arc::new(ProgramClasses::build(self, self.effects(seal).graph()));
-        let cached = slot.get_or_init(build);
-        if cached.deps().valid_for(self) {
-            Arc::clone(cached)
+        let cached = slot.get_or_init(|| Cached {
+            value: build(),
+            bytes: 0,
+        });
+        if cached.value.deps().valid_for(self) {
+            Arc::clone(&cached.value)
         } else {
             build()
         }
     }
+    pub(crate) fn primitive_classes_in(
+        &self,
+        seal: Seal,
+        budget: &mut crate::output_budget::AllocationBudget<'_>,
+    ) -> Result<Arc<ProgramClasses>, crate::output_budget::AllocationError> {
+        // Dependencies use this parent owner, never the child's fresh-output
+        // scope: each cache slot releases exactly its own reservation.
+        let effects = self.effects_in(seal, budget)?;
+        let slot = &self.views.slots.classes[seal as usize];
+        if slot.get().is_none() {
+            let cached = budget.retained_phase(|budget| {
+                let value = ProgramClasses::build_in(self, effects.graph(), budget)?;
+                let value = super::analysis_storage::shared(value, budget)?;
+                Ok::<_, crate::output_budget::AllocationError>(Cached {
+                    value,
+                    bytes: budget.retained_bytes(crate::output_budget::AllocationClass::Retained),
+                })
+            })?;
+            slot.set(cached)
+                .expect("one compiler owns analysis publication");
+        }
+        let cached = slot.get().unwrap();
+        if !cached.value.deps().valid_for(self) || (budget.is_accounted() && cached.bytes == 0) {
+            return Err(crate::output_budget::AllocationError::WrongOwner);
+        }
+        Ok(Arc::clone(&cached.value))
+    }
 
-    /// The value ranges under `seal` (`ranges.rs`), computed once per
-    /// program from its effects' call graph.
     pub fn ranges(&self, seal: Seal) -> Arc<ProgramRanges> {
         let slot = &self.views.slots.ranges[seal as usize];
         let build = || Arc::new(ProgramRanges::build(self, &self.effects(seal), seal));

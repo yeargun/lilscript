@@ -3,10 +3,17 @@
 //! An origin set is a may-alias answer, never a uniqueness certificate. The
 //! bounded monotone solve retains every origin or abandons the whole answer.
 //! Consumers separately prove activation, initialization and complete uses.
+use super::analysis_storage as storage;
 use super::call_graph::{Callee, EdgeKind, Seal};
 use super::effects::ProgramEffects;
 use super::views::Deps;
 use super::*;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 
 const MAX_ORIGINS: usize = 8;
 const MAX_ROUNDS: usize = 64;
@@ -14,21 +21,52 @@ const MAX_WORK: usize = 1 << 24;
 const MAX_VALUES: usize = 1 << 19;
 const MAX_FIELDS: usize = 256;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// A bounded origin set needs no per-value heap allocation. Site ordinals
+/// fit u32 because the entire solve rejects more than MAX_VALUES values.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct Sites {
+    values: [u32; MAX_ORIGINS],
+    len: u8,
+}
+impl Sites {
+    fn len(&self) -> usize {
+        self.len as usize
+    }
+    pub(super) fn contains(&self, site: &usize) -> bool {
+        self.iter().any(|value| value == *site)
+    }
+    fn iter(self) -> impl Iterator<Item = usize> {
+        self.values
+            .into_iter()
+            .take(self.len as usize)
+            .map(|site| site as usize)
+    }
+    fn push(&mut self, site: usize) {
+        assert!(self.len() < MAX_ORIGINS, "bounded origin set");
+        self.values[self.len()] = u32::try_from(site).expect("bounded allocation ordinal");
+        self.len += 1;
+    }
+    fn sort(&mut self) {
+        let len = self.len();
+        self.values[..len].sort_unstable();
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct Origins {
-    pub sites: Vec<usize>,
+    pub sites: Sites,
     pub unknown: bool,
 }
 impl Origins {
     fn unknown() -> Self {
         Self {
-            sites: Vec::new(),
+            sites: Sites::default(),
             unknown: true,
         }
     }
     fn join(&mut self, other: &Self) -> bool {
         self.unknown |= other.unknown;
-        for &site in &other.sites {
+        for site in other.sites.iter() {
             if !self.sites.contains(&site) {
                 if self.sites.len() == MAX_ORIGINS {
                     return false;
@@ -36,11 +74,11 @@ impl Origins {
                 self.sites.push(site);
             }
         }
-        self.sites.sort_unstable();
+        self.sites.sort();
         true
     }
     pub fn single(&self) -> Option<usize> {
-        (!self.unknown && self.sites.len() == 1).then(|| self.sites[0])
+        (!self.unknown && self.sites.len() == 1).then(|| self.sites.values[0] as usize)
     }
 }
 
@@ -150,300 +188,331 @@ impl ProgramAggregates {
         Some((site, self.sites[site].field(key)?))
     }
     pub(super) fn build(program: &Program<'_>, effects: &ProgramEffects) -> Self {
-        if program
-            .units
-            .iter()
-            .map(|u| u.data().values.len())
-            .sum::<usize>()
-            .saturating_add(program.cells.len())
-            > MAX_VALUES
-        {
-            return Self {
-                deps: Deps::of_program(program),
+        Self::build_in(program, effects, &mut AllocationBudget::new(None))
+            .expect("inspection aggregates")
+    }
+    pub(super) fn build_in(
+        program: &Program<'_>,
+        effects: &ProgramEffects,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        budget.retained_phase(|budget| {
+            if program
+                .units
+                .iter()
+                .fold(0usize, |total, u| {
+                    total.saturating_add(u.data().values.len())
+                })
+                .saturating_add(program.cells.len())
+                > MAX_VALUES
+            {
+                return Ok(Self {
+                    deps: Deps::of_program_in(program, budget)?,
+                    sites: Vec::new(),
+                    values: Vec::new(),
+                    cells: Vec::new(),
+                    complete: false,
+                    work: 0,
+                });
+            }
+            let mut values = budget.vector(Retained, program.units.len())?;
+            for unit in &program.units {
+                values.push(budget.filled(
+                    Retained,
+                    unit.data().values.len(),
+                    Origins::default(),
+                )?);
+            }
+            let mut result = Self {
+                deps: Deps::of_program_in(program, budget)?,
                 sites: Vec::new(),
-                values: Vec::new(),
-                cells: Vec::new(),
+                values,
+                cells: budget.filled(Retained, program.cells.len(), Origins::default())?,
                 complete: false,
                 work: 0,
             };
-        }
-        let mut result = Self {
-            deps: Deps::of_program(program),
-            sites: Vec::new(),
-            values: program
-                .units
-                .iter()
-                .map(|u| vec![Origins::default(); u.data().values.len()])
-                .collect(),
-            cells: vec![Origins::default(); program.cells.len()],
-            complete: false,
-            work: 0,
-        };
-        let graph = effects.graph();
-        if program
-            .units
-            .iter()
-            .any(|u| !super::defaults::arguments_free(program, u.id()))
-        {
-            return result;
-        }
-        for unit in &program.units {
-            let data = unit.data();
-            for (index, operation) in data.operations.iter().enumerate() {
-                let OperationKind::Allocate { identity, kind } = &operation.kind else {
-                    continue;
-                };
-                let Some(value) = operation.result else {
-                    continue;
-                };
-                let args = data.operands(operation.operands).unwrap_or(&[]);
-                let (keys, record, scalar_kind, dynamic): (Vec<_>, _, _, _) = match kind {
-                    AllocationKind::Array => (
-                        (0..args.len()).map(|i| Key::Index(i as u32)).collect(),
-                        false,
-                        true,
-                        false,
-                    ),
-                    AllocationKind::Record(keys) => (
-                        keys.iter().copied().map(Key::Named).collect(),
-                        true,
-                        false,
-                        false,
-                    ),
-                    AllocationKind::Object(keys) => (
-                        keys.iter().copied().map(Key::Named).collect(),
-                        false,
-                        true,
-                        false,
-                    ),
-                    AllocationKind::Instance { class, keys } => {
-                        let blocked = program.class(*class).is_none_or(|c| {
-                            c.external
-                                || c.observed
-                                || c.reflected
-                                || c.published
-                                || !c.type_params.is_empty()
-                        });
-                        (
-                            keys.iter().copied().map(Key::Named).collect(),
-                            false,
-                            !blocked,
-                            blocked,
-                        )
-                    }
-                    _ => (Vec::new(), false, false, true),
-                };
-                let mut fields = Vec::new();
-                let mut invalid = dynamic || keys.len() != args.len() || keys.len() > MAX_FIELDS;
-                for (key, &initial) in keys.into_iter().zip(args).take(MAX_FIELDS) {
-                    invalid |= fields.iter().any(|f: &FieldFacts| f.key == key);
-                    if let Key::Named(key) = key {
-                        invalid |= program.strings[key.index()].as_unicode() == Some("__proto__")
-                            && !record;
-                    }
-                    let constant = literal(data, initial).cloned();
-                    fields.push(FieldFacts {
-                        key,
-                        initial,
-                        read: false,
-                        written: false,
-                        constant,
-                    });
-                }
-                let site = result.sites.len();
-                result.values[unit.id().index()][value.index()]
-                    .sites
-                    .push(site);
-                result.sites.push(AllocationFacts {
-                    unit: unit.id(),
-                    operation: OpId::from_index(index).unwrap(),
-                    value,
-                    identity: *identity,
-                    fields,
-                    escape: Escape::Local,
-                    identity_observed: false,
-                    dynamic: invalid,
-                    captured: false,
-                    record,
-                    scalar_kind,
-                });
+            let graph = effects.graph();
+            let free = super::defaults::arguments_free_all_in(program, budget)?;
+            let blocked = free.iter().any(|free| !free);
+            storage::release(free, Retained, budget)?;
+            if blocked {
+                return Ok(result);
             }
-        }
-        let mut returns = vec![Origins::unknown(); program.units.len()];
-        for (index, cell) in program.cells.iter().enumerate() {
-            let id = CellId::from_index(index).unwrap();
-            let external = !matches!(cell.binding, CellBinding::Local | CellBinding::Parameter(_))
-                || graph.storage(id).referenced
-                || program.is_reference_parameter(id)
-                || (graph.seal() != Seal::Module
-                    && program.unit(cell.owner).unwrap().kind == UnitKind::ModuleInitialization);
-            result.cells[index].unknown = external;
-        }
-        let mut settled = false;
-        'rounds: for _ in 0..MAX_ROUNDS {
-            let mut changed = false;
             for unit in &program.units {
-                let id = unit.id();
                 let data = unit.data();
-                for (position, &cell) in data.parameters.iter().enumerate() {
-                    let mut next = Origins::default();
-                    match graph.complete_callers(id) {
-                        Some(edges) if !edges.is_empty() => {
-                            for edge in edges {
-                                let caller = program.unit(edge.caller).unwrap();
-                                let site = &caller.calls[edge.call.index()];
-                                let origin = match caller
-                                    .arguments(site.arguments)
-                                    .and_then(|args| args.get(position))
-                                {
-                                    Some(CallArgument::Value(value))
-                                        if edge.kind == EdgeKind::Call
-                                            && site.contract.instantiation.is_none() =>
-                                    {
-                                        result.value(edge.caller, *value).clone()
-                                    }
-                                    _ => Origins::unknown(),
-                                };
-                                if !next.join(&origin) {
-                                    break 'rounds;
-                                }
-                            }
-                        }
-                        _ => next.unknown = true,
-                    }
-                    let old = result.cells[cell.index()].clone();
-                    if !result.cells[cell.index()].join(&next) {
-                        break 'rounds;
-                    }
-                    changed |= old != result.cells[cell.index()];
-                }
-                for operation in &data.operations {
-                    result.work += 1;
-                    if result.work > MAX_WORK {
-                        break 'rounds;
-                    }
-                    let args = data.operands(operation.operands).unwrap_or(&[]);
-                    if let OperationKind::Declare(cell) = operation.kind {
-                        changed |= !result.cells[cell.index()].unknown;
-                        result.cells[cell.index()].unknown = true;
-                    }
-                    if let Some(&input) = args.first() {
-                        let cell = match operation.kind {
-                            OperationKind::Initialize(cell) => Some(cell),
-                            OperationKind::Store(place) => match data.places[place.index()] {
-                                Place::Cell(cell) => Some(cell),
-                                _ => None,
-                            },
-                            _ => None,
-                        };
-                        if let Some(cell) = cell {
-                            let next = result.value(id, input).clone();
-                            let old = result.cells[cell.index()].clone();
-                            if !result.cells[cell.index()].join(&next) {
-                                break 'rounds;
-                            }
-                            changed |= old != result.cells[cell.index()];
-                        }
-                        if matches!(operation.kind, OperationKind::Return) {
-                            let next = result.value(id, input).clone();
-                            let old = returns[id.index()].clone();
-                            if !returns[id.index()].join(&next) {
-                                break 'rounds;
-                            }
-                            changed |= old != returns[id.index()];
-                        }
-                    }
+                for (index, operation) in data.operations.iter().enumerate() {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    let OperationKind::Allocate { identity, kind } = &operation.kind else {
+                        continue;
+                    };
                     let Some(value) = operation.result else {
                         continue;
                     };
-                    let next = match operation.kind {
-                        OperationKind::Allocate { .. } => continue,
-                        OperationKind::Constant(_) | OperationKind::Closure(_) => {
-                            Origins::unknown()
+                    let args = data.operands(operation.operands).unwrap_or(&[]);
+                    let (keys, count, record, scalar_kind, dynamic): (
+                        Option<&[StringId]>,
+                        _,
+                        _,
+                        _,
+                        _,
+                    ) = match kind {
+                        AllocationKind::Array => (None, args.len(), false, true, false),
+                        AllocationKind::Record(keys) => {
+                            (Some(keys), keys.len(), true, false, false)
                         }
-                        OperationKind::CopyValue => args
-                            .first()
-                            .map_or_else(Origins::unknown, |v| result.value(id, *v).clone()),
-                        OperationKind::Load(place) => match data.places[place.index()] {
-                            Place::Cell(cell) => result.cells[cell.index()].clone(),
-                            Place::Value(value) => result.value(id, value).clone(),
-                            _ => Origins::unknown(),
+                        AllocationKind::Object(keys) => {
+                            (Some(keys), keys.len(), false, true, false)
+                        }
+                        AllocationKind::Instance { class, keys } => {
+                            let blocked = program.class(*class).is_none_or(|c| {
+                                c.external
+                                    || c.observed
+                                    || c.reflected
+                                    || c.published
+                                    || !c.type_params.is_empty()
+                            });
+                            (Some(keys), keys.len(), false, !blocked, blocked)
+                        }
+                        _ => (None, 0, false, false, true),
+                    };
+                    let mut fields =
+                        budget.vector(Retained, count.min(args.len()).min(MAX_FIELDS))?;
+                    let mut invalid = dynamic || count != args.len() || count > MAX_FIELDS;
+                    for (position, &initial) in args.iter().take(count.min(MAX_FIELDS)).enumerate()
+                    {
+                        budget.work(WorkKind::Analysis, fields.len() as u64 + 1)?;
+                        let key = keys.map_or(Key::Index(position as u32), |keys| {
+                            Key::Named(keys[position])
+                        });
+                        invalid |= fields.iter().any(|f: &FieldFacts| f.key == key);
+                        if let Key::Named(key) = key {
+                            invalid |= program.strings[key.index()].as_unicode()
+                                == Some("__proto__")
+                                && !record;
+                        }
+                        let constant = literal(data, initial).cloned();
+                        fields.push(FieldFacts {
+                            key,
+                            initial,
+                            read: false,
+                            written: false,
+                            constant,
+                        });
+                    }
+                    let site = result.sites.len();
+                    result.values[unit.id().index()][value.index()]
+                        .sites
+                        .push(site);
+                    budget.push(
+                        Retained,
+                        &mut result.sites,
+                        AllocationFacts {
+                            unit: unit.id(),
+                            operation: OpId::from_index(index).unwrap(),
+                            value,
+                            identity: *identity,
+                            fields,
+                            escape: Escape::Local,
+                            identity_observed: false,
+                            dynamic: invalid,
+                            captured: false,
+                            record,
+                            scalar_kind,
                         },
-                        OperationKind::Call(call) => match graph.callee(id, call) {
-                            Callee::Unit(callee) => returns[callee.index()].clone(),
-                            _ => Origins::unknown(),
-                        },
-                        OperationKind::Select { yes, no } => {
-                            let mut next = Origins::default();
-                            for region in [yes, no] {
-                                let origin = data.regions[region.index()]
+                    )?;
+                }
+            }
+            let mut returns = budget.filled(Scratch, program.units.len(), Origins::unknown())?;
+            for (index, cell) in program.cells.iter().enumerate() {
+                budget.work(WorkKind::Analysis, 1)?;
+                let id = CellId::from_index(index).unwrap();
+                let external =
+                    !matches!(cell.binding, CellBinding::Local | CellBinding::Parameter(_))
+                        || graph.storage(id).referenced
+                        || program.is_reference_parameter(id)
+                        || (graph.seal() != Seal::Module
+                            && program.unit(cell.owner).unwrap().kind
+                                == UnitKind::ModuleInitialization);
+                result.cells[index].unknown = external;
+            }
+            let mut settled = false;
+            'rounds: for _ in 0..MAX_ROUNDS {
+                let mut changed = false;
+                for unit in &program.units {
+                    let id = unit.id();
+                    let data = unit.data();
+                    for (position, &cell) in data.parameters.iter().enumerate() {
+                        let mut next = Origins::default();
+                        match graph.complete_callers(id) {
+                            Some(edges) if !edges.is_empty() => {
+                                for edge in edges {
+                                    budget.work(WorkKind::Analysis, MAX_ORIGINS as u64)?;
+                                    let caller = program.unit(edge.caller).unwrap();
+                                    let site = &caller.calls[edge.call.index()];
+                                    let origin = match caller
+                                        .arguments(site.arguments)
+                                        .and_then(|args| args.get(position))
+                                    {
+                                        Some(CallArgument::Value(value))
+                                            if edge.kind == EdgeKind::Call
+                                                && site.contract.instantiation.is_none() =>
+                                        {
+                                            result.value(edge.caller, *value).clone()
+                                        }
+                                        _ => Origins::unknown(),
+                                    };
+                                    if !next.join(&origin) {
+                                        break 'rounds;
+                                    }
+                                }
+                            }
+                            _ => next.unknown = true,
+                        }
+                        let old = result.cells[cell.index()].clone();
+                        if !result.cells[cell.index()].join(&next) {
+                            break 'rounds;
+                        }
+                        changed |= old != result.cells[cell.index()];
+                    }
+                    for operation in &data.operations {
+                        budget.work(WorkKind::Analysis, MAX_ORIGINS as u64)?;
+                        result.work += 1;
+                        if result.work > MAX_WORK {
+                            break 'rounds;
+                        }
+                        let args = data.operands(operation.operands).unwrap_or(&[]);
+                        if let OperationKind::Declare(cell) = operation.kind {
+                            changed |= !result.cells[cell.index()].unknown;
+                            result.cells[cell.index()].unknown = true;
+                        }
+                        if let Some(&input) = args.first() {
+                            let cell = match operation.kind {
+                                OperationKind::Initialize(cell) => Some(cell),
+                                OperationKind::Store(place) => match data.places[place.index()] {
+                                    Place::Cell(cell) => Some(cell),
+                                    _ => None,
+                                },
+                                _ => None,
+                            };
+                            if let Some(cell) = cell {
+                                let next = result.value(id, input).clone();
+                                let old = result.cells[cell.index()].clone();
+                                if !result.cells[cell.index()].join(&next) {
+                                    break 'rounds;
+                                }
+                                changed |= old != result.cells[cell.index()];
+                            }
+                            if matches!(operation.kind, OperationKind::Return) {
+                                let next = result.value(id, input).clone();
+                                let old = returns[id.index()].clone();
+                                if !returns[id.index()].join(&next) {
+                                    break 'rounds;
+                                }
+                                changed |= old != returns[id.index()];
+                            }
+                        }
+                        let Some(value) = operation.result else {
+                            continue;
+                        };
+                        let next = match operation.kind {
+                            OperationKind::Allocate { .. } => continue,
+                            OperationKind::Constant(_) | OperationKind::Closure(_) => {
+                                Origins::unknown()
+                            }
+                            OperationKind::CopyValue => args
+                                .first()
+                                .map_or_else(Origins::unknown, |v| result.value(id, *v).clone()),
+                            OperationKind::Load(place) => match data.places[place.index()] {
+                                Place::Cell(cell) => result.cells[cell.index()].clone(),
+                                Place::Value(value) => result.value(id, value).clone(),
+                                _ => Origins::unknown(),
+                            },
+                            OperationKind::Call(call) => match graph.callee(id, call) {
+                                Callee::Unit(callee) => returns[callee.index()].clone(),
+                                _ => Origins::unknown(),
+                            },
+                            OperationKind::Select { yes, no } => {
+                                let mut next = Origins::default();
+                                for region in [yes, no] {
+                                    let origin = data.regions[region.index()]
+                                        .result
+                                        .map_or_else(Origins::unknown, |v| {
+                                            result.value(id, v).clone()
+                                        });
+                                    if !next.join(&origin) {
+                                        break 'rounds;
+                                    }
+                                }
+                                next
+                            }
+                            OperationKind::ShortCircuit { right, .. } => {
+                                let mut next = args.first().map_or_else(Origins::unknown, |v| {
+                                    result.value(id, *v).clone()
+                                });
+                                let origin = data.regions[right.index()]
                                     .result
                                     .map_or_else(Origins::unknown, |v| result.value(id, v).clone());
                                 if !next.join(&origin) {
                                     break 'rounds;
                                 }
+                                next
                             }
-                            next
+                            _ => Origins::unknown(),
+                        };
+                        let slot = &mut result.values[id.index()][value.index()];
+                        let old = slot.clone();
+                        if !slot.join(&next) {
+                            break 'rounds;
                         }
-                        OperationKind::ShortCircuit { right, .. } => {
-                            let mut next = args
-                                .first()
-                                .map_or_else(Origins::unknown, |v| result.value(id, *v).clone());
-                            let origin = data.regions[right.index()]
-                                .result
-                                .map_or_else(Origins::unknown, |v| result.value(id, v).clone());
-                            if !next.join(&origin) {
-                                break 'rounds;
-                            }
-                            next
-                        }
-                        _ => Origins::unknown(),
-                    };
-                    let slot = &mut result.values[id.index()][value.index()];
-                    let old = slot.clone();
-                    if !slot.join(&next) {
-                        break 'rounds;
+                        changed |= *slot != old;
                     }
-                    changed |= *slot != old;
+                }
+                if !changed {
+                    settled = true;
+                    break;
                 }
             }
-            if !changed {
-                settled = true;
-                break;
+            if !settled {
+                return Ok(result);
             }
-        }
-        if !settled {
-            return result;
-        }
-        result.complete = true;
-        result.observe(program, effects);
-        result
+            result.complete = true;
+            result.observe(program, effects, budget)?;
+            Ok(result)
+        })
     }
 
     fn escape(&mut self, origins: &Origins, escape: Escape) {
-        for &site in &origins.sites {
+        for site in origins.sites.iter() {
             self.sites[site].escape = self.sites[site].escape.max(escape);
         }
     }
-    fn observe(&mut self, program: &Program<'_>, effects: &ProgramEffects) {
+    fn observe(
+        &mut self,
+        program: &Program<'_>,
+        effects: &ProgramEffects,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
         let graph = effects.graph();
         for export in program.exports.iter() {
+            budget.work(WorkKind::Analysis, MAX_ORIGINS as u64)?;
             if let InterfaceTarget::Value(cell) = export.target {
                 self.escape(&self.cell(cell).clone(), Escape::Host);
             }
         }
         for module in program.modules.iter() {
             for &(_, cell) in &module.namespace {
+                budget.work(WorkKind::Analysis, MAX_ORIGINS as u64)?;
                 self.escape(&self.cell(cell).clone(), Escape::Host);
             }
         }
         for (index, cell) in program.cells.iter().enumerate() {
+            budget.work(WorkKind::Analysis, MAX_ORIGINS as u64)?;
             let origins = self.cells[index].clone();
             if self.cells[index].unknown {
                 self.escape(&origins, Escape::Host);
             }
             if graph.storage(CellId::from_index(index).unwrap()).shared {
-                for &site in &origins.sites {
+                for site in origins.sites.iter() {
                     self.sites[site].captured = true;
                 }
             }
@@ -455,6 +524,19 @@ impl ProgramAggregates {
             let id = unit.id();
             let data = unit.data();
             for operation in &data.operations {
+                let arguments = match operation.kind {
+                    OperationKind::Call(call) => data
+                        .arguments(data.calls[call.index()].arguments)
+                        .map_or(0, |args| args.len()),
+                    _ => 0,
+                };
+                let operands = data
+                    .operands(operation.operands)
+                    .map_or(0, |args| args.len());
+                budget.work(
+                    WorkKind::Analysis,
+                    (arguments as u64 + operands as u64 + 1) * MAX_ORIGINS as u64,
+                )?;
                 let args = data.operands(operation.operands).unwrap_or(&[]);
                 let mut transport = false;
                 match operation.kind {
@@ -531,7 +613,7 @@ impl ProgramAggregates {
                             matches!(literal(data, v), Some(Constant::Null | Constant::Undefined))
                         });
                         for &value in args {
-                            for &site in &self.value(id, value).sites.clone() {
+                            for site in self.value(id, value).sites.iter() {
                                 self.sites[site].identity_observed |= !null;
                             }
                         }
@@ -551,6 +633,7 @@ impl ProgramAggregates {
                 }
             }
         }
+        Ok(())
     }
     fn observe_place(
         &mut self,
@@ -569,7 +652,7 @@ impl ProgramAggregates {
         };
         let origins = self.value(unit, receiver).clone();
         let key = projection(program, data, place).map(|(_, key)| key);
-        for site in origins.sites {
+        for site in origins.sites.iter() {
             let allocation = &mut self.sites[site];
             let Some(field) = key.and_then(|key| allocation.field(key)) else {
                 allocation.dynamic = true;

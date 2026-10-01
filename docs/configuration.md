@@ -1284,7 +1284,11 @@ before publication. JavaScript demand owns its graph, effects and ranges until
 the candidate's formation ends. Range propagation keeps live flow states and
 does not materialize unused per-operation state history. These analysis costs
 are counted from policy algorithm 55; very tight limits can refuse work that
-older compilers did not account for.
+older compilers did not account for. Algorithm 56 additionally admits primitive
+classes, aggregate origins, activation/default transport and forwarding/dead-code
+plans. Temporary plans release before publication, including refused attempts.
+These costs use the existing resource limits; there is no flag that bypasses
+mandatory admission. Analysis choices and source semantics are unchanged.
 
 Target literal folding and undefined/unreachable cleanup reuse stable answers
 only while their complete node/region/function/table dependencies remain
@@ -1343,4 +1347,5 @@ working directory. It preserves explicit `build_reuse=false` and
 reuse and disk access. Explicit CLI settings override their TOML counterparts. `--print-policy` reports the effective
 settings under execution/resolution, outside the semantic fingerprint. Unknown
 keys, non-boolean reuse flags and an empty directory are errors. Per-module
-elaboration caching and explicit decision-lock replay remain migration work.
+elaboration caching remains migration work; decision-lock replay is documented
+above.

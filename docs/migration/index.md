@@ -25,7 +25,9 @@ artifact metadata have complete reservations and refusal cleanup. Repeated
 family tails now share immutable targets under deterministic admission stages;
 changed-unit formation and per-module elaboration remain open. Graph, effect and range
 analyses are admitted through source normalization, pure-contract checks and JavaScript
-demand; class/aggregate/exact-value and remaining planning consumers are next. Keep logical admission, hard TOML
+demand. Primitive classes, aggregate origins, activation/default transport and
+forwarding/dead-code plans are admitted; exact-value evaluation and the remaining
+planning consumers are next. Keep logical admission, hard TOML
 permissions, source/target identities and selected output independent of cache
 occupancy. Then follow **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 

@@ -95,11 +95,10 @@ impl StorageProofs {
             }
             return Ok(result);
         }
-        if program
-            .units
-            .iter()
-            .any(|u| !super::defaults::arguments_free(program, u.id()))
-        {
+        let free = super::defaults::arguments_free_all_in(program, budget)?;
+        let blocked = free.iter().any(|free| !free);
+        super::analysis_storage::release(free, AllocationClass::Retained, budget)?;
+        if blocked {
             return Ok(result);
         }
         for (index, cell) in program.cells.iter().enumerate() {
