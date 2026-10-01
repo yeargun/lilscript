@@ -1,0 +1,454 @@
+{
+  "distinct": 104,
+  "passed": 104,
+  "attempts": [
+    {
+      "log": "/tmp/lilscript-q2-source-tests.log",
+      "tests": [
+        {
+          "name": "program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates",
+          "status": "FAILED"
+        },
+        {
+          "name": "program::rules::admission_tests::q2_source_shared_body_and_tables_keep_old_reservations_until_readers_drop",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_aliases_share_mutable_array_fields_and_keep_effect_order",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_capture_has_one_bank_per_loop_activation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_closure_reentry_sees_completed_allocation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_early_capture_and_throwing_initializers_keep_failure_order",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_field_constants_respect_alias_writers",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_fresh_field_collection_obeys_the_pristine_contract",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_namespace_reads_and_calls_remove_private_receiver",
+          "status": "FAILED"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_nullable_control_join_does_not_claim_an_allocation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_open_script_roots_remain_observable",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_private_class_fields_and_alias_mutation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_record_absence_and_special_keys_keep_normalization",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_record_aliases_share_captured_writes_and_absence",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_record_undefined_payload_keeps_nullish_normalization",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_scalar_cells_keep_nullable_declared_storage_types",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_scalar_permission_is_independent_of_field_folding",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_store_collection_keeps_record_absence_and_reads",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_unread_fields_preserve_calls_and_overwritten_stores",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_whole_identity_dynamic_keys_and_escape_retain_storage",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_cross_module_cycle_keeps_captured_tdz_observable",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_cross_module_inlining_keeps_global_capture_and_initialization_order",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_field_written_reference_parameter_does_not_copy_its_handle",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_inlined_argument_mutation_keeps_earlier_snapshot",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return",
+          "status": "FAILED"
+        },
+        {
+          "name": "program::rules::call_tests::s3_nested_closure_subtree_remaps_every_capture",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_return_normalization_does_not_keep_a_range_after_mutation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_returned_closures_keep_distinct_loop_activations",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_scoped_result_survives_value_product_parameter_mutation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_tail_guard_return_keeps_the_untaken_suffix_lazy",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_terminal_branches_preserve_lazy_effects_and_return_types",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::scalar_tests::constant_scalar_code_point_count_matches_utf16_iteration",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::scalar_tests::constant_scalar_evaluation_obeys_arity_and_storage_limits",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::scalar_tests::constant_scalar_to_int_matches_number_bit_patterns",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::scalar_tests::primitive_predicates_match_node_on_type_zero_nan_and_utf16_edges",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::tests::constant_method_limits_refuse_expansion_and_unknown_unicode_case",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::tests::exact_methods_match_node_on_utf16_indices_whitespace_and_signed_zero",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_copied_body_reads_the_storage_its_function_captured",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_default_only_the_callee_builds_still_applies",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_false_branch_leaves_with_the_function_only_it_called",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_fold_counts_what_the_output_may_name_at_one_character",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_folded_exit_leaves_one_return_that_inlines",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_function_called_once_moves_into_its_caller",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_loop_whose_test_is_false_never_runs",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_parameter_cell_is_a_statement",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_parameter_every_call_passes_the_same_constant_becomes_it",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_published_signature_stays",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_repeated_nonempty_body_stays_available_to_objective_judging",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_result_leaves_a_scoped_copy_through_private_storage",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_result_no_call_uses_leaves",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_script_keeps_its_root_bindings",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_settled_root_condition_chooses_its_branch_only_when_sealed",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_signature_changes_for_every_function_that_shares_it",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_typed_caller_never_triggers_a_default",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::an_argument_is_not_read_after_something_observable",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::an_arrow_held_in_a_local_is_inlined_at_its_calls",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::an_unread_parameter_leaves_every_call",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::bitwise_identities_of_an_int_are_the_int",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::bounded_constant_calls_preserve_nontermination_and_throwing_methods",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::completed_constant_loops_preserve_control_flow_and_iteration_state",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::conditional_values_keep_the_operand_that_runs",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_call_folding_preserves_argument_effects_and_mutable_captures",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_calls_are_evaluated_for_each_argument_tuple",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_loop_evaluation_preserves_observable_exceptions",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_loops_keep_effects_and_calls_that_exhaust_evaluation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_numeric_conversion_needs_no_pristine_host_assumption",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_scalar_methods_fold_through_nested_pure_calls",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::default_transport_keeps_observed_argument_count_and_signed_zero",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::effects_and_their_order_stay",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::exact_values_cross_settled_cells_parameters_and_results",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::finite_call_sets_fold_a_common_branch_without_sampling_overflow",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::finite_values_are_refined_on_each_branch_path",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::forwarded_locals_allow_an_expression_inside_another_calls_arguments",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::forwarded_locals_preserve_an_expression_that_is_still_waiting",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::forwarding_preserves_snapshots_writes_and_argument_evaluation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::host_annotations_do_not_authorize_common_coercions",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::immutable_scalar_cells_and_common_primitive_operations_forward",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::known_methods_fold_only_with_the_builtin_contract",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::nested_constant_structures_fold_over_rounds",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::operations_after_an_exit_go_and_initializations_stay_whole",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::primitive_truthiness_in_finite_paths_matches_javascript",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::q2_effect_components_follow_body_storage_callee_and_tdz_edits",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies",
+          "status": "FAILED"
+        },
+        {
+          "name": "program::rules::tests::q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::recursion_stays_callable_and_terminal_returns_inline",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::repeated_parameter_loads_share_one_evaluated_argument",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::rule_views_survive_empty_commits_and_follow_every_edit_owner",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_checked_reads_and_value_updates_preserve_snapshot_and_evaluation_order",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_constructor_fields_run_before_declaration_defaults",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_default_expressions_execute_in_the_callee_and_capture_earlier_parameters",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_defaults_and_constructor_rest_keep_omission_and_fresh_arrays",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_defaults_belong_to_the_selected_callee_and_keep_fresh_values",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_frozen_records_128_matches_the_independent_calibration_oracle",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_known_nonnull_folds_keep_the_refined_result_type",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_receiver_functions_are_typed_and_accept_rest_without_adapter_limits",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_short_circuit_typed_views_preserve_lazy_effects_and_widening",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_spread_consumption_precedes_later_mutations",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_variadic_values_keep_typed_arrays_and_call_contracts",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::the_default_fold_bound_keeps_large_constants_as_expressions",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::typed_arithmetic_duplication_is_a_representation_choice",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::unread_values_and_stores_leave",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "log": "/tmp/lilscript-q2-source-recheck.log",
+      "tests": [
+        {
+          "name": "program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_namespace_reads_and_calls_remove_private_receiver",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return",
+          "status": "ok"
+        }
+      ]
+    }
+  ],
+  "initial_failures": {
+    "q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates": "New test used dynamic instead of the language type JsValue; corrected fixture.",
+    "s2_namespace_reads_and_calls_remove_private_receiver": "Pre-existing call-default convention defect, reproduced with algorithm51; fixed producer to ApplyAtCallee.",
+    "s3_native_inlined_closure_owns_its_captured_bank_after_return": "Installed Clang was not on PATH; rerun with LILSCRIPT_NATIVE_CLANG.",
+    "q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies": "Test assumed edits owned a child scope; adapted to the existing conversion owner and checks cleanup when it drops."
+  }
+}

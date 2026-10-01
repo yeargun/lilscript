@@ -1,0 +1,1 @@
+console.log(input()?3:7);console.log(input()?3:7);

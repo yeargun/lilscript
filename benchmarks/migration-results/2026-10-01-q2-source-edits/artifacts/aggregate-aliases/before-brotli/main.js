@@ -1,0 +1,1 @@
+let mark=n=>{console.log(n);return n},b=mark(1),c=mark(2),a=b;a=mark(3);console.log(a);console.log(c);

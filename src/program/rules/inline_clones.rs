@@ -34,7 +34,8 @@ pub(super) fn clone(
     editor: &mut Editor<'_>,
     children: &[UnitId],
     cells: &mut HashMap<CellId, CellId>,
-) -> Result<HashMap<UnitId, UnitId>, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<HashMap<UnitId, UnitId>, super::RuleError> {
     let mut units = HashMap::new();
     let base = editor.program().units.len();
     for (index, &unit) in children.iter().enumerate() {
@@ -49,7 +50,7 @@ pub(super) fn clone(
             continue;
         };
         let id = CellId::from_index(index).ok_or("inline cell capacity")?;
-        let mut cell = cell.clone();
+        let mut cell = storage::cell(cell, budget)?;
         cell.owner = owner;
         cell.synthetic = true;
         if let CellBinding::Function(body) = &mut cell.binding {
@@ -58,18 +59,17 @@ pub(super) fn clone(
         added.push((id, cell));
     }
     for (id, cell) in added {
-        cells.insert(id, editor.add_cell(cell)?);
+        cells.insert(id, editor.add_cell_in(cell, budget)?);
     }
     for &old in children {
-        let mut data = editor
-            .program()
-            .unit(old)
-            .ok_or("inline child unit")?
-            .clone();
+        let mut data = storage::unit(
+            editor.program().unit(old).ok_or("inline child unit")?,
+            budget,
+        )?;
         remap(&mut data, cells, &units);
-        let new = editor.add_unit(data)?;
+        let new = editor.add_unit_in(data, budget)?;
         if units[&old] != new {
-            return Err("inline unit order");
+            return Err("inline unit order".into());
         }
     }
     Ok(units)

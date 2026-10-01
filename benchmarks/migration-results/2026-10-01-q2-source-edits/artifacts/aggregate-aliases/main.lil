@@ -1,0 +1,1 @@
+int mark(int n){print(n);return n;}int[] a=[mark(1),mark(2)];int[] b=a;b[0]=mark(3);print(a[0]);print(b[1]);

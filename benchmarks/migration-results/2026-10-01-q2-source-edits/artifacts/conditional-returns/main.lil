@@ -1,0 +1,1 @@
+extern bool input();int choose(bool yes){if(yes){return 3;}return 7;}print(choose(input()));print(choose(input()));

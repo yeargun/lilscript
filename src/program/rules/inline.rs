@@ -42,6 +42,7 @@ use super::super::ambient;
 use super::super::call_graph::{CallEdge, EdgeKind};
 use super::edit::{self, Editor, GraftPlan};
 use super::*;
+use crate::output_budget::AllocationClass::Retained;
 use std::collections::{HashMap, HashSet};
 
 /// One call a round inlines.
@@ -72,7 +73,8 @@ pub(super) fn apply(
     effects: &ProgramEffects,
     receipt: &mut RuleReceipt,
     native: bool,
-) -> Result<bool, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     let graph = effects.graph();
     let created = created_units(program);
@@ -129,7 +131,7 @@ pub(super) fn apply(
     for candidate in &chosen {
         let source = editor.handle(candidate.body);
         for site in &candidate.sites {
-            inline(editor, source.data(), candidate, site, &creators)?;
+            inline(editor, source.data(), candidate, site, &creators, budget)?;
             receipt.inlined_calls += 1;
             receipt.cloned_closure_units += candidate.children.len() as u32;
         }
@@ -599,28 +601,28 @@ fn statement_site(data: &UnitData, operation: OpId) -> bool {
 /// The operations that evaluate a call's arguments: those between its
 /// preparation and the call in the call's region, when none declares a cell
 /// and no value they compute is read after the call. Otherwise none.
-fn arguments_evaluation(data: &UnitData, region: RegionId, site: &Site) -> Vec<OpId> {
+fn arguments_evaluation<'a>(data: &'a UnitData, region: RegionId, site: &Site) -> &'a [OpId] {
     let list = &data.regions[region.index()].operations;
     let prepared = list.iter().position(|op| {
         matches!(data.operations[op.index()].kind, OperationKind::PrepareCall(call) if call == site.call)
     });
     let called = list.iter().position(|op| *op == site.operation);
     let (Some(prepared), Some(called)) = (prepared, called) else {
-        return Vec::new();
+        return &[];
     };
     if prepared >= called {
-        return Vec::new();
+        return &[];
     }
-    let evaluation: Vec<OpId> = list[prepared + 1..called].to_vec();
+    let evaluation = &list[prepared + 1..called];
     let mut defined = HashSet::new();
-    let mut stack = evaluation.clone();
+    let mut stack = evaluation.to_vec();
     while let Some(op) = stack.pop() {
         let operation = &data.operations[op.index()];
         if matches!(
             operation.kind,
             OperationKind::Initialize(_) | OperationKind::Declare(_)
         ) {
-            return Vec::new();
+            return &[];
         }
         defined.extend(operation.result);
         for child in operation.kind.child_regions() {
@@ -633,7 +635,7 @@ fn arguments_evaluation(data: &UnitData, region: RegionId, site: &Site) -> Vec<O
         let operation = &data.operations[op.index()];
         super::dce::reads(data, operation, &mut scratch);
         if scratch.iter().any(|value| defined.contains(value)) {
-            return Vec::new();
+            return &[];
         }
         for child in operation.kind.child_regions() {
             later.extend(data.regions[child.index()].operations.iter().copied());
@@ -643,7 +645,7 @@ fn arguments_evaluation(data: &UnitData, region: RegionId, site: &Site) -> Vec<O
         .result
         .is_some_and(|value| defined.contains(&value))
     {
-        return Vec::new();
+        return &[];
     }
     evaluation
 }
@@ -670,7 +672,8 @@ fn inline(
     candidate: &Candidate,
     site: &Site,
     creators: &[Option<UnitId>],
-) -> Result<(), &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<(), super::RuleError> {
     let program = editor.program();
     let caller = program.unit(site.caller).ok_or("a missing caller")?;
     let at = &caller.operations[site.operation.index()];
@@ -698,10 +701,11 @@ fn inline(
         None
     };
     let home = scope.unwrap_or(region);
-    let regions = edit::graft_regions(
+    let regions = edit::graft_regions_in(
         body,
         caller.regions.len() + usize::from(scope.is_some()),
         home,
+        budget,
     )?;
 
     // The body's own cells: a forwarded parameter reads its argument, every
@@ -721,7 +725,7 @@ fn inline(
             forwards.insert(id, arguments[position]);
             continue;
         }
-        let mut clone = cell.clone();
+        let mut clone = storage::cell(cell, budget)?;
         clone.owner = site.caller;
         // A parameter's copy is initialized where the copy stands.
         clone.region = match parameter {
@@ -737,11 +741,12 @@ fn inline(
         clone.observable_before_initialization &= parameter.is_none();
         clones.push((id, clone));
     }
+    storage::release_vec(regions, Retained, budget)?;
     let mut cells = HashMap::new();
     for (id, clone) in clones {
-        cells.insert(id, editor.add_cell(clone)?);
+        cells.insert(id, editor.add_cell_in(clone, budget)?);
     }
-    let units = super::inline_clones::clone(editor, &candidate.children, &mut cells)?;
+    let units = super::inline_clones::clone(editor, &candidate.children, &mut cells, budget)?;
     let root_bindings: Vec<_> = cells
         .iter()
         .filter_map(|(&old, &new)| {
@@ -756,36 +761,39 @@ fn inline(
         })
         .collect();
     if !root_bindings.is_empty() {
-        let (_, table) = editor.unit_and_cells(site.caller);
+        let (_, table) = editor.unit_and_cells_in(site.caller, budget)?;
         for (cell, unit) in root_bindings {
             table[cell.index()].binding = CellBinding::Function(unit);
         }
     }
     let result_cell = if scope.is_some() {
         if let Some(ty) = result_type {
-            Some(editor.add_cell(Cell {
-                source_symbol: None,
-                name: "inline_result".into(),
-                ty,
-                owner: site.caller,
-                region,
-                declaration: span,
-                reassigned: true,
-                observable_before_initialization: false,
-                binding: CellBinding::Local,
-                synthetic: true,
-                declared_pure: false,
-                debug: false,
-            })?)
+            Some(editor.add_cell_in(
+                Cell {
+                    source_symbol: None,
+                    name: budget.string(Retained, "inline_result")?,
+                    ty,
+                    owner: site.caller,
+                    region,
+                    declaration: span,
+                    reassigned: true,
+                    observable_before_initialization: false,
+                    binding: CellBinding::Local,
+                    synthetic: true,
+                    declared_pure: false,
+                    debug: false,
+                },
+                budget,
+            )?)
         } else {
             None
         }
     } else {
         None
     };
-    let captures: Vec<CellId> = body.captures.clone();
+    let captures = &body.captures;
 
-    let mut source = body.clone();
+    let mut source = storage::unit(body, budget)?;
     for op in &mut source.operations {
         if let OperationKind::Closure(unit) = &mut op.kind {
             *unit = units.get(unit).copied().unwrap_or(*unit);
@@ -798,20 +806,24 @@ fn inline(
         }
     }
 
-    let data = editor.unit_mut(site.caller);
+    let data = editor.unit_mut_in(site.caller, budget)?;
     if let Some(scope) = scope {
         if scope.index() != data.regions.len() {
-            return Err("a scoped copy's region moved");
+            return Err("a scoped copy's region moved".into());
         }
-        data.regions.push(Region {
-            authored: source.regions[source.entry.index()].authored,
-            parent: Some(region),
-            operations: Vec::new(),
-            result: None,
-            span,
-        });
+        budget.push(
+            Retained,
+            &mut data.regions,
+            Region {
+                authored: source.regions[source.entry.index()].authored,
+                parent: Some(region),
+                operations: Vec::new(),
+                result: None,
+                span,
+            },
+        )?;
     }
-    let grafted = edit::graft(
+    let grafted = edit::graft_in(
         &source,
         data,
         home,
@@ -820,37 +832,42 @@ fn inline(
             forwards: &forwards,
             exit: candidate.exit,
         },
+        budget,
     )?;
-    let mut inserted = Vec::with_capacity(body.parameters.len() + grafted.operations.len());
+    storage::release_unit(source, budget)?;
+    let mut inserted = budget.vector(Retained, body.parameters.len() + grafted.operations.len())?;
     for (position, parameter) in body.parameters.iter().enumerate() {
         if let Some(&clone) = cells.get(parameter) {
-            let (op, _) = edit::push_operation(
+            let (op, _) = edit::push_operation_in(
                 data,
                 OperationKind::Initialize(clone),
                 &[arguments[position]],
                 None,
                 home,
                 span,
+                budget,
             )?;
-            inserted.push(op);
+            budget.push(Retained, &mut inserted, op)?;
         }
     }
-    inserted.extend(grafted.operations);
+    budget.extend_copy(Retained, &mut inserted, &grafted.operations)?;
+    storage::release_vec(grafted.operations, Retained, budget)?;
     let mut returned = grafted.result;
     if let Some(scope) = scope {
         let result_place = if let Some(cell) = result_cell {
             let place = PlaceId::from_index(data.places.len()).ok_or("inline result place")?;
-            data.places.push(Place::Cell(cell));
+            budget.push(Retained, &mut data.places, Place::Cell(cell))?;
             let value = returned.ok_or("inline result has no returned value")?;
-            let (store, _) = edit::push_operation(
+            let (store, _) = edit::push_operation_in(
                 data,
                 OperationKind::Store(place),
                 &[value],
                 None,
                 scope,
                 span,
+                budget,
             )?;
-            inserted.push(store);
+            budget.push(Retained, &mut inserted, store)?;
             Some(place)
         } else {
             None
@@ -858,39 +875,54 @@ fn inline(
         // The arguments are evaluated between the call's preparation and the
         // call: in the block they run at the same point, and their values
         // stay inside it, where the copy reads them.
-        let mut evaluation = arguments_evaluation(data, region, site);
+        let mut evaluation =
+            budget.copy_slice(Retained, arguments_evaluation(data, region, site))?;
         for &op in &evaluation {
             data.operations[op.index()].region = scope;
-            let children: Vec<RegionId> =
-                data.operations[op.index()].kind.child_regions().collect();
-            for child in children {
+            for child in data.operations[op.index()].kind.child_regions() {
                 data.regions[child.index()].parent = Some(scope);
             }
         }
         data.regions[region.index()]
             .operations
             .retain(|op| !evaluation.contains(op));
-        evaluation.extend(inserted);
+        budget.extend_copy(Retained, &mut evaluation, &inserted)?;
+        storage::release_vec(inserted, Retained, budget)?;
         data.regions[scope.index()].operations = evaluation;
         inserted = Vec::new();
         if let Some(cell) = result_cell {
-            let (declare, _) =
-                edit::push_operation(data, OperationKind::Declare(cell), &[], None, region, span)?;
-            inserted.push(declare);
+            let (declare, _) = edit::push_operation_in(
+                data,
+                OperationKind::Declare(cell),
+                &[],
+                None,
+                region,
+                span,
+                budget,
+            )?;
+            budget.push(Retained, &mut inserted, declare)?;
         }
-        let (block, _) =
-            edit::push_operation(data, OperationKind::Block(scope), &[], None, region, span)?;
-        inserted.push(block);
+        let (block, _) = edit::push_operation_in(
+            data,
+            OperationKind::Block(scope),
+            &[],
+            None,
+            region,
+            span,
+            budget,
+        )?;
+        budget.push(Retained, &mut inserted, block)?;
         returned = if let Some(place) = result_place {
-            let (load, value) = edit::push_operation(
+            let (load, value) = edit::push_operation_in(
                 data,
                 OperationKind::Load(place),
                 &[],
                 result_type,
                 region,
                 span,
+                budget,
             )?;
-            inserted.push(load);
+            budget.push(Retained, &mut inserted, load)?;
             value
         } else {
             None
@@ -901,7 +933,9 @@ fn inline(
         .iter()
         .position(|op| *op == site.operation)
         .ok_or("an inlined call left its region")?;
-    list.splice(position..position, inserted);
+    budget.reserve_vec(Retained, list, inserted.len())?;
+    list.splice(position..position, inserted.iter().copied());
+    storage::release_vec(inserted, Retained, budget)?;
     let preparations: Vec<OpId> = data
         .operations
         .iter()
@@ -927,7 +961,7 @@ fn inline(
 
     // The copy reads what the body captured: the caller captures it too,
     // and so does each unit between the caller and the cell's owner.
-    for cell in captures {
+    for &cell in captures {
         let owner = editor.program().cells[cell.index()].owner;
         let global = editor
             .program()
@@ -935,11 +969,11 @@ fn inline(
             .is_some_and(|data| data.kind == UnitKind::ModuleInitialization);
         let mut unit = site.caller;
         while unit != owner {
-            let data = editor.unit_mut(unit);
+            let data = editor.unit_mut_in(unit, budget)?;
             if data.captures.contains(&cell) {
                 break;
             }
-            data.captures.push(cell);
+            budget.push(Retained, &mut data.captures, cell)?;
             if global && data.kind == UnitKind::ModuleInitialization {
                 break;
             }

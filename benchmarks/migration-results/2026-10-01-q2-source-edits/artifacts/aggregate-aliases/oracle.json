@@ -1,0 +1,5 @@
+{
+  "setup": "",
+  "exercise": "await load(\"main\");",
+  "expected": "1\n2\n3\n3\n2"
+}

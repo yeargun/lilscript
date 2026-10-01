@@ -4,6 +4,7 @@ use super::super::aggregates::{self, Escape, Key, ProgramAggregates};
 use super::super::uses::{self, Event, ValueUse};
 use super::edit::{self, Editor};
 use super::*;
+use crate::output_budget::AllocationClass::{Retained, Scratch};
 use std::collections::HashMap;
 
 pub(super) fn apply(
@@ -11,11 +12,12 @@ pub(super) fn apply(
     effects: &ProgramEffects,
     request: RuleRequest,
     receipt: &mut RuleReceipt,
-) -> Result<bool, &'static str> {
-    if (request.fold || request.scalar) && normalize_objects(editor, receipt)? {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
+    if (request.fold || request.scalar) && normalize_objects(editor, receipt, budget)? {
         return Ok(true);
     }
-    if request.dead_code && collect_stores(editor, request.pristine_builtins, receipt)? {
+    if request.dead_code && collect_stores(editor, request.pristine_builtins, receipt, budget)? {
         return Ok(true);
     }
     let facts = editor.program().aggregates(request.seal);
@@ -28,16 +30,16 @@ pub(super) fn apply(
         .saturating_add(facts.work as u64);
     // Source folds/removals precede a representation edit. Fresh facts on the
     // next round see its complete new use set, never a half-updated allocation.
-    if request.fold && namespaces(editor, effects, &facts, receipt)? {
+    if request.fold && namespaces(editor, effects, &facts, receipt, budget)? {
         return Ok(true);
     }
-    if fields(editor, effects, &facts, request, receipt) {
+    if fields(editor, effects, &facts, request, receipt, budget)? {
         return Ok(true);
     }
     if !request.scalar {
         return Ok(false);
     }
-    if record_aliases(editor, effects, &facts, receipt) {
+    if record_aliases(editor, effects, &facts, receipt, budget)? {
         return Ok(true);
     }
     // Analysis cannot grow quadratically without a ceiling. A refused site
@@ -81,7 +83,7 @@ pub(super) fn apply(
         return Ok(false);
     }
     for plan in plans {
-        scalarize(editor, &facts, plan, request.dead_code, receipt)?;
+        scalarize(editor, &facts, plan, request.dead_code, receipt, budget)?;
     }
     Ok(true)
 }
@@ -92,7 +94,8 @@ fn fields(
     facts: &ProgramAggregates,
     request: RuleRequest,
     receipt: &mut RuleReceipt,
-) -> bool {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     let mut constants = Vec::new();
     let mut forwards = Vec::new();
@@ -181,10 +184,10 @@ fn fields(
         }
     }
     if constants.is_empty() && forwards.is_empty() && removed.is_empty() {
-        return false;
+        return Ok(false);
     }
     for (unit, op, value) in constants {
-        edit::make_constant(editor.unit_mut(unit), op, value);
+        edit::make_constant_in(editor.unit_mut_in(unit, budget)?, op, value, budget)?;
         receipt.folded_fields += 1;
     }
     let mut substitutions = HashMap::new();
@@ -192,7 +195,7 @@ fn fields(
         while let Some(&next) = substitutions.get(&(unit, value)) {
             value = next;
         }
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         edit::detach(data, op);
         edit::substitute(data, result, value);
         substitutions.insert((unit, result), value);
@@ -201,7 +204,7 @@ fn fields(
     removed.sort_unstable();
     removed.dedup();
     for (unit, op) in removed {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         if let Some(result) = data.operations[op.index()].result {
             let value = data.operands(data.operations[op.index()].operands).unwrap()[0];
             edit::substitute(data, result, value);
@@ -209,7 +212,7 @@ fn fields(
         edit::detach(data, op);
         receipt.removed_field_stores += 1;
     }
-    true
+    Ok(true)
 }
 
 struct ScalarPlan {
@@ -496,11 +499,17 @@ fn scalarize(
     plan: ScalarPlan,
     dead_code: bool,
     receipt: &mut RuleReceipt,
-) -> Result<(), &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<(), super::RuleError> {
     let allocation = &facts.sites[plan.site];
-    let original = editor.program().unit(allocation.unit).unwrap().operations
-        [allocation.operation.index()]
-    .clone();
+    let original =
+        &editor.program().unit(allocation.unit).unwrap().operations[allocation.operation.index()];
+    let (authored, region, origin, span) = (
+        original.authored,
+        original.region,
+        original.origin,
+        original.span,
+    );
     let mut fields = Vec::new();
     for (index, slot) in allocation.fields.iter().enumerate() {
         // Unread fields retain their initializer/RHS evaluations but own no storage.
@@ -508,58 +517,66 @@ fn scalarize(
             fields.push(None);
             continue;
         }
-        let cell = editor.add_cell(Cell {
-            source_symbol: None,
-            name: format!("field{index}"),
-            ty: plan.types[index],
-            owner: allocation.unit,
-            region: original.region,
-            declaration: original.span,
-            reassigned: slot.written,
-            observable_before_initialization: true,
-            binding: CellBinding::Local,
-            synthetic: true,
-            declared_pure: false,
-            debug: false,
-        })?;
+        let cell = editor.add_cell_in(
+            Cell {
+                source_symbol: None,
+                name: budget.format(Retained, format_args!("field{index}"))?,
+                ty: plan.types[index],
+                owner: allocation.unit,
+                region: region,
+                declaration: span,
+                reassigned: slot.written,
+                observable_before_initialization: true,
+                binding: CellBinding::Local,
+                synthetic: true,
+                declared_pure: false,
+                debug: false,
+            },
+            budget,
+        )?;
         fields.push(Some(cell));
     }
-    let data = editor.unit_mut(allocation.unit);
+    let data = editor.unit_mut_in(allocation.unit, budget)?;
     let mut initialize = Vec::new();
     for (field, &cell) in allocation.fields.iter().zip(&fields) {
         let Some(cell) = cell else { continue };
         let op = OpId::from_index(data.operations.len()).ok_or("operation capacity")?;
         let start = data.operands.len() as u32;
-        data.operands.push(field.initial);
-        data.operations.push(Operation {
-            authored: original.authored,
-            kind: OperationKind::Initialize(cell),
-            operands: OperandRange { start, len: 1 },
-            result: None,
-            region: original.region,
-            origin: original.origin,
-            span: original.span,
-        });
-        initialize.push(op);
+        budget.push(Retained, &mut data.operands, field.initial)?;
+        budget.push(
+            Retained,
+            &mut data.operations,
+            Operation {
+                authored,
+                kind: OperationKind::Initialize(cell),
+                operands: OperandRange { start, len: 1 },
+                result: None,
+                region: region,
+                origin: origin,
+                span,
+            },
+        )?;
+        budget.push(Scratch, &mut initialize, op)?;
     }
-    let position = data.regions[original.region.index()]
+    let position = data.regions[region.index()]
         .operations
         .iter()
         .position(|&op| op == allocation.operation)
         .ok_or("allocation owner")?;
-    data.regions[original.region.index()]
-        .operations
-        .splice(position..position, initialize);
+    let list = &mut data.regions[region.index()].operations;
+    budget.reserve_vec(Retained, list, initialize.len())?;
+    list.splice(position..position, initialize.iter().copied());
+    storage::release_vec(initialize, Scratch, budget)?;
     for &(unit, op, field) in &plan.projections {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         if let Some(cell) = fields[field] {
             let place = PlaceId::from_index(data.places.len()).ok_or("place capacity")?;
-            data.places.push(Place::Cell(cell));
+            budget.push(Retained, &mut data.places, Place::Cell(cell))?;
             data.operations[op.index()].kind = match data.operations[op.index()].kind {
                 OperationKind::Load(_) => OperationKind::Load(place),
                 OperationKind::Store(_) => OperationKind::Store(place),
                 OperationKind::CheckPlace(_) => OperationKind::CheckPlace(place),
-                _ => return Err("scalar projection kind"),
+                _ => return Err("scalar projection kind".into()),
             };
         } else {
             // Store results denote the RHS even when the storage disappears.
@@ -576,20 +593,26 @@ fn scalarize(
         }
     }
     for &(unit, op) in &plan.lengths {
-        edit::make_constant(
-            editor.unit_mut(unit),
+        edit::make_constant_in(
+            editor.unit_mut_in(unit, budget)?,
             op,
             Constant::Integer(fields.len() as i32),
-        );
+            budget,
+        )?;
         receipt.folded_fields += 1;
     }
     for &(unit, op, value) in &plan.null_tests {
-        edit::make_constant(editor.unit_mut(unit), op, Constant::Boolean(value));
+        edit::make_constant_in(
+            editor.unit_mut_in(unit, budget)?,
+            op,
+            Constant::Boolean(value),
+            budget,
+        )?;
     }
     for &(unit, op) in &plan.selects {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         let OperationKind::Select { yes, no } = data.operations[op.index()].kind else {
-            return Err("scalar select");
+            return Err("scalar select".into());
         };
         data.operations[op.index()].kind = OperationKind::If { yes, no: Some(no) };
         data.operations[op.index()].result = None;
@@ -597,7 +620,7 @@ fn scalarize(
         data.regions[no.index()].result = None;
     }
     for &(unit, op) in &plan.remove {
-        edit::detach(editor.unit_mut(unit), op);
+        edit::detach(editor.unit_mut_in(unit, budget)?, op);
     }
     for index in 0..editor.program().units.len() {
         let unit = UnitId::from_index(index).unwrap();
@@ -611,10 +634,15 @@ fn scalarize(
         {
             continue;
         }
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         data.captures.retain(|cell| !plan.aliases.contains(cell));
         if unit != allocation.unit {
-            data.captures.extend(fields.iter().flatten().copied());
+            storage::extend(
+                &mut data.captures,
+                fields.iter().flatten().copied(),
+                Retained,
+                budget,
+            )?;
             data.captures.sort_unstable();
             data.captures.dedup();
         }
@@ -629,7 +657,8 @@ fn scalarize(
 fn normalize_objects(
     editor: &mut Editor<'_>,
     receipt: &mut RuleReceipt,
-) -> Result<bool, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let mut changes = Vec::new();
     for unit in &editor.program().units {
         let data = unit.data();
@@ -690,7 +719,7 @@ fn normalize_objects(
     }
     let changed = !changes.is_empty();
     for (unit, op, call, identity, keys, values) in changes {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         let prepares: Vec<_> = data
             .operations
             .iter()
@@ -704,15 +733,21 @@ fn normalize_objects(
             edit::detach(data, op);
         }
         let start = data.operands.len() as u32;
-        data.operands.extend(&values);
+        budget.extend_copy(Retained, &mut data.operands, &values)?;
         data.operations[op.index()].operands = OperandRange {
             start,
             len: values.len() as u32,
         };
-        data.operations[op.index()].kind = OperationKind::Allocate {
-            identity,
-            kind: AllocationKind::Object(keys),
-        };
+        let keys = budget.copy_slice(Retained, &keys)?;
+        edit::replace_kind(
+            data,
+            op,
+            OperationKind::Allocate {
+                identity,
+                kind: AllocationKind::Object(keys),
+            },
+            budget,
+        )?;
         receipt.exposed_allocations += 1;
     }
     Ok(changed)
@@ -723,7 +758,8 @@ fn namespaces(
     effects: &ProgramEffects,
     facts: &ProgramAggregates,
     receipt: &mut RuleReceipt,
-) -> Result<bool, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let mut changes = Vec::new();
     for unit in &editor.program().units {
         for (index, op) in unit.data().operations.iter().enumerate() {
@@ -743,15 +779,15 @@ fn namespaces(
     if changes.is_empty() {
         return Ok(false);
     }
-    let dynamic = editor.intern_type(Type::Dynamic)?;
+    let dynamic = editor.intern_type_in(&(Type::Dynamic), budget)?;
     for (unit, invoke, call) in changes {
-        let data = editor.unit_mut(unit);
-        let args = data
-            .arguments(data.calls[call.index()].arguments)
-            .unwrap()
-            .to_vec();
+        let data = editor.unit_mut_in(unit, budget)?;
+        let args = budget.copy_slice(
+            Scratch,
+            data.arguments(data.calls[call.index()].arguments).unwrap(),
+        )?;
         let (CallArgument::Value(receiver), CallArgument::Value(key)) = (args[0], args[1]) else {
-            return Err("namespace arguments");
+            return Err("namespace arguments".into());
         };
         let prepare = data
             .operations
@@ -765,31 +801,40 @@ fn namespaces(
         let original = data.operations[invoke.index()].clone();
         edit::detach(data, prepare);
         let place = PlaceId::from_index(data.places.len()).ok_or("place capacity")?;
-        data.places.push(Place::Index { receiver, key });
+        budget.push(Retained, &mut data.places, Place::Index { receiver, key })?;
         let load = OpId::from_index(data.operations.len()).ok_or("operation capacity")?;
         let callee = ValueId::from_index(data.values.len()).ok_or("value capacity")?;
-        data.values.push(Value {
-            ty: dynamic,
-            definition: load,
-        });
-        data.operations.push(Operation {
-            kind: OperationKind::Load(place),
-            operands: OperandRange { start: 0, len: 0 },
-            result: Some(callee),
-            ..original.clone()
-        });
+        budget.push(
+            Retained,
+            &mut data.values,
+            Value {
+                ty: dynamic,
+                definition: load,
+            },
+        )?;
+        budget.push(
+            Retained,
+            &mut data.operations,
+            Operation {
+                kind: OperationKind::Load(place),
+                operands: OperandRange { start: 0, len: 0 },
+                result: Some(callee),
+                ..original.clone()
+            },
+        )?;
         let region = &mut data.regions[original.region.index()];
         let at = region
             .operations
             .iter()
             .position(|&op| op == invoke)
             .ok_or("namespace invocation")?;
+        budget.reserve_vec(Retained, &mut region.operations, 2)?;
         region.operations.splice(at..at, [load, prepare]);
         let arguments = ArgumentRange {
             start: data.call_arguments.len() as u32,
             len: (args.len() - 2) as u32,
         };
-        data.call_arguments.extend_from_slice(&args[2..]);
+        budget.extend_copy(Retained, &mut data.call_arguments, &args[2..])?;
         let site = &mut data.calls[call.index()];
         site.target = CallTarget::Value {
             callee,
@@ -798,7 +843,10 @@ fn namespaces(
         site.arguments = arguments;
         site.contract.signature = Some(dynamic);
         site.contract.supplied = (args.len() - 2) as u32;
-        site.contract.defaults = crate::primitive::DefaultConvention::MaterializeAtCaller;
+        // An owned function applies its own declaration defaults. Flattening
+        // the namespace preserves the supplied argument count.
+        site.contract.defaults = crate::primitive::DefaultConvention::ApplyAtCallee;
+        storage::release_vec(args, Scratch, budget)?;
         receipt.flattened_namespace_calls += 1;
     }
     Ok(true)
@@ -811,7 +859,8 @@ fn record_aliases(
     effects: &ProgramEffects,
     facts: &ProgramAggregates,
     receipt: &mut RuleReceipt,
-) -> bool {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     let mut replacements = Vec::new();
     let mut work = 0usize;
@@ -897,13 +946,13 @@ fn record_aliases(
     let changed = !replacements.is_empty();
     for (alias, canonical, initialize, loads) in replacements {
         for (unit, at) in loads {
-            let data = editor.unit_mut(unit);
+            let data = editor.unit_mut_in(unit, budget)?;
             let place = PlaceId::from_index(data.places.len()).unwrap();
-            data.places.push(Place::Cell(canonical));
+            budget.push(Retained, &mut data.places, Place::Cell(canonical))?;
             data.operations[at.index()].kind = OperationKind::Load(place);
         }
         if let Some((unit, at)) = initialize {
-            edit::detach(editor.unit_mut(unit), at);
+            edit::detach(editor.unit_mut_in(unit, budget)?, at);
         }
         for index in 0..editor.program().units.len() {
             let unit = UnitId::from_index(index).unwrap();
@@ -914,16 +963,16 @@ fn record_aliases(
                 .captures
                 .contains(&alias)
             {
-                let data = editor.unit_mut(unit);
+                let data = editor.unit_mut_in(unit, budget)?;
                 data.captures.retain(|&cell| cell != alias);
-                data.captures.push(canonical);
+                budget.push(Retained, &mut data.captures, canonical)?;
                 data.captures.sort_unstable();
                 data.captures.dedup();
             }
         }
         receipt.elided_record_aliases += 1;
     }
-    changed
+    Ok(changed)
 }
 
 // A contiguous construction prefix contains only literals, the fresh handle's
@@ -933,7 +982,8 @@ fn collect_stores(
     editor: &mut Editor<'_>,
     pristine: bool,
     receipt: &mut RuleReceipt,
-) -> Result<bool, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let mut plans = Vec::new();
     for unit in &editor.program().units {
         let data = unit.data();
@@ -1056,9 +1106,9 @@ fn collect_stores(
     }
     let changed = !plans.is_empty();
     for (unit, region, allocated, last, keys, values, transport, removed) in plans {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         let start = data.operands.len() as u32;
-        data.operands.extend(&values);
+        budget.extend_copy(Retained, &mut data.operands, &values)?;
         data.operations[allocated.index()].operands = OperandRange {
             start,
             len: values.len() as u32,
@@ -1068,13 +1118,15 @@ fn collect_stores(
                 kind: AllocationKind::Object(names) | AllocationKind::Record(names),
                 ..
             } => {
-                *names = keys
-                    .iter()
-                    .map(|key| match key {
+                let copied = storage::collect(
+                    keys.iter().map(|key| match key {
                         Key::Named(name) => *name,
                         _ => unreachable!(),
-                    })
-                    .collect();
+                    }),
+                    Retained,
+                    budget,
+                )?;
+                storage::release_vec(std::mem::replace(names, copied), Retained, budget)?;
             }
             _ => {}
         }
@@ -1083,16 +1135,16 @@ fn collect_stores(
             .iter()
             .position(|&op| op == last)
             .ok_or("collected store owner")?;
-        let mut replacement = Vec::with_capacity(order.len());
+        let mut replacement = budget.vector(Retained, order.len())?;
         for (index, &op) in order.iter().enumerate() {
             if index == at {
-                replacement.extend_from_slice(&transport);
+                budget.extend_copy(Retained, &mut replacement, &transport)?;
             }
             if !transport.contains(&op) && !removed.contains(&op) {
-                replacement.push(op);
+                budget.push(Retained, &mut replacement, op)?;
             }
         }
-        *order = replacement;
+        storage::release_vec(std::mem::replace(order, replacement), Retained, budget)?;
         receipt.collected_field_stores += removed
             .iter()
             .filter(|op| matches!(data.operations[op.index()].kind, OperationKind::Store(_)))

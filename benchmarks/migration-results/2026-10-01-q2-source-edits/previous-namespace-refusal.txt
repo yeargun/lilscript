@@ -1,0 +1,6 @@
+lilscript: program rules left an invalid program: call argument convention disagrees with its target
+error: unsupported source: program rules
+ --> /tmp/lilscript-q2-namespace.lil:1:1
+  |
+ 1 | JsValue f=(JsValue n)=>JS.add(n,1);JsValue ns=JS.object("f",f,"n",7);print(JS.invoke(ns,"f",3));print(ns["n"]);
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

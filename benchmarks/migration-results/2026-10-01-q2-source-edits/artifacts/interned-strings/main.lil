@@ -1,0 +1,1 @@
+string join(string left){return left+"b";}print(join("a"));print(join("c"));

@@ -25,6 +25,11 @@ impl DirtyUnits {
         }
     }
 
+    pub(super) fn release(self, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {
+        super::storage::release_vec(self.seen, Scratch, budget)?;
+        super::storage::release_vec(self.dirty, Scratch, budget)
+    }
+
     pub(super) fn select(
         &mut self,
         program: &Program<'_>,

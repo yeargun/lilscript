@@ -59,7 +59,8 @@ pub(super) fn apply(
     editor: &mut Editor<'_>,
     effects: &ProgramEffects,
     receipt: &mut RuleReceipt,
-) -> bool {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     if program.units.iter().any(|unit| {
         unit.data().calls.iter().any(|call| {
@@ -72,7 +73,7 @@ pub(super) fn apply(
             )
         })
     }) {
-        return false;
+        return Ok(false);
     }
     let created = created_units(program);
     let plans: Vec<(UnitId, Vec<Replacement>)> = program
@@ -85,10 +86,10 @@ pub(super) fn apply(
         })
         .collect();
     if plans.is_empty() {
-        return false;
+        return Ok(false);
     }
     for (unit, replacements) in plans {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         let mut substituted: HashMap<ValueId, ValueId> = HashMap::new();
         let resolve = |substituted: &HashMap<ValueId, ValueId>, mut value: ValueId| {
             while let Some(&next) = substituted.get(&value) {
@@ -107,7 +108,7 @@ pub(super) fn apply(
             }
         }
     }
-    true
+    Ok(true)
 }
 
 fn plan(program: &Program<'_>, effects: &ProgramEffects, unit: UnitId) -> Vec<Replacement> {
@@ -364,9 +365,11 @@ fn plan(program: &Program<'_>, effects: &ProgramEffects, unit: UnitId) -> Vec<Re
                     .map(|&value| {
                         let entry = &data.values[value.index()];
                         match &data.operations[entry.definition.index()].kind {
-                            OperationKind::Constant(constant) => {
-                                Operand::Literal(constant.clone(), entry.ty, data.operations[entry.definition.index()].authored)
-                            }
+                            OperationKind::Constant(constant) => Operand::Literal(
+                                constant.clone(),
+                                entry.ty,
+                                data.operations[entry.definition.index()].authored,
+                            ),
                             _ => Operand::Value(value),
                         }
                     })
@@ -399,7 +402,9 @@ fn primitive(kind: &OperationKind) -> Option<PrimitiveOperation> {
         OperationKind::IntBinary(operation) => PrimitiveOperation::Int(operation),
         OperationKind::Binary(operation) => PrimitiveOperation::Binary(operation),
         OperationKind::Unary { op, integer } => PrimitiveOperation::Unary { op, integer },
-        OperationKind::IsUndefined { parameter, nullish } => PrimitiveOperation::IsUndefined(parameter, nullish),
+        OperationKind::IsUndefined { parameter, nullish } => {
+            PrimitiveOperation::IsUndefined(parameter, nullish)
+        }
         OperationKind::Intrinsic(operation) => PrimitiveOperation::Intrinsic(operation),
         _ => return None,
     })

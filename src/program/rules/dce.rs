@@ -37,7 +37,8 @@ pub(super) fn apply(
     effects: &ProgramEffects,
     seal: Seal,
     receipt: &mut RuleReceipt,
-) -> bool {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     let created = created_units(program);
     let cells = cell_usage(program, &created, seal);
@@ -67,17 +68,17 @@ pub(super) fn apply(
         }
     }
     if removals.is_empty() && retirements.is_empty() && emptied.is_empty() {
-        return false;
+        return Ok(false);
     }
     for unit in emptied {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         let entry = data.entry;
         data.regions[entry.index()].operations.clear();
         data.captures.clear();
         receipt.emptied_units += 1;
     }
     for (unit, dead, stores) in removals {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         for &op in &dead {
             edit::detach(data, op);
         }
@@ -85,7 +86,7 @@ pub(super) fn apply(
         receipt.removed_stores += stores;
     }
     for (unit, retired) in retirements {
-        let (data, cells) = editor.unit_and_cells(unit);
+        let (data, cells) = editor.unit_and_cells_in(unit, budget)?;
         for (creation, initialization, cell) in retired {
             edit::detach(data, creation);
             edit::detach(data, initialization);
@@ -94,7 +95,7 @@ pub(super) fn apply(
             receipt.retired_functions += 1;
         }
     }
-    true
+    Ok(true)
 }
 
 /// The cell a place reads or writes the storage of, if it is a cell's.

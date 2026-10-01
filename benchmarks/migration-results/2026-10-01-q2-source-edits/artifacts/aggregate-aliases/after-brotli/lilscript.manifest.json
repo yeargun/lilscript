@@ -1,0 +1,46 @@
+{
+  "version": 3,
+  "codec": "brotli",
+  "outputs": [
+    {
+      "mode": "single",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "main",
+          "file": "main.js",
+          "dynamic": false,
+          "closure": [
+            "main.js"
+          ],
+          "row": 68,
+          "raw_row": 102
+        }
+      ],
+      "files": [
+        {
+          "file": "main.js",
+          "role": "entry",
+          "label": [
+            "main"
+          ],
+          "modules": [
+            "main.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 102,
+          "codec_bytes": 68,
+          "sha256": "ae38a8be101c590ed42da124e17f2942c318ce02b5b24ab68ca8ae514bf74841"
+        }
+      ],
+      "side_effects": [
+        "main.js"
+      ],
+      "codec_total": 68,
+      "rows_total": 68,
+      "setters": 0
+    }
+  ]
+}

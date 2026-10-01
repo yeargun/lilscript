@@ -14,95 +14,204 @@ use super::super::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::{storage, RuleError};
+use crate::output_budget::AllocationClass::{Retained, Scratch};
+use crate::output_budget::{AllocationBudget, AllocationError};
+
 pub(super) struct Editor<'src> {
     program: Program<'src>,
     touched: Vec<bool>,
+    // A rule may retain a body while grafting it. Keep its old reservation
+    // until those readers have dropped, then retire it at commit.
+    retired: Vec<storage::Retired<'src>>,
     tables_changed: bool,
 }
 
 impl<'src> Editor<'src> {
-    pub(super) fn new(program: Program<'src>) -> Self {
-        let touched = vec![false; program.units.len()];
-        Self {
+    pub(super) fn new_in(
+        program: Program<'src>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, RuleError> {
+        let touched = budget.filled(Scratch, program.units.len(), false)?;
+        Ok(Self {
             program,
             touched,
+            retired: Vec::new(),
             tables_changed: false,
-        }
+        })
     }
-
+    #[cfg(test)]
+    pub(super) fn new(program: Program<'src>) -> Self {
+        Self::new_in(program, &mut AllocationBudget::new(None)).expect("inspection editor")
+    }
     pub(super) fn program(&self) -> &Program<'src> {
         &self.program
     }
 
-    /// One unit's data for editing. A shared payload is copied once.
-    pub(super) fn unit_mut(&mut self, unit: UnitId) -> &mut UnitData {
+    fn unique_unit(
+        &mut self,
+        unit: UnitId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), RuleError> {
         let index = unit.index();
         self.touched[index] = true;
-        let frozen = &mut self.program.units[index];
-        if !frozen.allocation_is_unique() {
-            *frozen = WorkingUnit::new(unit, frozen.data().clone()).freeze();
+        if !self.program.units[index].allocation_is_unique() {
+            budget.reserve_vec(Scratch, &mut self.retired, 1)?;
+            let copied = budget.retained_phase(|budget| {
+                let data = storage::unit(self.program.units[index].data(), budget)?;
+                storage::freeze(unit, data, budget)
+            })?;
+            let old = std::mem::replace(&mut self.program.units[index], copied);
+            self.retired.push(storage::Retired::Unit(old));
         }
-        frozen
-            .unique_edit()
-            .expect("an unshared unit payload is editable")
-            .0
+        Ok(())
     }
-
-    /// One unit's data and the cells table, for an edit that moves a region's
-    /// cells or changes a binding.
-    pub(super) fn unit_and_cells(&mut self, unit: UnitId) -> (&mut UnitData, &mut [Cell]) {
-        let index = unit.index();
-        self.touched[index] = true;
+    pub(super) fn unit_mut_in(
+        &mut self,
+        unit: UnitId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<&mut UnitData, RuleError> {
+        self.unique_unit(unit, budget)?;
+        Ok(self.program.units[unit.index()]
+            .unique_edit()
+            .ok_or("an unshared unit payload is not editable")?
+            .0)
+    }
+    #[cfg(test)]
+    pub(super) fn unit_mut(&mut self, unit: UnitId) -> &mut UnitData {
+        self.unit_mut_in(unit, &mut AllocationBudget::new(None))
+            .expect("inspection edit")
+    }
+    fn unique_cells(&mut self, budget: &mut AllocationBudget<'_>) -> Result<(), RuleError> {
+        if Arc::strong_count(&self.program.cells) == 1 {
+            return Ok(());
+        }
+        budget.reserve_vec(Scratch, &mut self.retired, 1)?;
+        let copy = budget.retained_phase(|budget| {
+            let mut rows = budget.vector(Retained, self.program.cells.len())?;
+            for cell in self.program.cells.iter() {
+                rows.push(storage::cell(cell, budget)?);
+            }
+            storage::table(rows, budget)
+        })?;
+        let old = std::mem::replace(&mut self.program.cells, copy);
+        self.retired.push(storage::Retired::Cells(old));
+        Ok(())
+    }
+    fn unique_types(&mut self, budget: &mut AllocationBudget<'_>) -> Result<(), RuleError> {
+        if Arc::strong_count(&self.program.types) == 1 {
+            return Ok(());
+        }
+        budget.reserve_vec(Scratch, &mut self.retired, 1)?;
+        let copy = budget.retained_phase(|budget| {
+            let mut rows = budget.vector(Retained, self.program.types.len())?;
+            for ty in self.program.types.iter() {
+                rows.push(storage::ty(ty, budget)?);
+            }
+            storage::table(rows, budget)
+        })?;
+        let old = std::mem::replace(&mut self.program.types, copy);
+        self.retired.push(storage::Retired::Types(old));
+        Ok(())
+    }
+    fn unique_strings(&mut self, budget: &mut AllocationBudget<'_>) -> Result<(), RuleError> {
+        if Arc::strong_count(&self.program.strings) == 1 {
+            return Ok(());
+        }
+        budget.reserve_vec(Scratch, &mut self.retired, 1)?;
+        let copy = budget.retained_phase(|budget| {
+            let mut rows = budget.vector(Retained, self.program.strings.len())?;
+            for text in self.program.strings.iter() {
+                rows.push(budget.string_value(Retained, text)?);
+            }
+            storage::table(rows, budget)
+        })?;
+        let old = std::mem::replace(&mut self.program.strings, copy);
+        self.retired.push(storage::Retired::Strings(old));
+        Ok(())
+    }
+    pub(super) fn unit_and_cells_in(
+        &mut self,
+        unit: UnitId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(&mut UnitData, &mut [Cell]), RuleError> {
+        self.unique_unit(unit, budget)?;
+        self.unique_cells(budget)?;
         self.tables_changed = true;
         self.program.tables_revision = RevisionId::fresh();
-        let cells = Arc::make_mut(&mut self.program.cells);
-        let frozen = &mut self.program.units[index];
-        if !frozen.allocation_is_unique() {
-            *frozen = WorkingUnit::new(unit, frozen.data().clone()).freeze();
-        }
-        let data = frozen
+        let cells =
+            Arc::get_mut(&mut self.program.cells).ok_or("an edited cells table is shared")?;
+        let data = self.program.units[unit.index()]
             .unique_edit()
-            .expect("an unshared unit payload is editable")
+            .ok_or("an edited unit became shared")?
             .0;
-        (data, cells.as_mut_slice())
+        Ok((data, cells.as_mut_slice()))
     }
-
-    /// Compacts every touched unit, stamps it with a fresh revision and drops
-    /// the derived views. A cell whose region an edit removed was declared in
-    /// code that no longer exists; it keeps the nearest region its owner
-    /// still has, so the table stays valid.
-    pub(super) fn commit(&mut self) -> Result<(), &'static str> {
+    #[cfg(test)]
+    pub(super) fn unit_and_cells(&mut self, unit: UnitId) -> (&mut UnitData, &mut [Cell]) {
+        self.unit_and_cells_in(unit, &mut AllocationBudget::new(None))
+            .expect("inspection table edit")
+    }
+    fn retire(&mut self, budget: &mut AllocationBudget<'_>) -> Result<(), RuleError> {
+        let mut index = 0;
+        while index < self.retired.len() {
+            if !self.retired[index].unique() {
+                index += 1;
+                continue;
+            }
+            let bytes = self.retired[index].bytes(budget)?;
+            drop(self.retired.swap_remove(index));
+            budget.release(Retained, bytes)?;
+        }
+        Ok(())
+    }
+    pub(super) fn commit_in(&mut self, budget: &mut AllocationBudget<'_>) -> Result<(), RuleError> {
         let changed = self.tables_changed || self.touched.iter().any(|touched| *touched);
         let mut remaps: Vec<Option<RegionRemap>> = Vec::new();
         for index in 0..self.touched.len() {
             if !std::mem::take(&mut self.touched[index]) {
                 continue;
             }
-            let frozen = &mut self.program.units[index];
-            let (data, revision) = frozen
+            let (data, revision) = self.program.units[index]
                 .unique_edit()
                 .ok_or("an edited unit payload became shared")?;
             *revision = RevisionId::fresh();
-            let remap = compact(data)?;
+            let remap = compact_in(data, budget)?;
             if remap.moved {
                 if remaps.is_empty() {
+                    remaps = budget.vector(Scratch, self.program.units.len())?;
                     remaps.resize_with(self.program.units.len(), || None);
                 }
                 remaps[index] = Some(remap);
+            } else {
+                storage::release_vec(remap.map, Retained, budget)?;
             }
         }
-        if !remaps.is_empty() && self.program.cells.iter().any(|cell| {
-            remaps.get(cell.owner.index()).and_then(Option::as_ref)
-                .is_some_and(|remap| remap.region(cell.region) != cell.region)
-        }) {
+        if !remaps.is_empty()
+            && self.program.cells.iter().any(|cell| {
+                remaps
+                    .get(cell.owner.index())
+                    .and_then(Option::as_ref)
+                    .is_some_and(|remap| remap.region(cell.region) != cell.region)
+            })
+        {
+            self.unique_cells(budget)?;
             self.program.tables_revision = RevisionId::fresh();
-            let cells = Arc::make_mut(&mut self.program.cells);
-            for cell in cells.iter_mut() {
+            for cell in Arc::get_mut(&mut self.program.cells)
+                .ok_or("an edited cells table is shared")?
+                .iter_mut()
+            {
                 if let Some(Some(remap)) = remaps.get(cell.owner.index()) {
                     cell.region = remap.region(cell.region);
                 }
             }
         }
+        for remap in &mut remaps {
+            if let Some(remap) = remap.take() {
+                storage::release_vec(remap.map, Retained, budget)?;
+            }
+        }
+        storage::release_vec(remaps, Scratch, budget)?;
         if changed {
             self.program.views.invalidate();
         }
@@ -111,72 +220,121 @@ impl<'src> Editor<'src> {
         if super::COLD_RULE_VIEWS.with(std::cell::Cell::get) {
             self.program.views = ProgramViews::default();
         }
-        Ok(())
+        self.retire(budget)
     }
-
-    /// A unit's current revision, to read while another unit is edited.
+    #[cfg(test)]
+    pub(super) fn commit(&mut self) -> Result<(), RuleError> {
+        self.commit_in(&mut AllocationBudget::new(None))
+    }
     pub(super) fn handle(&self, unit: UnitId) -> FrozenUnit {
         self.program.units[unit.index()].clone()
     }
 
-    /// Clone a lexical callable together with its remapped storage. New units
-    /// follow checked units and participate in the same commit/invalidation.
-    pub(super) fn add_unit(&mut self, data: UnitData) -> Result<UnitId, &'static str> {
+    /// The supplied unit and its nested payload already belong to this budget.
+    pub(super) fn add_unit_in(
+        &mut self,
+        data: UnitData,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<UnitId, RuleError> {
         let id = UnitId::from_index(self.program.units.len()).ok_or("unit capacity")?;
-        self.program.units.push(WorkingUnit::new(id, data).freeze());
-        self.touched.push(true);
+        let frozen = storage::freeze(id, data, budget)?;
+        budget.push(Retained, &mut self.program.units, frozen)?;
+        budget.push(Scratch, &mut self.touched, true)?;
         self.tables_changed = true;
         self.program.tables_revision = RevisionId::fresh();
         Ok(id)
     }
-
-    /// The type's id in the program's table, added when no equal type is
-    /// there yet (conversion interns types the same way).
+    pub(super) fn intern_type_in(
+        &mut self,
+        ty: &crate::check::Type<'src>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<TypeId, RuleError> {
+        if let Some(index) = self.program.types.iter().position(|known| known == ty) {
+            return TypeId::from_index(index).ok_or("type capacity".into());
+        }
+        self.unique_types(budget)?;
+        let id = TypeId::from_index(self.program.types.len()).ok_or("type capacity")?;
+        let ty = storage::ty(ty, budget)?;
+        budget.push(
+            Retained,
+            Arc::get_mut(&mut self.program.types).ok_or("an edited types table is shared")?,
+            ty,
+        )?;
+        self.tables_changed = true;
+        self.program.tables_revision = RevisionId::fresh();
+        Ok(id)
+    }
+    #[cfg(test)]
     pub(super) fn intern_type(
         &mut self,
         ty: crate::check::Type<'src>,
-    ) -> Result<TypeId, &'static str> {
-        if let Some(index) = self.program.types.iter().position(|known| *known == ty) {
-            return TypeId::from_index(index).ok_or("type capacity");
-        }
-        let types = Arc::make_mut(&mut self.program.types);
-        let id = TypeId::from_index(types.len()).ok_or("type capacity")?;
-        types.push(ty);
-        self.tables_changed = true;
-        self.program.tables_revision = RevisionId::fresh();
-        Ok(id)
+    ) -> Result<TypeId, RuleError> {
+        self.intern_type_in(&ty, &mut AllocationBudget::new(None))
     }
-
-    /// A computed primitive string becomes program data only after folding
-    /// selects it. Changing the table invalidates dependent fact identities.
-    pub(super) fn intern_string(&mut self, value: &StringValue) -> Result<StringId, &'static str> {
+    pub(super) fn intern_string_in(
+        &mut self,
+        value: &StringValue,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<StringId, RuleError> {
         if let Some(index) = self.program.strings.iter().position(|known| known == value) {
-            return StringId::from_index(index).ok_or("string capacity");
+            return StringId::from_index(index).ok_or("string capacity".into());
         }
-        let strings = Arc::make_mut(&mut self.program.strings);
-        let id = StringId::from_index(strings.len()).ok_or("string capacity")?;
-        strings.push(value.clone());
+        self.unique_strings(budget)?;
+        let id = StringId::from_index(self.program.strings.len()).ok_or("string capacity")?;
+        let value = budget.string_value(Retained, value)?;
+        budget.push(
+            Retained,
+            Arc::get_mut(&mut self.program.strings).ok_or("an edited strings table is shared")?,
+            value,
+        )?;
         self.tables_changed = true;
         self.program.tables_revision = RevisionId::fresh();
         Ok(id)
     }
-
-    /// Adds a synthetic cell; synthetic cells follow every checked one.
-    pub(super) fn add_cell(&mut self, cell: Cell) -> Result<CellId, &'static str> {
-        let cells = Arc::make_mut(&mut self.program.cells);
-        let id = CellId::from_index(cells.len()).ok_or("cell capacity")?;
-        cells.push(cell);
+    #[cfg(test)]
+    pub(super) fn intern_string(&mut self, value: &StringValue) -> Result<StringId, RuleError> {
+        self.intern_string_in(value, &mut AllocationBudget::new(None))
+    }
+    /// Cell.name is an admitted payload; scalarization and inlining construct
+    /// or copy it through the same storage owner before transferring it here.
+    pub(super) fn add_cell_in(
+        &mut self,
+        cell: Cell,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<CellId, RuleError> {
+        self.unique_cells(budget)?;
+        let id = CellId::from_index(self.program.cells.len()).ok_or("cell capacity")?;
+        budget.push(
+            Retained,
+            Arc::get_mut(&mut self.program.cells).ok_or("an edited cells table is shared")?,
+            cell,
+        )?;
         self.tables_changed = true;
         self.program.tables_revision = RevisionId::fresh();
         Ok(id)
     }
-
-    pub(super) fn finish(mut self) -> Result<Program<'src>, &'static str> {
-        self.commit()?;
-        // These views are rule-phase scratch. Publication admits the returned
-        // program separately, and must not inherit unowned analysis storage.
+    #[cfg(test)]
+    pub(super) fn add_cell(&mut self, cell: Cell) -> Result<CellId, RuleError> {
+        self.add_cell_in(cell, &mut AllocationBudget::new(None))
+    }
+    pub(super) fn finish_in(
+        mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Program<'src>, RuleError> {
+        self.commit_in(budget)?;
         self.program.views = ProgramViews::default();
+        self.retire(budget)?;
+        if budget.is_accounted() && !self.retired.is_empty() {
+            return Err("a source edit retained a reader beyond its owner".into());
+        }
+        drop(self.retired.drain(..));
+        storage::release_vec(self.retired, Scratch, budget)?;
+        storage::release_vec(self.touched, Scratch, budget)?;
         Ok(self.program)
+    }
+    #[cfg(test)]
+    pub(super) fn finish(self) -> Result<Program<'src>, RuleError> {
+        self.finish_in(&mut AllocationBudget::new(None))
     }
 }
 
@@ -191,10 +349,29 @@ pub(super) fn detach(data: &mut UnitData, operation: OpId) {
 }
 
 /// Makes `operation` a constant; its operands are released.
-pub(super) fn make_constant(data: &mut UnitData, operation: OpId, constant: Constant) {
-    let op = &mut data.operations[operation.index()];
-    op.kind = OperationKind::Constant(constant);
-    op.operands = OperandRange { start: 0, len: 0 };
+pub(super) fn replace_kind(
+    data: &mut UnitData,
+    operation: OpId,
+    kind: OperationKind,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), RuleError> {
+    let bytes = storage::allocation_bytes(&data.operations[operation.index()].kind)?;
+    drop(std::mem::replace(
+        &mut data.operations[operation.index()].kind,
+        kind,
+    ));
+    budget.release(Retained, bytes)?;
+    Ok(())
+}
+pub(super) fn make_constant_in(
+    data: &mut UnitData,
+    operation: OpId,
+    constant: Constant,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), RuleError> {
+    replace_kind(data, operation, OperationKind::Constant(constant), budget)?;
+    data.operations[operation.index()].operands = OperandRange { start: 0, len: 0 };
+    Ok(())
 }
 
 /// Keep a proved value with the replaced operation's result type. A nullable
@@ -203,15 +380,16 @@ pub(super) fn make_constant(data: &mut UnitData, operation: OpId, constant: Cons
 /// value place is the existing typed view used by source narrowing. Its input
 /// has already run and is never reloaded from mutable storage.
 /// The caller proves the runtime value is admissible at the result type.
-pub(super) fn make_value_view(
+pub(super) fn make_value_view_in(
     data: &mut UnitData,
     operation: OpId,
     value: ValueId,
-) -> Result<(), &'static str> {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), RuleError> {
     let place = PlaceId::from_index(data.places.len()).ok_or("value view place capacity")?;
-    data.places.push(Place::Value(value));
+    budget.push(Retained, &mut data.places, Place::Value(value))?;
+    replace_kind(data, operation, OperationKind::Load(place), budget)?;
     let operation = &mut data.operations[operation.index()];
-    operation.kind = OperationKind::Load(place);
     operation.operands = OperandRange { start: 0, len: 0 };
     Ok(())
 }
@@ -219,10 +397,15 @@ pub(super) fn make_value_view(
 /// Makes `operation` a block of `region`, one of its child regions; the
 /// other child regions and the operands are released. A block keeps the
 /// region's lexical scope, as the branch it replaces did.
-pub(super) fn make_block(data: &mut UnitData, operation: OpId, region: RegionId) {
-    let op = &mut data.operations[operation.index()];
-    op.kind = OperationKind::Block(region);
-    op.operands = OperandRange { start: 0, len: 0 };
+pub(super) fn make_block_in(
+    data: &mut UnitData,
+    operation: OpId,
+    region: RegionId,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), RuleError> {
+    replace_kind(data, operation, OperationKind::Block(region), budget)?;
+    data.operations[operation.index()].operands = OperandRange { start: 0, len: 0 };
+    Ok(())
 }
 
 /// Every use of `from` becomes a use of `to`. The caller guarantees that
@@ -276,14 +459,24 @@ pub(super) fn substitute(data: &mut UnitData, from: ValueId, to: ValueId) {
 /// `at`'s place; `at` and its other child regions are released. The cells
 /// the moved region declared move with its operations. The caller
 /// substitutes `at`'s result.
-pub(super) fn splice(
+pub(super) fn splice_in(
     data: &mut UnitData,
     cells: &mut [Cell],
     unit: UnitId,
     at: OpId,
     region: RegionId,
-) {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), RuleError> {
     let parent = data.operations[at.index()].region;
+    let additional = data.regions[region.index()]
+        .operations
+        .len()
+        .saturating_sub(1);
+    budget.reserve_vec(
+        Retained,
+        &mut data.regions[parent.index()].operations,
+        additional,
+    )?;
     let moved = std::mem::take(&mut data.regions[region.index()].operations);
     for op in &moved {
         data.operations[op.index()].region = parent;
@@ -295,7 +488,7 @@ pub(super) fn splice(
     }
     let list = &mut data.regions[parent.index()].operations;
     if let Some(position) = list.iter().position(|op| *op == at) {
-        list.splice(position..=position, moved);
+        list.splice(position..=position, moved.iter().copied());
     }
     for cell in cells
         .iter_mut()
@@ -303,6 +496,8 @@ pub(super) fn splice(
     {
         cell.region = parent;
     }
+    storage::release_vec(moved, Retained, budget)?;
+    Ok(())
 }
 
 /// Where each region of a compacted unit went. A removed region maps to its
@@ -318,20 +513,7 @@ impl RegionRemap {
     }
 }
 
-fn renumber<T: Copy>(keep: &[bool], id: impl Fn(usize) -> Option<T>) -> Vec<Option<T>> {
-    let mut next = 0;
-    keep.iter()
-        .map(|&kept| {
-            kept.then(|| {
-                let value = id(next).expect("a compacted arena fits its old capacity");
-                next += 1;
-                value
-            })
-        })
-        .collect()
-}
-
-struct Remaps {
+struct Remaps<'a> {
     operations: Vec<Option<OpId>>,
     values: Vec<Option<ValueId>>,
     regions: Vec<Option<RegionId>>,
@@ -339,15 +521,15 @@ struct Remaps {
     calls: Vec<Option<CallId>>,
     instantiations: Vec<Option<CallInstantiationId>>,
     /// A graft's cells: what the copied body declared, cloned for the copy.
-    cells: HashMap<CellId, CellId>,
+    cells: Option<&'a HashMap<CellId, CellId>>,
     /// A graft's parameters that read their argument: a place naming one
     /// reads the argument value.
-    forwards: HashMap<CellId, ValueId>,
+    forwards: Option<&'a HashMap<CellId, ValueId>>,
     /// A graft's allocation sites, renumbered past the receiver's own.
-    allocations: HashMap<AllocationId, AllocationId>,
+    allocations: Vec<(AllocationId, AllocationId)>,
 }
 
-impl Remaps {
+impl Remaps<'_> {
     fn op(&self, id: OpId) -> Result<OpId, &'static str> {
         self.operations[id.index()].ok_or("a kept region lists a removed operation")
     }
@@ -368,7 +550,10 @@ impl Remaps {
         self.calls[id.index()].ok_or("a kept operation prepares a removed call")
     }
     fn cell(&self, id: CellId) -> CellId {
-        self.cells.get(&id).copied().unwrap_or(id)
+        self.cells
+            .and_then(|cells| cells.get(&id))
+            .copied()
+            .unwrap_or(id)
     }
 
     fn kind(&self, kind: &OperationKind) -> Result<OperationKind, &'static str> {
@@ -425,17 +610,14 @@ impl Remaps {
             },
             Op::Initialize(cell) => Op::Initialize(self.cell(*cell)),
             Op::Declare(cell) => Op::Declare(self.cell(*cell)),
-            Op::Allocate { identity, kind } => Op::Allocate {
-                identity: self.allocations.get(identity).copied().unwrap_or(*identity),
-                kind: kind.clone(),
-            },
+            Op::Allocate { .. } => return Err("allocation payload requires admitted copying"),
             other => other.clone(),
         })
     }
 
     fn place_payload(&self, place: &Place) -> Result<Place, &'static str> {
         Ok(match place {
-            Place::Cell(cell) => match self.forwards.get(cell) {
+            Place::Cell(cell) => match self.forwards.and_then(|forwards| forwards.get(cell)) {
                 Some(value) => Place::Value(*value),
                 None => Place::Cell(self.cell(*cell)),
             },
@@ -500,277 +682,386 @@ struct Keep {
     values: Vec<bool>,
 }
 
-fn ownership(
+fn ownership_in(
     data: &UnitData,
     mut skip: impl FnMut(OpId, &Operation) -> bool,
-) -> Result<Keep, &'static str> {
-    let mut region_keep = vec![false; data.regions.len()];
-    let mut op_keep = vec![false; data.operations.len()];
-    let mut stack = vec![data.entry];
-    while let Some(region) = stack.pop() {
-        let seen = region_keep
-            .get_mut(region.index())
-            .ok_or("a kept operation owns a missing region")?;
-        if std::mem::replace(seen, true) {
-            return Err("a region has two owners");
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Keep, RuleError> {
+    budget.retained_phase(|budget| {
+        let mut region_keep = budget.filled(Retained, data.regions.len(), false)?;
+        let mut op_keep = budget.filled(Retained, data.operations.len(), false)?;
+        let mut stack = budget.copy_slice(Scratch, &[data.entry])?;
+        while let Some(region) = stack.pop() {
+            let seen = region_keep
+                .get_mut(region.index())
+                .ok_or("a kept operation owns a missing region")?;
+            if std::mem::replace(seen, true) {
+                return Err("a region has two owners".into());
+            }
+            for &op in &data.regions[region.index()].operations {
+                let operation = data
+                    .operations
+                    .get(op.index())
+                    .ok_or("a region lists a missing operation")?;
+                if skip(op, operation) {
+                    continue;
+                }
+                op_keep[op.index()] = true;
+                storage::extend(&mut stack, operation.kind.child_regions(), Scratch, budget)?;
+            }
         }
-        for &op in &data.regions[region.index()].operations {
-            let operation = data
-                .operations
-                .get(op.index())
-                .ok_or("a region lists a missing operation")?;
-            if skip(op, operation) {
+        let mut call_keep = budget.filled(Retained, data.calls.len(), false)?;
+        for (index, op) in data.operations.iter().enumerate() {
+            if let (true, OperationKind::Call(call)) = (op_keep[index], &op.kind) {
+                call_keep[call.index()] = true;
+            }
+        }
+        let mut place_keep = budget.filled(Retained, data.places.len(), false)?;
+        for (index, op) in data.operations.iter().enumerate() {
+            if !op_keep[index] {
                 continue;
             }
-            op_keep[op.index()] = true;
-            stack.extend(operation.kind.child_regions());
-        }
-    }
-    let mut call_keep = vec![false; data.calls.len()];
-    for (index, op) in data.operations.iter().enumerate() {
-        if let (true, OperationKind::Call(call)) = (op_keep[index], &op.kind) {
-            call_keep[call.index()] = true;
-        }
-    }
-    let mut place_keep = vec![false; data.places.len()];
-    for (index, op) in data.operations.iter().enumerate() {
-        if !op_keep[index] {
-            continue;
-        }
-        match op.kind {
-            OperationKind::Load(place)
-            | OperationKind::Store(place)
-            | OperationKind::CheckPlace(place) => place_keep[place.index()] = true,
-            OperationKind::PrepareCall(call) | OperationKind::PrepareReference { call, .. }
-                if !call_keep[call.index()] =>
-            {
-                return Err("a kept preparation has no kept call");
+            match op.kind {
+                OperationKind::Load(place)
+                | OperationKind::Store(place)
+                | OperationKind::CheckPlace(place) => place_keep[place.index()] = true,
+                OperationKind::PrepareCall(call) | OperationKind::PrepareReference { call, .. }
+                    if !call_keep[call.index()] =>
+                {
+                    return Err("a kept preparation has no kept call".into());
+                }
+                _ => {}
             }
-            _ => {}
         }
-    }
-    let mut instantiation_keep = vec![false; data.call_instantiations.len()];
-    for (index, call) in data.calls.iter().enumerate() {
-        if !call_keep[index] {
-            continue;
-        }
-        if let CallTarget::Reference { place } = call.target {
-            place_keep[place.index()] = true;
-        }
-        for argument in data
-            .arguments(call.arguments)
-            .ok_or("invalid argument range")?
-        {
-            if let CallArgument::Reference(place) = argument {
+        let mut instantiation_keep =
+            budget.filled(Retained, data.call_instantiations.len(), false)?;
+        for (index, call) in data.calls.iter().enumerate() {
+            if !call_keep[index] {
+                continue;
+            }
+            if let CallTarget::Reference { place } = call.target {
                 place_keep[place.index()] = true;
             }
+            for argument in data
+                .arguments(call.arguments)
+                .ok_or("invalid argument range")?
+            {
+                if let CallArgument::Reference(place) = argument {
+                    place_keep[place.index()] = true;
+                }
+            }
+            if let Some(instantiation) = call.contract.instantiation {
+                instantiation_keep[instantiation.index()] = true;
+            }
         }
-        if let Some(instantiation) = call.contract.instantiation {
-            instantiation_keep[instantiation.index()] = true;
+        // A field projection names an earlier place: one descending pass keeps
+        // every base a kept projection reaches.
+        for index in (0..data.places.len()).rev() {
+            if let (true, Place::Field { base, .. }) = (place_keep[index], &data.places[index]) {
+                place_keep[base.index()] = true;
+            }
         }
-    }
-    // A field projection names an earlier place: one descending pass keeps
-    // every base a kept projection reaches.
-    for index in (0..data.places.len()).rev() {
-        if let (true, Place::Field { base, .. }) = (place_keep[index], &data.places[index]) {
-            place_keep[base.index()] = true;
+        let mut value_keep = budget.filled(Retained, data.values.len(), false)?;
+        for (index, op) in data.operations.iter().enumerate() {
+            if let (true, Some(result)) = (op_keep[index], op.result) {
+                value_keep[result.index()] = true;
+            }
         }
-    }
-    let mut value_keep = vec![false; data.values.len()];
-    for (index, op) in data.operations.iter().enumerate() {
-        if let (true, Some(result)) = (op_keep[index], op.result) {
-            value_keep[result.index()] = true;
-        }
-    }
-    Ok(Keep {
-        regions: region_keep,
-        operations: op_keep,
-        calls: call_keep,
-        places: place_keep,
-        instantiations: instantiation_keep,
-        values: value_keep,
+        Ok(Keep {
+            regions: region_keep,
+            operations: op_keep,
+            calls: call_keep,
+            places: place_keep,
+            instantiations: instantiation_keep,
+            values: value_keep,
+        })
     })
 }
 
 /// Drops the storage the entry region no longer owns: operations, their
 /// values, regions, calls with their arguments and instantiations, and
 /// places. What is kept keeps its order and is renumbered densely.
-pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> {
-    let Keep {
-        regions: region_keep,
-        operations: op_keep,
-        calls: call_keep,
-        places: place_keep,
-        instantiations: instantiation_keep,
-        values: value_keep,
-    } = ownership(data, |_, _| false)?;
-    let everything = |keep: &[bool]| keep.iter().all(|kept| *kept);
-    // An edit that rewrites an operation's operands or a call's arguments
-    // leaves the old slots unowned: they are dropped too.
-    let owned_operands: usize = data
-        .operations
-        .iter()
-        .map(|op| op.operands.len as usize)
-        .sum();
-    let owned_arguments: usize = data
-        .calls
-        .iter()
-        .map(|call| call.arguments.len as usize)
-        .sum();
-    if everything(&op_keep)
-        && everything(&region_keep)
-        && everything(&call_keep)
-        && everything(&place_keep)
-        && everything(&instantiation_keep)
-        && everything(&value_keep)
+struct CompactPlan {
+    keep: Keep,
+    remaps: Remaps<'static>,
+    operands: Vec<ValueId>,
+    operand_ranges: Vec<OperandRange>,
+    arguments: Vec<CallArgument>,
+    argument_ranges: Vec<ArgumentRange>,
+    regions: Vec<RegionId>,
+    released: u64,
+}
+
+fn renumber_in<T: Copy>(
+    keep: &[bool],
+    id: impl Fn(usize) -> Option<T>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Option<T>>, AllocationError> {
+    let mut next = 0;
+    storage::collect(
+        keep.iter().map(|&kept| {
+            kept.then(|| {
+                let value = id(next).expect("a compacted arena fits its old capacity");
+                next += 1;
+                value
+            })
+        }),
+        Retained,
+        budget,
+    )
+}
+
+fn compact_plan(
+    data: &UnitData,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<CompactPlan, RuleError> {
+    let keep = ownership_in(data, |_, _| false, budget)?;
+    let everything = |keep: &[bool]| keep.iter().all(|&kept| kept);
+    let owned_operands = data.operations.iter().try_fold(0usize, |total, op| {
+        total
+            .checked_add(op.operands.len as usize)
+            .ok_or(AllocationError::Capacity)
+    })?;
+    let owned_arguments = data.calls.iter().try_fold(0usize, |total, call| {
+        total
+            .checked_add(call.arguments.len as usize)
+            .ok_or(AllocationError::Capacity)
+    })?;
+    if everything(&keep.operations)
+        && everything(&keep.regions)
+        && everything(&keep.calls)
+        && everything(&keep.places)
+        && everything(&keep.instantiations)
+        && everything(&keep.values)
         && owned_operands == data.operands.len()
         && owned_arguments == data.call_arguments.len()
     {
-        return Ok(RegionRemap {
-            map: Vec::new(),
-            moved: false,
+        // No backing escapes this temporary input, including the ownership maps.
+        // Keep the maps in a plan so their buffers drop before its detached charge.
+        return Ok(CompactPlan {
+            keep,
+            remaps: Remaps {
+                operations: Vec::new(),
+                values: Vec::new(),
+                regions: Vec::new(),
+                places: Vec::new(),
+                calls: Vec::new(),
+                instantiations: Vec::new(),
+                cells: None,
+                forwards: None,
+                allocations: Vec::new(),
+            },
+            operands: Vec::new(),
+            operand_ranges: Vec::new(),
+            arguments: Vec::new(),
+            argument_ranges: Vec::new(),
+            regions: Vec::new(),
+            released: 0,
         });
     }
     let remaps = Remaps {
-        operations: renumber(&op_keep, OpId::from_index),
-        values: renumber(&value_keep, ValueId::from_index),
-        regions: renumber(&region_keep, RegionId::from_index),
-        places: renumber(&place_keep, PlaceId::from_index),
-        calls: renumber(&call_keep, CallId::from_index),
-        instantiations: renumber(&instantiation_keep, CallInstantiationId::from_index),
-        cells: HashMap::new(),
-        forwards: HashMap::new(),
-        allocations: HashMap::new(),
+        operations: renumber_in(&keep.operations, OpId::from_index, budget)?,
+        values: renumber_in(&keep.values, ValueId::from_index, budget)?,
+        regions: renumber_in(&keep.regions, RegionId::from_index, budget)?,
+        places: renumber_in(&keep.places, PlaceId::from_index, budget)?,
+        calls: renumber_in(&keep.calls, CallId::from_index, budget)?,
+        instantiations: renumber_in(
+            &keep.instantiations,
+            CallInstantiationId::from_index,
+            budget,
+        )?,
+        cells: None,
+        forwards: None,
+        allocations: Vec::new(),
     };
-
-    let mut operands = Vec::with_capacity(data.operands.len());
-    let mut operations = Vec::with_capacity(op_keep.iter().filter(|kept| **kept).count());
+    // Rewritten operand/argument ranges need not be monotone. Stage their
+    // values once rather than overwriting a later operation's original range.
+    let mut operands = Vec::new();
+    let mut operand_ranges = budget.vector(Retained, data.operations.len())?;
+    let mut released = 0u64;
     for (index, op) in data.operations.iter().enumerate() {
-        if !op_keep[index] {
-            continue;
-        }
-        let start = operands.len();
-        for value in data.operands(op.operands).ok_or("invalid operand range")? {
-            operands.push(remaps.value(*value)?);
-        }
-        operations.push(Operation {
-            authored: op.authored,
-            kind: remaps.kind(&op.kind)?,
-            operands: OperandRange {
-                start: u32::try_from(start).map_err(|_| "operand capacity")?,
-                len: op.operands.len,
-            },
-            result: op.result.map(|value| remaps.value(value)).transpose()?,
-            region: remaps.region(op.region)?,
-            origin: op.origin,
-            span: op.span,
+        let start = u32::try_from(operands.len()).map_err(|_| AllocationError::Capacity)?;
+        operand_ranges.push(OperandRange {
+            start,
+            len: op.operands.len,
         });
+        if keep.operations[index] {
+            for &value in data.operands(op.operands).ok_or("invalid operand range")? {
+                let value = remaps.value(value)?;
+                budget.push(Retained, &mut operands, value)?;
+            }
+        } else {
+            released = released
+                .checked_add(storage::allocation_bytes(&op.kind)?)
+                .ok_or(AllocationError::Capacity)?;
+        }
     }
-    let values = data
-        .values
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| value_keep[*index])
-        .map(|(_, value)| {
-            Ok(Value {
-                ty: value.ty,
-                definition: remaps.op(value.definition)?,
-            })
-        })
-        .collect::<Result<Vec<_>, &'static str>>()?;
-    let regions = data
-        .regions
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| region_keep[*index])
-        .map(|(_, region)| {
-            Ok(Region {
-                authored: region.authored,
-                parent: region
-                    .parent
-                    .map(|parent| remaps.region(parent))
-                    .transpose()?,
-                operations: region
-                    .operations
-                    .iter()
-                    .map(|op| remaps.op(*op))
-                    .collect::<Result<_, _>>()?,
-                result: region.result.map(|value| remaps.value(value)).transpose()?,
-                span: region.span,
-            })
-        })
-        .collect::<Result<Vec<_>, &'static str>>()?;
-    let places = data
-        .places
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| place_keep[*index])
-        .map(|(_, place)| remaps.place_payload(place))
-        .collect::<Result<Vec<_>, &'static str>>()?;
-    let mut call_arguments = Vec::with_capacity(data.call_arguments.len());
-    let mut calls = Vec::with_capacity(call_keep.iter().filter(|kept| **kept).count());
+    let mut arguments = Vec::new();
+    let mut argument_ranges = budget.vector(Retained, data.calls.len())?;
     for (index, call) in data.calls.iter().enumerate() {
-        if !call_keep[index] {
-            continue;
-        }
-        let start = call_arguments.len();
-        for argument in data
-            .arguments(call.arguments)
-            .ok_or("invalid argument range")?
-        {
-            call_arguments.push(remaps.argument(argument)?);
-        }
-        let mut contract = call.contract;
-        contract.instantiation = contract
-            .instantiation
-            .map(|id| remaps.instantiations[id.index()].ok_or("a kept call lost its instantiation"))
-            .transpose()?;
-        calls.push(CallSite {
-            target: remaps.target(&call.target)?,
-            contract,
-            arguments: ArgumentRange {
-                start: u32::try_from(start).map_err(|_| "argument capacity")?,
-                len: call.arguments.len,
-            },
-            omit_trailing: call.omit_trailing,
-            debug: call.debug,
+        let start = u32::try_from(arguments.len()).map_err(|_| AllocationError::Capacity)?;
+        argument_ranges.push(ArgumentRange {
+            start,
+            len: call.arguments.len,
         });
+        if keep.calls[index] {
+            for arg in data
+                .arguments(call.arguments)
+                .ok_or("invalid argument range")?
+            {
+                let arg = remaps.argument(arg)?;
+                budget.push(Retained, &mut arguments, arg)?;
+            }
+        }
     }
-    let call_instantiations = data
-        .call_instantiations
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| instantiation_keep[*index])
-        .map(|(_, instantiation)| instantiation.clone())
-        .collect();
-
-    // A removed region's cells map to its nearest surviving ancestor.
-    let mut map = Vec::with_capacity(data.regions.len());
+    for (index, region) in data.regions.iter().enumerate() {
+        if !keep.regions[index] {
+            released = released
+                .checked_add(crate::output_budget::vector_bytes(&region.operations)?)
+                .ok_or(AllocationError::Capacity)?;
+        }
+    }
+    for (index, instance) in data.call_instantiations.iter().enumerate() {
+        if !keep.instantiations[index] {
+            released = released
+                .checked_add(crate::output_budget::vector_bytes(&instance.arguments)?)
+                .ok_or(AllocationError::Capacity)?;
+        }
+    }
+    let mut regions = budget.vector(Retained, data.regions.len())?;
     for index in 0..data.regions.len() {
         let mut region = RegionId::from_index(index).unwrap();
         let target = loop {
             if let Some(kept) = remaps.regions[region.index()] {
                 break kept;
             }
-            match data.regions[region.index()].parent {
-                Some(parent) => region = parent,
-                None => break remaps.region(data.entry)?,
-            }
+            region = match data.regions[region.index()].parent {
+                Some(parent) => parent,
+                None => data.entry,
+            };
         };
-        map.push(target);
+        regions.push(target);
     }
+    Ok(CompactPlan {
+        keep,
+        remaps,
+        operands,
+        operand_ranges,
+        arguments,
+        argument_ranges,
+        regions,
+        released,
+    })
+}
 
-    data.entry = remaps.region(data.entry)?;
-    data.operations = operations;
-    data.operands = operands;
-    data.values = values;
-    data.regions = regions;
-    data.places = places;
-    data.calls = calls;
-    data.call_arguments = call_arguments;
-    data.call_instantiations = call_instantiations;
-    let moved = map.iter().enumerate().any(|(index, region)| region.index() != index);
-    Ok(RegionRemap { map, moved })
+fn compact_in(
+    data: &mut UnitData,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<RegionRemap, RuleError> {
+    budget.with_temporary_context(data, compact_plan, |plan, data, budget| {
+        if plan.remaps.regions.is_empty() {
+            return Ok(RegionRemap {
+                map: Vec::new(),
+                moved: false,
+            });
+        }
+        let remaps = &plan.remaps;
+        let map = budget.copy_slice(Retained, &plan.regions)?;
+        // Admission precedes every possible growth. Retain/move below neither
+        // clones nested payload nor changes the surviving arenas' capacities.
+        let more = plan.operands.len().saturating_sub(data.operands.len());
+        budget.reserve_vec(Retained, &mut data.operands, more)?;
+        let more = plan
+            .arguments
+            .len()
+            .saturating_sub(data.call_arguments.len());
+        budget.reserve_vec(Retained, &mut data.call_arguments, more)?;
+        budget.work(
+            crate::compilation_policy::WorkKind::Edit,
+            (data.operations.len()
+                + data.values.len()
+                + data.regions.len()
+                + data.places.len()
+                + data.calls.len()
+                + data.call_instantiations.len()
+                + plan.operands.len()
+                + plan.arguments.len()) as u64,
+        )?;
+        for (index, op) in data.operations.iter_mut().enumerate() {
+            if !plan.keep.operations[index] {
+                continue;
+            }
+            // Allocation identity and payload are unchanged by compaction.
+            if !matches!(op.kind, OperationKind::Allocate { .. }) {
+                op.kind = remaps.kind(&op.kind)?;
+            }
+            op.operands = plan.operand_ranges[index];
+            op.result = op.result.map(|value| remaps.value(value)).transpose()?;
+            op.region = remaps.region(op.region)?;
+        }
+        for (index, value) in data.values.iter_mut().enumerate() {
+            if plan.keep.values[index] {
+                value.definition = remaps.op(value.definition)?;
+            }
+        }
+        for (index, region) in data.regions.iter_mut().enumerate() {
+            if !plan.keep.regions[index] {
+                continue;
+            }
+            region.parent = region
+                .parent
+                .map(|parent| remaps.region(parent))
+                .transpose()?;
+            for op in &mut region.operations {
+                *op = remaps.op(*op)?;
+            }
+            region.result = region.result.map(|value| remaps.value(value)).transpose()?;
+        }
+        for (index, place) in data.places.iter_mut().enumerate() {
+            if plan.keep.places[index] {
+                *place = remaps.place_payload(place)?;
+            }
+        }
+        for (index, call) in data.calls.iter_mut().enumerate() {
+            if !plan.keep.calls[index] {
+                continue;
+            }
+            call.target = remaps.target(&call.target)?;
+            call.contract.instantiation = call
+                .contract
+                .instantiation
+                .map(|id| {
+                    remaps.instantiations[id.index()].ok_or("a kept call lost its instantiation")
+                })
+                .transpose()?;
+            call.arguments = plan.argument_ranges[index];
+        }
+        fn keep<T>(values: &mut Vec<T>, kept: &[bool]) {
+            let mut index = 0;
+            values.retain(|_| {
+                let keep = kept[index];
+                index += 1;
+                keep
+            });
+        }
+        keep(&mut data.operations, &plan.keep.operations);
+        keep(&mut data.values, &plan.keep.values);
+        keep(&mut data.regions, &plan.keep.regions);
+        keep(&mut data.places, &plan.keep.places);
+        keep(&mut data.calls, &plan.keep.calls);
+        keep(&mut data.call_instantiations, &plan.keep.instantiations);
+        data.operands.clear();
+        data.operands.extend_from_slice(&plan.operands);
+        data.call_arguments.clear();
+        data.call_arguments.extend_from_slice(&plan.arguments);
+        data.entry = remaps.region(data.entry)?;
+        budget.release(Retained, plan.released)?;
+        let moved = map
+            .iter()
+            .enumerate()
+            .any(|(index, region)| region.index() != index);
+        Ok(RegionRemap { map, moved })
+    })
 }
 
 /// What a graft copies from a body, and how.
@@ -797,253 +1088,371 @@ pub(super) struct Grafted {
 /// source region: the entry becomes `parent`, and every other region the
 /// entry owns is appended in source order. A graft skips only operations
 /// that own no region, so this is also where `graft` puts them.
-pub(super) fn graft_regions(
+pub(super) fn graft_regions_in(
     source: &UnitData,
     regions: usize,
     parent: RegionId,
-) -> Result<Vec<Option<RegionId>>, &'static str> {
-    let owned = ownership(source, |_, _| false)?;
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Option<RegionId>>, RuleError> {
+    budget.with_temporary(
+        |budget| ownership_in(source, |_, _| false, budget),
+        |owned, budget| region_map(source, &owned.regions, regions, parent, budget),
+    )
+}
+fn region_map(
+    source: &UnitData,
+    keep: &[bool],
+    regions: usize,
+    parent: RegionId,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Option<RegionId>>, RuleError> {
     let mut next = regions;
-    owned
-        .regions
-        .iter()
-        .enumerate()
-        .map(|(index, &kept)| {
-            if index == source.entry.index() {
-                return Ok(Some(parent));
-            }
-            if !kept {
-                return Ok(None);
-            }
+    let mut result = budget.vector(Retained, keep.len())?;
+    for (index, &kept) in keep.iter().enumerate() {
+        result.push(if index == source.entry.index() {
+            Some(parent)
+        } else if !kept {
+            None
+        } else {
             let id = RegionId::from_index(next).ok_or("region capacity")?;
             next += 1;
-            Ok(Some(id))
-        })
-        .collect()
+            Some(id)
+        });
+    }
+    Ok(result)
 }
 
 fn appended<T>(
     keep: &[bool],
     base: usize,
     id: impl Fn(usize) -> Option<T>,
-) -> Result<Vec<Option<T>>, &'static str> {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Option<T>>, RuleError> {
     let mut next = base;
-    keep.iter()
-        .map(|&kept| {
-            if !kept {
-                return Ok(None);
-            }
+    let mut result = budget.vector(Retained, keep.len())?;
+    for &kept in keep {
+        result.push(if kept {
             let value = id(next).ok_or("graft capacity")?;
             next += 1;
-            Ok(Some(value))
-        })
-        .collect()
+            Some(value)
+        } else {
+            None
+        });
+    }
+    Ok(result)
 }
 
-/// Copies `source`'s body into `target`, its regions hanging from `parent`:
-/// every region, operation, value, place, call and instantiation its entry
-/// owns, except the exit and the plain loads of forwarded parameters, whose
-/// results are the arguments. The copied entry operations are returned, not
-/// placed. Allocation sites are renumbered past the target's own, since a
-/// site's identity is local to its unit.
-pub(super) fn graft(
+struct GraftInput<'a> {
+    keep: Keep,
+    remaps: Remaps<'a>,
+}
+
+/// Graft maps borrow cells/forwarded parameters; cloning those hash tables
+/// cannot outlive or evade their producer's owner. Arena and nested payload
+/// growth belongs to the original target budget.
+pub(super) fn graft_in(
     source: &UnitData,
     target: &mut UnitData,
     parent: RegionId,
     plan: &GraftPlan<'_>,
-) -> Result<Grafted, &'static str> {
-    let mut forwarded: Vec<(ValueId, ValueId)> = Vec::new();
-    let keep = ownership(source, |op, operation| {
-        if Some(op) == plan.exit {
-            return true;
-        }
-        if let (OperationKind::Load(place), Some(result)) = (&operation.kind, operation.result) {
-            if let Some(Place::Cell(cell)) = source.places.get(place.index()) {
-                if let Some(&value) = plan.forwards.get(cell) {
-                    forwarded.push((result, value));
-                    return true;
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Grafted, RuleError> {
+    budget.with_temporary_context(
+        target,
+        |target, budget| {
+            let keep = ownership_in(
+                source,
+                |op, operation| {
+                    Some(op) == plan.exit
+                        || match (&operation.kind, operation.result) {
+                            (OperationKind::Load(place), Some(_)) => {
+                                match source.places.get(place.index()) {
+                                    Some(Place::Cell(cell)) => plan.forwards.contains_key(cell),
+                                    _ => false,
+                                }
+                            }
+                            _ => false,
+                        }
+                },
+                budget,
+            )?;
+            let mut values = appended(
+                &keep.values,
+                target.values.len(),
+                ValueId::from_index,
+                budget,
+            )?;
+            for (index, region) in source.regions.iter().enumerate() {
+                if !keep.regions[index] {
+                    continue;
+                }
+                for &op in &region.operations {
+                    let operation = &source.operations[op.index()];
+                    if let (OperationKind::Load(place), Some(result)) =
+                        (&operation.kind, operation.result)
+                    {
+                        if let Some(Place::Cell(cell)) = source.places.get(place.index()) {
+                            if let Some(&value) = plan.forwards.get(cell) {
+                                values[result.index()] = Some(value);
+                            }
+                        }
+                    }
                 }
             }
-        }
-        false
-    })?;
-    let mut values = appended(&keep.values, target.values.len(), ValueId::from_index)?;
-    for (from, to) in forwarded {
-        values[from.index()] = Some(to);
-    }
-    let mut next_site = target
-        .operations
-        .iter()
-        .filter_map(|operation| match operation.kind {
-            OperationKind::Allocate { identity, .. } => Some(identity.index() + 1),
-            _ => None,
-        })
-        .max()
-        .unwrap_or(0);
-    let mut allocations = HashMap::new();
-    for (index, operation) in source.operations.iter().enumerate() {
-        if let (true, OperationKind::Allocate { identity, .. }) =
-            (keep.operations[index], &operation.kind)
-        {
-            let fresh = AllocationId::from_index(next_site).ok_or("allocation capacity")?;
-            allocations.insert(*identity, fresh);
-            next_site += 1;
-        }
-    }
-    let remaps = Remaps {
-        operations: appended(&keep.operations, target.operations.len(), OpId::from_index)?,
-        values,
-        regions: graft_regions(source, target.regions.len(), parent)?,
-        places: appended(&keep.places, target.places.len(), PlaceId::from_index)?,
-        calls: appended(&keep.calls, target.calls.len(), CallId::from_index)?,
-        instantiations: appended(
-            &keep.instantiations,
-            target.call_instantiations.len(),
-            CallInstantiationId::from_index,
-        )?,
-        cells: plan.cells.clone(),
-        forwards: plan.forwards.clone(),
-        allocations,
-    };
-    for (index, operation) in source.operations.iter().enumerate() {
-        if !keep.operations[index] {
-            continue;
-        }
-        let start = target.operands.len();
-        for value in source
-            .operands(operation.operands)
-            .ok_or("invalid operand range")?
-        {
-            target.operands.push(remaps.value(*value)?);
-        }
-        target.operations.push(Operation {
-            authored: operation.authored,
-            kind: remaps.kind(&operation.kind)?,
-            operands: OperandRange {
-                start: u32::try_from(start).map_err(|_| "operand capacity")?,
-                len: operation.operands.len,
-            },
-            result: operation
-                .result
-                .map(|value| remaps.value(value))
-                .transpose()?,
-            region: remaps.region(operation.region)?,
-            origin: operation.origin,
-            span: operation.span,
-        });
-    }
-    for (index, value) in source.values.iter().enumerate() {
-        if keep.values[index] {
-            target.values.push(Value {
-                ty: value.ty,
-                definition: remaps.op(value.definition)?,
-            });
-        }
-    }
-    let listed = |region: &Region| -> Result<Vec<OpId>, &'static str> {
-        region
-            .operations
-            .iter()
-            .filter(|op| keep.operations[op.index()])
-            .map(|op| remaps.op(*op))
-            .collect()
-    };
-    for (index, region) in source.regions.iter().enumerate() {
-        if !keep.regions[index] || index == source.entry.index() {
-            continue;
-        }
-        target.regions.push(Region {
-            authored: region.authored,
-            parent: region
-                .parent
-                .map(|parent| remaps.region(parent))
-                .transpose()?,
-            operations: listed(region)?,
-            result: region.result.map(|value| remaps.value(value)).transpose()?,
-            span: region.span,
-        });
-    }
-    for (index, place) in source.places.iter().enumerate() {
-        if keep.places[index] {
-            target.places.push(remaps.place_payload(place)?);
-        }
-    }
-    for (index, call) in source.calls.iter().enumerate() {
-        if !keep.calls[index] {
-            continue;
-        }
-        let start = target.call_arguments.len();
-        for argument in source
-            .arguments(call.arguments)
-            .ok_or("invalid argument range")?
-        {
-            target.call_arguments.push(remaps.argument(argument)?);
-        }
-        let mut contract = call.contract;
-        contract.instantiation = contract
-            .instantiation
-            .map(|id| remaps.instantiations[id.index()].ok_or("a kept call lost its instantiation"))
-            .transpose()?;
-        target.calls.push(CallSite {
-            target: remaps.target(&call.target)?,
-            contract,
-            arguments: ArgumentRange {
-                start: u32::try_from(start).map_err(|_| "argument capacity")?,
-                len: call.arguments.len,
-            },
-            omit_trailing: call.omit_trailing,
-            debug: call.debug,
-        });
-    }
-    for (index, instantiation) in source.call_instantiations.iter().enumerate() {
-        if keep.instantiations[index] {
-            target.call_instantiations.push(instantiation.clone());
-        }
-    }
-    let operations = listed(&source.regions[source.entry.index()])?;
-    let result = match plan.exit {
-        Some(exit) => source
-            .operands(source.operations[exit.index()].operands)
-            .and_then(|operands| operands.first().copied())
-            .map(|value| remaps.value(value))
-            .transpose()?,
-        None => None,
-    };
-    Ok(Grafted { operations, result })
+            let mut next_site = target
+                .operations
+                .iter()
+                .filter_map(|operation| match operation.kind {
+                    OperationKind::Allocate { identity, .. } => Some(identity.index() + 1),
+                    _ => None,
+                })
+                .max()
+                .unwrap_or(0);
+            let mut allocations: Vec<(AllocationId, AllocationId)> = Vec::new();
+            for (index, operation) in source.operations.iter().enumerate() {
+                if let (true, OperationKind::Allocate { identity, .. }) =
+                    (keep.operations[index], &operation.kind)
+                {
+                    let fresh = AllocationId::from_index(next_site).ok_or("allocation capacity")?;
+                    match allocations.binary_search_by_key(identity, |&(old, _)| old) {
+                        Ok(index) => allocations[index].1 = fresh,
+                        Err(index) => {
+                            budget.reserve_vec(Retained, &mut allocations, 1)?;
+                            allocations.insert(index, (*identity, fresh));
+                        }
+                    }
+                    next_site += 1;
+                }
+            }
+            let remaps = Remaps {
+                operations: appended(
+                    &keep.operations,
+                    target.operations.len(),
+                    OpId::from_index,
+                    budget,
+                )?,
+                values,
+                regions: region_map(source, &keep.regions, target.regions.len(), parent, budget)?,
+                places: appended(
+                    &keep.places,
+                    target.places.len(),
+                    PlaceId::from_index,
+                    budget,
+                )?,
+                calls: appended(&keep.calls, target.calls.len(), CallId::from_index, budget)?,
+                instantiations: appended(
+                    &keep.instantiations,
+                    target.call_instantiations.len(),
+                    CallInstantiationId::from_index,
+                    budget,
+                )?,
+                cells: Some(plan.cells),
+                forwards: Some(plan.forwards),
+                allocations,
+            };
+            Ok::<_, RuleError>(GraftInput { keep, remaps })
+        },
+        |input, target, budget| {
+            let keep = &input.keep;
+            let remaps = &input.remaps;
+            for (index, operation) in source.operations.iter().enumerate() {
+                if !keep.operations[index] {
+                    continue;
+                }
+                let start = target.operands.len();
+                for &value in source
+                    .operands(operation.operands)
+                    .ok_or("invalid operand range")?
+                {
+                    let value = remaps.value(value)?;
+                    budget.push(Retained, &mut target.operands, value)?;
+                }
+                let kind = if let OperationKind::Allocate { identity, .. } = &operation.kind {
+                    let mut kind = storage::kind(&operation.kind, budget)?;
+                    if let OperationKind::Allocate {
+                        identity: fresh, ..
+                    } = &mut kind
+                    {
+                        *fresh = remaps
+                            .allocations
+                            .binary_search_by_key(identity, |&(old, _)| old)
+                            .ok()
+                            .map_or(*identity, |index| remaps.allocations[index].1);
+                    }
+                    kind
+                } else {
+                    remaps.kind(&operation.kind)?
+                };
+                budget.push(
+                    Retained,
+                    &mut target.operations,
+                    Operation {
+                        authored: operation.authored,
+                        kind,
+                        operands: OperandRange {
+                            start: u32::try_from(start).map_err(|_| "operand capacity")?,
+                            len: operation.operands.len,
+                        },
+                        result: operation
+                            .result
+                            .map(|value| remaps.value(value))
+                            .transpose()?,
+                        region: remaps.region(operation.region)?,
+                        origin: operation.origin,
+                        span: operation.span,
+                    },
+                )?;
+            }
+            for (index, value) in source.values.iter().enumerate() {
+                if keep.values[index] {
+                    budget.push(
+                        Retained,
+                        &mut target.values,
+                        Value {
+                            ty: value.ty,
+                            definition: remaps.op(value.definition)?,
+                        },
+                    )?;
+                }
+            }
+            let listed = |region: &Region,
+                          budget: &mut AllocationBudget<'_>|
+             -> Result<Vec<OpId>, RuleError> {
+                let mut result = Vec::new();
+                for &op in &region.operations {
+                    if keep.operations[op.index()] {
+                        let op = remaps.op(op)?;
+                        budget.push(Retained, &mut result, op)?;
+                    }
+                }
+                Ok(result)
+            };
+            for (index, region) in source.regions.iter().enumerate() {
+                if !keep.regions[index] || index == source.entry.index() {
+                    continue;
+                }
+                let operations = listed(region, budget)?;
+                budget.push(
+                    Retained,
+                    &mut target.regions,
+                    Region {
+                        authored: region.authored,
+                        parent: region
+                            .parent
+                            .map(|parent| remaps.region(parent))
+                            .transpose()?,
+                        operations,
+                        result: region.result.map(|value| remaps.value(value)).transpose()?,
+                        span: region.span,
+                    },
+                )?;
+            }
+            for (index, place) in source.places.iter().enumerate() {
+                if keep.places[index] {
+                    let place = remaps.place_payload(place)?;
+                    budget.push(Retained, &mut target.places, place)?;
+                }
+            }
+            for (index, call) in source.calls.iter().enumerate() {
+                if !keep.calls[index] {
+                    continue;
+                }
+                let start = target.call_arguments.len();
+                for argument in source
+                    .arguments(call.arguments)
+                    .ok_or("invalid argument range")?
+                {
+                    let argument = remaps.argument(argument)?;
+                    budget.push(Retained, &mut target.call_arguments, argument)?;
+                }
+                let mut contract = call.contract;
+                contract.instantiation = contract
+                    .instantiation
+                    .map(|id| {
+                        remaps.instantiations[id.index()]
+                            .ok_or("a kept call lost its instantiation")
+                    })
+                    .transpose()?;
+                budget.push(
+                    Retained,
+                    &mut target.calls,
+                    CallSite {
+                        target: remaps.target(&call.target)?,
+                        contract,
+                        arguments: ArgumentRange {
+                            start: u32::try_from(start).map_err(|_| "argument capacity")?,
+                            len: call.arguments.len,
+                        },
+                        omit_trailing: call.omit_trailing,
+                        debug: call.debug,
+                    },
+                )?;
+            }
+            for (index, instance) in source.call_instantiations.iter().enumerate() {
+                if keep.instantiations[index] {
+                    let arguments = budget.copy_slice(Retained, &instance.arguments)?;
+                    budget.push(
+                        Retained,
+                        &mut target.call_instantiations,
+                        CallInstantiation {
+                            declaration: instance.declaration,
+                            arguments,
+                            signature: instance.signature,
+                        },
+                    )?;
+                }
+            }
+            let operations = listed(&source.regions[source.entry.index()], budget)?;
+            let result = match plan.exit {
+                Some(exit) => source
+                    .operands(source.operations[exit.index()].operands)
+                    .and_then(|operands| operands.first().copied())
+                    .map(|value| remaps.value(value))
+                    .transpose()?,
+                None => None,
+            };
+            Ok(Grafted { operations, result })
+        },
+    )
 }
 
 /// Appends an operation to `region`'s arena storage (not to its list) and
 /// returns it with its result, if it has one.
-pub(super) fn push_operation(
+pub(super) fn push_operation_in(
     data: &mut UnitData,
     kind: OperationKind,
     operands: &[ValueId],
     result: Option<TypeId>,
     region: RegionId,
     span: Span,
-) -> Result<(OpId, Option<ValueId>), &'static str> {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(OpId, Option<ValueId>), RuleError> {
     let op = OpId::from_index(data.operations.len()).ok_or("operation capacity")?;
     let start = u32::try_from(data.operands.len()).map_err(|_| "operand capacity")?;
-    data.operands.extend_from_slice(operands);
+    budget.extend_copy(Retained, &mut data.operands, operands)?;
     let value = match result {
         Some(ty) => {
             let value = ValueId::from_index(data.values.len()).ok_or("value capacity")?;
-            data.values.push(Value { ty, definition: op });
+            budget.push(Retained, &mut data.values, Value { ty, definition: op })?;
             Some(value)
         }
         None => None,
     };
-    data.operations.push(Operation {
-        authored: data.regions[region.index()].authored,
-        kind,
-        operands: OperandRange {
-            start,
-            len: u32::try_from(operands.len()).map_err(|_| "operand capacity")?,
+    budget.push(
+        Retained,
+        &mut data.operations,
+        Operation {
+            authored: data.regions[region.index()].authored,
+            kind,
+            operands: OperandRange {
+                start,
+                len: u32::try_from(operands.len()).map_err(|_| "operand capacity")?,
+            },
+            result: value,
+            region,
+            origin: None,
+            span,
         },
-        result: value,
-        region,
-        origin: None,
-        span,
-    });
+    )?;
     Ok((op, value))
 }

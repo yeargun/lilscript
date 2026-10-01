@@ -1451,3 +1451,25 @@ speed conclusion, with three .01-second increases retained. No full suite,
 fleet, ratchet baseline update or port artifact change. Q2 remains active for
 source analysis/edit and artifact/render owners, remaining global dependencies,
 shared/incremental formation and per-module elaboration reuse.
+
+## 2026-10-01: Q2 source edit admission and in-place compaction
+
+Source edits now use conversion's existing owner for preallocation admission:
+shared bodies/tables, cell names, signatures, arena growth, compaction/graft maps
+and nested payloads. Publication's exact check replaces the old post-edit net
+reservation. Surviving arenas compact in place; rewritten operands/arguments
+are staged safely. Removed backing releases after destruction, and live readers
+retain the original copy's reservation. An existing namespace flattening defect
+now uses the selected function's callee-default convention.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-source-edits/README.md):
+algorithm 52 pin `q2-source-edits-1`, SHA-256
+`d83d88ba32b1bf942dc636708386b6d2683619d4248ef06e2cbd9beed77b6276`.
+104 distinct focused checks and 36 paired release checks pass; the separately
+repaired namespace fixture runs successfully where algorithm 51 refused it.
+Every comparison artifact and judgment count matches, at 350 raw / 351 gzip /
+304 Brotli bytes. Baseline work increases 46–1,133 units; peaks rise 232–2,424
+bytes, including retained compaction capacity. Tiny CPU samples support no speed
+claim. Four initial failures and their repairs are retained; only those four
+checks were repeated. No full suite/fleet/ratchet/port rerun or baseline change.
+Q2 remains active for its other owners and reuse requirements.

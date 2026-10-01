@@ -39,7 +39,13 @@ impl Forward for Reached {
     fn transfer(&self, _: &UnitData, _: OpId, _: &mut bool) {}
 }
 
-pub(super) fn apply(editor: &mut Editor<'_>, dirty: &[bool], created: &[bool], receipt: &mut RuleReceipt) -> bool {
+pub(super) fn apply(
+    editor: &mut Editor<'_>,
+    dirty: &[bool],
+    created: &[bool],
+    receipt: &mut RuleReceipt,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     let mut removals: Vec<(UnitId, Vec<OpId>)> = Vec::new();
     for frozen in &program.units {
@@ -85,14 +91,14 @@ pub(super) fn apply(editor: &mut Editor<'_>, dirty: &[bool], created: &[bool], r
         }
     }
     if removals.is_empty() {
-        return false;
+        return Ok(false);
     }
     for (unit, dead) in removals {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         for op in dead {
             edit::detach(data, op);
             receipt.unreachable_operations += 1;
         }
     }
-    true
+    Ok(true)
 }

@@ -82,8 +82,13 @@ fn q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies() {
     }).unwrap();
     {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
-        let result = optimize_admitted(program.clone(), MODULE, &mut budget);
-        assert!(matches!(result, Err(RuleError::Allocation(_))));
+        // Production's conversion scope owns the input and all edits. A
+        // refused phase drops its program before releasing that scope.
+        {
+            let mut phase = budget.scope();
+            let result = optimize_admitted(program.clone(), MODULE, &mut phase);
+            assert!(matches!(result, Err(RuleError::Allocation(_))));
+        }
         assert_eq!(budget.retained_bytes(Scratch), 0);
     }
     assert_eq!(ledger.retained_bytes(), 0);

@@ -277,9 +277,8 @@ fn check_javascript_interfaces(program: &Program<'_>,
     })
 }
 
-/// Runs the permitted program rules on the owned program. They edit in place,
-/// outside this scope's admitted allocations, so the scope's retained charge
-/// is then set to the edited program's exact size, which publication checks.
+/// Runs rules through the conversion owner. Every edit admits growth before
+/// allocation; publication independently checks its exact surviving charge.
 fn with_rules<'src>(
     program: Program<'src>,
     rules: Option<RuleRequest>,
@@ -289,8 +288,6 @@ fn with_rules<'src>(
     let Some(request) = rules.filter(|request| request.any()) else {
         return Ok((program, RuleReceipt::default()));
     };
-    let resources = |error| publication_conversion_error(error, span);
-    let before = publication::program_retained_bytes(&program, budget).map_err(resources)?;
     let (program, receipt) = super::rules::optimize_admitted(program, request, budget).map_err(|error| {
         match error {
             super::rules::RuleError::Allocation(error) => ConversionError::Resources(error),
@@ -300,9 +297,6 @@ fn with_rules<'src>(
             }
         }
     })?;
-    let after = publication::program_retained_bytes(&program, budget).map_err(resources)?;
-    budget.release(Retained, before)?;
-    budget.retain(Retained, after)?;
     Ok((program, receipt))
 }
 

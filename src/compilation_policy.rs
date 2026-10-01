@@ -39,7 +39,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version38 honors authored loop expansion with an independent policy permission.
 // Version 40 carries regional representation pins through source/target edits.
 // Version51 admits delivery placement, trials, simulation and setter payloads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 51;
+pub const POLICY_ALGORITHM_VERSION: u32 = 52;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

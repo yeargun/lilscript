@@ -1,0 +1,1 @@
+let make=n=>{let a=n;return()=>{a=a+1|0;return a}},a=make(1),b=make(10);console.log(a());console.log(b());console.log(a());

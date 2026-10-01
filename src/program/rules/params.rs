@@ -40,6 +40,7 @@ use super::edit::Editor;
 use super::values::ProgramValues;
 use super::*;
 use crate::check::{FunctionSignature, FunctionType, Type};
+use crate::output_budget::AllocationClass::{Retained, Scratch};
 
 /// One body's new signature and the edits that follow from it.
 struct Change {
@@ -68,7 +69,8 @@ pub(super) fn apply(
     values: &ProgramValues,
     constants_permitted: bool,
     receipt: &mut RuleReceipt,
-) -> Result<bool, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     let graph = effects.graph();
     let created = created_units(program);
@@ -151,7 +153,7 @@ pub(super) fn apply(
         receipt.dropped_parameters += change.dropped.iter().filter(|d| **d).count() as u32;
         receipt.constant_parameters += change.constants.iter().flatten().count() as u32;
         receipt.unused_results += u32::from(change.void);
-        execute(editor, change)?;
+        execute(editor, change, budget)?;
     }
     Ok(true)
 }
@@ -300,7 +302,11 @@ fn change(
             else {
                 return None;
             };
-            if unit.operations[unit.values[value.index()].definition.index()].authored.get(crate::representation::ChoiceFamily::QuoteDelimiter).is_some() {
+            if unit.operations[unit.values[value.index()].definition.index()]
+                .authored
+                .get(crate::representation::ChoiceFamily::QuoteDelimiter)
+                .is_some()
+            {
                 agreed = false;
                 break;
             }
@@ -373,37 +379,61 @@ fn root_cell(data: &UnitData, place: &Place) -> Option<CellId> {
     }
 }
 
-fn execute(editor: &mut Editor<'_>, change: Change) -> Result<(), &'static str> {
-    let program = editor.program();
-    let data = program.unit(change.body).ok_or("a missing body")?;
-    let Some(Type::Function(old)) = data.callable_type.and_then(|ty| program.ty(ty)) else {
-        return Err("a changed body lost its signature");
-    };
-    let signature = FunctionSignature {
-        params: old
-            .params
-            .iter()
-            .zip(&change.dropped)
-            .filter(|(_, dropped)| !**dropped)
-            .map(|(parameter, _)| parameter.clone())
-            .collect(),
-        return_type: if change.void {
-            Box::new(Type::Void)
-        } else {
-            old.return_type.clone()
+fn execute(
+    editor: &mut Editor<'_>,
+    change: Change,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<(), super::RuleError> {
+    let ty = budget.with_temporary_context(
+        editor,
+        |editor, budget| {
+            let program = editor.program();
+            let data = program.unit(change.body).ok_or("a missing body")?;
+            let Some(Type::Function(old)) = data.callable_type.and_then(|ty| program.ty(ty)) else {
+                return Err(super::RuleError::from("a changed body lost its signature"));
+            };
+            let count = change.dropped.iter().filter(|dropped| !**dropped).count();
+            let mut params = budget.vector(Retained, count)?;
+            for (parameter, dropped) in old.params.iter().zip(&change.dropped) {
+                if *dropped {
+                    continue;
+                }
+                params.push(crate::check::FunctionParameter {
+                    ty: storage::ty(&parameter.ty, budget)?,
+                    receiver: parameter.receiver,
+                    passing: parameter.passing,
+                    optional: parameter.optional,
+                    rest: parameter.rest,
+                });
+            }
+            let result = if change.void {
+                Type::Void
+            } else {
+                storage::ty(&old.return_type, budget)?
+            };
+            let return_type = budget.boxed(Retained, result)?;
+            budget.retain(
+                Retained,
+                (std::mem::size_of::<FunctionSignature<'_>>() + 2 * std::mem::size_of::<usize>())
+                    as u64,
+            )?;
+            Ok(Type::Function(FunctionType::new(FunctionSignature {
+                params,
+                return_type,
+            })))
         },
-    };
-    let ty = editor.intern_type(Type::Function(FunctionType::new(signature)))?;
+        |ty, editor, budget| editor.intern_type_in(ty, budget),
+    )?;
     // A call always has a result; a void call's is of type `void`.
     let void = if change.void {
-        Some(editor.intern_type(Type::Void)?)
+        Some(editor.intern_type_in(&(Type::Void), budget)?)
     } else {
         None
     };
 
     // The body: constants for its constant parameters, no result, and the
     // parameters that stay, renumbered.
-    let (data, cells) = editor.unit_and_cells(change.body);
+    let (data, cells) = editor.unit_and_cells_in(change.body, budget)?;
     for index in 0..data.operations.len() {
         let OperationKind::Load(place) = data.operations[index].kind else {
             if change.void && matches!(data.operations[index].kind, OperationKind::Return) {
@@ -417,21 +447,24 @@ fn execute(editor: &mut Editor<'_>, change: Change) -> Result<(), &'static str> 
         if let Some(position) = data.parameters.iter().position(|p| *p == cell) {
             if let Some(constant) = change.constants[position].clone() {
                 let op = OpId::from_index(index).ok_or("operation capacity")?;
-                super::edit::make_constant(data, op, constant);
+                super::edit::make_constant_in(data, op, constant, budget)?;
             }
         }
     }
-    let parameters = std::mem::take(&mut data.parameters);
-    for (position, cell) in parameters.into_iter().enumerate() {
-        if change.dropped[position] {
+    let mut at = 0u32;
+    let mut position = 0;
+    data.parameters.retain(|&cell| {
+        let dropped = change.dropped[position];
+        position += 1;
+        if dropped {
             // An unread cell of the body: nothing initializes or reads it.
             cells[cell.index()].binding = CellBinding::Local;
         } else {
-            let at = u32::try_from(data.parameters.len()).map_err(|_| "parameter capacity")?;
             cells[cell.index()].binding = CellBinding::Parameter(at);
-            data.parameters.push(cell);
+            at += 1;
         }
-    }
+        !dropped
+    });
     data.callable_type = Some(ty);
     if let Some(holder) = change.holder {
         cells[holder.index()].ty = ty;
@@ -439,7 +472,7 @@ fn execute(editor: &mut Editor<'_>, change: Change) -> Result<(), &'static str> 
 
     // The creation's value takes the new type.
     let (unit, op) = change.creation;
-    let data = editor.unit_mut(unit);
+    let data = editor.unit_mut_in(unit, budget)?;
     if let Some(value) = data.operations[op.index()].result {
         data.values[value.index()].ty = ty;
     }
@@ -447,7 +480,7 @@ fn execute(editor: &mut Editor<'_>, change: Change) -> Result<(), &'static str> 
     // Each call: the callee value's type, the contract, the arguments that
     // stay and, for a result that leaves, no result.
     for (caller, call, operation, callee) in change.calls {
-        let data = editor.unit_mut(caller);
+        let data = editor.unit_mut_in(caller, budget)?;
         data.values[callee.index()].ty = ty;
         data.calls[call.index()].contract.signature = Some(ty);
         if let (Some(void), Some(result)) = (void, data.operations[operation.index()].result) {
@@ -459,22 +492,26 @@ fn execute(editor: &mut Editor<'_>, change: Change) -> Result<(), &'static str> 
         let site = &data.calls[call.index()];
         let arguments = data
             .arguments(site.arguments)
-            .ok_or("invalid argument range")?
-            .to_vec();
+            .ok_or("invalid argument range")?;
         let supplied = site.contract.supplied as usize;
         let dropped_supplied = change.dropped[..supplied.min(change.dropped.len())]
             .iter()
             .filter(|dropped| **dropped)
             .count();
-        let kept: Vec<CallArgument> = arguments
-            .into_iter()
-            .zip(&change.dropped)
-            .filter(|(_, dropped)| !**dropped)
-            .map(|(argument, _)| argument)
-            .collect();
+        let kept: Vec<CallArgument> = storage::collect(
+            arguments
+                .iter()
+                .copied()
+                .zip(&change.dropped)
+                .filter(|(_, dropped)| !**dropped)
+                .map(|(argument, _)| argument),
+            Scratch,
+            budget,
+        )?;
         let start = u32::try_from(data.call_arguments.len()).map_err(|_| "argument capacity")?;
         let len = u32::try_from(kept.len()).map_err(|_| "argument capacity")?;
-        data.call_arguments.extend(kept);
+        budget.extend_copy(Retained, &mut data.call_arguments, &kept)?;
+        storage::release_vec(kept, Scratch, budget)?;
         let site = &mut data.calls[call.index()];
         site.arguments = ArgumentRange { start, len };
         // Parameter positions changed. The defaults rule recomputes target

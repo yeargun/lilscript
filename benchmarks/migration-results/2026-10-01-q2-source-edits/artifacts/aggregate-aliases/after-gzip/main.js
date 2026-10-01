@@ -1,0 +1,1 @@
+let a=e=>{console.log(e);return e},c=a(1),d=a(2),b=c;b=a(3);console.log(b);console.log(d);

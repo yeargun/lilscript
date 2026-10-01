@@ -21,7 +21,7 @@ scheduler suffixes remain useful starting points; do not rebuild their owners.
 4. [ ] Finish resource admission for graph/cycle/delivery and analysis/edit
    storage, including failure cleanup. Entry graph, cycle checking and the
    target use index, edit journals, local dirty maps, renumbering plans and complete retained target copies are admitted; delivery placement, simulation and setter payloads are now
-   admitted. Remaining analysis/edit and artifact/render owners still need completion. Count logical work independently from
+   admitted. Source arena edits are now admitted; global analysis/planning and artifact/render owners still need completion. Count logical work independently from
    physical cache hits and retain scaling/work/byte telemetry.
 5. [ ] Wire/document cache and scheduling controls with hard TOML behavior,
    lifetime/capacity, invalidation, defaults and tradeoffs. Transparent controls
@@ -122,3 +122,23 @@ Previously uncounted work/storage is now charged; no speed or size gain is
 claimed. Temporary input and rejected trial lifetimes are qualified, including
 refusal and unwind. Source analysis/edit and later artifact/render allocation
 owners remain open, alongside shared/incremental formation and elaboration.
+
+Next batch: source rule edits and their arena owner. Admit touched/remap storage,
+shared-body/table copies, new regions/operations/calls and nested payloads before
+allocation. Reuse the construction ledger and remove the post-edit net-size
+reservation as an admission mechanism. Preserve source revisions, cell remaps,
+copy-on-write snapshots and failure cleanup. Replace unnecessary compaction
+copies where arenas can be moved safely. Prediction: unchanged meaning and
+funded artifacts, correctly higher logical bills where edits previously escaped
+accounting, fewer physical copies for compacted bodies. Qualify substantial
+kernel/producer changes together with focused source-rule, native/JavaScript
+behavior and refusal checks; no full library or fleet rerun. Global fact owner
+migration remains a separate outstanding part of Q2.
+
+The [source edit batch](../../benchmarks/migration-results/2026-10-01-q2-source-edits/README.md)
+completes admission for retained source mutations, compaction and shared copies.
+104 focused checks and 36 paired release checks pass; all control bytes and
+judgment counts match. An existing namespace call-convention defect is repaired.
+Retaining arena capacity reduces copying but raises measured peaks modestly;
+newly counted work is explicit. Global analysis/planning, artifact/render,
+shared formation and elaboration remain open.

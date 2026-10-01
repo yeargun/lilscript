@@ -30,9 +30,12 @@ mod inline;
 mod inline_clones;
 mod params;
 mod returns;
+mod storage;
 mod unreachable;
 mod values;
 
+#[cfg(test)]
+mod admission_tests;
 #[cfg(test)]
 mod aggregate_tests;
 #[cfg(test)]
@@ -256,8 +259,12 @@ pub(crate) fn optimize<'src>(
     program: Program<'src>,
     request: RuleRequest,
 ) -> Result<(Program<'src>, RuleReceipt), String> {
-    optimize_admitted(program, request, &mut crate::output_budget::AllocationBudget::new(None))
-        .map_err(|error| error.to_string())
+    optimize_admitted(
+        program,
+        request,
+        &mut crate::output_budget::AllocationBudget::new(None),
+    )
+    .map_err(|error| error.to_string())
 }
 
 #[derive(Debug)]
@@ -265,14 +272,27 @@ pub(crate) enum RuleError {
     Invalid(String),
     Allocation(crate::output_budget::AllocationError),
 }
-impl From<String> for RuleError { fn from(value: String) -> Self { Self::Invalid(value) } }
-impl From<&str> for RuleError { fn from(value: &str) -> Self { Self::Invalid(value.into()) } }
+impl From<String> for RuleError {
+    fn from(value: String) -> Self {
+        Self::Invalid(value)
+    }
+}
+impl From<&str> for RuleError {
+    fn from(value: &str) -> Self {
+        Self::Invalid(value.into())
+    }
+}
 impl From<crate::output_budget::AllocationError> for RuleError {
-    fn from(value: crate::output_budget::AllocationError) -> Self { Self::Allocation(value) }
+    fn from(value: crate::output_budget::AllocationError) -> Self {
+        Self::Allocation(value)
+    }
 }
 impl std::fmt::Display for RuleError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self { Self::Invalid(message) => formatter.write_str(message), Self::Allocation(error) => error.fmt(formatter) }
+        match self {
+            Self::Invalid(message) => formatter.write_str(message),
+            Self::Allocation(error) => error.fmt(formatter),
+        }
     }
 }
 
@@ -281,8 +301,8 @@ pub(crate) fn optimize_admitted<'src>(
     request: RuleRequest,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
 ) -> Result<(Program<'src>, RuleReceipt), RuleError> {
-    let mut phase = budget.scope();
-    let mut dirty = dirty::DirtyUnits::new(request.reuse_normalization && crate::schedule::reuses_stability());
+    let mut dirty =
+        dirty::DirtyUnits::new(request.reuse_normalization && crate::schedule::reuses_stability());
     let mut receipt = RuleReceipt::default();
     if !request.any() {
         return Ok((program, receipt));
@@ -291,7 +311,7 @@ pub(crate) fn optimize_admitted<'src>(
         request.reuse_normalization && crate::schedule::reuses_stability(),
     );
     let mut last_effects = None;
-    let mut editor = edit::Editor::new(program);
+    let mut editor = edit::Editor::new_in(program, budget)?;
     // These are target-boundary permissions, not changed source semantics.
     // Recompute them after structural edits, so a second optimization cannot
     // remove a retained guard on the strength of its own omitted arguments.
@@ -301,14 +321,14 @@ pub(crate) fn optimize_admitted<'src>(
         if data.native_default_length.is_some()
             || data.calls.iter().any(|site| site.omit_trailing != 0)
         {
-            let data = editor.unit_mut(id);
+            let data = editor.unit_mut_in(id, budget)?;
             data.native_default_length = None;
             for site in &mut data.calls {
                 site.omit_trailing = 0;
             }
         }
     }
-    editor.commit()?;
+    editor.commit_in(budget)?;
     let mut rules = Vec::with_capacity(4);
     if request.fold {
         rules.push(ProgramRule::Defaults);
@@ -343,26 +363,39 @@ pub(crate) fn optimize_admitted<'src>(
                     ProgramRule::Returns => dirty::LocalRule::Returns,
                     _ => dirty::LocalRule::Unreachable,
                 };
-                let created = matches!(rule, ProgramRule::Unreachable).then(|| created_units(editor.program()));
-                let units = dirty.select(editor.program(), kind, created.as_deref(), &mut receipt, &mut phase)?;
+                let created = matches!(rule, ProgramRule::Unreachable)
+                    .then(|| created_units(editor.program()));
+                let units = dirty.select(
+                    editor.program(),
+                    kind,
+                    created.as_deref(),
+                    &mut receipt,
+                    budget,
+                )?;
                 let changed = match rule {
-                    ProgramRule::Returns => returns::apply(editor, units, &mut receipt)?,
-                    _ => unreachable::apply(editor, units, created.as_deref().unwrap(), &mut receipt),
+                    ProgramRule::Returns => returns::apply(editor, units, &mut receipt, budget)?,
+                    _ => unreachable::apply(
+                        editor,
+                        units,
+                        created.as_deref().unwrap(),
+                        &mut receipt,
+                        budget,
+                    )?,
                 };
-                editor.commit()?;
+                editor.commit_in(budget)?;
                 return Ok(changed);
             }
             let effects = editor.program().effects(request.seal);
             receipt.observe_effects(&effects, &mut last_effects);
             let changed = match rule {
-                ProgramRule::Defaults => defaults::apply(editor, effects.graph(), &mut receipt)
-                    .map_err(str::to_string)?,
+                ProgramRule::Defaults => {
+                    defaults::apply(editor, effects.graph(), &mut receipt, budget)?
+                }
                 ProgramRule::Returns | ProgramRule::Unreachable => unreachable!(),
                 ProgramRule::Aggregates => {
-                    aggregates::apply(editor, &effects, request, &mut receipt)
-                        .map_err(str::to_string)?
+                    aggregates::apply(editor, &effects, request, &mut receipt, budget)?
                 }
-                ProgramRule::Forward => forward::apply(editor, &effects, &mut receipt),
+                ProgramRule::Forward => forward::apply(editor, &effects, &mut receipt, budget)?,
                 ProgramRule::Fold => {
                     let values = values::ProgramValues::compute(
                         editor.program(),
@@ -376,11 +409,10 @@ pub(crate) fn optimize_admitted<'src>(
                     {
                         *total = total.saturating_add(count);
                     }
-                    fold::apply(editor, &values, &effects, &mut receipt).map_err(str::to_string)?
+                    fold::apply(editor, &values, &effects, &mut receipt, budget)?
                 }
                 ProgramRule::Inline => {
-                    inline::apply(editor, &effects, &mut receipt, request.native)
-                        .map_err(|error| format!("program rules, inlining: {error}"))?
+                    inline::apply(editor, &effects, &mut receipt, request.native, budget)?
                 }
                 // Unread parameters and unused results are dead code;
                 // constant parameters are folding.
@@ -391,12 +423,20 @@ pub(crate) fn optimize_admitted<'src>(
                         request.seal,
                         request.pristine_builtins,
                     );
-                    params::apply(editor, &effects, &values, request.fold, &mut receipt)
-                        .map_err(|error| format!("program rules, parameters: {error}"))?
+                    params::apply(
+                        editor,
+                        &effects,
+                        &values,
+                        request.fold,
+                        &mut receipt,
+                        budget,
+                    )?
                 }
-                ProgramRule::DeadCode => dce::apply(editor, &effects, request.seal, &mut receipt),
+                ProgramRule::DeadCode => {
+                    dce::apply(editor, &effects, request.seal, &mut receipt, budget)?
+                }
             };
-            editor.commit()?;
+            editor.commit_in(budget)?;
             Ok(changed)
         },
         |editor, round| {
@@ -418,16 +458,17 @@ pub(crate) fn optimize_admitted<'src>(
         receipt.observe_effects(&effects, &mut last_effects);
         let plan = super::defaults::plan(editor.program(), effects.graph());
         for (unit, call, omitted) in plan.calls {
-            editor.unit_mut(unit).calls[call.index()].omit_trailing = omitted;
+            editor.unit_mut_in(unit, budget)?.calls[call.index()].omit_trailing = omitted;
             receipt.default_arguments_omitted += omitted;
         }
         for (unit, length) in plan.lengths {
-            editor.unit_mut(unit).native_default_length = length;
+            editor.unit_mut_in(unit, budget)?.native_default_length = length;
             receipt.native_defaults += u32::from(length.is_some());
         }
-        editor.commit()?;
+        editor.commit_in(budget)?;
     }
-    let program = editor.finish()?;
+    let program = editor.finish_in(budget)?;
+    dirty.release(budget)?;
     program
         .verify()
         .map_err(|error| format!("program rules left an invalid program: {error}"))?;

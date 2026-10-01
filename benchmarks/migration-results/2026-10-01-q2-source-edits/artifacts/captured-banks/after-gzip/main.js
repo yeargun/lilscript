@@ -1,0 +1,1 @@
+let o=l=>{let o=l;return()=>{o=o+1|0;return o}},l=o(1),b=o(10);console.log(l());console.log(b());console.log(l());

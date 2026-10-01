@@ -104,7 +104,8 @@ pub(super) fn apply(
     values: &ProgramValues,
     effects: &ProgramEffects,
     receipt: &mut RuleReceipt,
-) -> Result<bool, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     let created = created_units(program);
     let mut literals = Literals::new();
@@ -142,17 +143,20 @@ pub(super) fn apply(
                 let constant = match constant {
                     FoldedConstant::Existing(constant) => constant,
                     FoldedConstant::String(value) => {
-                        Constant::String(editor.intern_string(&value)?)
+                        Constant::String(editor.intern_string_in(&value, budget)?)
                     }
                 };
                 Ok((op, constant))
             })
-            .collect::<Result<_, &'static str>>()?;
-        let (data, cells): (&mut UnitData, &mut [Cell]) = if plan.folds.iter()
-            .any(|fold| matches!(fold, Fold::Inline { .. } | Fold::Splice { .. })) {
-            editor.unit_and_cells(unit)
+            .collect::<Result<_, super::RuleError>>()?;
+        let (data, cells): (&mut UnitData, &mut [Cell]) = if plan
+            .folds
+            .iter()
+            .any(|fold| matches!(fold, Fold::Inline { .. } | Fold::Splice { .. }))
+        {
+            editor.unit_and_cells_in(unit, budget)?
         } else {
-            (editor.unit_mut(unit), &mut [])
+            (editor.unit_mut_in(unit, budget)?, &mut [])
         };
         for (op, constant) in constants {
             if let Some(result) = data.operations[op.index()].result {
@@ -160,7 +164,7 @@ pub(super) fn apply(
                 receipt.set_folds += u32::from(origin & super::values::FROM_SET != 0);
                 receipt.path_folds += u32::from(origin & super::values::FROM_PATH != 0);
             }
-            edit::make_constant(data, op, constant);
+            edit::make_constant_in(data, op, constant, budget)?;
             receipt.folded_values += 1;
         }
         // A folded call's preparations leave with it.
@@ -220,8 +224,10 @@ pub(super) fn apply(
                 receipt.default_checks_removed += 1;
             }
             match fold {
-                Fold::Block { op, region } => edit::make_block(data, op, region),
-                Fold::Inline { op, region } => edit::splice(data, cells, unit, op, region),
+                Fold::Block { op, region } => edit::make_block_in(data, op, region, budget)?,
+                Fold::Inline { op, region } => {
+                    edit::splice_in(data, cells, unit, op, region, budget)?
+                }
                 Fold::Remove { op } => edit::detach(data, op),
                 Fold::Splice {
                     op,
@@ -237,15 +243,19 @@ pub(super) fn apply(
                         .position(|found| *found == op)
                         .ok_or("selected operation missing")?;
                     let kept = data.regions[region.index()].operations.len();
-                    edit::splice(data, cells, unit, op, region);
+                    edit::splice_in(data, cells, unit, op, region, budget)?;
                     if data.values[result.index()].ty == data.values[yields.index()].ty {
                         edit::substitute(data, result, yields);
                         substituted.insert(result, yields);
                     } else {
-                        edit::make_value_view(data, op, yields)?;
-                        data.regions[parent.index()]
-                            .operations
-                            .insert(position + kept, op);
+                        edit::make_value_view_in(data, op, yields, budget)?;
+                        let list = &mut data.regions[parent.index()].operations;
+                        budget.reserve_vec(
+                            crate::output_budget::AllocationClass::Retained,
+                            list,
+                            1,
+                        )?;
+                        list.insert(position + kept, op);
                     }
                 }
                 Fold::Replace { op, result, with } => {
@@ -255,7 +265,7 @@ pub(super) fn apply(
                         edit::substitute(data, result, with);
                         substituted.insert(result, with);
                     } else {
-                        edit::make_value_view(data, op, with)?;
+                        edit::make_value_view_in(data, op, with, budget)?;
                     }
                 }
             }
@@ -514,7 +524,10 @@ pub(super) fn constant(program: &Program<'_>, ty: TypeId, known: &StoredExact) -
             (Type::Null | Type::Nullable(_) | Type::Dynamic | Type::Unknown, StoredExact::Null) => {
                 Constant::Null
             }
-            (Type::Null | Type::Nullable(_) | Type::Dynamic | Type::Unknown, StoredExact::Undefined) => Constant::Undefined,
+            (
+                Type::Null | Type::Nullable(_) | Type::Dynamic | Type::Unknown,
+                StoredExact::Undefined,
+            ) => Constant::Undefined,
             (Type::Nullable(inner), known) => return for_type(program, inner, known),
             (Type::Union(members), known) => {
                 return members.iter().find_map(|ty| for_type(program, ty, known))
@@ -529,12 +542,21 @@ pub(super) fn constant(program: &Program<'_>, ty: TypeId, known: &StoredExact) -
             (Type::Enum(declaration), known) => {
                 let definition = program.enum_definition(declaration.identity)?;
                 if definition.abi == crate::ast::EnumAbi::Flags {
-                    let StoredExact::Integer(value) = known else { return None; };
-                    if (*value as u32) & !definition.flag_mask != 0 { return None; }
+                    let StoredExact::Integer(value) = known else {
+                        return None;
+                    };
+                    if (*value as u32) & !definition.flag_mask != 0 {
+                        return None;
+                    }
                     Constant::Integer(*value)
                 } else {
-                    definition.variants.iter().find(|variant|
-                        super::super::enums::literal(variant.value).as_ref() == Some(known))?.value
+                    definition
+                        .variants
+                        .iter()
+                        .find(|variant| {
+                            super::super::enums::literal(variant.value).as_ref() == Some(known)
+                        })?
+                        .value
                 }
             }
             _ => return None,

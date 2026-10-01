@@ -2,7 +2,8 @@
 //! come from the retained callee entry operations, never from its function type.
 //! Each affected call gains its missing arguments once; later folding can remove
 //! entry guards. Arguments/reflection must be unobservable for that activation.
-use super::{edit, RuleReceipt};
+use super::{edit, storage, RuleReceipt};
+use crate::output_budget::AllocationClass::{Retained, Scratch};
 use crate::program::call_graph::{CallGraph, Callee};
 use crate::program::*;
 
@@ -10,7 +11,8 @@ pub(super) fn apply(
     editor: &mut edit::Editor<'_>,
     graph: &CallGraph,
     receipt: &mut RuleReceipt,
-) -> Result<bool, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let program = editor.program();
     let defaults: Vec<_> = program
         .units()
@@ -72,25 +74,31 @@ pub(super) fn apply(
     }
     let changed = !plans.is_empty();
     for (unit, op, call, added) in plans {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         let region = data.operations[op.index()].region;
         let span = data.operations[op.index()].span;
-        let mut args = data
-            .arguments(data.calls[call.index()].arguments)
-            .ok_or("call arguments")?
-            .to_vec();
+        let mut args = budget.copy_slice(
+            Scratch,
+            data.arguments(data.calls[call.index()].arguments)
+                .ok_or("call arguments")?,
+        )?;
         let mut inserted = Vec::new();
         for (value, ty) in added {
-            let (operation, value) = edit::push_operation(
+            let (operation, value) = edit::push_operation_in(
                 data,
                 OperationKind::Constant(value),
                 &[],
                 Some(ty),
                 region,
                 span,
+                budget,
             )?;
-            inserted.push(operation);
-            args.push(CallArgument::Value(value.ok_or("constant result")?));
+            budget.push(Scratch, &mut inserted, operation)?;
+            budget.push(
+                Scratch,
+                &mut args,
+                CallArgument::Value(value.ok_or("constant result")?),
+            )?;
             receipt.materialized_default_arguments += 1;
         }
         let before = data.regions[region.index()]
@@ -98,13 +106,15 @@ pub(super) fn apply(
             .iter()
             .position(|id| *id == op)
             .ok_or("default call position")?;
-        data.regions[region.index()]
-            .operations
-            .splice(before..before, inserted);
+        let list = &mut data.regions[region.index()].operations;
+        budget.reserve_vec(Retained, list, inserted.len())?;
+        list.splice(before..before, inserted.iter().copied());
+        storage::release_vec(inserted, Scratch, budget)?;
         let start =
             u32::try_from(data.call_arguments.len()).map_err(|_| "call argument capacity")?;
         let len = u32::try_from(args.len()).map_err(|_| "call argument capacity")?;
-        data.call_arguments.extend(args);
+        budget.extend_copy(Retained, &mut data.call_arguments, &args)?;
+        storage::release_vec(args, Scratch, budget)?;
         let site = &mut data.calls[call.index()];
         site.arguments = ArgumentRange { start, len };
         site.contract.supplied = len;

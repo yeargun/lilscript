@@ -2,15 +2,19 @@
 //! original branch remains lazy; argument effects and throws stay in its region.
 use super::edit::{self, Editor};
 use super::*;
+use crate::output_budget::AllocationClass::Retained;
 
 pub(super) fn apply(
     editor: &mut Editor<'_>,
     dirty: &[bool],
     receipt: &mut RuleReceipt,
-) -> Result<bool, &'static str> {
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<bool, super::RuleError> {
     let mut edits = Vec::new();
     for unit in &editor.program().units {
-        if !dirty[unit.id().index()] { continue; }
+        if !dirty[unit.id().index()] {
+            continue;
+        }
         let data = unit.data();
         if data.kind == UnitKind::ModuleInitialization || data.suspension != Suspension::None {
             continue;
@@ -39,7 +43,11 @@ pub(super) fn apply(
             let Some((branch, yes, no, left, right)) = found else {
                 continue;
             };
-            if data.operations[branch.index()].authored.get(crate::representation::ChoiceFamily::ConditionalReturns) == Some(crate::representation::AltId(0)) {
+            if data.operations[branch.index()]
+                .authored
+                .get(crate::representation::ChoiceFamily::ConditionalReturns)
+                == Some(crate::representation::AltId(0))
+            {
                 continue;
             }
             if data.values[left.index()].ty != data.values[right.index()].ty {
@@ -50,7 +58,7 @@ pub(super) fn apply(
         }
     }
     for &(unit, branch, yes, no, left, right) in &edits {
-        let data = editor.unit_mut(unit);
+        let data = editor.unit_mut_in(unit, budget)?;
         let region = data.operations[branch.index()].region;
         let span = data.operations[branch.index()].span;
         let no = if let Some(no) = no {
@@ -62,20 +70,26 @@ pub(super) fn apply(
                 .iter()
                 .position(|op| *op == branch)
                 .ok_or("return branch position")?;
-            let operations = list.split_off(position + 1);
+            let operations = budget.copy_slice(Retained, &list[position + 1..])?;
+            list.truncate(position + 1);
             for &op in &operations {
                 data.operations[op.index()].region = no;
                 for child in data.operations[op.index()].kind.child_regions() {
                     data.regions[child.index()].parent = Some(no);
                 }
             }
-            data.regions.push(Region {
-                authored: data.regions[region.index()].authored,
-                parent: Some(region),
-                operations,
-                result: None,
-                span,
-            });
+            let authored = data.regions[region.index()].authored;
+            budget.push(
+                Retained,
+                &mut data.regions,
+                Region {
+                    authored,
+                    parent: Some(region),
+                    operations,
+                    result: None,
+                    span,
+                },
+            )?;
             no
         };
         for (child, value) in [(yes, left), (no, right)] {
@@ -83,15 +97,31 @@ pub(super) fn apply(
             data.regions[child.index()].result = Some(value);
         }
         let value = ValueId::from_index(data.values.len()).ok_or("return value capacity")?;
-        data.values.push(Value {
-            ty: data.values[left.index()].ty,
-            definition: branch,
-        });
+        let ty = data.values[left.index()].ty;
+        budget.push(
+            Retained,
+            &mut data.values,
+            Value {
+                ty,
+                definition: branch,
+            },
+        )?;
         data.operations[branch.index()].kind = OperationKind::Select { yes, no };
         data.operations[branch.index()].result = Some(value);
-        let (returned, _) =
-            edit::push_operation(data, OperationKind::Return, &[value], None, region, span)?;
-        data.regions[region.index()].operations.push(returned);
+        let (returned, _) = edit::push_operation_in(
+            data,
+            OperationKind::Return,
+            &[value],
+            None,
+            region,
+            span,
+            budget,
+        )?;
+        budget.push(
+            Retained,
+            &mut data.regions[region.index()].operations,
+            returned,
+        )?;
         receipt.normalized_returns += 1;
     }
     Ok(!edits.is_empty())

@@ -106,6 +106,17 @@ all files and judgment counts match algorithm 50. Objective totals are
 1,624 / 1,526 / 1,131 raw/gzip/Brotli entry-row bytes. Logical bills increase as
 previously uncounted work is admitted; no speed or size win is claimed.
 
+The [source edit batch](../../benchmarks/migration-results/2026-10-01-q2-source-edits/README.md)
+pins `q2-source-edits-1`, SHA-256
+`d83d88ba32b1bf942dc636708386b6d2683619d4248ef06e2cbd9beed77b6276`,
+algorithm 52. Source arena growth, nested payloads, shared copies and compaction
+use conversion's existing owner; post-edit net admission is removed. Exact
+storage and refusal tests pass, together with affected JavaScript/native rules:
+104 focused tests, 36 paired release checks, unchanged files/judgments and
+350/351/304 objective totals. A pre-existing namespace default-convention defect
+is fixed. Retained capacities trade fewer copies for 232–2,424 more peak bytes
+on controls. Global analysis/planning and artifact/render remain open.
+
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased
 schemas, ambiguous unions, observable wrappers, mutable aliased product
@@ -122,7 +133,7 @@ hard TOML/replay permissions. The shared fact/removal audit is complete.
    reuse, retained target heads and exact codec memoization are starting points.
    The use-index consumer, module graph, local dirty maps and renumbering plans
    are complete. Remaining global rule dependencies, artifact/render storage,
-   source analysis/edit owners, cross-candidate formation,
+   global analysis/planning owners, cross-candidate formation,
    per-module elaboration reuse remain. Explicit full-identity decision locks are now implemented.
 
 2. Finish Q2 before **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.

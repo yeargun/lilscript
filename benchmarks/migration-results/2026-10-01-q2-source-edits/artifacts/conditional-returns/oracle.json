@@ -1,0 +1,5 @@
+{
+  "setup": "let next=false;globalThis.input=()=>next=!next;",
+  "exercise": "await load(\"main\");",
+  "expected": "3\n7"
+}
