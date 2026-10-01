@@ -909,3 +909,25 @@ fn s4_native_string_indexing_keeps_utf16_views_and_char_at_compatibility() {
         print(text.charAt(-1));print(text.charAt(4));
     "#,"A\n55297\n56320\nB\n\n\n");
 }
+
+#[test]
+fn s4_observed_generic_class_instances_keep_shared_native_identity() {
+    fixture(
+        "s4-observed-generics",
+        r#"
+        class Base { int count=1; }
+        class Box<T> extends Base { T value; init(T value){super();this.value=value;} T get(){return this.value;} }
+        class Child extends Box<int> { init(int value){super(value);} }
+        class Other extends Box<int> { init(int value){super(value);} }
+        bool child(Base? value){return value is Child;}
+        int read(Base value){Child? narrowed=value as? Child;if(narrowed!=null){return narrowed.get();}return -1;}
+        Box<int> a=new Box<int>(7);Box<string> b=new Box<string>("text");
+        Base base=a;print(a.get());print(b.get());print(base.count);print(base is Base);
+        Base alias=a;print(alias==base);
+        Base left=new Child(9);Base right=new Other(11);
+        print(child(left));print(child(right));print(child(b));print(child(null));
+        print(read(left));print(read(right));
+    "#,
+        "7\ntext\n1\ntrue\ntrue\ntrue\nfalse\nfalse\nfalse\n9\n-1\n",
+    );
+}

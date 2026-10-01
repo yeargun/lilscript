@@ -425,10 +425,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             return Ok(());
         }
         let program = self.program;
-        let Some(Type::Function(signature)) = self
+        let Some(signature) = self
             .data(child)
             .callable_type
-            .map(|ty| &program.types[ty.index()])
+            .and_then(|ty| program.types[ty.index()].callable_signature())
         else {
             return Ok(());
         };

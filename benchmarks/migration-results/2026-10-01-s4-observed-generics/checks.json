@@ -1,0 +1,21 @@
+{
+  "focused_passes": {
+    "program::constructor_verify_tests::s4_observed_generic_constructor_arguments_are_verified_after_substitution": "/tmp/lilscript-s4-generic-completion-checks.log",
+    "build::tests::s4_observed_generic_classes_preserve_one_constructor_and_typed_rest": "/tmp/lilscript-s4-generic-completion-checks.log",
+    "program::native_tests::s4_observed_generic_class_instances_keep_shared_native_identity": "/tmp/lilscript-s4-generic-native-final-checks.log",
+    "build::tests::s4_type_only_generic_exports_use_the_same_native_interface_as_module_graphs": "/tmp/lilscript-s4-generic-native-final-checks.log",
+    "build::tests::s4_generic_fixed_struct_boundaries_do_not_require_opaque_transport": "/tmp/lilscript-s4-generic-native-final-checks.log",
+    "program::generic_transport_tests::nominal_generic_calls_still_require_private_producers_and_closed_raw_forwarding": "/tmp/lilscript-s4-generic-native-final-checks.log",
+    "program::generic_transport_tests::unrelated_schemas_do_not_restrict_public_or_observed_primitive_generic_calls": "/tmp/lilscript-s4-generic-native-final-checks.log",
+    "program::source_legality_tests::generic_methods_erase_types": "/tmp/lilscript-s4-generic-native-final-checks.log",
+    "program::source_legality_tests::primitive_method_values_are_refused": "/tmp/lilscript-s4-generic-native-final-checks.log"
+  },
+  "count": 9,
+  "limits": "No full library/fleet/CLI qualification or complete native claim; the source test build preceded the explicit drops of admitted native-emitter scratch vectors, which the release build includes.",
+  "negative_evidence": [
+    "Observed generic implicit constructor initially used a bare receiver type; fixed to use the registered generic receiver.",
+    "One-module export reconstruction initially emitted two value exports for a dual type/constructor declaration; fixed by retaining the canonical checked interface.",
+    "Native class is/as? reached unsupported TypeTest and checked-view planning; implemented nominal predicates and native ownership-preserving narrowing.",
+    "Opaque generic product transport remains refused; fixed struct parameters with unrelated type parameters now use their fixed schema."
+  ]
+}

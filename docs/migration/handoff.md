@@ -9,7 +9,19 @@ Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
 C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3 are implemented. **S4 remains the sole active
 milestone**, under its [acceptance contract](s4-acceptance.md).
 
-The latest [S4 sealed-module batch](../../benchmarks/migration-results/2026-10-01-s4-sealed-modules/README.md)
+The latest [S4 generic batch](../../benchmarks/migration-results/2026-10-01-s4-observed-generics/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-observed-generics-1/lilscript`, SHA-256
+`45512001bcf799d2726a576cd77c9184675b3a5a4f2be90e5443d1d40af0d3b2`.
+Algorithm 26 / search 31 / walk 10 / local facts 10. Observed generic constructor,
+default/rest/receiver contracts and fixed struct generic callables are implemented.
+One-source and module builds use the same canonical export interface. Native
+nominal identity/casts use existing object witnesses and ownership conversions.
+Nine distinct focused checks and CLI/lint/LSP release builds pass. The matched
+class boundary is unchanged for every objective; new host oracles pass all three.
+The detached primitive-method audit is resolved by its existing checked refusal.
+Next: declared shapes, then remaining S4 contracts and shared-consumer work.
+
+The preceding [S4 sealed-module batch](../../benchmarks/migration-results/2026-10-01-s4-sealed-modules/README.md)
 pins `/home/azureuser/lilscript-work/bin/s4-sealed-modules-1/lilscript`, SHA-256
 `7511059d61700fa3d8ab8ec1fe89ac0e33e8af6e03b75c45deae38e230653c56`.
 Algorithm 25 / search 31 / walk 10 / local facts 10. Internal constructor exports

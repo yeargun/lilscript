@@ -263,6 +263,17 @@ pub enum Type<'src> {
     GenericFunction(GenericFunctionType<'src>),
 }
 
+impl<'src> Type<'src> {
+    /// The runtime calling convention is independent of generic binders.
+    pub(crate) fn callable_signature(&self) -> Option<&FunctionType<'src>> {
+        match self {
+            Type::Function(signature) => Some(signature),
+            Type::GenericFunction(function) => Some(&function.signature),
+            _ => None,
+        }
+    }
+}
+
 impl Type<'_> {
     pub fn is_numeric(&self) -> bool {
         matches!(self, Self::Int | Self::Float)
@@ -1186,6 +1197,9 @@ fn live_facts_for_test() -> usize {
 pub struct CheckedModule<'ast, 'src> {
     declarations: DeclarationTables<'src>,
     facts: ModuleFacts<'ast, 'src>,
+    /// Move the canonical one-module interface instead of reconstructing it
+    /// from the dual type/value binding of a class declaration.
+    exports: Vec<modules::ModuleExport<'src>>,
 }
 
 /// A read-only source qualification over the compilation's shared declarations.
@@ -1666,6 +1680,10 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().is_reflected(nominal)
     }
 
+    pub(crate) fn exports(&self) -> &[modules::ModuleExport<'src>] {
+        &self.exports
+    }
+
     pub fn export_target(&self, local: SourceNodeId) -> Option<InterfaceTarget> {
         self.view().export_target(local)
     }
@@ -2141,6 +2159,7 @@ pub(crate) fn with_single_analyzer<'ast, 'src, R>(
     let mut model = CheckedModule {
         declarations: DeclarationTables::default(),
         facts,
+        exports: Vec::new(),
     };
     let mut initialization = ModuleInitialization::default();
     Analyzer::new(

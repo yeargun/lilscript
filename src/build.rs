@@ -1360,7 +1360,7 @@ fn check_source_frontend<'src>(
                             &syntax,
                             semantics.view(),
                             Some(0),
-                            frontend.options.preserve_root_exports,
+                            if frontend.options.preserve_root_exports { semantics.exports() } else { &[] },
                             budget,
                         )
                         .map_err(|error| native_check_error("<source>", source, error))?;
@@ -1519,8 +1519,9 @@ fn check_path_frontend<'src, T>(
                                 source,
                                 semantics.view(module).expect("checked source"),
                                 Some(module),
-                                frontend.options.preserve_root_exports
-                                    && semantics.roots().contains(&module),
+                                if frontend.options.preserve_root_exports && semantics.roots().contains(&module) {
+                                    &semantics.interfaces()[module].exports
+                                } else { &[] },
                                 budget,
                             )
                             .map_err(|error| {

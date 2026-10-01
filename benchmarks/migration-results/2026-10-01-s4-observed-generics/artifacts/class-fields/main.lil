@@ -1,0 +1,1 @@
+export class Box{int value;int[] entries;init(int n){this.value=n;this.entries=[n,n+1];}int next(){this.value+=1;return this.value;}}export constructor Box;export int read(int n){Box box=new Box(n);return box.next()+box.entries[1];}

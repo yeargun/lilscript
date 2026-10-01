@@ -805,8 +805,8 @@ fn form_head(
                 // applies each default, so the printed parameter at that index
                 // only needs default syntax (`p=void 0`), and the later ones
                 // none.
-                if let (Type::Function(signature), CellBinding::Function(unit)) = (
-                    &program.types[program.cells[cell.index()].ty.index()],
+                if let (Some(signature), CellBinding::Function(unit)) = (
+                    program.types[program.cells[cell.index()].ty.index()].callable_signature(),
                     program.cells[cell.index()].binding,
                 ) {
                     formation.work(signature.params.len())?;
@@ -2358,7 +2358,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             // Its only use is a `JsValue` position: the D2 public shape.
             let program = self.program;
             let id = self.data(unit).values[value.index()].ty;
-            if matches!(program.types[id.index()], Type::Function(_)) {
+            if program.types[id.index()].callable_signature().is_some() {
                 return self.public_callable(id, formed);
             }
             return self.public_value(&program.types[id.index()], formed, false);
@@ -4557,8 +4557,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     let argument = self.public_constructor_argument(unit, argument)?;
                     self.append(&mut arguments, argument)?;
                 }
-                if let Type::Function(signature) =
-                    &self.program.types[self.data(unit).values[operands[0].index()].ty.index()]
+                if let Some(signature) = self.program.types
+                    [self.data(unit).values[operands[0].index()].ty.index()]
+                .callable_signature()
                 {
                     if signature.has_rest() && arguments.len() + 1 == signature.params.len() {
                         let last = arguments.last_mut().unwrap();
@@ -5370,14 +5371,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         if self.prototype_method_form(method)?.is_some() {
             return self.prototype_method_function(unit, method, span);
         }
-        let signature = match program
+        let signature = program
             .unit(method)
             .and_then(|data| data.callable_type)
-            .map(|ty| &program.types[ty.index()])
-        {
-            Some(Type::Function(signature)) => signature.clone(),
-            _ => return Err(self.error(span, "prototype method signature")),
-        };
+            .and_then(|ty| program.types[ty.index()].callable_signature())
+            .cloned()
+            .ok_or_else(|| self.error(span, "prototype method signature"))?;
         if !public_structs::adaptable_export(program, cell, self.budget)? {
             return Err(self.error(span, "prototype method value-struct ABI adaptation"));
         }
@@ -5632,8 +5631,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         base.constructor
                             .or_else(|| base.value.map(|cell| self.program.cells[cell.index()].ty))
                     });
-                    if let Some(Type::Function(signature)) =
-                        signature.map(|ty| &self.program.types[ty.index()])
+                    if let Some(signature) =
+                        signature.and_then(|ty| self.program.types[ty.index()].callable_signature())
                     {
                         let receiver = usize::from(base.is_some_and(|base| !base.external));
                         if signature.has_rest()

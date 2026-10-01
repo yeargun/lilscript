@@ -1,0 +1,253 @@
+{
+  "scope": "one matched class boundary and new observed/fixed-struct generic capability oracles; no fleet or timing claim",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-observed-generics-1/lilscript",
+    "sha256": "45512001bcf799d2726a576cd77c9184675b3a5a4f2be90e5443d1d40af0d3b2"
+  },
+  "baseline": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-sealed-modules-1/lilscript",
+    "sha256": "7511059d61700fa3d8ab8ec1fe89ac0e33e8af6e03b75c45deae38e230653c56"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "totals": {
+    "raw": {
+      "before": 243,
+      "after": 243,
+      "delta": 0
+    },
+    "gzip": {
+      "before": 173,
+      "after": 173,
+      "delta": 0
+    },
+    "brotli": {
+      "before": 139,
+      "after": 139,
+      "delta": 0
+    }
+  },
+  "rows": [
+    {
+      "id": "class-fields",
+      "matched": true,
+      "source_sha256": "2d0343e5f9f2b0d2205167d640d17a80f10abc7f2a428f13b004cf05b49f92a1",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "88f30026799f64db7038829ad354253e36fe6d74e587f5e55a36e9815766cd4c",
+            "raw": 243,
+            "gzip9": 179,
+            "brotli11": 141,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 15
+            }
+          },
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "88f30026799f64db7038829ad354253e36fe6d74e587f5e55a36e9815766cd4c",
+            "raw": 243,
+            "gzip9": 179,
+            "brotli11": 141,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 15
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "d572529be42633b7850de49f7a511f82378848d961dd346e34a809133dea99dd",
+            "raw": 244,
+            "gzip9": 173,
+            "brotli11": 142,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 178,
+              "judged": 14
+            }
+          },
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "d572529be42633b7850de49f7a511f82378848d961dd346e34a809133dea99dd",
+            "raw": 244,
+            "gzip9": 173,
+            "brotli11": 142,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 178,
+              "judged": 14
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "dd2e8ee95161ba1fdab19f1f253b7eb02ac09858967ce1941d7ea1154420595f",
+            "raw": 243,
+            "gzip9": 174,
+            "brotli11": 139,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 207,
+              "judged": 46
+            }
+          },
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "dd2e8ee95161ba1fdab19f1f253b7eb02ac09858967ce1941d7ea1154420595f",
+            "raw": 243,
+            "gzip9": 174,
+            "brotli11": 139,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 207,
+              "judged": 46
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "observed-generic",
+      "matched": false,
+      "source_sha256": "2e51b6f49a3a13947dcb61626215d462dedc89afab2ec65f5b7ee560190316c1",
+      "lanes": {
+        "raw": {
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "3c45ff625e035ea1a35b2f3b2c93b474c1a7cf6fd46c05c90989ea6037bd7fc9",
+            "raw": 617,
+            "gzip9": 372,
+            "brotli11": 324,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 214,
+              "judged": 29
+            }
+          }
+        },
+        "gzip": {
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "d378fb4e6aa297c7cafdbc32feb529195937f86ec3a0129135a1f8ec2ed7f12e",
+            "raw": 626,
+            "gzip9": 348,
+            "brotli11": 310,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 108,
+              "judged": 8
+            }
+          }
+        },
+        "brotli": {
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "5553badcb6a853741eab66b09f97021beb18d1e4eb08d6868ea39dd4eaf85df5",
+            "raw": 621,
+            "gzip9": 355,
+            "brotli11": 306,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 351,
+              "judged": 94
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fixed-struct-generic",
+      "matched": false,
+      "source_sha256": "4f7db25663b8d0fd98864eb447f9d6ede5e8f43cdeaf7d162c751c22e94ff72f",
+      "lanes": {
+        "raw": {
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "cbbcef07dfeb0ea242bdc3bfcfa263661246a63abaf483db70cd1d6ffecf241b",
+            "raw": 533,
+            "gzip9": 310,
+            "brotli11": 276,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 12
+            }
+          }
+        },
+        "gzip": {
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "6a01f95b0afcda0ed906e7768529ffd7b71c0cc512ab141bc66a3ef06316f169",
+            "raw": 533,
+            "gzip9": 282,
+            "brotli11": 251,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 88,
+              "judged": 4
+            }
+          }
+        },
+        "brotli": {
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "565b8e662a804915040c2c1092780921dfdc12717dbb1d327f092b647ca39671",
+            "raw": 533,
+            "gzip9": 284,
+            "brotli11": 250,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 172,
+              "judged": 29
+            }
+          }
+        }
+      }
+    }
+  ]
+}

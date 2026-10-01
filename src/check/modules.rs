@@ -216,6 +216,12 @@ impl<'ast, 'src> CheckedModules<'ast, 'src> {
         CheckedModule {
             declarations: self.declarations,
             facts: self.facts.into_iter().next().expect("one checked source"),
+            exports: self
+                .interfaces
+                .into_iter()
+                .next()
+                .expect("one checked interface")
+                .exports,
         }
     }
 }

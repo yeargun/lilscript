@@ -60,8 +60,8 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 
 - **Clause.** `v is C` and `v as? C` on classes whose identity is observed, extern classes, sealed and sum-type variants, and shapes with a declared discriminant.
 - **Replaces.** v0.1:470-477 ("guards … limited to runtime categories"), `src/check.rs:9540`.
-- **JS.** `instanceof` or a tag compare. **Native.** A class-id word, only in tested hierarchies.
-- **Status.** Target (M10.7), in language slice 1. It also removes katexlil's `isPrototypeOf` helper, 1.1% of its JS self time.
+- **JS.** `instanceof` or a tag compare. **Native.** The existing immutable per-class destructor identity; no extra instance word.
+- **Status.** Internal class identity tests and checked casts are implemented on JavaScript and native. Shape discriminants and variants follow their R5/R8 producers.
 
 ---
 
@@ -215,7 +215,9 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 
 - **Clause.** A type parameter is not observable at run time. With §4's collapse of `T??` into `T?`, erasure (JavaScript) and monomorphization or boxing (C) are both exact, and the native plan chooses per instantiation.
 - **Replaces.** v0.1:511-515 (its implementation note "Polymorphic functions are not inlined until…" leaves the contract).
-- **Status.** Target (M10.17).
+- **Status.** Generic functions/methods, observed classes and fixed-schema callable
+  crossings are implemented. Wider opaque generic product/union transport remains
+  S4 work; native representation qualification remains N2.
 
 ---
 
@@ -235,7 +237,7 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 | R10 | Runtime implementations | portable (`Regex` after M11.6, on QuickJS's `libregexp`) |
 | R11 | int32 wrap; bounds trap; `fmod` | portable |
 | R12 | none | **JavaScript-only**, refused by the checker with a span |
-| R13 | Class-id header word | portable (extern classes JavaScript-only) |
+| R13 | Existing per-class object witness | portable (extern classes JavaScript-only) |
 | R14 | Index loops; insertion-ordered map iteration | portable (dynamic iterables JavaScript-only) |
 | R15 | Target-neutral | portable |
 | R16 | Entry exports only | portable |

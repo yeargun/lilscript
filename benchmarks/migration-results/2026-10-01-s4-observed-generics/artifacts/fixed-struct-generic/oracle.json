@@ -1,0 +1,19 @@
+{
+  "exercise": "const p={x:8},box=new m.Box(1),C=m.constructorValue();console.log(JSON.stringify([m.run(),m.copy(p,Symbol('v')),box.change(p),p,new C(p).value,new C(p).constructor===C,m.copy.length,box.change.length]));",
+  "expected": [
+    465,
+    {
+      "x": 9
+    },
+    {
+      "x": 10
+    },
+    {
+      "x": 8
+    },
+    8,
+    true,
+    2,
+    1
+  ]
+}

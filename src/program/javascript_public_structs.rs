@@ -114,7 +114,7 @@ pub(super) fn adaptable_export(
     if !matches!(declared.binding, CellBinding::Function(_)) || declared.reassigned {
         return Ok(false);
     }
-    let Type::Function(signature) = &program.types[declared.ty.index()] else {
+    let Some(signature) = program.types[declared.ty.index()].callable_signature() else {
         return Ok(false);
     };
     let CellBinding::Function(unit) = declared.binding else {
@@ -419,7 +419,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         {
             return Ok(());
         }
-        let Type::Function(signature) = &self.program.types[ty.index()] else {
+        let Some(signature) = self.program.types[ty.index()].callable_signature() else {
             return Err(self.error(Span::default(), "constructor parameter signature"));
         };
         for (parameter, &cell) in signature.params.iter().zip(&data.parameters).skip(1) {
@@ -474,7 +474,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             }
         }
         let program = self.program;
-        let Type::Function(signature) = &program.types[ty.index()] else {
+        let Some(signature) = program.types[ty.index()].callable_signature() else {
             return Err(self.error(
                 Span::default(),
                 "public callable adapter over a non-function",
@@ -759,7 +759,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
                 "public value-struct adapter over field transport",
             ));
         }
-        let Type::Function(signature) = &program.types[declared.ty.index()] else {
+        let Some(signature) = program.types[declared.ty.index()].callable_signature() else {
             return Err(self.error(declared.declaration, "public value-struct ABI adaptation"));
         };
         let name = program.units[unit.index()]

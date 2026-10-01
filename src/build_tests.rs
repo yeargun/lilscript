@@ -3195,3 +3195,117 @@ fn s4_private_constructor_exports_dissolve_but_observed_values_keep_their_abi() 
         }
     }
 }
+
+#[test]
+fn s4_observed_generic_classes_preserve_one_constructor_and_typed_rest() {
+    let source = r#"
+        export class Box<T>{T value;int count;
+            init(T value,int count=2,T... rest){this.value=value;this.count=count;for(int i=0;i<rest.length;i++){this.value=rest[i];}}
+            T get(){return this.value;}
+            T pick(T fallback,T... rest){if(rest.length>0){return rest[rest.length-1];}return fallback;}
+            V echo<V>(V value){return value;}
+        }
+        export constructor Box;
+        class Child<U> extends Box<U>{init(U value,U... rest){super(value,3,...rest);}}
+        export constructor Child;
+        export class Empty<T>{int count=7;}export constructor Empty;
+        export int run(){Box<int> b=new Box<int>(5,4,7,9);Child<int> c=new Child<int>(2,8);Empty<string> e=new Empty<string>();return b.get()+b.count+c.get()+c.count+e.count+b.echo(10)+b.pick(1,2,3);}
+    "#;
+    let result = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            objectives: Some(Objectives::All),
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    for objective in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",
+            "const a=Symbol('a'),b=Symbol('b'),box=new library.Box(a),child=new library.Child(a,b),empty=new library.Empty();console.log(JSON.stringify([library.run(),box.get()===a,box.pick(a,b)===b,box.echo(a)===a,child.get()===b,child instanceof library.Box,child.constructor===library.Child,box.constructor===library.Box,box.count,child.count,empty.count,library.Box.length,library.Child.length,library.Empty.length,box.pick.length]));"),
+            "[44,true,true,true,true,true,true,true,2,3,7,1,1,0,1]\n");
+    }
+}
+
+#[test]
+fn s4_generic_fixed_struct_boundaries_do_not_require_opaque_transport() {
+    let source = r#"
+        struct Point{int x;}
+        export Point copy<T>(Point p,T value){p.x+=1;return p;}
+        class Box<T>{T value;init(T v){this.value=v;}
+            Point change(Point p){p.x+=2;return p;}
+        }
+        export constructor Box;
+        class Constructed{int value;init(Point p){this.value=p.x;}}
+        export JsValue constructorValue(){return Constructed;}
+        export int run(){Point p=Point{4};Box<int> b=new Box<int>(3);Point q=b.change(p);Point r=copy(p,true);return p.x*100+q.x*10+r.x;}
+    "#;
+    for script in [false, true] {
+        let source = if script {
+            format!("{source}extern void observe(JsValue a,JsValue b,JsValue c,JsValue d);observe(copy,Box,constructorValue,run);")
+        } else {
+            source.to_string()
+        };
+        let result = compile_source(
+            &source,
+            &config(""),
+            ServiceOptions {
+                preserve_root_exports: !script,
+                objectives: Some(Objectives::All),
+                ..ServiceOptions::default()
+            },
+        )
+        .unwrap();
+        for objective in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+            let javascript = result.javascript(objective).unwrap().javascript();
+            let body="const p={x:8},box=new library.Box(1),C=library.constructorValue();console.log(JSON.stringify([library.run(),library.copy(p,Symbol('v')),box.change(p),p,new C(p).value,new C(p).constructor===C,library.copy.length,box.change.length]));";
+            let observed = if script {
+                let code=format!("let library;globalThis.observe=(copy,Box,constructorValue,run)=>{{library={{copy,Box,constructorValue,run}};}};{javascript}{body}");
+                let output = Command::new("node").args(["-e", &code]).output().unwrap();
+                assert!(
+                    output.status.success(),
+                    "{}\n{javascript}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                String::from_utf8(output.stdout).unwrap()
+            } else {
+                execute_javascript(javascript, "", body)
+            };
+            assert_eq!(
+                observed,
+                "[465,{\"x\":9},{\"x\":10},{\"x\":8},8,true,2,1]\n"
+            );
+        }
+    }
+}
+
+#[test]
+fn s4_type_only_generic_exports_use_the_same_native_interface_as_module_graphs() {
+    let source="export class Box<T>{T value;init(T v){this.value=v;}T get(){return this.value;}}Box<int> b=new Box<int>(7);print(b.get());";
+    let scratch = Scratch::new();
+    std::fs::write(scratch.0.join("entry.lil"), source).unwrap();
+    for path in [false, true] {
+        let options = ServiceOptions {
+            target: ServiceTarget::All,
+            objectives: Some(Objectives::All),
+            ..ServiceOptions::default()
+        };
+        let compiled = if path {
+            compile_path(&scratch.0.join("entry.lil"), &config(""), options)
+        } else {
+            compile_source(source, &config(""), options)
+        }
+        .unwrap();
+        assert_eq!(execute_native(compiled.native_c().unwrap()), "7\n");
+        for objective in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+            assert_eq!(
+                execute_javascript(
+                    compiled.javascript(objective).unwrap().javascript(),
+                    "",
+                    "console.log(Object.keys(library).length);"
+                ),
+                "7\n0\n"
+            );
+        }
+    }
+}

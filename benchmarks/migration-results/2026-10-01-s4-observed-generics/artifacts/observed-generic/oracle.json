@@ -1,0 +1,20 @@
+{
+  "exercise": "const a=Symbol('a'),b=Symbol('b'),box=new m.Box(a),child=new m.Child(a,b),empty=new m.Empty();console.log(JSON.stringify([m.run(),box.get()===a,box.pick(a,b)===b,box.echo(a)===a,child.get()===b,child instanceof m.Box,child.constructor===m.Child,box.constructor===m.Box,box.count,child.count,empty.count,m.Box.length,m.Child.length,m.Empty.length,box.pick.length]));",
+  "expected": [
+    44,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    2,
+    3,
+    7,
+    1,
+    1,
+    0,
+    1
+  ]
+}

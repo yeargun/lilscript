@@ -412,7 +412,7 @@ fn convert_source<'ast, 'src>(
     lower.add_cells(|_| Some(0))?;
     lower.register_source(source)?;
     lower.emit_source(root, source)?;
-    lower.source_exports(module, source)?;
+    lower.source_exports(module, semantics.exports())?;
     lower.publish_entries()?;
     lower.finish()
 }
@@ -1137,20 +1137,16 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
     fn source_exports(
         &mut self,
         module: ModuleId,
-        source: &ast::Program<'ast, 'src>,
+        exports: &[crate::check::ModuleExport<'src>],
     ) -> Result<(), ConversionError> {
         let start = self.program.exports.len();
-        for export in source.exports {
+        for export in exports {
             self.work(1)?;
-            let target = self
-                .semantics
-                .export_target(export.local.id)
-                .and_then(interface_target)
-                .ok_or(Unsupported {
-                    span: export.span,
-                    feature: "missing checked export target",
-                })?;
-            self.add_export(export.exported.name, target)?;
+            let target = interface_target(export.target).ok_or(Unsupported {
+                span: export.span,
+                feature: "checked export identity capacity",
+            })?;
+            self.add_export(export.external, target)?;
         }
         building_table(&mut self.program.modules)[module.index()].exports =
             start..self.program.exports.len();
@@ -1886,10 +1882,32 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         unit: UnitId,
         region: RegionId,
         class: NominalId,
+        owner_type: TypeId,
         arguments: &'ast [ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<Vec<ValueId>, ConversionError> {
         let signature = self.class_info(class, span)?.constructor.clone();
+        let signature = if let Some(signature) = signature {
+            let arguments = match &self.program.types[owner_type.index()] {
+                Type::ClassInstance { args, .. } => args.as_slice(),
+                _ => &[],
+            };
+            Some(
+                super::schema::class_signature(
+                    &self.program,
+                    class,
+                    arguments,
+                    &signature,
+                    &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget),
+                )?
+                .ok_or(Unsupported {
+                    span,
+                    feature: "class constructor type arguments",
+                })?,
+            )
+        } else {
+            None
+        };
         let rest = signature
             .as_ref()
             .filter(|sig| sig.has_rest())
@@ -2026,7 +2044,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             span,
             feature: "super without a base class",
         })?;
-        let values = self.constructor_arguments(unit, region, base, arguments, span)?;
+        let base_type = info.base.clone().unwrap();
+        let base_type = self.ty(&base_type)?;
+        let values = self.constructor_arguments(unit, region, base, base_type, arguments, span)?;
         self.effect(unit, region, OperationKind::SuperConstruct, &values, span)?;
         self.own_field_defaults(unit, region, class, this, span)
     }
@@ -2042,7 +2062,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         origin: Option<SourceNodeId>,
         span: Span,
     ) -> Result<ValueId, ConversionError> {
-        let mut values = self.constructor_arguments(unit, region, class, arguments, span)?;
+        let mut values = self.constructor_arguments(unit, region, class, ty, arguments, span)?;
         let constructor = self.kept_constructor(unit, region, class, span)?;
         values.insert(0, constructor);
         self.value(
@@ -2331,9 +2351,6 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             .members
             .iter()
             .any(|member| matches!(member, ast::ClassMember::Constructor(_)));
-        if kept && !info.type_params.is_empty() {
-            return self.unsupported(span, "a generic class kept as a JavaScript class");
-        }
         if kept && !has_init && self.host_derived(identity, span)? {
             return self.unsupported(span, "a class with a host ancestor needs an init");
         }
@@ -2360,7 +2377,20 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 prototype: Vec::new(),
             },
         )?;
-        let receiver = self.ty(&Type::Class(info.declaration))?;
+        let receiver_type = if info.type_params.is_empty() {
+            Type::Class(info.declaration)
+        } else {
+            Type::ClassInstance {
+                declaration: info.declaration,
+                args: info
+                    .type_params
+                    .iter()
+                    .copied()
+                    .map(Type::TypeParameter)
+                    .collect(),
+            }
+        };
+        let receiver = self.ty(&receiver_type)?;
         let mut own_slot = 0;
         for member in declaration.members {
             if let ast::ClassMember::Field(field) = member {
@@ -2489,7 +2519,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 )],
                 return_type: Box::new(Type::Void),
             });
-            let callable = self.ty(&Type::Function(function))?;
+            let callable = self.ty(&if info.type_params.is_empty() {
+                Type::Function(function)
+            } else {
+                Type::GenericFunction(crate::check::GenericFunctionType {
+                    type_params: info.type_params.clone(),
+                    signature: function,
+                })
+            })?;
             let unit = self.add_unit(UnitKind::Function)?;
             self.units[unit.index()].constructor_of = Some(identity);
             let function_name = self.string(declaration.name.name)?;
@@ -2668,7 +2705,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         }
         let unit = constructor.unit;
         let entry = RegionId::from_index(0).unwrap();
-        let this_ty = self.ty(&Type::Class(self.class_info(class, span)?.declaration))?;
+        let callable = self.units[unit.index()]
+            .callable_type
+            .expect("registered constructor signature");
+        let receiver = self.program.types[callable.index()]
+            .callable_signature()
+            .expect("registered constructor is callable")
+            .params[0]
+            .ty
+            .clone();
+        let this_ty = self.ty(&receiver)?;
         let this = self.synthetic_cell(root, entry, declaration.name, "this", this_ty)?;
         let data = &mut building_table(&mut self.program.cells)[this.index()];
         data.owner = unit;

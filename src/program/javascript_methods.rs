@@ -1200,10 +1200,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                 rest: program
                     .unit(method)
                     .and_then(|data| data.callable_type)
-                    .is_some_and(|ty| match &program.types[ty.index()] {
-                        Type::Function(sig) => sig.has_rest(),
-                        _ => false,
-                    }),
+                    .and_then(|ty| program.types[ty.index()].callable_signature())
+                    .is_some_and(|signature| signature.has_rest()),
                 parameters,
                 body,
                 arrow: false,

@@ -2,7 +2,9 @@ use super::*;
 use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
 #[path = "verify_scratch.rs"]
 mod scratch;
-use crate::check::binary_types::{checked_binary_type_with, BinaryTypeError};
+use crate::check::binary_types::{
+    checked_binary_type_with, BinaryTypeError, TypeConstructionAdmission,
+};
 use crate::check::type_admission::TypeQueryAdmission;
 use crate::check::type_relation::{
     is_type_assignable_with as structurally_assignable, type_equal_with, RelationAdmission,
@@ -1981,21 +1983,33 @@ fn verify_types(
             program
                 .class(class)
                 .ok_or("construction of an unknown class")?;
-            let parameters = host_constructor_parameters(program, class, &mut query)?
-                .ok_or("construction of a class without a host constructor")?;
+            let type_arguments = match result.unwrap() {
+                Type::ClassInstance { args, .. } => args.as_slice(),
+                _ => &[],
+            };
+            let (signature, receiver) =
+                host_constructor_signature(program, class, type_arguments, &mut query)?
+                    .ok_or("construction of a class without a host constructor")?;
             // The first operand is the constructor itself.
             let Some((&constructor, arguments)) = operands.split_first() else {
                 return Err(error());
             };
-            if !matches!(value_type(constructor), Type::Function(_)) {
+            let definition = program.class(class).unwrap();
+            let expected_constructor = definition
+                .constructor
+                .or_else(|| definition.value.map(|cell| program.cells[cell.index()].ty));
+            if value_type(constructor).callable_signature().is_none()
+                || expected_constructor.is_none()
+                || !type_equal_with(
+                    value_type(constructor),
+                    &program.types[expected_constructor.unwrap().index()],
+                    &mut query,
+                )?
+            {
                 return Err(error());
             }
             expect(constructor_arguments(
-                program,
-                arguments,
-                &parameters,
-                &mut query,
-                value_type,
+                program, arguments, &signature, receiver, &mut query, value_type,
             )?)
         }
         // The base constructor of this constructor's class.
@@ -2011,14 +2025,17 @@ fn verify_types(
             program
                 .class(base)
                 .ok_or("super construction of an unknown base")?;
-            let parameters = host_constructor_parameters(program, base, &mut query)?
-                .ok_or("super construction of a base without a constructor")?;
+            let definition = program.class(class).unwrap();
+            let mut type_arguments = Vec::new();
+            for &argument in &definition.base_arguments {
+                let argument = query.clone_type(&program.types[argument.index()])?;
+                query.push_type(&mut type_arguments, argument)?;
+            }
+            let (signature, receiver) =
+                host_constructor_signature(program, base, &type_arguments, &mut query)?
+                    .ok_or("super construction of a base without a constructor")?;
             expect(constructor_arguments(
-                program,
-                operands,
-                &parameters,
-                &mut query,
-                value_type,
+                program, operands, &signature, receiver, &mut query, value_type,
             )?)
         }
         OperationKind::Yield { delegate } => {
@@ -2727,30 +2744,33 @@ fn materialized_default(
 fn constructor_arguments<'program, 'src>(
     program: &'program Program<'src>,
     arguments: &[ValueId],
-    parameters: &[(&'program Type<'src>, bool)],
+    signature: &crate::check::FunctionType<'src>,
+    receiver: usize,
     query: &mut TypeQueryAdmission<'_, '_>,
     value_type: impl Fn(ValueId) -> &'program Type<'src>,
 ) -> Result<bool, AllocationError> {
+    let parameters = &signature.params[receiver..];
     if arguments.len() > parameters.len()
         || parameters[arguments.len()..]
             .iter()
-            .any(|(_, omittable)| !omittable)
+            .any(|parameter| receiver == 0 || !parameter.optional)
     {
         return Ok(false);
     }
-    for (&operand, (expected, _)) in arguments.iter().zip(parameters) {
-        if !class_assignable(program, expected, value_type(operand), query)? {
+    for (&operand, parameter) in arguments.iter().zip(parameters) {
+        if !class_assignable(program, &parameter.ty, value_type(operand), query)? {
             return Ok(false);
         }
     }
     Ok(true)
 }
 
-fn host_constructor_parameters<'program, 'src>(
+fn host_constructor_signature<'program, 'src>(
     program: &'program Program<'src>,
     class: NominalId,
+    arguments: &[Type<'src>],
     query: &mut TypeQueryAdmission<'_, '_>,
-) -> Result<Option<Vec<(&'program Type<'src>, bool)>>, AllocationError> {
+) -> Result<Option<(crate::check::FunctionType<'src>, usize)>, AllocationError> {
     let Some(definition) = program.class(class) else {
         return Ok(None);
     };
@@ -2772,20 +2792,18 @@ fn host_constructor_parameters<'program, 'src>(
         else {
             return Ok(None);
         };
-        match unit.callable_type.map(|ty| &program.types[ty.index()]) {
-            Some(Type::Function(signature)) => (signature, 1),
+        match unit
+            .callable_type
+            .and_then(|ty| program.types[ty.index()].callable_signature())
+        {
+            Some(signature) => (signature, 1),
             _ => return Ok(None),
         }
     };
-    // An internal constructor builds an omitted trailing arrow default itself.
-    Ok(Some(
-        signature
-            .params
-            .iter()
-            .skip(receiver)
-            .map(|parameter| (&parameter.ty, receiver == 1 && parameter.optional))
-            .collect(),
-    ))
+    Ok(
+        super::schema::class_signature(program, class, arguments, signature, query)?
+            .map(|signature| (signature, receiver)),
+    )
 }
 
 fn class_assignable(

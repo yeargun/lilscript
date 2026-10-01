@@ -190,10 +190,33 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
             Type::Function(signature) => {
                 super::public_structs::adaptable_callable(self.program, signature, self.budget)?
             }
+            Type::GenericFunction(function) => super::public_structs::adaptable_callable(
+                self.program,
+                &function.signature,
+                self.budget,
+            )?,
             _ => false,
         };
         if !admitted {
             return Ok(false);
+        }
+        // Kept constructors already decode at their own entry. Wrapping one
+        // as an ordinary callable would lose identity and constructibility.
+        let data = self.data(context);
+        if let OperationKind::Load(place) =
+            data.operations[data.values[value.index()].definition.index()].kind
+        {
+            if let Place::Cell(cell) = data.places[place.index()] {
+                if let CellBinding::Function(unit) = self.program.cells[cell.index()].binding {
+                    if self
+                        .program
+                        .unit(unit)
+                        .is_some_and(|unit| unit.constructor_of.is_some())
+                    {
+                        return Ok(true);
+                    }
+                }
+            }
         }
         let Some(uses) = self.uses else {
             return Ok(false);

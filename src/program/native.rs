@@ -1021,10 +1021,22 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.constructor_call_arguments(id, constructor, args)?;
             }
             OperationKind::TypeTest(target) => {
-                let test =
-                    crate::primitive::runtime_type_test(&self.plan.program.types[target.index()])
-                        .expect("native plan admits runtime type tests");
-                self.type_test(id, result.unwrap(), args[0], test)?;
+                if let crate::check::Type::Class(declaration) =
+                    &self.plan.program.types[target.index()]
+                {
+                    let class = self
+                        .plan
+                        .program
+                        .class_index(declaration.identity)
+                        .expect("native plan admits class type tests");
+                    self.class_type_test(id, result.unwrap(), args[0], class)?;
+                } else {
+                    let test = crate::primitive::runtime_type_test(
+                        &self.plan.program.types[target.index()],
+                    )
+                    .expect("native plan admits runtime type tests");
+                    self.type_test(id, result.unwrap(), args[0], test)?;
+                }
             }
             OperationKind::IsUndefined { parameter } => {
                 let result = result.unwrap().index();
@@ -1391,6 +1403,12 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let data = self.plan.program.unit(unit).unwrap();
         let args = data.arguments(data.calls[call.index()].arguments).unwrap();
         let target = self.plan.units[unit.index()].calls[call.index()];
+        if let PreparedTarget::Assume = target {
+            let CallArgument::Value(value) = args[0] else {
+                unreachable!("native checked views take a value")
+            };
+            return self.copy_value(unit, Destination::Value(result.unwrap()), value);
+        }
         if let PreparedTarget::Print = target {
             let CallArgument::Value(value) = args[0] else {
                 unreachable!("native Print takes a value")
@@ -1590,6 +1608,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 true
             }
             PreparedTarget::Print
+            | PreparedTarget::Assume
             | PreparedTarget::ArrayMethod { .. }
             | PreparedTarget::ScalarMethod { .. }
             | PreparedTarget::Construct(_)

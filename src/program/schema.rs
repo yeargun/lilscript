@@ -135,3 +135,37 @@ pub(super) fn class_field_type<'a, 'src>(
     )?;
     Ok(Some(Cow::Owned(resolved)))
 }
+
+/// Instantiate a constructor's runtime signature using its class's checked
+/// binders. Construction, rest packing and verification share this forward
+/// substitution; no target re-infers type arguments from actual operands.
+pub(super) fn class_signature<'src>(
+    program: &Program<'src>,
+    class: NominalId,
+    arguments: &[Type<'src>],
+    signature: &crate::check::FunctionType<'src>,
+    query: &mut TypeQueryAdmission<'_, '_>,
+) -> Result<Option<crate::check::FunctionType<'src>>, AllocationError> {
+    let Some(definition) = program.class(class) else {
+        return Ok(None);
+    };
+    if definition.type_params.len() != arguments.len() {
+        return Ok(None);
+    }
+    if arguments.is_empty() {
+        return Ok(Some(signature.clone()));
+    }
+    crate::check::type_substitution::substitute_signature_with(
+        signature,
+        &mut |id, query: &mut TypeQueryAdmission<'_, '_>| {
+            query.work(definition.type_params.len())?;
+            Ok(definition
+                .type_params
+                .iter()
+                .position(|parameter| *parameter == id)
+                .map(|index| &arguments[index]))
+        },
+        query,
+    )
+    .map(Some)
+}

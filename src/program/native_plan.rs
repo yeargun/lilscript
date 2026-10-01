@@ -188,6 +188,8 @@ pub(super) struct CellPlan {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum PreparedTarget {
     Function(UnitId),
+    /// A checked narrowing view, also used in the true arm of `as?`.
+    Assume,
     Callable {
         callee: ValueId,
         signature: usize,
@@ -271,7 +273,10 @@ pub(super) enum PlaceRecipe {
         kind: crate::typed_array::TypedArrayKind,
     },
     /// A checked, immutable UTF-16 code-unit view of a string.
-    StringElement { receiver: ValueId, index: ValueId },
+    StringElement {
+        receiver: ValueId,
+        index: ValueId,
+    },
     /// `receiver[index]` of a typed array: read and written by value.
     TypedElement {
         receiver: ValueId,
@@ -319,6 +324,8 @@ pub(super) struct NativePlan<'program, 'src> {
     pub(super) arrays: Vec<NativeType>,
     /// Each internal class's flattened (base-first) field representations.
     pub(super) class_fields: Vec<Vec<NativeType>>,
+    /// Nominal identity predicates needed by checked `is` / `as?` operations.
+    pub(super) class_tests: Vec<bool>,
     /// Callable adapters `(from, to)` between physical signatures, used where
     /// a call passes a callable to a parameter of another signature.
     pub(super) adapters: Vec<(usize, usize)>,
@@ -684,7 +691,10 @@ fn plan_places(
             {
                 helpers.require(Helper::StringIndex);
                 PlacePlan {
-                    recipe: PlaceRecipe::StringElement { receiver, index: key },
+                    recipe: PlaceRecipe::StringElement {
+                        receiver,
+                        index: key,
+                    },
                     storage: ValueStorage::Value(NativeType::String),
                     root_cell: None,
                     writable: false,
@@ -1291,6 +1301,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             struct_order,
             arrays,
             class_fields,
+            class_tests: budget.filled(Scratch, program.classes.len(), false)?,
             adapters: Vec::new(),
             created,
         };
@@ -1458,6 +1469,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         },
                     },
                     CallTarget::Builtin(BuiltinCall::Print) => PreparedTarget::Print,
+                    CallTarget::Builtin(BuiltinCall::JsAssume) => PreparedTarget::Assume,
                     CallTarget::Intrinsic {
                         operation:
                             ResolvedIntrinsic::Constructor(
@@ -2182,13 +2194,35 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 matches!(result, Some(Stored(NativeType::Dynamic(_)))),
                 "native null representation",
             ),
-            OperationKind::TypeTest(target) => expect(
-                operands.len() == 1
-                    && result == Some(Stored(Bool))
-                    && crate::primitive::runtime_type_test(&self.program.types[target.index()])
-                        .is_some(),
-                "native type test",
-            ),
+            OperationKind::TypeTest(target) => {
+                if let Type::Class(declaration) = &self.program.types[target.index()] {
+                    let class = self
+                        .program
+                        .class_index(declaration.identity)
+                        .ok_or_else(|| error("native class type test"))?;
+                    let constructor = self
+                        .constructor_unit(declaration.identity)
+                        .ok_or_else(|| error("native class type-test constructor"))?;
+                    expect(
+                        operands.len() == 2
+                            && result == Some(Stored(Bool))
+                            && operand(1) == ValueStorage::Function(constructor),
+                        "native class type-test identity",
+                    )?;
+                    self.class_tests[class] = true;
+                    Ok(())
+                } else {
+                    expect(
+                        operands.len() == 1
+                            && result == Some(Stored(Bool))
+                            && crate::primitive::runtime_type_test(
+                                &self.program.types[target.index()],
+                            )
+                            .is_some(),
+                        "native type test",
+                    )
+                }
+            }
             OperationKind::Initialize(cell) => expect(
                 matches!(initializations[cell.index()], Initialization::Operation(found) if found == at)
                     && self.program.cells[cell.index()].owner == unit
@@ -2574,6 +2608,17 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     "native omitted arguments",
                 )?;
                 match plan.calls[call.index()] {
+                    PreparedTarget::Assume => expect(
+                        arguments.len() == 1 && match (result, argument(0)) {
+                            (Some(Stored(expected)), Some(actual)) => {
+                                self.compatible(Stored(expected), actual)
+                                    || matches!((expected, actual),
+                                        (NativeType::Object(_), Stored(NativeType::Object(_))))
+                            }
+                            _ => false,
+                        },
+                        "native checked view representation",
+                    ),
                     PreparedTarget::Function(function) => {
                         expect(
                             matches!(

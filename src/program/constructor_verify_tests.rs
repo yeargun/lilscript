@@ -356,3 +356,20 @@ fn checked_edits_cannot_consume_constructor_preparation_out_of_order() {
     compilation.discard(source).unwrap();
     assert_eq!(compilation.finish().retained_bytes(), 0);
 }
+
+#[test]
+fn s4_observed_generic_constructor_arguments_are_verified_after_substitution() {
+    checked("export class Box<T>{T value;init(T value){this.value=value;}}export constructor Box;export Box<int> make(int value){return new Box<int>(value);}",|program| {
+        let (unit,operation)=program.units().iter().find_map(|unit|unit.data().operations.iter().position(|operation|matches!(operation.kind,OperationKind::ConstructClass)).map(|index|(unit.id(),index))).unwrap();
+        let mut broken=program.clone();
+        let wrong=program.types.iter().find_map(|ty|match ty {Type::ClassInstance{declaration,..}=>Some(Type::ClassInstance{declaration:*declaration,args:vec![Type::Bool]}),_=>None}).unwrap();
+        let id=TypeId::from_index(broken.types.len()).unwrap();
+        Arc::make_mut(&mut broken.types).push(wrong);
+        let mut working=broken.units[unit.index()].clone().into_working();
+        let data=working.get_mut();
+        let result=data.operations[operation].result.unwrap();
+        data.values[result.index()].ty=id;
+        broken.units[unit.index()]=working.freeze();
+        assert!(broken.verify().unwrap_err().contains("semantic operation type mismatch"));
+    });
+}

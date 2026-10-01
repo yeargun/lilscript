@@ -309,7 +309,6 @@ fn class_callable_fields_remain_replaceable_and_generic_classes_erase_types() {
 }
 
 #[test]
-#[ignore = "production formation refuses a generic method (Unsupported: generic method conversion)"]
 fn generic_methods_erase_types() {
     compare_source_output(
         r#"

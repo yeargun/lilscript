@@ -43,7 +43,7 @@ pub(crate) fn native(
     source: &Program<'_, '_>,
     view: CheckedView<'_, '_, '_>,
     module: Option<usize>,
-    exports: bool,
+    exports: &[ModuleExport<'_>],
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), AdmittedCheckError> {
     let mut scope = budget.scope();
@@ -106,18 +106,13 @@ pub(crate) fn native(
         }
     });
     failure?;
-    if exports {
-        for export in source.exports {
-            budget.work(WorkKind::Analysis, 1)?;
-            if matches!(
-                view.export_target(export.local.id),
-                Some(InterfaceTarget::Value(_))
-            ) {
-                return Err(AdmittedCheckError::new(
-                    export.span,
-                    "native exported ABI is not implemented yet",
-                ));
-            }
+    for export in exports {
+        budget.work(WorkKind::Analysis, 1)?;
+        if matches!(export.target, InterfaceTarget::Value(_)) {
+            return Err(AdmittedCheckError::new(
+                export.span,
+                "native exported ABI is not implemented yet",
+            ));
         }
     }
     Ok(())

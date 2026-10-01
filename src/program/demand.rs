@@ -2414,15 +2414,22 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             return Ok(());
         }
         budget.work(1)?;
-        let signature = data
-            .call_signature(site)
-            .ok_or_else(|| unsupported("generic call effective signature"))?;
+        let instance = &data.call_instantiations[site.contract.instantiation.unwrap().index()];
         let mut pending = Vec::new();
-        let required = facts::contains_nominal_product(
-            &self.program.types[signature.index()],
-            &mut pending,
-            budget,
-        );
+        // A fixed struct parameter keeps its checked schema. Only a product
+        // substituted into a binder requires the opaque-transport proof.
+        let required = (|| {
+            for argument in &instance.arguments {
+                if facts::contains_nominal_product(
+                    &self.program.types[argument.index()],
+                    &mut pending,
+                    budget,
+                )? {
+                    return Ok(true);
+                }
+            }
+            Ok::<_, DemandError>(false)
+        })();
         let released = super::facts::domains::Admission::release(budget, pending);
         let required = required?;
         released?;

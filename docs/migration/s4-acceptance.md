@@ -41,8 +41,11 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    defaults/rest/receivers and generic/nullable `JS.assume`, and retires zero-use
    object singletons. The sealed-module batch separates internal constructor
    visibility from root ABI publication and preserves actual constructor-value
-   and dynamic namespace observations. Observed generic classes and wider
-   opaque generic/union transport remain open.
+   and dynamic namespace observations. Observed generic classes, their
+   constructor/default/rest contracts, fixed struct callable crossings and native
+   nominal identity/casts are implemented. Wider opaque generic/union transport
+   remains open. The detached primitive-method audit passes with the existing
+   source-owned refusal and explicit-closure alternative.
 8. [ ] Register/document any new behavior controls and their gates, interactions,
    costs and hard vetoes. Keep semantic assumptions separate from effort. Q4 owns
    general const-data encodings and schema specialization; Q2 owns incremental

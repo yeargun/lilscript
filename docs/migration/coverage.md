@@ -139,9 +139,9 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M9.3 / M10.4 | [S4](plan.md#s4) | Implemented: non-private callbacks use the common value codec with typed receiver, default/rest and reflected-length contracts. |
 | M9.3 / M10.4 | [S4](plan.md#s4) | Implemented: callable adapters use actual rest arrays, preserving `.length`, undefined/default behavior and variable indices. |
 | M4 / M10 | [S4](plan.md#s4) | `??=` on a place: implemented and qualified in `8ebb686d`; four carried tests enabled |
-| M4 / M10 | [S4](plan.md#s4) | Generic methods implemented and checked on JavaScript/native; observed generic classes remain open |
+| M4 / M10 | [S4](plan.md#s4) | Implemented: generic methods and observed generic classes, checked constructor/default/rest substitution, fixed struct generic callables and canonical one-module exports |
 | M4 / M10 | [S4](plan.md#s4) | an explicit `JS.undefined()` argument; |
-| M4 / M10 | [S4](plan.md#s4) | a detached `charCodeAt`. |
+| M4 / M10 | [S4](plan.md#s4) | Resolved: detached primitive methods have a checked refusal and explicit-closure alternative; the focused `charCodeAt` audit passes. |
 | M10.14 | [G2](plan.md#g2) | Complete in G2: both wrapper-name cases explicitly select name preservation and expect anonymous adapters. |
 | M12.2 | [D3](plan.md#d3) | the nominal rename reverts (`~/lilscript-work/portwork/nominal/`); |
 | M12.2 | [D3](plan.md#d3) | mobxlil's development bundle and its host globals; |
@@ -149,7 +149,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | Architecture §22 | Resolved by this replan: stale active text archived | "today the default strips it" is stale. |
 | A1 | [C3](plan.md#c3), resolved | The missing historical CPU pair is explicitly unavailable; a current repeated per-cell baseline is retained without a cross-version claim. |
 | No owner yet | [S4](plan.md#s4) | Concrete generic struct schemas and nullable/default/rest public adapters are implemented; opaque unions, mutable collection aliases and wider generic callable transport remain open. |
-| No owner yet | [S4](plan.md#s4) | M4.1: published constructors/prototype methods with struct parameters and dual type/constructor imports/re-exports are implemented; observed generic classes remain open. |
+| No owner yet | [S4](plan.md#s4) | M4.1: published constructors/prototype methods with struct parameters and dual type/constructor imports/re-exports and observed generic classes are implemented; wider opaque generic transport remains open. |
 | No owner yet | [C1](plan.md#c1) | `pool_strings` and `pack_string_arrays` ignore their permissions; |
 | No owner yet | [D3](plan.md#d3) | katexlil keeps `src/fontMetricsData.js` for two scripts. |
 | Ledger rows owned by done tasks | [S4](plan.md#s4), resolved | Object.hasOwn's explicit host binding and forwarded-call contract pass eight script/module lanes; stale ledger entry removed |

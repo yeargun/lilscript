@@ -28,6 +28,8 @@ Native UTF-16 indexing, binary nullable reads and preservation of required bound
 traps are implemented in the [index batch](../../benchmarks/migration-results/2026-10-01-s4-index-contracts/README.md).
 Internal constructor visibility and actual ABI observation are separated in the
 [sealed-module batch](../../benchmarks/migration-results/2026-10-01-s4-sealed-modules/README.md).
+Observed generic constructors, fixed struct callable contracts and canonical source
+interfaces are implemented in the [generic batch](../../benchmarks/migration-results/2026-10-01-s4-observed-generics/README.md).
 The [handoff](handoff.md) records the current scope and compiler pins.
 
 The owner requests substantial implementation batches followed by focused

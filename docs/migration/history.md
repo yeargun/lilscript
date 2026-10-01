@@ -909,3 +909,13 @@ visibility case changes. Public/dynamic constructor behavior and final byte
 scores agree. Pin `s4-sealed-modules-1` has SHA-256 `7511059d61700fa3d8ab8ec1fe89ac0e33e8af6e03b75c45deae38e230653c56`, algorithm 25, search
 31, walk 10 and local facts 10. No full-suite, fleet, timing or Closure claim.
 S4 remains active, with observed generics and wider language/catalog work open.
+
+## 2026-10-01: S4 observed generics and canonical interfaces
+
+[S4 generic evidence](../../benchmarks/migration-results/2026-10-01-s4-observed-generics/README.md)
+records shared constructor/default/rest contracts, fixed-schema generic callable
+boundaries, canonical one-module exports and native nominal identity/casts. Nine
+focused checks and CLI/lint/LSP release builds pass. The matched class boundary
+is unchanged at 243 raw / 173 gzip / 139 Brotli; new capabilities have independent
+host oracles rather than false before comparisons. Opaque product erasure stays
+refused. S4 remains active; no full library, fleet, CPU or release qualification.
