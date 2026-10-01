@@ -1,0 +1,1 @@
+let a=function answer(a){return a+2|0};export{a as answer};

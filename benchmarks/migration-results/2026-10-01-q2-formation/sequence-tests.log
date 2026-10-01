@@ -1,0 +1,28 @@
+
+running 5 tests
+test admission_replay::tests::q2_ordered_replay_matches_every_work_and_memory_refusal_prefix ... ok
+test admission_replay::tests::q2_overflow_refuses_reuse_and_unwind_removes_the_recording_owner ... ok
+test admission_replay::tests::q2_pattern_replay_preserves_mismatches_partial_runs_and_large_admissions ... ok
+test program::publication::search::terminal::tests::a_terminal_formation_of_the_winners_own_assignment_is_the_winner ... FAILED
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... FAILED
+
+failures:
+
+---- program::publication::search::terminal::tests::a_terminal_formation_of_the_winners_own_assignment_is_the_winner stdout ----
+
+thread 'program::publication::search::terminal::tests::a_terminal_formation_of_the_winners_own_assignment_is_the_winner' (984509) panicked at src/program/search_terminal_tests.rs:565:25:
+assertion `left == right` failed: three identical assignments must normalize once: raw
+  left: 3
+ right: 1
+
+---- program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes stdout ----
+
+thread 'program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes' (984510) panicked at src/program/search_terminal_tests.rs:252:9:
+fixture must reuse a formed tail: raw
+
+
+failures:
+    program::publication::search::terminal::tests::a_terminal_formation_of_the_winners_own_assignment_is_the_winner
+    program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 2039 filtered out; finished in 8.67s

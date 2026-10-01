@@ -1,0 +1,14 @@
+[delivery]
+mode='split'
+entry_names='entry/[name]-[hash:12].[ext]'
+chunk_names='chunks/[name]-[index]-[hash:12].[ext]'
+module_names='modules/[path]-[hash:12].[ext]'
+preload='all'
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13
+[cache]
+formation_reuse=false

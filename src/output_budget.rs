@@ -87,6 +87,53 @@ impl<'a> AllocationBudget<'a> {
         }
     }
 
+    /// Measure a complete, fresh formation. Only a fully funded result can
+    /// establish the deterministic admission stage for a repeated assignment.
+    /// T's surviving backing must be Retained, with Scratch local to `build`.
+    pub(crate) fn record<T, E: From<AllocationError>>(
+        &mut self,
+        build: impl FnOnce(&mut Self) -> Result<T, E>,
+    ) -> Result<(T, Option<crate::admission_replay::Receipt>), E> {
+        if self.ledger.is_none() {
+            return build(self).map(|value| (value, None));
+        }
+        self.ledger
+            .as_deref_mut()
+            .unwrap()
+            .begin_recording(self.domain);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| build(self)));
+        let receipt = self.ledger.as_deref_mut().unwrap().end_recording();
+        match result {
+            Ok(result) => result.map(|value| (value, receipt)),
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+
+    /// Repeated assignments have one deterministic stage: admit the complete
+    /// measured work and peak before executing, then keep only the result's
+    /// live reservation. Both physical execution and reuse take this path.
+    /// `build` either borrows the qualified result or executes the identical
+    /// fully funded builder without charging it a second time. The peak stays
+    /// reserved until all of that builder's temporary backing has dropped.
+    pub(crate) fn replay<T, E: From<AllocationError>>(
+        &mut self,
+        receipt: &crate::admission_replay::Receipt,
+        build: impl FnOnce() -> Result<T, E>,
+    ) -> Result<T, E> {
+        self.retained_phase(|budget| {
+            for (kind, units) in receipt.work() {
+                budget.work(kind, units)?;
+            }
+            budget.retain(AllocationClass::Retained, receipt.peak_bytes())?;
+            let value = build()?;
+            budget.release(
+                AllocationClass::Retained,
+                receipt.peak_bytes() - receipt.live_bytes(),
+            )?;
+            Ok(value)
+        })
+    }
+
     pub(crate) fn is_accounted(&self) -> bool {
         self.ledger.is_some()
     }
@@ -206,8 +253,13 @@ impl<'a> AllocationBudget<'a> {
     /// Validate a completed service's cold scratch requirement on reuse.
     /// This does not report a physical allocation that did not happen.
     pub(crate) fn check_scratch(&mut self, bytes: u64) -> Result<(), AllocationError> {
-        if let Some(ledger) = self.ledger.as_deref() {
-            ledger.clone().retain(self.domain, bytes)?;
+        if let Some(ledger) = self.ledger.as_deref_mut() {
+            let result = ledger.clone().retain(self.domain, bytes);
+            if result.is_err() {
+                ledger.record_refusal();
+            }
+            result?;
+            ledger.record_scratch_check(self.domain, bytes);
         }
         Ok(())
     }

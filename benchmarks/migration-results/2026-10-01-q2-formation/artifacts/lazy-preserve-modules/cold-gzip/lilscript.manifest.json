@@ -1,0 +1,74 @@
+{
+  "version": 3,
+  "codec": "gzip",
+  "outputs": [
+    {
+      "mode": "preserve-modules",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "main",
+          "file": "entry/main-789a7f09510d.js",
+          "dynamic": false,
+          "closure": [
+            "entry/main-789a7f09510d.js"
+          ],
+          "row": 251,
+          "raw_row": 366
+        },
+        {
+          "name": "feature",
+          "file": "modules/feature-4d7f8804a4a3.js",
+          "dynamic": true,
+          "closure": [
+            "modules/feature-4d7f8804a4a3.js"
+          ],
+          "row": 68,
+          "raw_row": 52
+        }
+      ],
+      "files": [
+        {
+          "file": "entry/main-789a7f09510d.js",
+          "role": "entry",
+          "label": [
+            "main"
+          ],
+          "modules": [
+            "main.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [
+            "modules/feature-4d7f8804a4a3.js"
+          ],
+          "bytes": 366,
+          "codec_bytes": 251,
+          "sha256": "a3d2262f28e997d829de5fa2d78051dbddcb1c266c06f4cc17d61b1008fb80f1"
+        },
+        {
+          "file": "modules/feature-4d7f8804a4a3.js",
+          "role": "lazy",
+          "label": [
+            "feature"
+          ],
+          "modules": [
+            "feature.lil"
+          ],
+          "anchored": false,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 52,
+          "codec_bytes": 68,
+          "sha256": "f06d3ccd08e3577cc33986b89a29d4a4665b651fa1a3a7521ce07ee1c54fdc52"
+        }
+      ],
+      "side_effects": [
+        "entry/main-789a7f09510d.js"
+      ],
+      "codec_total": 319,
+      "rows_total": 319,
+      "setters": 0
+    }
+  ]
+}

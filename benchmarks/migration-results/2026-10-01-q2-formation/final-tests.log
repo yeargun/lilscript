@@ -1,0 +1,8 @@
+
+running 4 tests
+test admission_replay::tests::q2_complete_stage_admits_the_same_limits_before_cold_or_reused_execution ... ok
+test admission_replay::tests::q2_recovered_refusals_cannot_certify_a_formation_and_unwind_clears_ownership ... ok
+test program::publication::search::terminal::tests::a_terminal_formation_of_the_winners_own_assignment_is_the_winner ... ok
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2039 filtered out; finished in 27.25s

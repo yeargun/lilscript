@@ -1,0 +1,1 @@
+export{read}from"../chunks/core-0-e00d17638edf.js";let onlyB=function(){return 7};console.log("b loaded");export{onlyB};

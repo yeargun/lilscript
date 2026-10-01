@@ -1,0 +1,1 @@
+extern void emit(float value);export void run(){emit(0.00015);emit(1.00375);emit(1.7976931348623157e308);emit(-0.7);}

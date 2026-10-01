@@ -376,12 +376,13 @@ fn q2_build_cache_keys_cover_contracts_requests_and_disable_physical_audits() {
             original
         );
     }
-    for kind in 0..4 {
+    for kind in 0..5 {
         let mut config = base.clone();
         match kind {
             0 => config.cache.build_reuse = false,
             1 => config.cache.normalization_reuse = false,
             2 => config.cache.codec_reuse = false,
+            3 => config.cache.formation_reuse = false,
             _ => config.cache.directory = None,
         };
         assert!(Request::source(source, &config, options).unwrap().is_none());

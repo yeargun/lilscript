@@ -753,14 +753,56 @@ struct Checkpoint<'src> {
 /// One transient formation, borrowed exclusively through its naming phases.
 /// Target buffers drop before their fixed-domain reservation. Each output owns
 /// a separate budget so Optional naming cannot spend the Baseline reserve.
+enum TargetModule<'a> {
+    Owned(crate::js::Module),
+    Borrowed(&'a crate::js::Module),
+}
+impl std::ops::Deref for TargetModule<'_> {
+    type Target = crate::js::Module;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(module) => module,
+            Self::Borrowed(module) => module,
+        }
+    }
+}
+struct CachedTail {
+    module: crate::js::Module,
+    choices: OutputTactics,
+    admission: crate::admission_replay::Receipt,
+    charge: crate::output_budget::RetainedCharge<RevisionId>,
+}
+impl CachedTail {
+    fn matches(&self, choices: &OutputTactics) -> bool {
+        // Literal and lexical spellings are selected after formation. The
+        // candidate, contract, head permissions and host inputs are fixed by
+        // this Formations owner; these are its complete variable dependencies.
+        self.choices.families == choices.families && self.choices.choices == choices.choices
+    }
+    fn discard(self, store: RevisionId, ledger: &mut BudgetLedger) -> Result<(), CandidateError> {
+        let Self {
+            module,
+            choices,
+            admission,
+            charge,
+        } = self;
+        drop((module, choices, admission));
+        charge
+            .discard(&store, ledger)
+            .map_err(|(_, error)| error.into())
+    }
+}
+
 struct JavaScriptTarget<'scope, 'src> {
     /// Source module stems for delivered chunk names.
     module_names: &'scope [String],
     chunk_extension: &'static str,
     hosts: Option<&'scope crate::host_modules::HostDelivery>,
-    module: crate::js::Module,
+    module: TargetModule<'scope>,
+    admission: Option<crate::admission_replay::Receipt>,
+    prepared: bool,
     #[cfg(test)]
-    _test_lifetime: super::search_target_reuse_tests::TargetLifetime,
+    _test_lifetime: Option<super::search_target_reuse_tests::TargetLifetime>,
     /// The candidate's checkpoint, borrowed field by field so that one
     /// demand plan can serve several formations (the terminal stage).
     semantic: &'scope SemanticSnapshot<'src>,
@@ -774,12 +816,148 @@ struct JavaScriptTarget<'scope, 'src> {
     budget: AllocationBudget<'scope>,
 }
 
+#[allow(clippy::too_many_arguments)]
+fn prepare_delivery_in(
+    module: &mut crate::js::Module,
+    semantic: &SemanticSnapshot<'_>,
+    policy: &ResolvedPolicy,
+    choices: &OutputTactics,
+    budget: &mut AllocationBudget<'_>,
+    module_names: &[String],
+    chunk_extension: &'static str,
+    hosts: Option<&crate::host_modules::HostDelivery>,
+) -> Result<(), CandidateError> {
+    // Every host module the output delivers, lowered into the tree or
+    // not: its code runs for the entries reaching a module importing it
+    // (design §7.9). Once lowered, the tree no longer imports it.
+    let delivered_hosts = hosts;
+    // Delivered host code runs inside this module's scope; its globals
+    // must stay visible there. A script output runs it strict, as the
+    // module it was written as.
+    let hosts = hosts.filter(|hosts| {
+        module.imports.iter().any(|import| {
+            import
+                .source
+                .as_unicode()
+                .is_some_and(|source| hosts.position(source).is_some())
+        })
+    });
+    if let Some(hosts) = hosts {
+        if module.carried.is_empty() {
+            let reserved = budget.retained_phase(|budget| {
+                let mut names = budget.vector(
+                    crate::output_budget::AllocationClass::Retained,
+                    hosts.reserved.len(),
+                )?;
+                for name in &hosts.reserved {
+                    names.push(
+                        budget.string(crate::output_budget::AllocationClass::Retained, name)?,
+                    );
+                }
+                Ok::<_, AllocationError>(names)
+            })?;
+            let carried = budget.retained_phase(|budget| {
+                let mut names = budget.vector(
+                    crate::output_budget::AllocationClass::Retained,
+                    hosts.modules.len(),
+                )?;
+                for module in &hosts.modules {
+                    names.push(budget.string(
+                        crate::output_budget::AllocationClass::Retained,
+                        &module.specifier,
+                    )?);
+                }
+                Ok::<_, AllocationError>(names)
+            })?;
+            for old in [
+                std::mem::replace(&mut module.reserved, reserved),
+                std::mem::replace(&mut module.carried, carried),
+            ] {
+                let bytes = old.iter().try_fold(
+                    crate::output_budget::vector_bytes(&old)?,
+                    |sum, name| {
+                        sum.checked_add(name.capacity() as u64)
+                            .ok_or(AllocationError::Capacity)
+                    },
+                )?;
+                drop(old);
+                budget.release(crate::output_budget::AllocationClass::Retained, bytes)?;
+            }
+        }
+    }
+    // Placement (plan M3.3): once per formed tree, after the target
+    // rules and before naming; the plan is stored on the tree.
+    if let Some(contract) = policy.delivery() {
+        let entries = semantic.program.entries().len();
+        if module.delivery.is_none()
+            && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single)
+        {
+            let dynamic_import = policy.javascript_contract().is_some_and(|language| {
+                language
+                    .ecmascript
+                    .allows(crate::js_syntax_target::JsSyntaxFeature::DynamicImport)
+            });
+            // `[ext]`: the format's, unless one output file names its own.
+            let ext = match contract.format {
+                crate::config::JavaScriptFormat::Esm => chunk_extension,
+                format => format.extension(),
+            };
+            module.delivery = super::entries::with_entry_graph(
+                &semantic.program,
+                delivered_hosts
+                    .into_iter()
+                    .flat_map(|hosts| hosts.modules.iter().map(|host| host.specifier.as_str())),
+                module_names,
+                budget,
+                |graph, budget| {
+                    crate::js::delivery::plan(module, graph, contract, dynamic_import, ext, budget)
+                },
+            )?;
+            if module.print_forms.is_some()
+                && module
+                    .delivery
+                    .as_ref()
+                    .is_some_and(|plan| !plan.setters.is_empty())
+            {
+                module.refresh_print_choices(
+                    choices.families,
+                    choices.rules,
+                    &choices.choices,
+                    policy
+                        .javascript_contract()
+                        .expect("JavaScript target")
+                        .ecmascript
+                        .year(),
+                    budget,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
 impl JavaScriptTarget<'_, '_> {
     fn with_output_in<R>(
         &mut self,
         domain: WorkDomain,
         inspect: impl FnOnce(&mut BudgetedJavaScriptOutput<'_, '_>) -> R,
     ) -> Result<R, CandidateError> {
+        if !self.prepared {
+            let TargetModule::Owned(module) = &mut self.module else {
+                unreachable!()
+            };
+            prepare_delivery_in(
+                module,
+                self.semantic,
+                self.policy,
+                &self.choices,
+                &mut self.budget,
+                self.module_names,
+                self.chunk_extension,
+                self.hosts,
+            )?;
+            self.prepared = true;
+        }
         let Self {
             module,
             semantic,
@@ -791,18 +969,9 @@ impl JavaScriptTarget<'_, '_> {
             policy,
             choices,
             budget,
-            module_names,
-            chunk_extension,
             hosts,
             ..
         } = self;
-        // Every host module the output delivers, lowered into the tree or
-        // not: its code runs for the entries reaching a module importing it
-        // (design §7.9). Once lowered, the tree no longer imports it.
-        let delivered_hosts=*hosts;
-        // Delivered host code runs inside this module's scope; its globals
-        // must stay visible there. A script output runs it strict, as the
-        // module it was written as.
         let hosts = hosts.filter(|hosts| {
             module.imports.iter().any(|import| {
                 import
@@ -811,61 +980,9 @@ impl JavaScriptTarget<'_, '_> {
                     .is_some_and(|source| hosts.position(source).is_some())
             })
         });
-        if let Some(hosts) = hosts {
-            if module.carried.is_empty() {
-                let reserved=budget.retained_phase(|budget| {
-                    let mut names=budget.vector(crate::output_budget::AllocationClass::Retained,hosts.reserved.len())?;
-                    for name in &hosts.reserved {names.push(budget.string(crate::output_budget::AllocationClass::Retained,name)?);}
-                    Ok::<_,AllocationError>(names)
-                })?;
-                let carried=budget.retained_phase(|budget| {
-                    let mut names=budget.vector(crate::output_budget::AllocationClass::Retained,hosts.modules.len())?;
-                    for module in &hosts.modules {names.push(budget.string(crate::output_budget::AllocationClass::Retained,&module.specifier)?);}
-                    Ok::<_,AllocationError>(names)
-                })?;
-                for old in [std::mem::replace(&mut module.reserved,reserved),std::mem::replace(&mut module.carried,carried)] {
-                    let bytes=old.iter().try_fold(crate::output_budget::vector_bytes(&old)?,|sum,name|sum.checked_add(name.capacity() as u64).ok_or(AllocationError::Capacity))?;
-                    drop(old);budget.release(crate::output_budget::AllocationClass::Retained,bytes)?;
-                }
-            }
-        }
         let strict = policy.javascript_contract().is_some_and(|contract| {
             contract.execution != crate::compilation_contract::JavaScriptExecution::Module
         });
-        // Placement (plan M3.3): once per formed tree, after the target
-        // rules and before naming; the plan is stored on the tree.
-        if let Some(contract) = policy.delivery() {
-            let entries = semantic.program.entries().len();
-            if module.delivery.is_none()
-                && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single)
-            {
-                let dynamic_import = policy.javascript_contract().is_some_and(|language| {
-                    language
-                        .ecmascript
-                        .allows(crate::js_syntax_target::JsSyntaxFeature::DynamicImport)
-                });
-                // `[ext]`: the format's, unless one output file names its own.
-                let ext = match contract.format {
-                    crate::config::JavaScriptFormat::Esm => *chunk_extension,
-                    format => format.extension(),
-                };
-                module.delivery = super::entries::with_entry_graph(
-                    &semantic.program, delivered_hosts.into_iter().flat_map(|hosts|hosts.modules.iter().map(|host|host.specifier.as_str())), module_names, budget,
-                    |graph, budget| crate::js::delivery::plan(
-                        module, graph, contract, dynamic_import, ext, budget,
-                    ),
-                )?;
-                if module.print_forms.is_some()
-                    && module.delivery.as_ref().is_some_and(|plan| !plan.setters.is_empty())
-                {
-                    module.refresh_print_choices(
-                        choices.families, choices.rules, &choices.choices,
-                        policy.javascript_contract().expect("JavaScript target").ecmascript.year(),
-                        budget,
-                    )?;
-                }
-            }
-        }
         budget.with_ledger(|ledger| {
             let mut phase = AllocationBudget::new(ledger.map(|(ledger, _)| (ledger, domain)));
             let mut output = module.prepare_output_with_literals_admitted(policy, &mut phase)?;
@@ -943,6 +1060,8 @@ pub(super) struct Formations<'scope, 'src> {
         super::javascript::FormedHead,
         crate::output_budget::RetainedCharge<RevisionId>,
     )>; 4],
+    tails: [Option<CachedTail>; 2],
+    next_tail: usize,
     /// What forming the other head reads.
     demand: &'scope super::demand::DemandPlan<'scope, 'src>,
     language: &'scope crate::compilation_contract::JavaScriptCompilationContract,
@@ -1003,6 +1122,11 @@ impl Formations<'_, '_> {
     }
 
     fn release_other_heads(&mut self) -> Result<(), CandidateError> {
+        for tail in &mut self.tails {
+            if let Some(tail) = tail.take() {
+                tail.discard(self.store, self.ledger)?;
+            }
+        }
         for slot in &mut self.other_heads {
             if let Some((head, charge)) = slot.take() {
                 drop(head);
@@ -1020,6 +1144,15 @@ impl Formations<'_, '_> {
         &mut self,
         choices: OutputTactics,
         inspect: impl FnOnce(&mut BudgetedJavaScriptOutput<'_, '_>) -> T,
+    ) -> Result<T, CandidateError> {
+        let domain = self.domain;
+        self.with_target(choices, |target| target.with_output_in(domain, inspect))
+    }
+
+    fn with_target<T>(
+        &mut self,
+        choices: OutputTactics,
+        inspect: impl FnOnce(&mut JavaScriptTarget<'_, '_>) -> Result<T, CandidateError>,
     ) -> Result<T, CandidateError> {
         self.ledger.charge(self.domain, WorkKind::Analysis, 2)?;
         choices
@@ -1047,23 +1180,86 @@ impl Formations<'_, '_> {
                 .unwrap()
                 .0
         };
+        let hit = self
+            .tails
+            .iter()
+            .position(|tail| tail.as_ref().is_some_and(|tail| tail.matches(&choices)));
+        let slot = hit.unwrap_or(self.next_tail);
+        if hit.is_none() {
+            if let Some(tail) = self.tails[slot].take() {
+                tail.discard(self.store, self.ledger)?;
+            }
+            self.next_tail = (slot + 1) % self.tails.len();
+        }
         let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
-        let head = head.clone_in(&mut budget)?;
-        let module = super::javascript::form_tail_admitted(
-            head,
-            choices.families,
-            &choices.choices,
-            self.policy.cache().normalization_reuse,
-            &mut budget,
-        )
-        .map_err(formation_error)?;
+        let build =
+            |budget: &mut AllocationBudget<'_>| -> Result<crate::js::Module, CandidateError> {
+                budget.retained_phase(|budget| {
+                    let head = head.clone_in(budget)?;
+                    let mut module = super::javascript::form_tail_admitted(
+                        head,
+                        choices.families,
+                        &choices.choices,
+                        self.policy.cache().normalization_reuse,
+                        budget,
+                    )
+                    .map_err(formation_error)?;
+                    prepare_delivery_in(
+                        &mut module,
+                        self.semantic,
+                        self.policy,
+                        &choices,
+                        budget,
+                        self.module_names,
+                        self.chunk_extension,
+                        self.hosts,
+                    )?;
+                    budget.work(WorkKind::Analysis, 0)?;
+                    Ok(module)
+                })
+            };
+        if hit.is_some() {
+            let cached = self.tails[slot].as_ref().unwrap();
+            let reuse = self.policy.cache().formation_reuse;
+            let module = budget.replay(&cached.admission, || {
+                if reuse {
+                    let _timing = crate::timing::JS_FORMATION_REUSE.scope(1);
+                    Ok(TargetModule::Borrowed(&cached.module))
+                } else {
+                    build(&mut AllocationBudget::new(None)).map(TargetModule::Owned)
+                }
+            })?;
+            let mut target = JavaScriptTarget {
+                module_names: self.module_names,
+                chunk_extension: self.chunk_extension,
+                hosts: self.hosts,
+                module,
+                admission: None,
+                prepared: true,
+                #[cfg(test)]
+                _test_lifetime: (!reuse).then(super::search_target_reuse_tests::TargetLifetime::new),
+                semantic: self.semantic,
+                implementations: self.implementations,
+                identity: &mut *self.identity,
+                artifacts: &mut *self.artifacts,
+                store: self.store,
+                candidate: self.candidate,
+                policy: self.policy,
+                choices,
+                budget,
+            };
+            return inspect(&mut target);
+        }
+        let (module, admission) = budget.record(build)?;
         let mut target = JavaScriptTarget {
             module_names: self.module_names,
             chunk_extension: self.chunk_extension,
             hosts: self.hosts,
-            module,
+            module: TargetModule::Owned(module),
+            admission,
+            prepared: true,
             #[cfg(test)]
-            _test_lifetime: super::search_target_reuse_tests::TargetLifetime::new(),
+            _test_lifetime: Some(super::search_target_reuse_tests::TargetLifetime::new()),
             semantic: self.semantic,
             implementations: self.implementations,
             identity: &mut *self.identity,
@@ -1074,7 +1270,33 @@ impl Formations<'_, '_> {
             choices,
             budget,
         };
-        target.with_output_in(self.domain, inspect)
+        let result = inspect(&mut target);
+        // A successfully formed tree is reusable even if this particular
+        // naming/render attempt refused. The key grants no output permission.
+        if hit.is_none() && target.admission.is_some() {
+            let JavaScriptTarget {
+                module,
+                choices,
+                admission,
+                mut budget,
+                ..
+            } = target;
+            let TargetModule::Owned(module) = module else {
+                unreachable!()
+            };
+            let admission = admission.unwrap();
+            let bytes = budget.retained_bytes(crate::output_budget::AllocationClass::Retained);
+            debug_assert_eq!(bytes, admission.live_bytes());
+            let charge = budget.detach_retained(self.store, bytes)?;
+            drop(budget);
+            self.tails[slot] = Some(CachedTail {
+                module,
+                choices,
+                admission,
+                charge,
+            });
+        }
+        result
     }
 
     /// The choice sites the candidate's tree offers under `choices`: formed
@@ -1083,45 +1305,9 @@ impl Formations<'_, '_> {
         &mut self,
         choices: &OutputTactics,
     ) -> Result<Vec<crate::js::ChoiceSite>, CandidateError> {
-        self.ledger.charge(self.domain, WorkKind::Analysis, 2)?;
-        choices
-            .check_policy(self.policy)
-            .map_err(|error| match error {
-                crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => {
-                    CandidateError::ForbiddenTactic(tactic)
-                }
-                error => CandidateError::Admission(error),
-            })?;
-        if choices.dead_code_elimination != self.dead_code_elimination
-            || choices.target_compaction != self.target_compaction
-            || choices.rules != self.rules
-        {
-            return Err(CandidateError::Artifact(
-                "a formation's head belongs to other dead-code or compaction choices",
-            ));
-        }
-        self.head_for(choices.families.head())?;
-        let head = if choices.families.head() == self.head_choices || !self.target_compaction {
-            self.head
-        } else {
-            &self.other_heads[choices.families.head().index()]
-                .as_ref()
-                .unwrap()
-                .0
-        };
-        let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
-        let head = head.clone_in(&mut budget)?;
-        let module = super::javascript::form_tail_admitted(
-            head,
-            choices.families,
-            &choices.choices,
-            self.policy.cache().normalization_reuse,
-            &mut budget,
-        )
-        .map_err(formation_error)?;
-        let sites = module.choice_sites.clone();
-        drop(module);
-        Ok(sites)
+        self.with_target(choices.clone(), |target| {
+            Ok(target.module.choice_sites.clone())
+        })
     }
 
     /// The retained artifact arena and the formation contract its artifacts
@@ -2382,9 +2568,11 @@ impl<'src> Compilation<'src> {
                 .map_or(&[][..], |(names, _)| names.as_slice()),
             chunk_extension: self.chunk_extension,
             hosts: self.host_modules.as_ref().map(|(delivery, _)| delivery),
-            module,
+            module: TargetModule::Owned(module),
+            admission: None,
+            prepared: false,
             #[cfg(test)]
-            _test_lifetime: super::search_target_reuse_tests::TargetLifetime::new(),
+            _test_lifetime: Some(super::search_target_reuse_tests::TargetLifetime::new()),
             semantic,
             implementations: map,
             identity,
@@ -2529,6 +2717,8 @@ impl<'src> Compilation<'src> {
             head_choices,
             preserved_properties: preserved_properties(policy),
             other_heads: std::array::from_fn(|_| None),
+            tails: std::array::from_fn(|_| None),
+            next_tail: 0,
             demand: &demand,
             language: target.language(),
             dead_code_elimination,
@@ -2541,7 +2731,7 @@ impl<'src> Compilation<'src> {
             policy,
             domain,
         };
-        let result = drive(&mut formations);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drive(&mut formations)));
         let released = formations.release_other_heads();
         drop(formations);
         drop(head);
@@ -2552,7 +2742,10 @@ impl<'src> Compilation<'src> {
         demand
             .discard(Some(ledger))
             .map_err(CandidateError::Budget)?;
-        Ok(result)
+        match result {
+            Ok(result) => Ok(result),
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
     }
 
     /// Borrow a retained complete artifact; the callback cannot return its borrow.

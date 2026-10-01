@@ -1,0 +1,1 @@
+let a=function run(){emit(15e-5);emit(1.00375);emit(17976931348623157e292);emit(-.7)};export{a as run};

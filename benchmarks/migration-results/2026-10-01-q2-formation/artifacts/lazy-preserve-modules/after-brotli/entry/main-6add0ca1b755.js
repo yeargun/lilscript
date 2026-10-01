@@ -1,0 +1,1 @@
+typeof document!="undefined"&&["../modules/feature-1a65020a6bad.js"].forEach(a=>{let b=document.createElement("link");b.rel="modulepreload",b.href=a,document.head.append(b)});import("../modules/feature-1a65020a6bad.js").catch(e=>Promise.reject({specifier:"./feature",message:String(e)})).then(a=>void console.log(a.answer(40)|0)).catch(a=>void console.log(a.message));

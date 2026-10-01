@@ -1,0 +1,34 @@
+
+running 11 tests
+test admission_replay::tests::q2_ordered_replay_matches_every_work_and_memory_refusal_prefix ... ok
+test admission_replay::tests::q2_overflow_refuses_reuse_and_unwind_removes_the_recording_owner ... ok
+test config::cache_tests::q2_cache_controls_are_strict_relative_and_outside_semantic_identity ... ok
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... FAILED
+test program::search_target_reuse_tests::literal_only_continuation_reuses_target_with_naming_search_disabled ... ok
+test program::search_target_reuse_tests::no_continuation_drops_target_before_seal_without_optional_naming_work ... ok
+test program::search_target_reuse_tests::observer_panics_release_target_and_each_naming_basis ... ok
+test program::search_target_reuse_tests::one_target_two_bases_preserve_three_styles_and_exact_old_artifacts ... ok
+test program::search_target_reuse_tests::optional_preparation_refusal_drops_target_and_preserves_qualified_baseline ... ok
+test program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets ... FAILED
+test program::search_target_reuse_tests::structural_children_still_form_distinct_targets ... ok
+
+failures:
+
+---- program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes stdout ----
+
+thread 'program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes' (958687) panicked at src/program/search_terminal_tests.rs:252:9:
+fixture must reuse a formed tail: raw
+
+---- program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets stdout ----
+
+thread 'program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets' (958967) panicked at src/program/publication.rs:1193:13:
+assertion `left == right` failed
+  left: 33428
+ right: 33533
+
+
+failures:
+    program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes
+    program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets
+
+test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 2032 filtered out; finished in 10.77s

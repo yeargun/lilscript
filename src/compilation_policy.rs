@@ -39,7 +39,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version38 honors authored loop expansion with an independent policy permission.
 // Version 40 carries regional representation pins through source/target edits.
 // Version51 admits delivery placement, trials, simulation and setter payloads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 53;
+pub const POLICY_ALGORITHM_VERSION: u32 = 54;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -1133,6 +1133,7 @@ pub enum BudgetError {
 /// admission boundaries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BudgetLedger {
+    recording: Option<crate::admission_replay::Recording>,
     baseline_work_limit: u64,
     optional_work_limit: u64,
     // The current independent objective's structural/walk reserve is relative
@@ -1197,6 +1198,7 @@ impl BudgetLedger {
             return Err(BudgetError::BaselineExceedsLimit);
         }
         Ok(Self {
+            recording: None,
             baseline_work_limit: plan.baseline_work,
             optional_work_limit: plan.optional_work.min(work_limit - plan.baseline_work),
             optional_work_origin: 0,
@@ -1340,6 +1342,7 @@ impl BudgetLedger {
         kind: WorkKind,
         units: u64,
     ) -> Result<(), BudgetError> {
+        let result = (|| {
         self.check_deadline()?;
         if domain == WorkDomain::Optional
             && matches!(self.phase, BudgetPhase::PreparingBaseline { .. })
@@ -1360,6 +1363,9 @@ impl BudgetLedger {
         self.work_used[index] = next;
         self.work_by_kind[kind as usize] = by_kind;
         Ok(())
+        })();
+        if result.is_err() { self.record_refusal(); }
+        result
     }
     pub fn charge_analysis(
         &mut self,
@@ -1376,6 +1382,11 @@ impl BudgetLedger {
         self.charge(domain, WorkKind::Analysis, receipt.logical_work)
     }
     pub fn retain(&mut self, domain: WorkDomain, bytes: u64) -> Result<(), BudgetError> {
+        let result = self.retain_inner(domain, bytes);
+        if result.is_err() { self.record_refusal(); }
+        result
+    }
+    fn retain_inner(&mut self, domain: WorkDomain, bytes: u64) -> Result<(), BudgetError> {
         self.check_deadline()?;
         match (self.phase, domain) {
             (BudgetPhase::PreparingBaseline { .. }, WorkDomain::Optional) => {
@@ -1408,6 +1419,7 @@ impl BudgetLedger {
         self.peak_memory = self
             .peak_memory
             .max(self.memory_used[0] + self.memory_used[1]);
+        if let Some(recording) = &mut self.recording { recording.retain(domain, bytes); }
         Ok(())
     }
     pub fn release(&mut self, domain: WorkDomain, bytes: u64) -> Result<(), BudgetError> {
@@ -1418,7 +1430,21 @@ impl BudgetLedger {
         self.memory_used[index] = self.memory_used[index]
             .checked_sub(bytes)
             .ok_or(BudgetError::InvalidRelease)?;
+        if let Some(recording) = &mut self.recording { recording.release(domain, bytes); }
         Ok(())
+    }
+    pub(crate) fn record_refusal(&mut self) {
+        if let Some(recording) = &mut self.recording { recording.refuse(); }
+    }
+    pub(crate) fn record_scratch_check(&mut self, domain: WorkDomain, bytes: u64) {
+        if let Some(recording) = &mut self.recording { recording.scratch(domain, bytes); }
+    }
+    pub(crate) fn begin_recording(&mut self, domain: WorkDomain) {
+        assert!(self.recording.is_none(), "formation admissions must not nest");
+        self.recording = Some(crate::admission_replay::Recording::new(domain, self.work_by_kind, self.work_used));
+    }
+    pub(crate) fn end_recording(&mut self) -> Option<crate::admission_replay::Receipt> {
+        self.recording.take().expect("active formation admission").finish(self.work_by_kind, self.work_used)
     }
     pub fn work_used(&self, domain: WorkDomain) -> u64 {
         self.work_used[if domain == WorkDomain::Baseline { 0 } else { 1 }]

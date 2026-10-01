@@ -1493,3 +1493,35 @@ peak storage 0–1,096 bytes. Tiny CPU samples support no speed claim. Two initi
 build mistakes and their fixes are retained. No full suite/fleet/ratchet/port
 rerun. Q2 remains active for shared formation, elaboration, global analysis and
 remaining dependency scheduling.
+
+
+## 2026-10-01: Q2 shared family formation
+
+Complete target assignments now occupy two deterministic candidate-owned slots,
+shared across surveys and repeated naming/output requests. Fresh permissions,
+verification and artifact admission remain required. `cache.formation_reuse=false`
+physically executes the same assignments under the same complete-stage work and
+peak-memory reservations. Recovered budget refusals disqualify capture; unwind
+releases all retained tails, heads and demand.
+
+The proposed ordered event log failed scaling: markedlil retained zero hits
+through three encodings/capacity changes and incurred extra CPU. It is removed.
+Constant-space stage receipts version the repeated-assignment refusal prefix
+instead of reproducing every cold event. This design change preserves the
+product's cache-on/off logical-admission contract without the hot-path event log.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-formation/README.md):
+pin `q2-formation-5`, SHA-256
+`0b1f138dbaba54cc46a3d96c1761b50f8335a10080bd172b1a6f938e49e0c7ae`,
+algorithm 54. Eleven core checks and 81 release checks pass; four affected checks
+also pass after removing the successful-work accounting hook. All files,
+objective scores and search decisions match algorithm 53. Control totals remain
+2,292 raw / 2,046 gzip / 1,567 Brotli. Baseline work is unchanged; optional work
+changes 0–16,440 and peaks rise 2,243–22,300 bytes. All handoff charges are zero.
+
+Three alternating markedlil raw/13 pairs preserve the same 31,882-byte artifact,
+354 judgments and full resource receipts. Physical formations fall 1,451→1,429;
+CPU medians are 55.90 seconds cold and 55.91 with reuse. This establishes no
+markedlil speed gain. Most assignments differ. No full suite/fleet or port
+distribution rerun; no ratchet updates. Global analysis/planning, remaining dirty
+dependencies, changed-unit formation and per-module elaboration keep Q2 active.

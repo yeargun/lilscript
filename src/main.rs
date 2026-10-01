@@ -243,6 +243,7 @@ fn run() -> Result<(), String> {
     if let Some(cache) = &args.cache {
         if cache == "off" {
             loaded.config.cache.normalization_reuse = false;
+            loaded.config.cache.formation_reuse = false;
             loaded.config.cache.build_reuse = false;
         }
         loaded.config.cache.codec_reuse = cache != "off";

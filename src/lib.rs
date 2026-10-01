@@ -1,4 +1,5 @@
 pub(crate) mod admission_parse;
+mod admission_replay;
 mod arena_budget;
 pub mod ast;
 pub mod ast_walk;

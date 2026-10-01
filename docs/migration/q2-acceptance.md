@@ -160,3 +160,56 @@ scratch, host wrappers, artifact file metadata and objective rows. Twenty-six
 focused checks and 54 release checks pass; all files, scores and search counts
 match. Bills rise for newly admitted work/storage. Global analysis/planning,
 shared/incremental formation and per-module elaboration remain open.
+
+Next batch: share completed family tails across naming trials and repeated
+assignments. Keep exact formation keys inside the candidate owner, bound retained
+tails, and replay the ordered cold admissions on a hit. Record bounded traces
+through the existing ledger; overflow falls back to physical execution. The
+TOML reuse veto executes the cold path with the same reservation schedule. Fresh
+permission and output checks remain required. Prediction: identical sufficiently
+funded artifacts and on/off logical limits, fewer physical tail executions, at
+the cost of bounded cache/trace storage. Qualify admission-prefix refusals,
+unwind cleanup, controls and all-objective cold/reused output after the coherent
+implementation batch; measure repeated formation before claiming a speed gain.
+
+
+**Formation admission design correction.** The ordered-event trace proposal
+above is rejected. Three markedlil probes still performed all 1,451 formations,
+with the latter two overflowing 1,441 traces and taking 70.09/70.68 CPU seconds
+versus the preceding compiler's 56.12-second sample. Single-event and repeated-
+sequence encodings added complexity and bounded-storage failures. Preserve
+this negative evidence; do not describe the trace as a completed optimization.
+
+Instead, the candidate owner deterministically retains two completed assignments
+in both physical reuse modes. A repeated assignment admits its previously
+measured complete work and peak storage as one stage before either borrowing
+its result or physically executing the same fully funded builder. The stage's
+logical refusal is independent of physical occupancy; its prefix is deliberately
+versioned rather than reproducing millions of individual ledger events. A
+recovered resource refusal disqualifies capture. This directly serves Q2's
+product contract—bounded storage, unchanged cache-on/off selection and hard
+limits—without making an event log part of the compiler's hot path. Qualify
+complete-stage refusal, physical-execution gating, unwind and all-objective
+transparency, then measure markedlil again before claiming a speed gain.
+
+
+Next analysis-owner batch: admit call/storage graphs, iterative alias resolution,
+recursive components and initialization/dominance/scheduling storage before
+allocation. Carry their ownership through source normalization and target demand,
+including invalidation, retained prior effects and failure cleanup. Replace
+allocation-heavy local maps with sorted admitted occurrence tables where their
+queries permit it. Then complete the effect-summary, class/range/aggregate/value
+and rule-planning owners through that same interface. Cache vetoes must preserve
+logical admission; do not instrument only the physically executed reuse branch.
+Prediction: funded output stays unchanged, the bill includes previously omitted
+storage/work, and long alias chains no longer consume recursive Rust stack.
+Qualify complete producers/consumers in coherent groups; no broad library rerun.
+
+
+The [shared formation batch](../../benchmarks/migration-results/2026-10-01-q2-formation/README.md)
+qualifies that stage design: eleven core checks and 81 release checks pass;
+all control files and independent-objective scores match the preceding compiler.
+Markedlil avoids 22 of 1,451 formations, but its paired CPU medians are unchanged.
+The event-log design and its negative results are retained as rejected evidence.
+This closes repeated complete assignments, not changed-unit formation,
+per-module elaboration or the outstanding analysis/planning owners.

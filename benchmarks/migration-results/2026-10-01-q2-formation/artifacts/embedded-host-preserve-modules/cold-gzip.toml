@@ -1,0 +1,13 @@
+[delivery]
+mode='preserve-modules'
+host_modules='embed'
+entry_names='entry/[name]-[hash:12].[ext]'
+module_names='modules/[path]-[hash:12].[ext]'
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13
+[cache]
+formation_reuse=false

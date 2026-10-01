@@ -1,0 +1,7 @@
+
+running 3 tests
+test admission_replay::tests::q2_ordered_replay_matches_every_work_and_memory_refusal_prefix ... ok
+test admission_replay::tests::q2_overflow_refuses_reuse_and_unwind_removes_the_recording_owner ... ok
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2040 filtered out; finished in 23.71s

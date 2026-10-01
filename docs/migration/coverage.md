@@ -37,7 +37,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M5.3a | [Q2](plan.md#q2) | Local source revisions, SCC effect invalidation/dirty propagation and three target stable-proof consumers implemented; remaining global rule dependencies stay open |
 | M5.3b | [S4](plan.md#s4), complete | Replaced proofs removed; retained generated-storage normalization classified in the [owner audit](s4-target-facts.md) |
 | M5.6 | [Q2](plan.md#q2) | Resource accounting (counts); complete retained target copies and proof payload lifetimes admitted, delivery planning and source arena edits now admitted; rendered bundle metadata admitted; global analysis/planning owners remain |
-| M5.7 | [Q2](plan.md#q2) | Incremental tail |
+| M5.7 | [Q2](plan.md#q2) | Repeated complete family tails shared; changed-unit formation remains |
 | M6.1 | [S4](plan.md#s4), complete | Common target call/use and operation owners; local substitution obligations retained |
 | M6.2 | [S4](plan.md#s4), complete | Duplicate operation-effect proofs removed; source stamps and conservative physical transfer shared |
 | M6.3 | [S1](plan.md#s1), implementation complete | The `pure` contract. Computed, not consumed |

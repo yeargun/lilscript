@@ -738,6 +738,9 @@ pub struct CacheConfig {
     /// Reuse stable local normalization proofs (default true). False audits
     /// physical rule execution with the same logical work and admission.
     pub normalization_reuse: bool,
+    /// Reuse completed family tails inside a candidate (default true). False
+    /// executes the same cold formation with identical ordered admission.
+    pub formation_reuse: bool,
     /// Reuse exact-byte codec receipts across artifacts (default true). False
     /// encodes each newly scored artifact for reproducibility audits; logical work and
     /// cache-table admission stay the same, so it buys no extra search.
@@ -755,6 +758,7 @@ impl Default for CacheConfig {
         Self {
             build_reuse: true,
             normalization_reuse: true,
+            formation_reuse: true,
             codec_reuse: true,
             directory: None,
         }

@@ -1,0 +1,96 @@
+{
+  "version": 3,
+  "codec": "raw",
+  "outputs": [
+    {
+      "mode": "split",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "a",
+          "file": "entry/a-2c88dbefbbff.js",
+          "dynamic": false,
+          "closure": [
+            "chunks/core-0-c1f1b5281e15.js",
+            "entry/a-2c88dbefbbff.js"
+          ],
+          "row": 234,
+          "raw_row": 234
+        },
+        {
+          "name": "b",
+          "file": "entry/b-3a2fe07d05c1.js",
+          "dynamic": false,
+          "closure": [
+            "chunks/core-0-c1f1b5281e15.js",
+            "entry/b-3a2fe07d05c1.js"
+          ],
+          "row": 224,
+          "raw_row": 224
+        }
+      ],
+      "files": [
+        {
+          "file": "entry/a-2c88dbefbbff.js",
+          "role": "entry",
+          "label": [
+            "a"
+          ],
+          "modules": [
+            "a.lil"
+          ],
+          "anchored": false,
+          "imports": [
+            "chunks/core-0-c1f1b5281e15.js"
+          ],
+          "dynamic_imports": [],
+          "bytes": 130,
+          "codec_bytes": 130,
+          "sha256": "1104e76a5aebca12cd030b81f732a449272641b3ba184e5dad8ad9d993a4a01e"
+        },
+        {
+          "file": "entry/b-3a2fe07d05c1.js",
+          "role": "entry",
+          "label": [
+            "b"
+          ],
+          "modules": [
+            "b.lil"
+          ],
+          "anchored": true,
+          "imports": [
+            "chunks/core-0-c1f1b5281e15.js"
+          ],
+          "dynamic_imports": [],
+          "bytes": 120,
+          "codec_bytes": 120,
+          "sha256": "728cac1c7c753b1c35e5f7aa2ba2412e8c0d6a4e81bd84914af1982436fe91e3"
+        },
+        {
+          "file": "chunks/core-0-c1f1b5281e15.js",
+          "role": "shared",
+          "label": [
+            "a",
+            "b"
+          ],
+          "modules": [
+            "core.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 104,
+          "codec_bytes": 104,
+          "sha256": "e28325f9c141dbae8f51589744046d338e76bb4439a02ddc1ce278a2cab653ae"
+        }
+      ],
+      "side_effects": [
+        "entry/b-3a2fe07d05c1.js",
+        "chunks/core-0-c1f1b5281e15.js"
+      ],
+      "codec_total": 354,
+      "rows_total": 458,
+      "setters": 0
+    }
+  ]
+}

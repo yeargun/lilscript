@@ -37,7 +37,8 @@ impl Request {
             return Ok(None);
         }
         // A physical audit must really execute the requested proofs/encoders.
-        if !config.cache.normalization_reuse
+        if !config.cache.formation_reuse
+            || !config.cache.normalization_reuse
             || !config.cache.codec_reuse
             || !crate::schedule::reuses_stability()
             || std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some()

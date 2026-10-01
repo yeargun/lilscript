@@ -233,6 +233,27 @@ fn q2_normalization_reuse_preserves_logical_search_and_objective_bytes() {
 }
 
 #[test]
+fn q2_formation_reuse_preserves_each_objectives_admission_and_bytes() {
+    for codec in ["raw", "gzip", "brotli"] {
+        let enabled = policy(codec, 13);
+        let disabled = enabled.clone().with_cache(crate::config::CacheConfig {
+            formation_reuse: false, ..Default::default()
+        });
+        let objective = Objectives::One(enabled.objective().unwrap().codec);
+        let before = crate::program::search_target_reuse_tests::formed_for_test();
+        let on = search(&enabled, objective, true);
+        let middle = crate::program::search_target_reuse_tests::formed_for_test();
+        let off = search(&disabled, objective, true);
+        let after = crate::program::search_target_reuse_tests::formed_for_test();
+        assert_eq!(on.logical_work, off.logical_work, "{codec}");
+        assert_eq!(on.scored, off.scored, "{codec}");
+        assert_eq!(on.winners, off.winners, "{codec}");
+        assert_eq!(on.report, off.report, "{codec}");
+        assert!(middle - before < after - middle, "fixture must reuse a formed tail: {codec}");
+    }
+}
+
+#[test]
 fn q2_configured_codec_cache_preserves_each_objectives_search_and_bytes() {
     let directory = std::env::temp_dir().join(format!("lilscript-q2-cache-search-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&directory);
@@ -240,10 +261,10 @@ fn q2_configured_codec_cache_preserves_each_objectives_search_and_bytes() {
         let policy = policy(codec, 13);
         let objective = Objectives::One(policy.objective().unwrap().codec);
         let enabled = policy.clone().with_cache(crate::config::CacheConfig {
-            build_reuse: true, normalization_reuse: true, codec_reuse: true, directory: Some(directory.clone()),
+            build_reuse: true, normalization_reuse: true, formation_reuse: true, codec_reuse: true, directory: Some(directory.clone()),
         });
         let disabled = policy.with_cache(crate::config::CacheConfig {
-            build_reuse: true, normalization_reuse: true, codec_reuse: false, directory: Some(directory.clone()),
+            build_reuse: true, normalization_reuse: true, formation_reuse: true, codec_reuse: false, directory: Some(directory.clone()),
         });
         let cold = search(&enabled, objective, true);
         let warm = search(&enabled, objective, true);
@@ -479,7 +500,7 @@ fn every_effort_level_starts_from_the_same_baseline_and_ends_at_most_there() {
 /// the winner's exact bytes, so a challenger differs only by its family.
 #[test]
 fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
-    for (codec, objective) in [("brotli", Objective::Brotli), ("raw", Objective::Raw)] {
+    for (codec, objective) in [("brotli", Objective::Brotli), ("raw", Objective::Raw), ("gzip", Objective::Gzip)] {
         let policy = policy(codec, 15);
         let arena = bumpalo::Bump::new();
         let syntax = crate::parse_source(&arena, PROGRAM).unwrap();
@@ -529,20 +550,44 @@ fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
                     output.families.head(),
                     WorkDomain::Optional,
                     |formations| {
-                        formations.form(output.clone(), |target| {
-                            let staged = target.render_bounded_with_literals(
-                                &plan,
-                                output.literals,
-                                usize::MAX,
-                            )?;
-                            target.take_artifact(staged)
-                        })
+                        let before = crate::program::search_target_reuse_tests::formed_for_test();
+                        let mut result = None;
+                        for _ in 0..3 {
+                            let formed = formations.form(output.clone(), |target| {
+                                let staged = target.render_bounded_with_literals(
+                                    &plan, output.literals, usize::MAX,
+                                )?;
+                                target.take_artifact(staged)
+                            })??;
+                            if let Some(previous) = &result { assert_eq!(previous, &formed); }
+                            result = Some(formed);
+                        }
+                        assert_eq!(crate::program::search_target_reuse_tests::formed_for_test() - before, 1,
+                            "three identical assignments must normalize once: {codec}");
+                        Ok::<_, CandidateError>(result.unwrap())
                     },
                 )
                 .unwrap()
-                .unwrap()
                 .unwrap();
             assert_eq!(formed, winner, "{codec}");
+            if codec == "raw" {
+                let retained = search.compilation.ledger().retained_bytes();
+                let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let _ = search.compilation.with_javascript_formations_in(
+                        candidate, &policy, output.dead_code_elimination,
+                        output.target_compaction, output.rules, output.families.head(),
+                        WorkDomain::Optional,
+                        |formations| {
+                            formations.form(output.clone(), |_| ()).unwrap();
+                            formations.form(output.clone(), |_| panic!("cached formation observer")).unwrap();
+                        },
+                    );
+                }));
+                assert!(panic.is_err());
+                assert_eq!(search.compilation.ledger().retained_bytes(), retained,
+                    "cached tail, trace, head and demand must release after unwind");
+            }
+
         }
         assert_eq!(compilation.finish().retained_bytes(), 0);
     }

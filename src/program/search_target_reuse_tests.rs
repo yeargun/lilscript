@@ -164,6 +164,8 @@ fn with_source<R>(
     result
 }
 
+pub(super) fn formed_for_test() -> usize { TARGET_ACTIVITY.with(Cell::get).1 }
+
 fn counts() -> (usize, usize) {
     assert_eq!(TARGET_ACTIVITY.with(Cell::get).0, 0);
     assert_eq!(prepared_output_activity_for_test().0, 0);
@@ -452,7 +454,8 @@ fn public_service_transfers_winners_without_reforming_targets() {
     .unwrap();
     // Each independent objective forms its baseline, drops that target before
     // the common seal, then forms its optional naming continuation. Each walk
-    // move forms its own target from a shared head; handoff still forms none.
+    // move prepares its own naming basis; repeated assignments borrow a formed
+    // tail. Handoff still forms none.
     let stages = output.report()["search"]["terminal"]["objectives"]
         .as_array()
         .unwrap();
@@ -466,11 +469,9 @@ fn public_service_transfers_winners_without_reforming_targets() {
         })
         .sum();
     let after = counts();
-    assert_eq!(
-        (after.0 - before.0, after.1 - before.1),
-        (6 + moves, 6 + moves),
-        "{stages:?}"
-    );
+    assert_eq!(after.1 - before.1, 6 + moves, "{stages:?}");
+    assert!(after.0 - before.0 < after.1 - before.1,
+        "repeated output assignments must share physical targets: {stages:?}");
     for (codec, stage) in CODECS.into_iter().zip(stages) {
         assert_eq!(stage["codec"], format!("{codec:?}").to_lowercase());
         let artifact = output.javascript(codec).unwrap();

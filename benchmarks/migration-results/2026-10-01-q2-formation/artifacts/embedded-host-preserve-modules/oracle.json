@@ -1,0 +1,5 @@
+{
+  "setup": "",
+  "exercise": "const main=await load(\"main\");console.log(main.answer());",
+  "expected": "42"
+}

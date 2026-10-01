@@ -1,0 +1,10 @@
+[delivery]
+mode='single'
+[optimization]
+preset='maximum'
+[objective]
+codecs='raw'
+[effort]
+level=13
+[cache]
+formation_reuse=false

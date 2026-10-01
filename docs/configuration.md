@@ -1142,6 +1142,7 @@ lilscript-fmt src --check
 [cache]
 build_reuse = true
 normalization_reuse = true
+formation_reuse = true
 codec_reuse = true
 # directory = ".lilscript/cache"
 ```
@@ -1159,9 +1160,35 @@ The cache stores detached artifacts, not live checked programs. The checked
 session/callback APIs always execute their frontend. This cache does not reuse
 individual modules after a graph changes. Whole-build hits are also disabled
 when explicit decision-lock reading/writing is configured, when either
-`normalization_reuse` or `codec_reuse` is false, when a physical
+`normalization_reuse`, `formation_reuse` or `codec_reuse` is false, when a physical
 verification audit is active, or when the policy sets a wall-clock deadline.
 Set `build_reuse=false` to audit compilation while keeping codec reuse.
+
+`cache.formation_reuse` defaults to `true`. During one candidate's terminal
+search, two bounded slots keep completed target family assignments, including
+their delivery plans. Naming and literal trials can borrow an unchanged tree;
+surveys and subsequent renders share its normalization. Different site/family
+assignments miss, and changing candidate, contract or host inputs ends the cache.
+The output still checks current permissions, verification, naming and artifact
+admission. This cache has no disk files and grants no extra search work.
+
+The first fully funded formation measures work by kind, temporary peak storage
+and surviving backing. A repeated assignment is one admission stage: charge
+that work and reserve its complete peak before either borrowing the tree or
+executing the same builder. Temporary capacity releases when the stage ends.
+A recovered budget refusal cannot certify a reusable stage, because it might
+have selected a resource-dependent fallback. Receipt storage is constant size;
+there is no event log, disk persistence or effort gate.
+
+At most two target tails cost additional bounded memory, and keeping a large
+tree may end optional search earlier under a tight memory ceiling. The mandatory
+incumbent stays protected. Small or rarely repeated assignments may gain nothing.
+Set `formation_reuse=false` to execute every formation for an audit. It keeps
+the same deterministic slots and complete admission stages, so this physical
+switch cannot change logical admission or buy more candidates. Both modes
+reject an insufficient repeated stage before physical execution; its refusal
+prefix is intentionally different from the older compiler's incremental cold
+execution. Policy algorithm 54 versions this accounting change.
 
 ## Saved search decisions
 
@@ -1301,7 +1328,7 @@ dependent on elapsed time. Report fields `codec_cache.memory_hits`,
 `--cache DIR` enables persistent codec reuse at that directory and allows build
 reuse when `build_reuse` remains true; relative CLI paths start in the current
 working directory. It preserves explicit `build_reuse=false` and
-`normalization_reuse=false`. `--cache off` disables build, codec and normalization
+`normalization_reuse=false`. `--cache off` disables build, codec, formation and normalization
 reuse and disk access. Explicit CLI settings override their TOML counterparts. `--print-policy` reports the effective
 settings under execution/resolution, outside the semantic fingerprint. Unknown
 keys, non-boolean reuse flags and an empty directory are errors. Per-module

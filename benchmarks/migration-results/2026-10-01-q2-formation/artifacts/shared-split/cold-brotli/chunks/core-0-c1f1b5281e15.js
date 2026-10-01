@@ -1,0 +1,1 @@
+let bump=function(){a=a+1|0},read=function(){return a},a=0;console.log("core loaded");export{bump,read};

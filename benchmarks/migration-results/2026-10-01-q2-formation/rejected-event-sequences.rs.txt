@@ -1,0 +1,446 @@
+//! Ordered cold admissions for bounded physical compiler reuse.
+//! Recording never allocates: the caller admits its exact word capacity.
+//! Packed words and repeated literal sequences preserve every individual boundary;
+//! an incomplete trace never grants permission to skip physical execution.
+use crate::compilation_policy::{BudgetError, BudgetLedger, WorkDomain, WorkKind};
+
+const SHIFT: u32 = 61;
+const PAYLOAD: u64 = (1 << SHIFT) - 1;
+const EXTENDED: u64 = 6 << SHIFT;
+const REPEAT: u64 = 7 << SHIFT;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Event {
+    Work(WorkKind, u64),
+    Retain(u64),
+    Release(u64),
+}
+impl Event {
+    pub(crate) fn work(kind: WorkKind, units: u64) -> Self {
+        Self::Work(kind, units)
+    }
+    fn parts(self) -> (u64, u64) {
+        match self {
+            Self::Work(kind, units) => (kind as u64, units),
+            Self::Retain(bytes) => (4, bytes),
+            Self::Release(bytes) => (5, bytes),
+        }
+    }
+    fn from_parts(tag: u64, value: u64) -> Self {
+        match tag {
+            0 => Self::Work(WorkKind::Analysis, value),
+            1 => Self::Work(WorkKind::Edit, value),
+            2 => Self::Work(WorkKind::Render, value),
+            3 => Self::Work(WorkKind::Codec, value),
+            4 => Self::Retain(value),
+            5 => Self::Release(value),
+            _ => unreachable!("private admission word tag"),
+        }
+    }
+    fn apply(
+        self,
+        ledger: &mut BudgetLedger,
+        domain: WorkDomain,
+        live: &mut u64,
+    ) -> Result<(), BudgetError> {
+        match self {
+            Self::Work(kind, units) => ledger.charge(domain, kind, units),
+            Self::Retain(bytes) => ledger.retain(domain, bytes).map(|()| *live += bytes),
+            Self::Release(bytes) => ledger.release(domain, bytes).map(|()| *live -= bytes),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Refusal {
+    Capacity,
+    Ownership,
+}
+
+/// A run refers only to a preceding, contiguous sequence of literal words.
+/// Partial repetitions stay implicit until a mismatch or end of capture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Run {
+    start: usize,
+    length: usize,
+    matched: usize,
+    command: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Recording {
+    words: Vec<u64>,
+    domain: WorkDomain,
+    refusal: Option<Refusal>,
+    live: u64,
+    recent: [u32; 64],
+    literals: usize,
+    run: Option<Run>,
+}
+impl Recording {
+    pub(crate) fn new(words: Vec<u64>, domain: WorkDomain) -> Self {
+        Self {
+            words,
+            domain,
+            refusal: None,
+            live: 0,
+            recent: [u32::MAX; 64],
+            literals: 0,
+            run: None,
+        }
+    }
+    pub(crate) fn record(&mut self, domain: WorkDomain, event: Event) {
+        // Empty scope destruction releases both allocation classes. A zero
+        // release cannot fail, checks neither phase nor deadline, and changes
+        // no ledger field. Keeping it would split long identical work runs
+        // and make trace storage grow with every empty lexical scope.
+        // Zero work/retain admissions DO check limits and must remain.
+        if self.refusal.is_some() || event == Event::Release(0) {
+            return;
+        }
+        if domain != self.domain {
+            self.refusal = Some(Refusal::Ownership);
+            return;
+        }
+        let live = match event {
+            Event::Retain(bytes) => self.live.checked_add(bytes),
+            Event::Release(bytes) => self.live.checked_sub(bytes),
+            Event::Work(..) => Some(self.live),
+        };
+        let Some(live) = live else {
+            self.refusal = Some(Refusal::Ownership);
+            return;
+        };
+        self.live = live;
+        let (tag, value) = event.parts();
+        if value <= PAYLOAD {
+            self.word((tag << SHIFT) | value);
+        } else {
+            self.flush_run();
+            if self.space(2) {
+                self.words.extend([EXTENDED | tag, value]);
+                self.literals = self.words.len();
+            }
+        }
+    }
+    fn space(&mut self, count: usize) -> bool {
+        if self.refusal.is_none() && self.words.capacity() - self.words.len() >= count {
+            true
+        } else {
+            self.refusal.get_or_insert(Refusal::Capacity);
+            false
+        }
+    }
+    fn hash(word: u64) -> usize {
+        ((word ^ (word >> SHIFT)).wrapping_mul(0x9e3779b97f4a7c15) >> 58) as usize
+    }
+    fn literal(&mut self, word: u64) {
+        if self.space(1) {
+            self.recent[Self::hash(word)] = self.words.len() as u32;
+            self.words.push(word);
+        }
+    }
+    fn word(&mut self, word: u64) {
+        if let Some(run) = self.run {
+            if self.words[run.start + run.matched] == word {
+                let matched = run.matched + 1;
+                if matched != run.length {
+                    self.run.as_mut().unwrap().matched = matched;
+                    return;
+                }
+                let command = match run.command {
+                    Some(command) if (self.words[command] & PAYLOAD) >> 6 != PAYLOAD >> 6 => {
+                        command
+                    }
+                    None if self.space(1) => {
+                        let command = self.words.len();
+                        self.words.push(REPEAT | (run.length as u64 - 1));
+                        self.literals = self.words.len();
+                        command
+                    }
+                    _ => {
+                        self.refusal = Some(Refusal::Capacity);
+                        return;
+                    }
+                };
+                self.words[command] += 1 << 6;
+                self.run = Some(Run {
+                    matched: 0,
+                    command: Some(command),
+                    ..run
+                });
+                return;
+            }
+            self.flush_run();
+        }
+        let start = self.recent[Self::hash(word)] as usize;
+        if start >= self.literals
+            && start < self.words.len()
+            && self.words.len() - start <= 64
+            && self.words[start] == word
+        {
+            self.run = Some(Run {
+                start,
+                length: self.words.len() - start,
+                matched: 0,
+                command: None,
+            });
+            self.word(word);
+        } else {
+            self.literal(word);
+        }
+    }
+    fn flush_run(&mut self) {
+        if let Some(run) = self.run.take() {
+            for index in 0..run.matched {
+                self.literal(self.words[run.start + index]);
+            }
+        }
+    }
+    pub(crate) fn finish(mut self) -> Result<Trace, Vec<u64>> {
+        if self.refusal.is_none() {
+            self.flush_run();
+        }
+        match self.refusal {
+            None => Ok(Trace {
+                words: self.words,
+                live: self.live,
+            }),
+            Some(reason) => {
+                let _timing = match reason {
+                    Refusal::Capacity => {
+                        crate::timing::FORMATION_TRACE_OVERFLOW.scope(self.words.capacity() * 8)
+                    }
+                    Refusal::Ownership => crate::timing::FORMATION_TRACE_OWNERSHIP.scope(0),
+                };
+                Err(self.words)
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Trace {
+    words: Vec<u64>,
+    live: u64,
+}
+impl Trace {
+    pub(crate) fn heap_bytes(&self) -> u64 {
+        (self.words.capacity() * 8) as u64
+    }
+    pub(crate) fn live_bytes(&self) -> u64 {
+        self.live
+    }
+    pub(crate) fn replay(
+        &self,
+        ledger: &mut BudgetLedger,
+        domain: WorkDomain,
+    ) -> Result<(), BudgetError> {
+        let mut live = 0u64;
+        let mut cursor = 0;
+        let result = (|| {
+            while cursor < self.words.len() {
+                let word = self.words[cursor];
+                let tag = word >> SHIFT;
+                let payload = word & PAYLOAD;
+                cursor += 1;
+                match tag {
+                    7 => {
+                        let count = payload >> 6;
+                        let start = cursor - 1 - ((payload & 63) as usize + 1);
+                        for _ in 0..count {
+                            for &word in &self.words[start..cursor - 1] {
+                                Event::from_parts(word >> SHIFT, word & PAYLOAD)
+                                    .apply(ledger, domain, &mut live)?;
+                            }
+                        }
+                    }
+                    6 => {
+                        let value = self.words[cursor];
+                        cursor += 1;
+                        Event::from_parts(payload, value).apply(ledger, domain, &mut live)?;
+                    }
+                    _ => Event::from_parts(tag, payload).apply(ledger, domain, &mut live)?,
+                }
+            }
+            Ok(())
+        })();
+        if let Err(error) = result {
+            ledger.release(domain, live)?;
+            return Err(error);
+        }
+        debug_assert_eq!(live, self.live);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compilation_policy::{BudgetPlan, ResourceLimits};
+    use crate::output_budget::{
+        AllocationBudget,
+        AllocationClass::{Retained, Scratch},
+        AllocationError,
+    };
+
+    fn ledger(work: u64, memory: u64) -> BudgetLedger {
+        BudgetLedger::new(
+            ResourceLimits::default(),
+            BudgetPlan {
+                baseline_work: 0,
+                optional_work: work,
+                baseline_retained_bytes: 0,
+                retained_bytes: memory,
+            },
+        )
+        .unwrap()
+    }
+    fn build(budget: &mut AllocationBudget<'_>) -> Result<Vec<u8>, AllocationError> {
+        let mut result = budget.copy_slice(Retained, &[1u8; 10])?;
+        for _ in 0..7 {
+            budget.work(WorkKind::Analysis, 3)?;
+            // Destruction of empty nested scopes must not interrupt a run,
+            // while every work boundary still has its original refusal point.
+            drop(budget.scope());
+        }
+        {
+            let mut phase = budget.scope();
+            let scratch = phase.filled(Scratch, 20, 7u16)?;
+            phase.work(WorkKind::Edit, 7)?;
+            drop(scratch);
+        }
+        budget.extend_copy(Retained, &mut result, &[2u8; 25])?;
+        budget.work(WorkKind::Render, 0)?;
+        Ok(result)
+    }
+
+    #[test]
+    fn q2_ordered_replay_matches_every_work_and_memory_refusal_prefix() {
+        let mut owner = ledger(1_000_000, 1_000_000);
+        let mut storage = AllocationBudget::new(Some((&mut owner, WorkDomain::Optional)));
+        let (value, trace) = storage.record(128, build).unwrap();
+        let trace = trace.unwrap();
+        assert_eq!(trace.live_bytes(), value.capacity() as u64);
+        for work in (0..180).chain([1_000_000]) {
+            for memory in [0, 9, 10, 34, 35, 39, 40, 49, 50, 64, 1000] {
+                let run = |reused| {
+                    let mut bill = ledger(work, memory);
+                    let outcome = {
+                        let mut budget =
+                            AllocationBudget::new(Some((&mut bill, WorkDomain::Optional)));
+                        if reused {
+                            budget.replay(&trace)
+                        } else {
+                            build(&mut budget).map(drop)
+                        }
+                    };
+                    (
+                        outcome,
+                        bill.work_used(WorkDomain::Optional),
+                        [
+                            WorkKind::Analysis,
+                            WorkKind::Edit,
+                            WorkKind::Render,
+                            WorkKind::Codec,
+                        ]
+                        .map(|kind| bill.work_by_kind(kind)),
+                        bill.peak_retained_bytes(),
+                        bill.retained_bytes(),
+                    )
+                };
+                assert_eq!(run(true), run(false), "work={work} memory={memory}");
+            }
+        }
+        drop((value, trace));
+        drop(storage);
+        assert_eq!(owner.retained_bytes(), 0);
+    }
+
+    #[test]
+    fn q2_overflow_refuses_reuse_and_unwind_removes_the_recording_owner() {
+        let mut owner = ledger(1_000_000, 1_000_000);
+        {
+            let mut storage = AllocationBudget::new(Some((&mut owner, WorkDomain::Optional)));
+            let (value, trace) = storage.record(1, build).unwrap();
+            assert!(trace.is_none());
+            let bytes = value.capacity() as u64;
+            assert_eq!(storage.retained_bytes(Retained), bytes);
+            drop(value);
+            storage.release(Retained, bytes).unwrap();
+            let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let _: Result<((), _), AllocationError> = storage.record(32, |budget| {
+                    let mut phase = budget.scope();
+                    let _value = phase.copy_slice(Retained, &[4u64; 10])?;
+                    panic!("recorded builder unwind");
+                });
+            }));
+            assert!(panic.is_err());
+            assert_eq!(storage.retained_bytes(Retained), 0);
+            let (value, trace) = storage.record(128, build).unwrap();
+            assert!(trace.is_some(), "unwind must end the previous recording");
+            drop((value, trace));
+        }
+        assert_eq!(owner.retained_bytes(), 0);
+    }
+
+    #[test]
+    fn q2_pattern_replay_preserves_mismatches_partial_runs_and_large_admissions() {
+        let domain = WorkDomain::Optional;
+        let pattern = [
+            Event::Work(WorkKind::Analysis, 2),
+            Event::Retain(3),
+            Event::Work(WorkKind::Edit, 1),
+            Event::Release(3),
+        ];
+        let events: Vec<_> = pattern
+            .into_iter()
+            .cycle()
+            .take(101)
+            .chain([Event::Work(WorkKind::Render, 7)])
+            .chain(pattern.into_iter().cycle().take(9))
+            .chain([Event::Work(WorkKind::Codec, PAYLOAD + 1)])
+            .collect();
+        let mut recording = Recording::new(Vec::with_capacity(32), domain);
+        for &event in &events {
+            recording.record(domain, event);
+        }
+        let trace = recording
+            .finish()
+            .expect("repeated sequences fit the fixed capacity");
+        assert!(trace.words.len() < events.len() / 4);
+        for work in (0..110).chain([u64::MAX]) {
+            for memory in [0, 2, 3, 8] {
+                let run = |reuse| {
+                    let mut bill = ledger(work, memory);
+                    let result = if reuse {
+                        trace.replay(&mut bill, domain)
+                    } else {
+                        let mut live = 0;
+                        let result = events
+                            .iter()
+                            .try_for_each(|event| event.apply(&mut bill, domain, &mut live));
+                        if result.is_err() {
+                            bill.release(domain, live).unwrap();
+                        }
+                        result
+                    };
+                    (
+                        result,
+                        bill.work_used(domain),
+                        bill.peak_retained_bytes(),
+                        bill.retained_bytes(),
+                        [
+                            WorkKind::Analysis,
+                            WorkKind::Edit,
+                            WorkKind::Render,
+                            WorkKind::Codec,
+                        ]
+                        .map(|kind| bill.work_by_kind(kind)),
+                    )
+                };
+                assert_eq!(run(true), run(false), "work={work} memory={memory}");
+            }
+        }
+    }
+}

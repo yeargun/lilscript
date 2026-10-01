@@ -1,0 +1,5 @@
+{
+  "setup": "",
+  "exercise": "await load(\"a\");await new Promise(r=>setTimeout(r,20));await load(\"b\");await new Promise(r=>setTimeout(r,20));",
+  "expected": "42\n42"
+}

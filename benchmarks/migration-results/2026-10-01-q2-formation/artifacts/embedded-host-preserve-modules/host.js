@@ -1,0 +1,1 @@
+import {sum} from "./math.js";export function add(left,right){return sum(left,right)}

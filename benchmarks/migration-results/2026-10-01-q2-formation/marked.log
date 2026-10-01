@@ -1,0 +1,21 @@
+raw/13 after/1 55.92s 1429 forms 22 reused 0 uncacheable-admissions
+raw/13 cold/1 55.900000000000006s 1451 forms 0 reused 0 uncacheable-admissions
+raw/13 cold/2 55.77s 1451 forms 0 reused 0 uncacheable-admissions
+raw/13 after/2 55.910000000000004s 1429 forms 22 reused 0 uncacheable-admissions
+raw/13 after/3 55.28s 1429 forms 22 reused 0 uncacheable-admissions
+raw/13 cold/3 56.07s 1451 forms 0 reused 0 uncacheable-admissions
+[
+  {
+    "codec": "raw",
+    "level": 13,
+    "median": {
+      "after": 55.910000000000004,
+      "cold": 55.900000000000006
+    },
+    "physical_forms": {
+      "cold": 1451,
+      "reused": 1429,
+      "hits": 22
+    }
+  }
+]
