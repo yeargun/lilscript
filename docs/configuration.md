@@ -1266,8 +1266,10 @@ encodes. This distinguishes saved logical work from physical work performed now.
 
 `cache.normalization_reuse` defaults to `true`. Source return normalization and
 unreachable-code removal reuse answers only for the same immutable body revision
-(and the same created-body status). Edited and new bodies are revisited in their
-original order. Source effects retain one previous analysis per sealing during
+(and the same created-body status). Each completed empty plan records its work
+and peak storage; a repeated proof admits the same stage before either reusing
+it or executing it with reuse disabled. Edited and new bodies are revisited in
+their original order. Source effects retain one previous analysis per sealing during
 normalization: an entire recursive call group can be reused only with matching
 body/table revisions, resolved storage and calls, callee signatures/summaries and
 initialization answers. Changed callee effects invalidate callers; a changed
@@ -1282,15 +1284,13 @@ its dependency and admission metadata; a cache veto therefore does not lower
 memory requirements. Source normalization releases current and previous views
 before publication. JavaScript demand owns its graph, effects and ranges until
 the candidate's formation ends. Range propagation keeps live flow states and
-does not materialize unused per-operation state history. These analysis costs
-are counted from policy algorithm 55; very tight limits can refuse work that
-older compilers did not account for. Algorithm 56 additionally admits primitive
-classes, aggregate origins, activation/default transport and forwarding/dead-code
-plans. Temporary plans release before publication, including refused attempts.
-These costs use the existing resource limits; there is no flag that bypasses
-mandatory admission. Algorithm 57 extends that ownership through folding,
-signature coupling, inline legality and closure/graft remaps, including rejected
-plans. Analysis choices and source semantics are unchanged.
+does not materialize unused per-operation state history. The allocation owner also covers primitive classes, aggregate origins,
+activation/default transport, exact values and all source rewrite planners.
+Rejected plans release their temporary storage. Local facts include their
+initializer and dominance scratch in the reserved workspace. Computed exact
+payloads retain conservative cumulative bounds until their consumer finishes.
+These costs use the existing resource limits; no flag bypasses mandatory
+admission. Tight limits can refuse costs older compilers did not count.
 
 Target literal folding and undefined/unreachable cleanup reuse stable answers
 only while their complete node/region/function/table dependencies remain

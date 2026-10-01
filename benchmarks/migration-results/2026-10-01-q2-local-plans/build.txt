@@ -1,0 +1,4 @@
+CARGO_BUILD_JOBS=1 cargo test --lib --no-run
+warning: `lilscript` (lib test) generated 65 warnings (run `cargo fix --lib -p lilscript --tests` to apply 46 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 36s
+  Executable unittests src/lib.rs (target/debug/deps/lilscript-7ffa315b6261c9c4)

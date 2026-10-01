@@ -1,6 +1,6 @@
-//! Local normalizers depend only on a unit's immutable body revision. Global
-//! facts still invalidate through ProgramViews; a body-only proof cannot serve
-//! a consumer of call, capture, cell or interface facts.
+//! Stable local proofs depend on an immutable body revision and, for
+//! reachability, whether a live closure creates it. Repeated proofs admit the
+//! same complete stage with physical reuse enabled or disabled.
 use super::*;
 use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
 
@@ -9,10 +9,15 @@ pub(super) enum LocalRule {
     Returns,
     Unreachable,
 }
+#[derive(Clone, Copy)]
+struct Stable {
+    revision: RevisionId,
+    created: bool,
+    admission: Option<crate::admission_replay::Receipt>,
+}
 
 pub(super) struct DirtyUnits {
-    seen: Vec<[Option<(RevisionId, bool)>; 2]>,
-    dirty: Vec<bool>,
+    seen: Vec<[Option<Stable>; 2]>,
     enabled: bool,
 }
 
@@ -20,51 +25,67 @@ impl DirtyUnits {
     pub(super) fn new(enabled: bool) -> Self {
         Self {
             seen: Vec::new(),
-            dirty: Vec::new(),
             enabled,
         }
     }
-
     pub(super) fn release(self, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {
-        super::storage::release_vec(self.seen, Scratch, budget)?;
-        super::storage::release_vec(self.dirty, Scratch, budget)
+        super::storage::release_vec(self.seen, Scratch, budget)
     }
-
-    pub(super) fn select(
+    pub(super) fn prepare(
         &mut self,
-        program: &Program<'_>,
-        rule: LocalRule,
-        created: Option<&[bool]>,
-        receipt: &mut RuleReceipt,
+        count: usize,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<&[bool], AllocationError> {
-        let count = program.units.len();
+    ) -> Result<(), AllocationError> {
         if count > self.seen.len() {
             let added = count - self.seen.len();
             budget.reserve_vec(Scratch, &mut self.seen, added)?;
-            budget.reserve_vec(Scratch, &mut self.dirty, added)?;
             self.seen.resize(count, [None; 2]);
-            self.dirty.resize(count, true);
         }
-        // Both modes use the same table admission and logical bookkeeping.
-        budget.work(crate::compilation_policy::WorkKind::Analysis, count as u64)?;
-        for (index, unit) in program.units.iter().enumerate() {
-            let previous = &mut self.seen[index][rule as usize];
-            let key = (
-                unit.revision(),
-                created.is_none_or(|created| created[index]),
-            );
-            let dirty = !self.enabled || *previous != Some(key);
-            self.dirty[index] = dirty;
-            if dirty {
-                receipt.local_units_visited += 1;
-            } else {
-                receipt.local_units_reused += 1;
-            }
-            // Record the input. If this rule edits it, commit gives the unit a
-            // new revision and the next round visits it again.
-            *previous = Some(key);
+        Ok(())
+    }
+    pub(super) fn plan<T: Default>(
+        &mut self,
+        program: &Program<'_>,
+        unit: UnitId,
+        rule: LocalRule,
+        created: bool,
+        receipt: &mut RuleReceipt,
+        budget: &mut AllocationBudget<'_>,
+        build: impl FnOnce(&mut AllocationBudget<'_>) -> Result<T, AllocationError>,
+        empty: impl FnOnce(&T) -> bool,
+    ) -> Result<T, AllocationError> {
+        debug_assert!(self.seen.len() >= program.units.len());
+        budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+        let revision = program.units[unit.index()].revision();
+        let slot = &mut self.seen[unit.index()][rule as usize];
+        if let Some(stable) = slot.filter(|old| old.revision == revision && old.created == created)
+        {
+            let mut run = || {
+                if self.enabled {
+                    receipt.local_units_reused += 1;
+                    Ok(T::default())
+                } else {
+                    receipt.local_units_visited += 1;
+                    build(&mut AllocationBudget::new(None))
+                }
+            };
+            return match stable.admission {
+                Some(admission) => budget.replay(&admission, run),
+                None => run(), // Inspection has no logical ledger to replay.
+            };
         }
-        Ok(&self.dirty)
+        receipt.local_units_visited += 1;
+        let (result, admission) = budget.record(build)?;
+        *slot = if empty(&result) {
+            debug_assert!(admission.is_none_or(|stage| stage.live_bytes() == 0));
+            Some(Stable {
+                revision,
+                created,
+                admission,
+            })
+        } else {
+            None
+        };
+        Ok(result)
     }
 }

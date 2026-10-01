@@ -1,0 +1,30 @@
+
+running 25 tests
+test program::dataflow::tests::a_loop_that_never_settles_is_refused ... ok
+test program::dataflow::tests::nothing_after_a_return_is_reached_and_a_branch_joins ... ok
+test program::dataflow::tests::q2_transfer_only_flow_admits_live_states_without_operation_history ... ok
+test program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations ... ok
+test program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates ... ok
+test program::rules::admission_tests::q2_stable_local_plans_replay_identical_logical_work_and_peak_storage ... ok
+test program::rules::call_tests::s3_cross_module_cycle_keeps_captured_tdz_observable ... ok
+test program::rules::call_tests::s3_cross_module_inlining_keeps_global_capture_and_initialization_order ... ok
+test program::rules::call_tests::s3_field_written_reference_parameter_does_not_copy_its_handle ... ok
+test program::rules::call_tests::s3_inlined_argument_mutation_keeps_earlier_snapshot ... ok
+test program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return ... ok
+test program::rules::call_tests::s3_nested_closure_subtree_remaps_every_capture ... ok
+test program::rules::call_tests::s3_return_normalization_does_not_keep_a_range_after_mutation ... ok
+test program::rules::call_tests::s3_returned_closures_keep_distinct_loop_activations ... ok
+test program::rules::call_tests::s3_scoped_result_survives_value_product_parameter_mutation ... ok
+test program::rules::call_tests::s3_tail_guard_return_keeps_the_untaken_suffix_lazy ... ok
+test program::rules::call_tests::s3_terminal_branches_preserve_lazy_effects_and_return_types ... ok
+test program::rules::tests::a_false_branch_leaves_with_the_function_only_it_called ... ok
+test program::rules::tests::a_folded_exit_leaves_one_return_that_inlines ... ok
+test program::rules::tests::a_loop_whose_test_is_false_never_runs ... ok
+test program::rules::tests::an_argument_is_not_read_after_something_observable ... ok
+test program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution ... ok
+test program::rules::tests::q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies ... ok
+test program::rules::tests::q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules ... ok
+test program::rules::tests::recursion_stays_callable_and_terminal_returns_inline ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 2029 filtered out; finished in 4.33s
+

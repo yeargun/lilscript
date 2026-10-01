@@ -82,6 +82,10 @@ pub(super) trait Forward {
     /// entry, or a catch binding at its region's entry.
     fn transfer(&self, unit: &UnitData, operation: OpId, state: &mut Self::State);
 
+    /// A compact client-owned projection can observe visits without retaining
+    /// a complete operations-by-state history. Like transfers, it cannot grow.
+    fn before_operation(&self, _unit: &UnitData, _operation: OpId, _state: &Self::State) {}
+
     /// A select/short-circuit result after its child regions have been
     /// visited. Storage effects were already joined; a value analysis can
     /// now publish the expression's result without executing them twice.
@@ -305,6 +309,7 @@ impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b,
             if !self.before.is_empty() {
                 self.before[operation.index()] = self.copy(&state)?;
             }
+            self.analysis.before_operation(unit, operation, &state);
             // Any operation of a `Try`'s body may throw to its catch.
             if let Some(target) = self
                 .targets

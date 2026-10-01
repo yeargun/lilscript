@@ -1083,7 +1083,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             ));
         }
         validate_hosts(program, hosts.bindings, budget)?;
-        let created = super::rules::created_units(program);
+        let created = super::rules::created_units_in_class(program, Scratch, budget)?;
         let mut tables = TypeTables {
             arrays: Vec::new(),
             signatures: Vec::new(),

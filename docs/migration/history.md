@@ -1616,3 +1616,18 @@ refusal cleanup are covered. Computed payloads use conservative cumulative
 bounds; this record claims no size/CPU win or full allocator accounting. No full
 library, release, CLI, ratchet or fleet rerun. Q2 remains active for its remaining
 dependencies, formation, elaboration and final qualification requirements.
+
+## 2026-10-01: Q2 local normalization proof ownership
+
+Algorithm 60 admits the return/unreachable plans missed by the prior owner
+audit. Empty local proofs retain deterministic work/peak receipts; physical reuse
+and dense execution pay the same repeated stage. Return safety shares region
+facts and scans suffixes backwards. Reachability streams a boolean projection
+from the common solver. Native planning admits created-body scratch.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-local-plans/README.md):
+the build and all 25 checks pass. The new on/off check matches output, logical
+work and peak storage; invalidation, control flow, captures, native behavior and
+refusal/publication cleanup pass. No broad suite or release/fleet rerun and no
+measured size or CPU claim. Remaining Q2 dependencies, incremental formation,
+elaboration and final qualification stay open.

@@ -1,0 +1,33 @@
+{
+  "algorithm": 60,
+  "tests": [
+    "program::dataflow::tests::a_loop_that_never_settles_is_refused",
+    "program::dataflow::tests::nothing_after_a_return_is_reached_and_a_branch_joins",
+    "program::dataflow::tests::q2_transfer_only_flow_admits_live_states_without_operation_history",
+    "program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations",
+    "program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates",
+    "program::rules::admission_tests::q2_stable_local_plans_replay_identical_logical_work_and_peak_storage",
+    "program::rules::call_tests::s3_cross_module_cycle_keeps_captured_tdz_observable",
+    "program::rules::call_tests::s3_cross_module_inlining_keeps_global_capture_and_initialization_order",
+    "program::rules::call_tests::s3_field_written_reference_parameter_does_not_copy_its_handle",
+    "program::rules::call_tests::s3_inlined_argument_mutation_keeps_earlier_snapshot",
+    "program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return",
+    "program::rules::call_tests::s3_nested_closure_subtree_remaps_every_capture",
+    "program::rules::call_tests::s3_return_normalization_does_not_keep_a_range_after_mutation",
+    "program::rules::call_tests::s3_returned_closures_keep_distinct_loop_activations",
+    "program::rules::call_tests::s3_scoped_result_survives_value_product_parameter_mutation",
+    "program::rules::call_tests::s3_tail_guard_return_keeps_the_untaken_suffix_lazy",
+    "program::rules::call_tests::s3_terminal_branches_preserve_lazy_effects_and_return_types",
+    "program::rules::tests::a_false_branch_leaves_with_the_function_only_it_called",
+    "program::rules::tests::a_folded_exit_leaves_one_return_that_inlines",
+    "program::rules::tests::a_loop_whose_test_is_false_never_runs",
+    "program::rules::tests::an_argument_is_not_read_after_something_observable",
+    "program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution",
+    "program::rules::tests::q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies",
+    "program::rules::tests::q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules",
+    "program::rules::tests::recursion_stays_callable_and_terminal_returns_inline"
+  ],
+  "count": 25,
+  "exit_code": 0,
+  "scope": "Focused debug-library checks; no full library, release, ratchet or fleet run."
+}

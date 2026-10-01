@@ -262,3 +262,11 @@ cold/warm fact bills, branch/termination/string oracles and hard-refusal cleanup
 Computed payloads keep conservative cumulative bounds; no exact allocator-byte
 claim is made. Dirty dependencies, incremental formation, per-module elaboration
 and final Q2 qualification remain open.
+
+The [local normalizer batch](../../benchmarks/migration-results/2026-10-01-q2-local-plans/README.md)
+closes the return/unreachable planning gaps found during the dependency audit.
+Stable unit proofs now admit the same measured stage with physical reuse on or
+off. Terminal suffix checks share child-region facts; reachability retains only
+its boolean projection. Native created-body queries share admitted storage.
+All 25 focused checks pass, including selected-byte/logical-work/peak equality.
+Global dependencies, incremental formation and elaboration remain open.

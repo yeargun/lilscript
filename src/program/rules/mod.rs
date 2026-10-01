@@ -330,57 +330,54 @@ pub(crate) fn optimize_admitted<'src>(
         }
     }
     editor.commit_in(budget)?;
-    let mut rules = Vec::with_capacity(4);
+    let mut rules = [ProgramRule::Defaults; 9];
+    let mut count = 0;
+    let mut push = |rule| {
+        rules[count] = rule;
+        count += 1;
+    };
     if request.fold {
-        rules.push(ProgramRule::Defaults);
-        rules.push(ProgramRule::Forward);
+        push(ProgramRule::Defaults);
+        push(ProgramRule::Forward);
     }
     if request.fold {
-        rules.push(ProgramRule::Fold);
+        push(ProgramRule::Fold);
     }
     // Operations no path reaches go before inlining judges a body's exits.
     if request.dead_code {
-        rules.push(ProgramRule::Unreachable);
+        push(ProgramRule::Unreachable);
     }
     if request.inlining() {
-        rules.push(ProgramRule::Returns);
-        rules.push(ProgramRule::Inline);
+        push(ProgramRule::Returns);
+        push(ProgramRule::Inline);
     }
     if request.fold || request.dead_code || request.scalar {
-        rules.push(ProgramRule::Aggregates);
+        push(ProgramRule::Aggregates);
     }
     if request.dead_code {
-        rules.extend([ProgramRule::Parameters, ProgramRule::DeadCode]);
+        push(ProgramRule::Parameters);
+        push(ProgramRule::DeadCode);
     }
     receipt.rounds = crate::schedule::fixed_point(
         &mut editor,
-        &rules,
+        &rules[..count],
         ROUND_CEILING,
         |editor, rule| {
             // These normalizers read only UnitData. Building a whole-program
             // effect graph first would defeat their local dependency contract.
             if matches!(rule, ProgramRule::Returns | ProgramRule::Unreachable) {
-                let kind = match rule {
-                    ProgramRule::Returns => dirty::LocalRule::Returns,
-                    _ => dirty::LocalRule::Unreachable,
-                };
                 let created = if matches!(rule, ProgramRule::Unreachable) {
                     Some(created_units_in(editor.program(), budget)?)
                 } else {
                     None
                 };
-                let units = dirty.select(
-                    editor.program(),
-                    kind,
-                    created.as_deref(),
-                    &mut receipt,
-                    budget,
-                )?;
                 let changed = match rule {
-                    ProgramRule::Returns => returns::apply(editor, units, &mut receipt, budget)?,
+                    ProgramRule::Returns => {
+                        returns::apply(editor, &mut dirty, &mut receipt, budget)?
+                    }
                     _ => unreachable::apply(
                         editor,
-                        units,
+                        &mut dirty,
                         created.as_deref().unwrap(),
                         &mut receipt,
                         budget,
@@ -604,6 +601,7 @@ fn prefix(data: &UnitData) -> &[OpId] {
 /// Units something creates: every module initializer, and every body a
 /// `Closure` of a created unit names (a named function's is its prefix pair).
 /// A body nothing creates never runs; its operations are not evidence.
+#[cfg(test)]
 pub(super) fn created_units(program: &Program<'_>) -> Vec<bool> {
     created_units_in(
         program,
@@ -616,28 +614,40 @@ pub(super) fn created_units_in(
     program: &Program<'_>,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
 ) -> Result<Vec<bool>, crate::output_budget::AllocationError> {
-    use crate::output_budget::AllocationClass::{Retained, Scratch};
     budget.retained_phase(|budget| {
-        let mut created = budget.filled(Retained, program.units.len(), false)?;
-        let mut pending = budget.vector(Scratch, program.units.len())?;
-        for unit in &program.units {
-            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
-            if unit.data().kind == UnitKind::ModuleInitialization {
-                created[unit.id().index()] = true;
-                pending.push(unit.id());
-            }
+        created_units_in_class(
+            program,
+            crate::output_budget::AllocationClass::Retained,
+            budget,
+        )
+    })
+}
+pub(super) fn created_units_in_class(
+    program: &Program<'_>,
+    class: crate::output_budget::AllocationClass,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<Vec<bool>, crate::output_budget::AllocationError> {
+    use crate::output_budget::AllocationClass::Scratch;
+    let mut created = budget.filled(class, program.units.len(), false)?;
+    let mut pending = budget.vector(Scratch, program.units.len())?;
+    for unit in &program.units {
+        budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+        if unit.data().kind == UnitKind::ModuleInitialization {
+            created[unit.id().index()] = true;
+            pending.push(unit.id());
         }
-        while let Some(unit) = pending.pop() {
-            let data = program.unit(unit).expect("a program unit");
-            for operation in &data.operations {
-                budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
-                if let OperationKind::Closure(body) = operation.kind {
-                    if !std::mem::replace(&mut created[body.index()], true) {
-                        pending.push(body);
-                    }
+    }
+    while let Some(unit) = pending.pop() {
+        let data = program.unit(unit).expect("a program unit");
+        for operation in &data.operations {
+            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            if let OperationKind::Closure(body) = operation.kind {
+                if !std::mem::replace(&mut created[body.index()], true) {
+                    pending.push(body);
                 }
             }
         }
-        Ok(created)
-    })
+    }
+    storage::release_vec(pending, Scratch, budget)?;
+    Ok(created)
 }

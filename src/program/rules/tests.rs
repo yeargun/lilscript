@@ -95,11 +95,16 @@ fn q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies() {
     let mut visits = dirty::DirtyUnits::new(true);
     let mut receipt = RuleReceipt::default();
     let mut budget = AllocationBudget::new(None);
-    let mut created = vec![false; program.units.len()];
-    visits.select(&program, dirty::LocalRule::Unreachable, Some(&created), &mut receipt, &mut budget).unwrap();
-    assert!(visits.select(&program, dirty::LocalRule::Unreachable, Some(&created), &mut receipt, &mut budget).unwrap().iter().all(|dirty| !dirty));
-    created[0] = true;
-    assert!(visits.select(&program, dirty::LocalRule::Unreachable, Some(&created), &mut receipt, &mut budget).unwrap()[0]);
+    visits.prepare(program.units.len(), &mut budget).unwrap();
+    let unit = UnitId::from_index(0).unwrap();
+    let mut calls = 0;
+    for created in [false, false, true] {
+        visits.plan(&program, unit, dirty::LocalRule::Unreachable, created, &mut receipt, &mut budget,
+            |_| { calls += 1; Ok(None::<OpId>) }, Option::is_none).unwrap();
+    }
+    assert_eq!(calls, 2, "creating a previously absent body invalidates its stable proof");
+    assert_eq!(receipt.local_units_reused, 1);
+    visits.release(&mut budget).unwrap();
 }
 
 #[test]

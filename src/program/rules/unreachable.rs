@@ -21,13 +21,28 @@
 use super::super::dataflow::{self, Forward};
 use super::edit::{self, Editor};
 use super::*;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 
 /// Whether any path reaches the state.
-struct Reached;
+struct Reached<'a>(std::cell::RefCell<&'a mut [bool]>);
 
-impl Forward for Reached {
+impl Forward for Reached<'_> {
     type State = bool;
 
+    fn empty_in(&self, _: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+        Ok(false)
+    }
+    fn copy_in(&self, state: &bool, _: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+        Ok(*state)
+    }
+    fn before_operation(&self, _: &UnitData, operation: OpId, state: &bool) {
+        self.0.borrow_mut()[operation.index()] = *state;
+    }
     fn unreachable(&self) -> bool {
         false
     }
@@ -41,64 +56,107 @@ impl Forward for Reached {
 
 pub(super) fn apply(
     editor: &mut Editor<'_>,
-    dirty: &[bool],
+    dirty: &mut super::dirty::DirtyUnits,
     created: &[bool],
     receipt: &mut RuleReceipt,
-    budget: &mut crate::output_budget::AllocationBudget<'_>,
+    budget: &mut AllocationBudget<'_>,
 ) -> Result<bool, super::RuleError> {
-    let program = editor.program();
-    let mut removals: Vec<(UnitId, Vec<OpId>)> = Vec::new();
-    for frozen in &program.units {
-        let unit = frozen.id();
-        if !created[unit.index()] || !dirty[unit.index()] {
-            continue;
+    dirty.prepare(editor.program().units.len(), budget)?;
+    budget.with_temporary_context(
+        editor,
+        |editor, budget| {
+            let program = editor.program();
+            let mut stats = RuleReceipt::default();
+            let mut removals = Vec::new();
+            for frozen in &program.units {
+                let unit = frozen.id();
+                let dead = dirty.plan(
+                    program,
+                    unit,
+                    super::dirty::LocalRule::Unreachable,
+                    created[unit.index()],
+                    &mut stats,
+                    budget,
+                    |budget| {
+                        if created[unit.index()] {
+                            plan(frozen.data(), budget)
+                        } else {
+                            Ok(Vec::new())
+                        }
+                    },
+                    Vec::is_empty,
+                )?;
+                if !dead.is_empty() {
+                    budget.push(Retained, &mut removals, (unit, dead))?;
+                }
+            }
+            Ok::<_, super::RuleError>((
+                removals,
+                stats.local_units_visited,
+                stats.local_units_reused,
+            ))
+        },
+        |(removals, visited, reused), editor, budget| {
+            receipt.local_units_visited += visited;
+            receipt.local_units_reused += reused;
+            for (unit, dead) in removals {
+                let data = editor.unit_mut_in(*unit, budget)?;
+                for &op in dead {
+                    edit::detach(data, op);
+                    receipt.unreachable_operations += 1;
+                }
+            }
+            Ok(!removals.is_empty())
+        },
+    )
+}
+
+fn plan(data: &UnitData, budget: &mut AllocationBudget<'_>) -> Result<Vec<OpId>, AllocationError> {
+    budget.retained_phase(|budget| {
+        let mut before = budget.filled(Scratch, data.operations.len(), false)?;
+        match dataflow::solve_discard_in(
+            data,
+            &Reached(std::cell::RefCell::new(&mut before)),
+            &true,
+            budget,
+        ) {
+            Ok(()) => {}
+            Err(dataflow::Stop::Unsettled) => return Ok(Vec::new()),
+            Err(dataflow::Stop::Resources(error) | dataflow::Stop::Budget(error)) => {
+                return Err(error)
+            }
         }
-        let data = frozen.data();
-        let Ok(solution) = dataflow::solve(data, &Reached, true, |_| Ok::<(), ()>(())) else {
-            continue;
-        };
-        // The outermost unreachable operations: what they own goes with them.
-        // A region whose unreachable part initializes a cell keeps it whole:
-        // the kept initialization reads the value computed before it.
         let mut dead = Vec::new();
-        let mut regions = vec![data.entry];
+        let mut regions = storage::collect(std::iter::once(data.entry), Scratch, budget)?;
         while let Some(region) = regions.pop() {
             let operations = &data.regions[region.index()].operations;
-            let unreached = |op: &&OpId| !*solution.before(**op);
-            // A region that yields a value (a branch of an expression, a
-            // loop's test or update) keeps its operations: its result names
-            // one of them.
+            budget.work(WorkKind::Analysis, operations.len() as u64 + 1)?;
+            // A retained declaration/initializer or expression result may still
+            // name the unreachable operands, so keep its complete region.
             let keeps = data.regions[region.index()].result.is_some()
-                || operations.iter().filter(unreached).any(|op| {
-                    matches!(
-                        data.operations[op.index()].kind,
-                        OperationKind::Initialize(_)
-                    )
-                });
+                || operations
+                    .iter()
+                    .filter(|op| !before[op.index()])
+                    .any(|op| {
+                        matches!(
+                            data.operations[op.index()].kind,
+                            OperationKind::Initialize(_)
+                        )
+                    });
             for &op in operations {
+                budget.work(WorkKind::Analysis, 1)?;
                 let kind = &data.operations[op.index()].kind;
-                if !*solution.before(op) {
+                if !before[op.index()] {
                     if !keeps && !matches!(kind, OperationKind::Declare(_)) {
-                        dead.push(op);
+                        budget.push(Retained, &mut dead, op)?;
                     }
                     continue;
                 }
-                regions.extend(kind.child_regions());
+                for child in kind.child_regions() {
+                    budget.push(Scratch, &mut regions, child)?;
+                }
             }
         }
-        if !dead.is_empty() {
-            removals.push((unit, dead));
-        }
-    }
-    if removals.is_empty() {
-        return Ok(false);
-    }
-    for (unit, dead) in removals {
-        let data = editor.unit_mut_in(unit, budget)?;
-        for op in dead {
-            edit::detach(data, op);
-            receipt.unreachable_operations += 1;
-        }
-    }
-    Ok(true)
+        Ok(dead)
+    })
 }

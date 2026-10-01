@@ -279,3 +279,50 @@ fn q2_exact_value_analysis_releases_answers_and_propagates_nested_refusals() {
     }
     assert!(passed > 0 && refused > 0);
 }
+
+#[test]
+fn q2_stable_local_plans_replay_identical_logical_work_and_peak_storage() {
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena,
+        "export int first(int n){if(n>0){return n+1;}else{return n-1;}}export int second(int n){return n+2;}print(first(2));print(second(3));"
+    ).unwrap();
+    let checked = crate::analyze(&syntax).unwrap();
+    let runs = [false, true].map(|reuse_normalization| {
+        let mut ledger = ledger(100_000_000, 64 << 20);
+        let (rendered, reused) = {
+            let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+            let (prepared, receipt) = super::super::from_source::from_checked_source_with_rules(
+                &syntax,
+                &checked,
+                Some(RuleRequest {
+                    reuse_normalization,
+                    ..ALL
+                }),
+                false,
+                &Default::default(),
+                None,
+                &mut budget,
+            )
+            .unwrap();
+            let rendered = super::super::javascript::lower(prepared.program())
+                .unwrap()
+                .render(crate::js::PrintPolicy::default())
+                .unwrap();
+            budget.with_ledger(|ledger| prepared.discard(ledger.unwrap().0));
+            (rendered, receipt.local_units_reused)
+        };
+        assert_eq!(ledger.retained_bytes(), 0);
+        (
+            rendered,
+            ledger.work_used(WorkDomain::Baseline),
+            ledger.peak_retained_bytes(),
+            reused,
+        )
+    });
+    assert_eq!(
+        (&runs[0].0, runs[0].1, runs[0].2),
+        (&runs[1].0, runs[1].1, runs[1].2)
+    );
+    assert_eq!(runs[0].3, 0);
+    assert!(runs[1].3 > 0);
+}
