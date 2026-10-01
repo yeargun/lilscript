@@ -412,11 +412,11 @@ impl Module {
         frames_hidden: bool,
         strict: bool,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+    ) -> Result<usize, AllocationError> {
         // A frame may move only when host reflection over it is outside
         // the contract. Its inherited execution mode must still be kept.
         if !frames_hidden {
-            return Ok((0, None));
+            return Ok(0);
         }
         let mut placed = 0;
         let mut disordered = false;
@@ -450,12 +450,8 @@ impl Module {
             }
             placed += moves.len();
         }
-        let map = if disordered {
-            Some(self.renumber(budget)?)
-        } else {
-            None
-        };
-        Ok((placed, map))
+        if disordered { self.renumber(budget)?; }
+        Ok(placed)
     }
 
     /// The functions `place_single_calls` moves in one round.

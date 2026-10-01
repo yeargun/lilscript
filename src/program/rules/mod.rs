@@ -21,6 +21,7 @@
 mod aggregates;
 mod dce;
 mod defaults;
+mod dirty;
 mod edit;
 mod evaluate;
 mod fold;
@@ -47,6 +48,8 @@ use super::*;
 /// What a build permits the rules: its contract's tactics and sealing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RuleRequest {
+    /// Physical reuse of proven stable local normalization inputs.
+    pub(crate) reuse_normalization: bool,
     /// Permission for explicit source loop expansion during conversion.
     pub(crate) unroll: bool,
     /// JavaScript permission for authored sharing; native constants already share backing.
@@ -83,6 +86,8 @@ impl RuleRequest {
 /// What the rules did, for the build receipt.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct RuleReceipt {
+    pub(crate) local_units_visited: u64,
+    pub(crate) local_units_reused: u64,
     pub(crate) rounds: u32,
     pub(crate) folded_values: u32,
     /// Calls replaced by exact constants, including bounded evaluation.
@@ -178,6 +183,8 @@ impl RuleReceipt {
         });
         result["call_frequency_work"] = self.call_frequency_work.into();
         result["materialized_default_arguments"] = self.materialized_default_arguments.into();
+        result["local_units_visited"] = self.local_units_visited.into();
+        result["local_units_reused"] = self.local_units_reused.into();
         result
     }
 }
@@ -232,6 +239,33 @@ pub(crate) fn optimize<'src>(
     program: Program<'src>,
     request: RuleRequest,
 ) -> Result<(Program<'src>, RuleReceipt), String> {
+    optimize_admitted(program, request, &mut crate::output_budget::AllocationBudget::new(None))
+        .map_err(|error| error.to_string())
+}
+
+#[derive(Debug)]
+pub(crate) enum RuleError {
+    Invalid(String),
+    Allocation(crate::output_budget::AllocationError),
+}
+impl From<String> for RuleError { fn from(value: String) -> Self { Self::Invalid(value) } }
+impl From<&str> for RuleError { fn from(value: &str) -> Self { Self::Invalid(value.into()) } }
+impl From<crate::output_budget::AllocationError> for RuleError {
+    fn from(value: crate::output_budget::AllocationError) -> Self { Self::Allocation(value) }
+}
+impl std::fmt::Display for RuleError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self { Self::Invalid(message) => formatter.write_str(message), Self::Allocation(error) => error.fmt(formatter) }
+    }
+}
+
+pub(crate) fn optimize_admitted<'src>(
+    program: Program<'src>,
+    request: RuleRequest,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<(Program<'src>, RuleReceipt), RuleError> {
+    let mut phase = budget.scope();
+    let mut dirty = dirty::DirtyUnits::new(request.reuse_normalization && crate::schedule::reuses_stability());
     let mut receipt = RuleReceipt::default();
     if !request.any() {
         return Ok((program, receipt));
@@ -281,13 +315,27 @@ pub(crate) fn optimize<'src>(
         &rules,
         ROUND_CEILING,
         |editor, rule| {
+            // These normalizers read only UnitData. Building a whole-program
+            // effect graph first would defeat their local dependency contract.
+            if matches!(rule, ProgramRule::Returns | ProgramRule::Unreachable) {
+                let kind = match rule {
+                    ProgramRule::Returns => dirty::LocalRule::Returns,
+                    _ => dirty::LocalRule::Unreachable,
+                };
+                let created = matches!(rule, ProgramRule::Unreachable).then(|| created_units(editor.program()));
+                let units = dirty.select(editor.program(), kind, created.as_deref(), &mut receipt, &mut phase)?;
+                let changed = match rule {
+                    ProgramRule::Returns => returns::apply(editor, units, &mut receipt)?,
+                    _ => unreachable::apply(editor, units, created.as_deref().unwrap(), &mut receipt),
+                };
+                editor.commit()?;
+                return Ok(changed);
+            }
             let effects = editor.program().effects(request.seal);
             let changed = match rule {
                 ProgramRule::Defaults => defaults::apply(editor, effects.graph(), &mut receipt)
                     .map_err(str::to_string)?,
-                ProgramRule::Returns => {
-                    returns::apply(editor, &mut receipt).map_err(str::to_string)?
-                }
+                ProgramRule::Returns | ProgramRule::Unreachable => unreachable!(),
                 ProgramRule::Aggregates => {
                     aggregates::apply(editor, &effects, request, &mut receipt)
                         .map_err(str::to_string)?
@@ -308,7 +356,6 @@ pub(crate) fn optimize<'src>(
                     }
                     fold::apply(editor, &values, &effects, &mut receipt).map_err(str::to_string)?
                 }
-                ProgramRule::Unreachable => unreachable::apply(editor, &mut receipt),
                 ProgramRule::Inline => {
                     inline::apply(editor, &effects, &mut receipt, request.native)
                         .map_err(|error| format!("program rules, inlining: {error}"))?
@@ -339,7 +386,7 @@ pub(crate) fn optimize<'src>(
             }
             Ok(())
         },
-        |_| "program rules did not reach a fixed point".to_string(),
+        |_| RuleError::Invalid("program rules did not reach a fixed point".into()),
     )?;
     // Choose target default transport after structural folding has removed
     // redundant guards. The remaining explicit guards must survive for the

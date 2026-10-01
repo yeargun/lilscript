@@ -1136,13 +1136,35 @@ lilscript-fmt src --check
 ```
 
 
-## Codec measurement reuse
+## Compilation reuse
 
 ```toml
 [cache]
+normalization_reuse = true
 codec_reuse = true
 # directory = ".lilscript/cache"
 ```
+
+`cache.normalization_reuse` defaults to `true`. Source return normalization and
+unreachable-code removal reuse answers only for the same immutable body revision
+(and the same created-body status). Edited and new bodies are revisited in their
+original order. Target literal folding and undefined/unreachable cleanup reuse
+stable answers only while their complete node/region/function/table dependencies
+remain unchanged. Other rules still run conservatively; this flag does not change
+search breadth, permissions, the existing fixed-point suffix schedule or shared
+fact caches. Set it to `false` for a physical-execution audit of these local
+proofs. Both modes retain the same bookkeeping admission and cold logical work,
+including partial work-limit refusals, so reuse cannot buy extra search.
+
+This saves repeated local scans when most units or inputs are unchanged; revision
+bookkeeping and journals still have a cost. It changes neither runtime behavior
+nor the size objective. `phases_ns.rules.local_units_visited` and
+`local_units_reused` count source units selected or reused. With
+`LILSCRIPT_TIMING`, `js_rule_reuse_calls` counts target stable-proof replays;
+`js_rule_calls` counts physical rule applications. These are physical telemetry,
+not candidate eligibility. The arrays of source revisions are bounded by the
+current number of units; target proofs are one fixed stack table per rule phase.
+No proof survives that phase or crosses a compiler process.
 
 `cache.codec_reuse` defaults to `true`: identical complete JavaScript bytes can
 reuse their gzip/Brotli measurements across artifacts and independently served
@@ -1172,7 +1194,7 @@ dependent on elapsed time. Report fields `codec_cache.memory_hits`,
 `codec_cache.disk_write_errors` distinguish reuse from logical codec judgments.
 
 `--cache DIR` enables persistent codec reuse at that directory; relative CLI
-paths start in the current working directory. `--cache off` disables codec reuse
+paths start in the current working directory. `--cache off` disables codec and local normalization proof reuse
 and disk access. Both override TOML. `--print-policy` reports the effective
 settings under execution/resolution, outside the semantic fingerprint. Unknown
 keys, non-boolean `codec_reuse` values and an empty directory are errors. These

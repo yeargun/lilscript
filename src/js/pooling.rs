@@ -52,14 +52,14 @@ impl Module {
     }
 
     /// Pack arrays of plain strings into one split string where shorter.
-    /// Returns how many, and the renumbering map when it edited.
+    /// Returns how many arrays were packed.
     pub(crate) fn pack_string_arrays(
         &mut self,
         permission: ArrayPacking,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+    ) -> Result<usize, AllocationError> {
         if !self.pristine_builtins || permission == ArrayPacking::Disabled {
-            return Ok((0, None));
+            return Ok(0);
         }
         let recurring = if permission == ArrayPacking::Startup {
             Some(self.function_expressions(budget)?)
@@ -81,7 +81,7 @@ impl Module {
         &mut self,
         recurring: Option<&[bool]>,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+    ) -> Result<usize, AllocationError> {
         self.with_reach_tree(budget, |module, reach, budget| {
             let mut packed = 0;
             for &(id, _) in &reach.expressions {
@@ -151,10 +151,10 @@ impl Module {
                 packed += 1;
             }
             if packed == 0 {
-                return Ok((0, None));
+                return Ok(0);
             }
-            let map = module.renumber(budget)?;
-            Ok((packed, Some(map)))
+            module.renumber(budget)?;
+            Ok(packed)
         })?
     }
 

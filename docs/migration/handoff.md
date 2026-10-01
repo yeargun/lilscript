@@ -27,7 +27,7 @@ lists, preserve exact counts/remapping and release on success/refusal. Its 26
 focused checks pass. The 10,000-edit control stays at 16 bytes. Dirty scheduling
 and other resource owners remain open; do not mistake journal completion for Q2.
 
-The latest [persistent codec batch](../../benchmarks/migration-results/2026-10-01-q2-codec-cache/README.md)
+The [persistent codec batch](../../benchmarks/migration-results/2026-10-01-q2-codec-cache/README.md)
 pins `q2-codec-cache-1`, SHA-256
 `549214afa580fd5c348e0680135b9faf61eecf59224306d9292da2c141bb9bb1`;
 algorithm 45 / search 32 / walk 10 / local facts 15. Eight focused checks and
@@ -36,6 +36,17 @@ control optional bounded disk codec receipts; cold/warm/disabled outputs and
 logical bills match. Physical encodes fall, but tiny gzip IO can cost more.
 The final release checks cover lazy disk setup and per-output configuration
 added after unit checks. Build/elaboration caches and decision locks remain.
+
+The latest [normalization batch](../../benchmarks/migration-results/2026-10-01-q2-normalization/README.md)
+pins `q2-normalization-1`, SHA-256
+`c514eca8a6cb6392a54512d489a20d571f031e2d60dd764a4b1bfa2ee11b3e15`;
+algorithm 46 / search 32 / walk 10 / local facts 15. 35 focused tests and
+36 release artifact/runtime checks pass; one native test needed the installed
+Clang path and was rerun alone. Artifacts are byte-identical to algorithm 45;
+normalization reuse on/off has identical logical work/search. Local source
+revision proofs and three target stable-pass consumers reduce visits but show
+no clear timing gain. Renumbering uses admitted plans and in-place swaps; the
+old clone path and escaping remap results are deleted.
 
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased
@@ -51,7 +62,8 @@ hard TOML/replay permissions. The shared fact/removal audit is complete.
    shared/incremental formation, transparent bounded persistent reuse and the
    remaining resource owners. Existing source-effect caches, fixed-point suffix
    reuse, retained target heads and exact codec memoization are starting points.
-   The use-index consumer and module graph are complete. Placement storage,
+   The use-index consumer, module graph, local dirty maps and renumbering plans
+   are complete. SCC/global dependency invalidation, placement storage,
    source analysis/edit owners, cross-candidate formation,
    build/elaboration reuse and explicit decision-lock replay remain.
 

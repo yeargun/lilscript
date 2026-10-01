@@ -138,13 +138,11 @@ fn strict_target_inliners_preserve_known_execution_modes_and_effect_order() {
                     module
                         .inline_expression_functions(64, true, global, &mut budget)
                         .unwrap()
-                        .0
                 }
                 Kind::Statements => {
                     module
                         .inline_statement_functions(true, global, &mut budget)
                         .unwrap()
-                        .0
                 }
                 Kind::Block => module
                     .inline_single_calls(true, global, &mut budget)
@@ -210,7 +208,7 @@ fn s4_statement_inlining_preserves_rest_arrays_and_spread_evaluation() {
             .push(Statement::Evaluate(called));
         module.root_rows = vec![RootRow::new(0, Anchor::Anchored); 2];
         module.verify().unwrap();
-        let (changed, _) = module
+        let changed = module
             .inline_statement_functions(true, false, &mut AllocationBudget::new(None))
             .unwrap();
         assert_eq!(changed, usize::from(!rest && !spread));

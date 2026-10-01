@@ -8,7 +8,7 @@ use crate::js::PrintPolicy;
 use std::process::Command;
 
 const MODULE: RuleRequest = RuleRequest {
-    unroll: true, pool: true, choices: crate::representation::RegionalChoices::ALL,
+    reuse_normalization: true, unroll: true, pool: true, choices: crate::representation::RegionalChoices::ALL,
     fold: true,
     dead_code: true,
     inline: true,
@@ -18,7 +18,7 @@ const MODULE: RuleRequest = RuleRequest {
     seal: Seal::Module,
 };
 const SCRIPT: RuleRequest = RuleRequest {
-    unroll: true, pool: true, choices: crate::representation::RegionalChoices::ALL,
+    reuse_normalization: true, unroll: true, pool: true, choices: crate::representation::RegionalChoices::ALL,
     fold: true,
     dead_code: true,
     inline: true,
@@ -33,11 +33,66 @@ const FOLD_ONLY: RuleRequest = RuleRequest {
     ..MODULE
 };
 const DCE_ONLY: RuleRequest = RuleRequest {
-    unroll: true, pool: true, choices: crate::representation::RegionalChoices::ALL,
+    reuse_normalization: true, unroll: true, pool: true, choices: crate::representation::RegionalChoices::ALL,
     fold: false,
     inline: false,
     ..MODULE
 };
+
+#[test]
+fn q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules() {
+    let mut reused_units = 0;
+    for source in [
+        "export int first(int n){if(n>0){return n+1;}else{return n-1;}}export int second(int n){return n+2;}print(first(2));print(second(3));",
+        "func()->int make(int n){return ()=>{n+=1;return n;};}auto a=make(1);auto b=make(9);print(a());print(b());print(a());",
+        "int sum(int n){int s=0;for(int i=0;i<n;i+=1){if(i==3){continue;}s+=i;}return s;print(99);}print(sum(5));",
+        "int read(int n){print(n);return n;}int choose(bool yes){if(yes){return read(3);}return read(7);}print(choose(true));print(choose(false));",
+    ] {
+        let runs = [false, true].map(|reuse_normalization| {
+            optimized(source, RuleRequest { reuse_normalization, ..MODULE }, |program, mut receipt| {
+                let visited = receipt.local_units_visited;
+                let reused = receipt.local_units_reused;
+                receipt.local_units_visited = 0;
+                receipt.local_units_reused = 0;
+                let javascript = super::super::javascript::lower(program).unwrap().render(PrintPolicy::default()).unwrap();
+                (javascript, receipt, visited, reused)
+            })
+        });
+        assert_eq!((&runs[0].0, runs[0].1), (&runs[1].0, runs[1].1), "{source}");
+        assert_eq!(runs[0].3, 0);
+        assert_eq!(runs[0].2, runs[1].2 + runs[1].3);
+        reused_units += runs[1].3;
+    }
+    assert!(reused_units > 0, "the fixtures must reuse stable units");
+}
+
+#[test]
+fn q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies() {
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+    use crate::output_budget::{AllocationBudget, AllocationClass::Scratch};
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, "int value(int n){return n;}print(value(3));").unwrap();
+    let semantics = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &semantics).unwrap();
+    let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+        baseline_work: 1_000_000, optional_work: 0, baseline_retained_bytes: 0, retained_bytes: 16,
+    }).unwrap();
+    {
+        let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+        let result = optimize_admitted(program.clone(), MODULE, &mut budget);
+        assert!(matches!(result, Err(RuleError::Allocation(_))));
+        assert_eq!(budget.retained_bytes(Scratch), 0);
+    }
+    assert_eq!(ledger.retained_bytes(), 0);
+    let mut visits = dirty::DirtyUnits::new(true);
+    let mut receipt = RuleReceipt::default();
+    let mut budget = AllocationBudget::new(None);
+    let mut created = vec![false; program.units.len()];
+    visits.select(&program, dirty::LocalRule::Unreachable, Some(&created), &mut receipt, &mut budget).unwrap();
+    assert!(visits.select(&program, dirty::LocalRule::Unreachable, Some(&created), &mut receipt, &mut budget).unwrap().iter().all(|dirty| !dirty));
+    created[0] = true;
+    assert!(visits.select(&program, dirty::LocalRule::Unreachable, Some(&created), &mut receipt, &mut budget).unwrap()[0]);
+}
 
 #[test]
 fn rule_views_survive_empty_commits_and_follow_every_edit_owner() {

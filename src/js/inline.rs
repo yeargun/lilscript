@@ -49,14 +49,14 @@ impl Module {
     /// parameters. A body of one expression statement, `{E}`, is inlined
     /// where the call's value is discarded (a statement, a sequence item
     /// before the last, a loop's update). Returns the number of inlined calls
-    /// and each old node's new id when the arena was renumbered.
+    /// after restoring expression postorder.
     pub(crate) fn inline_expression_functions(
         &mut self,
         limit: usize,
         frames_hidden: bool,
         strict: bool,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+    ) -> Result<usize, AllocationError> {
         self.inline_expression_functions_chosen(limit, frames_hidden, strict, None, budget)
     }
 
@@ -67,7 +67,7 @@ impl Module {
         strict: bool,
         choice: Option<(&ChoiceMap, bool)>,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+    ) -> Result<usize, AllocationError> {
         self.with_reach(budget, |module, reach, budget| {
             // Root constants declared with a literal before any root statement can
             // run code: every read inside a function finds them initialized.
@@ -151,7 +151,7 @@ impl Module {
                 }
             }
             if templates.iter().all(Option::is_none) {
-                return Ok((0, None));
+                return Ok(0);
             }
             let template =
                 |binding: BindingId| templates.get(binding.index()).and_then(Option::as_ref);
@@ -278,10 +278,10 @@ impl Module {
                 module.copy_behaviour_in(source, site, budget)?;
             }
             if sites.is_empty() {
-                return Ok((0, None));
+                return Ok(0);
             }
-            let map = module.renumber(budget)?;
-            Ok((sites.len(), Some(map)))
+            module.renumber(budget)?;
+            Ok(sites.len())
         })?
     }
 
@@ -653,118 +653,7 @@ impl Module {
         Ok(node)
     }
 
-    /// Rebuild the expression arena in postorder from the code that can run,
-    /// so children again precede their parents after an edit. Unreachable
-    /// nodes go, and unreachable regions lose their statements. Returns each
-    /// surviving old node's new id.
-    pub(crate) fn renumber(
-        &mut self,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<Vec<Option<ExprId>>, AllocationError> {
-        let old = std::mem::take(&mut self.expressions);
-        let old_origins = std::mem::take(&mut self.origins);
-        let old_spelling_nodes = std::mem::take(&mut self.spelling_nodes);
-        let old_authored = std::mem::take(&mut self.authored_expressions);
-        if !old_authored.is_empty() {
-            self.authored_expressions = budget.vector(AllocationClass::Retained, old.len())?;
-        }
-        let mut map: Vec<Option<ExprId>> = vec![None; old.len()];
-        let mut reached = vec![false; self.regions.len()];
-        let mut regions = vec![self.root];
-        let mut pending: Vec<(ExprId, bool)> = Vec::new();
-        self.expressions = Vec::with_capacity(old.len());
-        self.origins = Vec::with_capacity(old.len());
-        while let Some(region) = regions.pop() {
-            budget.work(Analysis, 1)?;
-            if std::mem::replace(&mut reached[region.index()], true) {
-                continue;
-            }
-            for statement in &self.regions[region.index()].statements {
-                budget.work(Analysis, 1)?;
-                statement.visit_expressions(|root| pending.push((root, false)));
-                statement.visit_regions(|child| regions.push(child));
-                if let Statement::Function { function, .. } = statement {
-                    regions.push(self.functions[function.index()].body);
-                }
-                while let Some((id, expanded)) = pending.pop() {
-                    budget.work(Analysis, 1)?;
-                    if map[id.index()].is_some() {
-                        continue;
-                    }
-                    if !expanded {
-                        pending.push((id, true));
-                        let expression = &old[id.index()];
-                        for function in expression.created_functions() {
-                            regions.push(self.functions[function.index()].body);
-                        }
-                        let _ = expression.visit_children(|child| {
-                            if map[child.index()].is_none() {
-                                pending.push((child, false));
-                            }
-                            Ok::<_, ()>(())
-                        });
-                        continue;
-                    }
-                    let mut expression = old[id.index()].clone();
-                    expression.remap_children(|child| {
-                        map[child.index()].expect("an operand precedes its parent")
-                    });
-                    let new =
-                        ExprId::try_new(self.expressions.len()).ok_or(AllocationError::Capacity)?;
-                    self.expressions.push(expression);
-                    self.origins.push(old_origins[id.index()]);
-                    if !old_authored.is_empty() { self.authored_expressions.push(old_authored[id.index()]); }
-                    if !old_spelling_nodes.is_empty() {
-                        self.spelling_nodes
-                            .push(old_spelling_nodes.get(id.index()).copied().flatten());
-                    }
-                    map[id.index()] = Some(new);
-                }
-            }
-        }
-        for (index, region) in self.regions.iter_mut().enumerate() {
-            if !reached[index] {
-                region.statements.clear();
-                continue;
-            }
-            for statement in &mut region.statements {
-                statement.remap_expressions(|id| {
-                    map[id.index()].expect("a reachable statement's roots were placed")
-                });
-            }
-        }
-        // The observed literals move with their expressions; renumbering
-        // reorders ids, and lookups need them ascending.
-        self.observed_literals
-            .retain_mut(|alternative| alternative.remap(&map));
-        self.observed_literals
-            .sort_unstable_by_key(|alternative| alternative.expression());
-        // So do the behaviour rows, and the nodes they describe.
-        self.behaviours.retain_mut(|row| {
-            let Some(expression) = map[row.expression.index()] else {
-                return false;
-            };
-            let mut whole = true;
-            row.node.remap_children(|child| match map[child.index()] {
-                Some(child) => child,
-                None => {
-                    whole = false;
-                    child
-                }
-            });
-            row.expression = expression;
-            whole
-        });
-        self.behaviours.sort_unstable_by_key(|row| row.expression);
-        // And the journal's nodes (M5.2).
-        self.journal.renumber(&map, budget)?;
-        if !old_authored.is_empty() {
-            let bytes = (old_authored.capacity() * std::mem::size_of::<crate::representation::RegionalChoices>()) as u64;
-            drop(old_authored);
-            budget.release(AllocationClass::Retained, bytes)?;
-        }
-        Ok(map)
-    }
+
 }
 
 impl Module {
@@ -775,13 +664,13 @@ impl Module {
     /// mentions, declared earlier in the call's region or a parameter): the
     /// call evaluated it first, and every later read sees that same value.
     /// A classic script keeps a frame its body's user code could observe.
-    /// Returns the number of inlined calls and the arena renumbering.
+    /// Returns the number of inlined calls.
     pub(crate) fn inline_statement_functions(
         &mut self,
         frames_hidden: bool,
         strict: bool,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+    ) -> Result<usize, AllocationError> {
         self.with_reach(budget, |module, reach, budget| {
             let mut other_use = vec![false; module.bindings.len()];
             // Bindings read other than as a callee (they must keep their value).
@@ -918,7 +807,7 @@ impl Module {
                 }
             }
             if sites.is_empty() {
-                return Ok((0, None));
+                return Ok(0);
             }
             // Splice from the last site backwards so indices stay valid.
             sites.sort_unstable_by(|a, b| (a.0.index(), a.1).cmp(&(b.0.index(), b.1)).reverse());
@@ -954,8 +843,8 @@ impl Module {
                     vec![rows[0]; count]
                 });
             }
-            let map = module.renumber(budget)?;
-            Ok((sites.len(), Some(map)))
+            module.renumber(budget)?;
+            Ok(sites.len())
         })?
     }
 

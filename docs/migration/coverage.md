@@ -34,7 +34,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M4.6 | [S4](plan.md#s4), complete | One operation catalog, host/provider identities and shared effect transfer; `Object.hasOwn` and detached-method audit resolved |
 | M5.1 | [Q2](plan.md#q2), implemented | Rooted target `UseIndex` closes chains/cycles; the private repeated pruning walk is deleted |
 | M5.2 | [S4](plan.md#s4), complete | Shared physical binding/operation facts, regenerated after edits; duplicate target derivations removed |
-| M5.3a | [Q2](plan.md#q2) | the program rules' SCC order with a dirty worklist; classifying the remaining rules |
+| M5.3a | [Q2](plan.md#q2) | Local source revision and three target stable-proof consumers implemented; SCC/global dirty scheduling remains |
 | M5.3b | [S4](plan.md#s4), complete | Replaced proofs removed; retained generated-storage normalization classified in the [owner audit](s4-target-facts.md) |
 | M5.6 | [Q2](plan.md#q2) | Resource accounting (counts) |
 | M5.7 | [Q2](plan.md#q2) | Incremental tail |
@@ -125,7 +125,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M3.5 | [Q3](plan.md#q3) | level 0 still measures exactly; |
 | M3.5 | [Q3](plan.md#q3) | monotone selection between two search levels; |
 | M3.5 | [Q3](plan.md#q3) | the data estimator is raw bytes under every objective. |
-| M3.9 | [Q2](plan.md#q2) | each render re-scores unchanged files. |
+| M3.9 | [Q2](plan.md#q2) | Unchanged-file codec receipts are reused in memory/optional bounded disk; build/elaboration caches and explicit decision replay remain. |
 | M5.6 | [Q2](plan.md#q2), resolved | Entry graph and cycle checking use admitted shared graph routines; remaining placement/analysis/edit admission stays Q2 |
 | M8.5 / M3.3 | [Q4](plan.md#q4) | table decoders sit at the first module's root. |
 | M8.7 | [C3](plan.md#c3), resolved | NO3's second half is empty; every retired threshold has a generic owner and historical provenance outside compiler sources. |

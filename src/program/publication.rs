@@ -974,6 +974,7 @@ impl Formations<'_, '_> {
                 self.preserved_properties,
                 choices,
                 self.hosts,
+                self.policy.cache().normalization_reuse,
                 &mut budget,
             )
             .map_err(formation_error)?;
@@ -1051,6 +1052,7 @@ impl Formations<'_, '_> {
             head,
             choices.families,
             &choices.choices,
+            self.policy.cache().normalization_reuse,
             &mut budget,
         )
         .map_err(formation_error)?;
@@ -1112,6 +1114,7 @@ impl Formations<'_, '_> {
             head,
             choices.families,
             &choices.choices,
+            self.policy.cache().normalization_reuse,
             &mut budget,
         )
         .map_err(formation_error)?;
@@ -2367,6 +2370,7 @@ impl<'src> Compilation<'src> {
             choices.families,
             &choices.choices,
             self.host_modules.as_ref().map(|(delivery, _)| delivery),
+            policy.cache().normalization_reuse,
             &mut budget,
         )
         .map_err(formation_error)?;
@@ -2484,6 +2488,7 @@ impl<'src> Compilation<'src> {
             preserved_properties(policy),
             head_choices,
             hosts,
+            policy.cache().normalization_reuse,
             &mut budget,
         );
         let head = match head {

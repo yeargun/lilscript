@@ -5,10 +5,12 @@ use super::*;
 
 pub(super) fn apply(
     editor: &mut Editor<'_>,
+    dirty: &[bool],
     receipt: &mut RuleReceipt,
 ) -> Result<bool, &'static str> {
     let mut edits = Vec::new();
     for unit in &editor.program().units {
+        if !dirty[unit.id().index()] { continue; }
         let data = unit.data();
         if data.kind == UnitKind::ModuleInitialization || data.suspension != Suspension::None {
             continue;

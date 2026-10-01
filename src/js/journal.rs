@@ -86,9 +86,21 @@ pub(crate) struct Journal {
     functions: RecordedSlots,
     /// Imports, exports, root rows or scopes changed.
     tables: bool,
+    /// Node identity changes invalidate every expression-dependent proof even
+    /// when permutation leaves arena lengths unchanged.
+    renumbered: bool,
 }
 
 impl Journal {
+    pub(super) fn changed_domains(&self) -> u8 {
+        if self.renumbered { return 31; }
+        u8::from(self.expressions.iter().next().is_some())
+            | (u8::from(self.regions.iter().next().is_some()) << 1)
+            | (u8::from(self.bindings.iter().next().is_some()) << 2)
+            | (u8::from(self.functions.iter().next().is_some()) << 3)
+            | (u8::from(self.tables) << 4)
+    }
+
     /// The number of edits recorded: zero when the rule changed nothing.
     pub(crate) fn edits(&self) -> u64 {
         self.edits
@@ -154,6 +166,7 @@ impl Journal {
         }
         phase.finish_retained()?;
         let old = std::mem::replace(&mut self.expressions, remapped);
+        self.renumbered = true;
         let bytes = old.bytes();
         drop(old);
         budget.release(AllocationClass::Retained, bytes)
@@ -193,6 +206,7 @@ impl Module {
             bindings: RecordedSlots::new(self.bindings.len(), &mut phase)?,
             functions: RecordedSlots::new(self.functions.len(), &mut phase)?,
             tables: false,
+            renumbered: false,
         };
         phase.finish_retained()?;
         self.journal = journal;

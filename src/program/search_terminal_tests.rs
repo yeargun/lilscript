@@ -216,6 +216,23 @@ fn codec_reuse_preserves_logical_search_and_final_bytes_for_every_objective() {
 }
 
 #[test]
+fn q2_normalization_reuse_preserves_logical_search_and_objective_bytes() {
+    for codec in ["raw", "gzip", "brotli"] {
+        let enabled = policy(codec, 13);
+        let disabled = enabled.clone().with_cache(crate::config::CacheConfig {
+            normalization_reuse: false, ..Default::default()
+        });
+        let objective = Objectives::One(enabled.objective().unwrap().codec);
+        let on = search(&enabled, objective, true);
+        let off = search(&disabled, objective, true);
+        assert_eq!(on.logical_work, off.logical_work, "{codec}");
+        assert_eq!(on.scored, off.scored, "{codec}");
+        assert_eq!(on.winners, off.winners, "{codec}");
+        assert_eq!(on.report, off.report, "{codec}");
+    }
+}
+
+#[test]
 fn q2_configured_codec_cache_preserves_each_objectives_search_and_bytes() {
     let directory = std::env::temp_dir().join(format!("lilscript-q2-cache-search-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&directory);
@@ -223,10 +240,10 @@ fn q2_configured_codec_cache_preserves_each_objectives_search_and_bytes() {
         let policy = policy(codec, 13);
         let objective = Objectives::One(policy.objective().unwrap().codec);
         let enabled = policy.clone().with_cache(crate::config::CacheConfig {
-            codec_reuse: true, directory: Some(directory.clone()),
+            normalization_reuse: true, codec_reuse: true, directory: Some(directory.clone()),
         });
         let disabled = policy.with_cache(crate::config::CacheConfig {
-            codec_reuse: false, directory: Some(directory.clone()),
+            normalization_reuse: true, codec_reuse: false, directory: Some(directory.clone()),
         });
         let cold = search(&enabled, objective, true);
         let warm = search(&enabled, objective, true);

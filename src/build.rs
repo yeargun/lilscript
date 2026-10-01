@@ -401,6 +401,7 @@ impl Frontend {
         #[cfg(not(test))]
         let permitted_inlining = permitted(TacticId::Inlining);
         Some(RuleRequest {
+            reuse_normalization: policies.iter().all(|policy| policy.cache().normalization_reuse),
             unroll: permitted(TacticId::LoopUnrolling),
             choices: crate::representation::RegionalChoices::permitted(&policies),
             pool: policies.iter().filter(|policy| policy.javascript_contract().is_some())

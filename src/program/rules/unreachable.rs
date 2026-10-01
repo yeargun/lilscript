@@ -39,13 +39,12 @@ impl Forward for Reached {
     fn transfer(&self, _: &UnitData, _: OpId, _: &mut bool) {}
 }
 
-pub(super) fn apply(editor: &mut Editor<'_>, receipt: &mut RuleReceipt) -> bool {
+pub(super) fn apply(editor: &mut Editor<'_>, dirty: &[bool], created: &[bool], receipt: &mut RuleReceipt) -> bool {
     let program = editor.program();
-    let created = created_units(program);
     let mut removals: Vec<(UnitId, Vec<OpId>)> = Vec::new();
     for frozen in &program.units {
         let unit = frozen.id();
-        if !created[unit.index()] {
+        if !created[unit.index()] || !dirty[unit.index()] {
             continue;
         }
         let data = frozen.data();

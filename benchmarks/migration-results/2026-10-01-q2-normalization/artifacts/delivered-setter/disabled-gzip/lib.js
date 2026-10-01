@@ -1,0 +1,1 @@
+let a=a=>{for(let b=0;b<2;++b)a=a+read()|0;return a},b=read(),c=a=>b=a;export{a,b,c};

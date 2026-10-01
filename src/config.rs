@@ -717,6 +717,9 @@ pub struct ProjectConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CacheConfig {
+    /// Reuse stable local normalization proofs (default true). False audits
+    /// physical rule execution with the same logical work and admission.
+    pub normalization_reuse: bool,
     /// Reuse exact-byte codec receipts across artifacts (default true). False
     /// encodes each newly scored artifact for reproducibility audits; logical work and
     /// cache-table admission stay the same, so it buys no extra search.
@@ -731,6 +734,7 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
+            normalization_reuse: true,
             codec_reuse: true,
             directory: None,
         }

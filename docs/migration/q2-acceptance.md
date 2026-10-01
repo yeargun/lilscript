@@ -8,7 +8,7 @@ scheduler suffixes remain useful starting points; do not rebuild their owners.
    admitted dependency/use index. Close unused declaration chains and cycles
    from actual roots, preserving effects, exports, pinned bindings, captures,
    initialization and strictness. Remove the old four-iteration traversal.
-2. [ ] Drive remaining source/target normalization with dirty dependencies,
+2. [~] Drive remaining source/target normalization with dirty dependencies,
    retaining deterministic structural edit order and fail-closed convergence.
    Reuse stable facts only for their immutable dependencies; edited bodies and
    changed interfaces invalidate their consumers.
@@ -20,7 +20,7 @@ scheduler suffixes remain useful starting points; do not rebuild their owners.
    cached evidence grants neither a permission nor extra search work.
 4. [ ] Finish resource admission for graph/cycle/delivery and analysis/edit
    storage, including failure cleanup. Entry graph, cycle checking and the
-   target use index and edit journals are admitted; delivery placement and
+   target use index, edit journals, local dirty maps and renumbering plans are admitted; delivery placement and
    remaining analysis/edit owners still need completion. Count logical work independently from
    physical cache hits and retain scaling/work/byte telemetry.
 5. [ ] Wire/document cache and scheduling controls with hard TOML behavior,
@@ -53,3 +53,9 @@ adds bounded optional disk measurement reuse, strict TOML/CLI controls and
 cold/warm/disabled output and logical-admission parity. This completes only the
 codec portion of tasks 3 and 5; build/elaboration caches and decision locks
 remain open.
+
+The [normalization batch](../../benchmarks/migration-results/2026-10-01-q2-normalization/README.md)
+implements local source revision reuse, three target stable-proof consumers and
+admitted in-place expression ordering. All-objective on/off logical/byte parity
+is qualified. SCC/global dependency invalidation and incremental formation stay
+open; measured target reuse is modest and no broad speed gain is claimed.

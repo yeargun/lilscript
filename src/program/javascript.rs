@@ -389,6 +389,7 @@ pub(super) fn lower_admitted(
         js::OutputFamilies::seed(js::selection::Objective::Brotli),
         &js::ChoiceMap::SEEDS,
         None,
+        true,
         budget,
     )
 }
@@ -407,6 +408,7 @@ pub(super) fn lower_output_admitted(
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
+    reuse_normalization: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<js::Module, FormationError> {
     let mut phase = budget.scope();
@@ -431,6 +433,7 @@ pub(super) fn lower_output_admitted(
         families,
         choices,
         hosts,
+        reuse_normalization,
         &mut phase,
     );
     let discarded = phase.with_ledger(|ledger| demand.discard(ledger.map(|(ledger, _)| ledger)));
@@ -482,6 +485,7 @@ fn form(
         js::OutputFamilies::NONE,
         &js::ChoiceMap::SEEDS,
         None,
+        true,
         &mut AllocationBudget::new(None),
     );
     demand
@@ -508,6 +512,7 @@ fn form_with_demand(
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
+    reuse_normalization: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<js::Module, FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
@@ -521,6 +526,7 @@ fn form_with_demand(
         preserved_properties,
         families.head(),
         hosts,
+        reuse_normalization,
         budget,
     )?;
     form_tail(head, families, choices, budget)
@@ -544,6 +550,7 @@ pub(super) struct FormedHead {
 
 #[derive(Clone, Copy)]
 struct TailContext {
+    reuse_normalization: bool,
     rules: js::TargetRules,
     frames_hidden: bool,
     strict: bool,
@@ -590,6 +597,7 @@ pub(super) fn form_head_admitted(
     preserved_properties: &[String],
     head: js::HeadChoices,
     hosts: Option<&crate::host_modules::HostDelivery>,
+    reuse_normalization: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
@@ -603,18 +611,21 @@ pub(super) fn form_head_admitted(
         preserved_properties,
         head,
         hosts,
+        reuse_normalization,
         budget,
     )
 }
 
 /// Apply the output families and choices to a formed head.
 pub(super) fn form_tail_admitted(
-    head: FormedHead,
+    mut head: FormedHead,
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
+    reuse_normalization: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<js::Module, FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
+    if let Some(tail) = &mut head.tail { tail.reuse_normalization = reuse_normalization; }
     form_tail(head, families, choices, budget)
 }
 
@@ -629,6 +640,7 @@ fn form_head(
     preserved_properties: &[String],
     head: js::HeadChoices,
     hosts: Option<&crate::host_modules::HostDelivery>,
+    reuse_normalization: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
     use crate::compilation_policy::TacticId;
@@ -995,6 +1007,7 @@ fn form_head(
         let frames_hidden = formation.contract.frames_hidden();
         // The family-independent rules, to their fixed point (M5.3a).
         let context = js::rules::Context {
+            reuse_normalization,
             rules,
             frames_hidden,
             strict,
@@ -1014,6 +1027,7 @@ fn form_head(
             return Err(error.into());
         }
         tail = Some(TailContext {
+            reuse_normalization,
             rules,
             frames_hidden,
             strict,
@@ -1086,6 +1100,7 @@ fn form_tail(
         return Err(Unsupported { span: Span::default(), feature: "target choice conflicts with source @choose" }.into());
     }
     let Some(TailContext {
+        reuse_normalization,
         rules,
         frames_hidden,
         strict,
@@ -1111,6 +1126,7 @@ fn form_tail(
     // their fixed point, then repeated strings, once no other rule reads a
     // literal (M5.3a).
     let context = js::rules::Context {
+            reuse_normalization,
         rules,
         frames_hidden,
         strict,

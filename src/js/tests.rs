@@ -112,9 +112,8 @@ fn admitted_array_packing_grows_the_existing_arena_and_releases_its_mask() {
             let mut module = source.clone_in(&mut budget).unwrap();
             assert_eq!(module.expressions.len(), module.expressions.capacity());
             let before = budget.retained_bytes(AllocationClass::Retained);
-            let (packed, map) = module.pack_string_arrays(permission, &mut budget).unwrap();
+            let packed = module.pack_string_arrays(permission, &mut budget).unwrap();
             assert_eq!(packed, 1);
-            assert!(map.is_some());
             assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
             // The two permissions produce and retain exactly the same tree;
             // startup's additional reachability mask has been released.
@@ -1468,7 +1467,7 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
     };
     let mut budget = AllocationBudget::new(None);
     let mut moved = build(false);
-    assert_eq!(moved.forward_single_uses(&mut budget).unwrap().0, 1);
+    assert_eq!(moved.forward_single_uses(&mut budget).unwrap(), 1);
     moved.verify().unwrap();
     assert_eq!(
         moved.render(policy).unwrap(),
@@ -1476,7 +1475,7 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
     );
     assert_eq!(execute(&moved, "", policy), "[0,{\"k\":1},1]");
     let mut kept = build(true);
-    assert_eq!(kept.forward_single_uses(&mut budget).unwrap().0, 0);
+    assert_eq!(kept.forward_single_uses(&mut budget).unwrap(), 0);
     assert_eq!(execute(&kept, "", policy), "[0,{\"k\":1},2]");
 
     // `{let j={k:x};capture(0);capture(j)}let x=1;`: the read throws first.
@@ -1515,7 +1514,7 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
     ];
     module.root_rows = vec![RootRow::new(0, Anchor::Anchored); 2];
     module.verify().unwrap();
-    assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
+    assert_eq!(module.forward_single_uses(&mut budget).unwrap(), 0);
 
     // `function(p){let j={k:p};arguments[0]=2;capture(j)}`: in a sloppy frame
     // the store assigns `p`.
@@ -1574,7 +1573,7 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
     });
     module.root_rows = vec![RootRow::new(0, Anchor::Anchored)];
     module.verify().unwrap();
-    assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
+    assert_eq!(module.forward_single_uses(&mut budget).unwrap(), 0);
 }
 
 #[test]
@@ -2118,7 +2117,7 @@ fn g3_logical_normalization_keeps_stores_observed_by_indirect_callbacks() {
 #[test]
 fn g3_expression_site_identity_survives_arena_renumbering() {
     let mut module = Module::default();
-    let dead = number(&mut module, 99.0);
+    number(&mut module, 99.0);
     let literal = expr(
         &mut module,
         Expr::Literal(Literal::String("a \"quoted\" value".into())),
@@ -2127,12 +2126,10 @@ fn g3_expression_site_identity_survives_arena_renumbering() {
     let mut budget = AllocationBudget::new(None);
     module.identify_spelling_sites(2, &mut budget).unwrap();
     let key = module.expression_site(literal).unwrap();
-    let map = module.renumber(&mut budget).unwrap();
-    assert!(map[dead.index()].is_none());
-    assert_eq!(
-        module.expression_site(map[literal.index()].unwrap()),
-        Some(key)
-    );
+    module.renumber(&mut budget).unwrap();
+    assert!(!module.expressions.iter().any(|node| matches!(node, Expr::Literal(Literal::Number(99.0)))));
+    let index = module.expressions.iter().position(|node| matches!(node, Expr::Literal(Literal::String(_)))).unwrap();
+    assert_eq!(module.expression_site(ExprId::new(index)), Some(key));
 }
 
 #[test]

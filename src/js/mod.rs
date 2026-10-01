@@ -51,6 +51,7 @@ mod inline;
 mod journal;
 mod private_calls;
 mod reach;
+mod renumber;
 mod uses;
 pub(crate) use journal::Journal;
 #[cfg(test)]
@@ -2276,12 +2277,11 @@ impl Module {
     /// in the same order, one binding fewer. A function or class value keeps
     /// its binding, which names it; a loop test repeats, so it never takes one.
     /// Root statements merge only within one source module. Returns the
-    /// number of forwarded bindings, and the renumbering map when a value
-    /// moved under a parent created before it.
+    /// number of forwarded bindings, with expression postorder restored.
     pub(crate) fn forward_single_uses(
         &mut self,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+    ) -> Result<usize, AllocationError> {
         let mut references = budget.filled(AllocationClass::Scratch, self.bindings.len(), 0u32)?;
         budget.work(
             crate::compilation_policy::WorkKind::Analysis,
@@ -2556,12 +2556,8 @@ impl Module {
             }
             mentions.discard(budget)?;
         }
-        let map = if disordered {
-            Some(self.renumber(budget)?)
-        } else {
-            None
-        };
-        Ok((forwarded, map))
+        if disordered { self.renumber(budget)?; }
+        Ok(forwarded)
     }
 
     fn frames(&self, budget: &mut AllocationBudget<'_>) -> Result<Frames, AllocationError> {

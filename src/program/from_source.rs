@@ -291,12 +291,14 @@ fn with_rules<'src>(
     };
     let resources = |error| publication_conversion_error(error, span);
     let before = publication::program_retained_bytes(&program, budget).map_err(resources)?;
-    let (program, receipt) = super::rules::optimize(program, request).map_err(|message| {
-        eprintln!("lilscript: {message}");
-        ConversionError::Unsupported(Unsupported {
-            span,
-            feature: "program rules",
-        })
+    let (program, receipt) = super::rules::optimize_admitted(program, request, budget).map_err(|error| {
+        match error {
+            super::rules::RuleError::Allocation(error) => ConversionError::Resources(error),
+            super::rules::RuleError::Invalid(message) => {
+                eprintln!("lilscript: {message}");
+                ConversionError::Unsupported(Unsupported { span, feature: "program rules" })
+            }
+        }
     })?;
     let after = publication::program_retained_bytes(&program, budget).map_err(resources)?;
     budget.release(Retained, before)?;

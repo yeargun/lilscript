@@ -52,11 +52,11 @@ fn forwarding_reuses_statement_mentions_across_chained_deletions_and_releases_se
         let retained = budget.retained_bytes(AllocationClass::Retained);
         // Test builds independently scan every index answer, including after
         // a preceding move changed positions and replaced a receiver's tree.
-        assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 40);
+        assert_eq!(module.forward_single_uses(&mut budget).unwrap(), 40);
         assert_eq!(budget.retained_bytes(AllocationClass::Retained), retained);
         module.verify().unwrap();
         assert_eq!(execute(&module, "", PrintPolicy::default()), expected);
-        assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
+        assert_eq!(module.forward_single_uses(&mut budget).unwrap(), 0);
         assert_eq!(budget.retained_bytes(AllocationClass::Retained), retained);
         drop(module);
     }
@@ -110,7 +110,7 @@ fn forwarding_invalidates_mentions_when_a_moved_closure_adds_a_capture() {
     module.verify().unwrap();
     assert_eq!(execute(&module, setup, PrintPolicy::default()), "[0,[10]]");
     let mut budget = AllocationBudget::new(None);
-    assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 1);
+    assert_eq!(module.forward_single_uses(&mut budget).unwrap(), 1);
     module.verify().unwrap();
     assert_eq!(execute(&module, setup, PrintPolicy::default()), "[0,[10]]");
 }

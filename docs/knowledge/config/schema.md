@@ -98,6 +98,7 @@ Physical reuse of complete compression measurements.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
+| `normalization_reuse` | `bool` | `true` | Reuse stable local normalization proofs (default true). |
 | `codec_reuse` | `bool` | `true` | Reuse exact-byte codec receipts across artifacts (default true). |
 | `directory` | `Option<PathBuf>` | `None` | Optional persistent cache directory, relative to this config file. |
 

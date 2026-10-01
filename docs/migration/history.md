@@ -1306,3 +1306,29 @@ algorithm 45 / search 32 / walk 10 / local facts 15. The final release compariso
 covers lazy disk setup and output configuration added after the unit batch.
 Build/elaboration caches, decision locks and the other Q2 acceptance items
 remain open. No ratchet baseline, port artifact or full-suite/fleet change.
+
+
+## 2026-10-01: Q2 local normalization reuse and in-place expression ordering
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-normalization/README.md).
+Target renumbering now admits its ordering plan before mutation and moves
+nodes in place, preserving nested payloads and backing. Temporary plans release
+on success/refusal/unwind; unused escaping remaps and the cloning path are gone.
+Source body revisions drive local return/reachability normalization without
+unneeded effects graphs. Three target passes have explicit stable dependencies
+and cold-work replay, including partial refusals. Strict
+`cache.normalization_reuse` controls this physical reuse outside semantic identity.
+
+35 focused tests and 36 release artifact/runtime oracles pass. The single native
+command initially lacked the installed Clang path; only that test was rerun.
+Every release artifact matches the prior pin: totals 888 raw / 691 gzip /
+574 Brotli. Current on/off modes have identical logical work and search choices.
+Source selections fall 330 → 180 and 77 target passes reuse proofs across the
+12 case/objective pairs. Target reuse is absent in two controls; coarse timing
+shows no clear CPU gain and supports no broad performance claim.
+
+Pin `q2-normalization-1`, SHA-256
+`c514eca8a6cb6392a54512d489a20d571f031e2d60dd764a4b1bfa2ee11b3e15`;
+algorithm 46 / search 32 / walk 10 / local facts 15. Q2 remains active for
+SCC/global invalidation, shared formation, build/elaboration caches, decision
+replay and remaining admission owners. No full suite, fleet or baseline update.

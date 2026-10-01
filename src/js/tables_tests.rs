@@ -512,11 +512,11 @@ fn s4_authored_pool_constrains_array_and_table_encodings() {
         let expected=run(&module);
         let mut ordinary=module.clone();
         let mut budget=AllocationBudget::new(None);
-        if packing {assert!(ordinary.pack_string_arrays(ArrayPacking::Startup,&mut budget).unwrap().0>0);}
+        if packing {assert!(ordinary.pack_string_arrays(ArrayPacking::Startup,&mut budget).unwrap()>0);}
         else {assert!(ordinary.encode_tables(&ChoiceMap::SEEDS,&mut budget).unwrap()>0);}
         let mut pinned=module;
         pinned.authored_pool.push(text.into());
-        assert_eq!(pinned.pack_string_arrays(ArrayPacking::Startup,&mut budget).unwrap().0,0);
+        assert_eq!(pinned.pack_string_arrays(ArrayPacking::Startup,&mut budget).unwrap(),0);
         assert_eq!(pinned.encode_tables(&ChoiceMap::SEEDS,&mut budget).unwrap(),0);
         assert_eq!(pinned.pool_strings(false,&mut budget).unwrap(),1);
         assert_eq!(pinned.pool_strings(false,&mut budget).unwrap(),0);

@@ -112,9 +112,9 @@ impl Module {
     pub(crate) fn array_receiver_calls(
         &mut self,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+    ) -> Result<usize, AllocationError> {
         if !self.pristine_builtins {
-            return Ok((0, None));
+            return Ok(0);
         }
         self.with_reach_tree(budget, |module, reach, budget| {
             let host = |module: &Self, id: ExprId, global: crate::catalog::Global| matches!(&module.expressions[id.index()], Expr::Host(found) if found.kind == crate::catalog::HostKind::Standard(global));
@@ -186,12 +186,8 @@ impl Module {
                     *invocation = Invocation::Reference;
                 }
             }
-            let map = if disordered {
-                Some(module.renumber(budget)?)
-            } else {
-                None
-            };
-            Ok((count, map))
+            if disordered { module.renumber(budget)?; }
+            Ok(count)
         })?
     }
 }
