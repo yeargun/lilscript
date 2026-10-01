@@ -1,0 +1,7 @@
+
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13

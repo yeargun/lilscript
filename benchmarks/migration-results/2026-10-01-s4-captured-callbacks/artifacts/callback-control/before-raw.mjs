@@ -1,0 +1,1 @@
+function h(g){return{x:g[0]}}function j(i){return[i.x]}function k(e){return function(f){return j(e(h(f)))}}function apply(d,l){return h(k(d)(j(l)))}export{apply};

@@ -1,0 +1,7 @@
+javascript.checks="development"
+[optimization]
+preset='maximum'
+[objective]
+codecs='raw'
+[effort]
+level=13

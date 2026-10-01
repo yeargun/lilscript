@@ -1,0 +1,1 @@
+struct Point{int x;}export func(int)->int make(func(Point)->Point f,int offset){auto alias=f;return (int n)=>{auto nested=(int x)=>{auto local=alias;Point got=local(Point{x});return got.x;};return nested(n+offset);};}

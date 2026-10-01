@@ -1,0 +1,1 @@
+function r(n){return{x:n[0]}}function t(n){return[n.x]}function a(n){return function(a){return t(n(r(a)))}}function apply(n,u){return r(a(n)(t(u)))}export{apply};

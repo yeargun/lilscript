@@ -11,15 +11,19 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 regional-choice batch](../../benchmarks/migration-results/2026-10-01-s4-regional-choices/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-choices-2/lilscript`, SHA-256
-`c6b3a26f3bdfbdaf8e735b4e5665b3b0cb7e4aa6c9ba00ba29502424e2b0fe11`.
-Algorithm 40 / search 32 / walk 10 / local facts 14; string family 2.
-All twelve documented `@choose` families survive shared edits, pooling,
-specialization, formation, search and replay with hard TOML permissions.
-Fifty-two affected checks, schema/release checks and 24 CLI artifact oracles
-pass. Matched totals change by +6 raw / +12 gzip / +11 Brotli; the unannotated
-control is unchanged. Quote ties obey the pin. This is an author tradeoff.
+The latest [S4 captured-callback batch](../../benchmarks/migration-results/2026-10-01-s4-captured-callbacks/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-captured-callbacks-1/lilscript`, SHA-256
+`d79d17c8da61774c0a361ba9e6b9d6f551464a22d85ff2b309bfb07ea792f3eb`.
+Algorithm 41 / search 32 / walk 10 / local facts 14. An admitted shared-cell
+alias graph permits callbacks captured by nested/returned closures when every
+use is invocation. Observable callback escapes still fail. Twenty-three
+focused checks and 18 release artifact oracles pass; matched controls remain
+337 raw / 246 gzip / 197 Brotli, byte-identical.
+
+The preceding regional-choice batch completes all twelve documented `@choose`
+families through edits, formation, search and replay. Its 52 focused checks and
++6 raw / +12 gzip / +11 Brotli matched results remain in history. The unannotated
+control is unchanged; quote ties obey the selected delimiter.
 
 The preceding pooling batch implements `@pool` through formation/replay,
 templates and data encodings. Its fifteen checks plus three affected reruns
@@ -41,7 +45,8 @@ in history. Wider ambiguous/opaque ABI is still open.
 The preceding public callback batch adapts concrete struct-bearing callbacks
 when their use is limited to invocation, including local aliases, defaults and
 rest. Development validates original host values and snapshots each field once.
-Identity-observing or captured public callbacks still need a wider ABI.
+Captured invocation-only callbacks are now supported; identity-observing public
+callbacks still need a wider ABI.
 
 The preceding erased transport batch supports closed private generic branches,
 recursive helpers, collections, nested products, captures and concrete callback

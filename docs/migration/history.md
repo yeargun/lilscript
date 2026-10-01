@@ -1192,3 +1192,21 @@ Pin `s4-choices-2`, SHA-256
 algorithm 40 / search 32 / walk 10 / local facts 14, string family 2. R15 author
 controls are complete; wider public erased ABI keeps S4 active. No full-library,
 fleet, baseline or port-artifact change.
+
+## 2026-10-01: S4 captured public callbacks
+
+The [captured-callback batch](../../benchmarks/migration-results/2026-10-01-s4-captured-callbacks/README.md)
+replaces the one-unit/capture prohibition with an admitted alias graph and
+whole-program use validation. Nested and returned closures can retain the
+private adapter if every use invokes it. Defaults, reassignment, delayed
+throws and development checks reuse the existing codec; observable callback
+identity, property and opaque escapes remain refused.
+
+23 focused checks and 18 release CLI artifact oracles pass, including work and
+memory refusal cleanup. Existing product/callback controls remain byte-identical
+at combined 337 raw / 246 gzip / 197 Brotli. New capability output is retained
+without an old-compiler size-win claim. Pin `s4-captured-callbacks-1`, SHA-256
+`d79d17c8da61774c0a361ba9e6b9d6f551464a22d85ff2b309bfb07ea792f3eb`;
+algorithm 41 / search 32 / walk 10 / local facts 14. The first CLI development
+configuration's table placement was corrected; no full-suite/fleet/timing or
+baseline update was performed. S4 remains active for wider public ABI.

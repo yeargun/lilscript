@@ -55,7 +55,8 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    covers branches, recursive helpers, mutable private collections, nested
    products, captures and complete concrete callback inputs. Concrete public
    callback parameters use the value codec when identity is unobserved and uses
-   are invocations; defaults/rest and development checks are implemented.
+   are invocations, including aliases and nested/returned closures; defaults/rest
+   and development checks are implemented.
    Disjoint concrete product/primitive unions now share public codecs, nullable
    storage and representation-independent narrowing. Wider public opaque
    generic/ambiguous-union transport remains open. ABI enums/flags now carry checked values/ordinals, canonical

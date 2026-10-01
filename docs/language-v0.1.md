@@ -869,6 +869,13 @@ accepted only for parameters whose body provably reads the array without
 exposing its identity or changing its elements. Mutable collections and opaque
 union crossings remain rejected where adaptation would break host sharing.
 
+Concrete struct-bearing callbacks received by exported functions are adapted
+when all uses only invoke them. Local aliases and nested or returned closures
+may capture the callback; its wrapper remains private. Defaults, reassignment,
+exceptions and development checks keep their ordinary call-time behavior.
+Exposing the callback itself, observing its properties or identity, or passing
+it to an unproved callee still requires a compatible public callable boundary.
+
 Published constructors decode struct parameters in the constructor itself,
 preserving class identity, `instanceof`, defaults and public arity. Prototype
 methods decode incoming structs and encode returned structs. Calls from

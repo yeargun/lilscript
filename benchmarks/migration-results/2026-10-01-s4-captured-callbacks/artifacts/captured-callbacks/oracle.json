@@ -1,0 +1,10 @@
+{
+  "exercise": "let reads=0;const f=m.make(p=>({get x(){reads++;return p.x+10}}),2),a=f(3),b=f(4);let thrown=false;try{m.make(()=>{throw 'sentinel'},0)(1)}catch(e){thrown=e==='sentinel'}console.log(JSON.stringify([a,b,reads,thrown]));",
+  "expected": [
+    15,
+    16,
+    2,
+    true
+  ],
+  "setup": ""
+}

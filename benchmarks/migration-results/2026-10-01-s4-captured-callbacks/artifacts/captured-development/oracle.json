@@ -1,0 +1,12 @@
+{
+  "exercise": "let reads=0;const f=m.make(p=>({get x(){reads++;return p.x+3}})),value=f(),bad=[];try{m.make(3)}catch(e){bad.push(e instanceof TypeError)}try{m.make(()=>({x:'wrong'}))()}catch(e){bad.push(e instanceof TypeError)}console.log(JSON.stringify([value,reads,bad]));",
+  "expected": [
+    7,
+    1,
+    [
+      true,
+      true
+    ]
+  ],
+  "setup": ""
+}

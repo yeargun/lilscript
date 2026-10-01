@@ -1,0 +1,1 @@
+struct Point{int x;}export Point apply(func(Point)->Point f,Point p){auto copy=f;return copy(p);}

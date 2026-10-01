@@ -188,68 +188,105 @@ pub(super) fn adaptable_export(
     adaptable(program, &signature.return_type, 0, budget)
 }
 
-/// A host callback can be adapted when its source value is only invoked. The
-/// wrapper's identity, properties and constructibility are then unobservable.
-/// Follow local aliases, but reject escapes and captures. A default or local
-/// reassignment still supplies the same checked private callable convention.
-/// This proof is about uses, not callback purity: every call and throw remains.
+/// A host callback can be adapted when its source value is only invoked. Its
+/// wrapper identity, properties and constructibility must remain unobservable.
+/// Captures and aliases may cross nested bodies, including returned closures,
+/// as long as the callback itself never escapes. Reassignment/defaults supply
+/// the same checked private calling convention; this proves no purity property.
 fn call_only_parameter(program: &Program<'_>, unit: UnitId, position: usize,
     budget: &mut AllocationBudget<'_>) -> Result<bool, FormationError> {
     let data = program.units[unit.index()].data();
     let Some(&parameter) = data.parameters.get(position) else { return Ok(false); };
     let mut scope = budget.scope();
-    let mut cells = scope.vector(AllocationClass::Scratch, 1)?;
-    scope.push(AllocationClass::Scratch, &mut cells, parameter)?;
-    let loads = |cells: &[CellId], value: ValueId| {
-        matches!(data.operations[data.values[value.index()].definition.index()].kind,
-            OperationKind::Load(place) if matches!(data.places[place.index()], Place::Cell(cell) if cells.contains(&cell)))
+    let mut aliases = scope.vector(AllocationClass::Scratch, 0)?;
+    let loaded_cell = |data: &UnitData, value: ValueId| {
+        match data.operations[data.values[value.index()].definition.index()].kind {
+            OperationKind::Load(place) => match data.places[place.index()] {
+                Place::Cell(cell) => Some(cell),
+                _ => None,
+            },
+            _ => None,
+        }
     };
-    // Checked SSA values precede their initializer. Local aliases
-    // therefore close in source operation order, with no iterative dataflow.
-    for operation in &data.operations {
-        scope.work(WorkKind::Analysis, cells.len() as u64 + 1)?;
-        if let OperationKind::Initialize(cell) = operation.kind {
-            if data.operands(operation.operands).unwrap().first().is_some_and(|&v| loads(&cells, v)) {
-                scope.push(AllocationClass::Scratch, &mut cells, cell)?;
-            }
-        }
-    }
-    for &cell in &cells {
-        if program.cells[cell.index()].owner != unit { return Ok(false); }
-        for other in &program.units {
-            scope.work(WorkKind::Analysis, other.data().captures.len() as u64 + 1)?;
-            if other.data().captures.contains(&cell) { return Ok(false); }
-        }
-    }
-    for operation in &data.operations {
-        let operands = data.operands(operation.operands).unwrap();
-        scope.work(WorkKind::Analysis, (operands.len()+1).saturating_mul(cells.len()+1) as u64)?;
-        if !matches!(operation.kind, OperationKind::Initialize(cell) if cells.contains(&cell))
-            && !matches!(operation.kind, OperationKind::IsUndefined { parameter: Some(_), .. })
-            && operands.iter().any(|&value| loads(&cells, value)) { return Ok(false); }
-        if let OperationKind::Call(call) = operation.kind {
-            for argument in data.arguments(data.calls[call.index()].arguments).unwrap() {
-                scope.work(WorkKind::Analysis, cells.len() as u64 + 1)?;
-                match *argument {
-                    CallArgument::Value(value) | CallArgument::Spread(value) if loads(&cells, value) => return Ok(false),
-                    CallArgument::Reference(place) if matches!(data.places[place.index()], Place::Cell(cell) if cells.contains(&cell)) => return Ok(false),
-                    _ => {}
+    // Build direct initializer edges once. A child's alias may precede its
+    // parent's initializer in the unit table, so source-order scanning cannot
+    // close this graph. Each cell is enqueued at most once, including cycles.
+    for unit in &program.units {
+        let data = unit.data();
+        for operation in &data.operations {
+            scope.work(WorkKind::Analysis, 1)?;
+            if let OperationKind::Initialize(to) = operation.kind {
+                if let Some(from) = data.operands(operation.operands).unwrap().first()
+                    .and_then(|&value| loaded_cell(data, value)) {
+                    scope.push(AllocationClass::Scratch, &mut aliases, (from, to))?;
                 }
             }
         }
     }
-    for place in &data.places {
-        scope.work(WorkKind::Analysis, cells.len() as u64 + 1)?;
-        match *place {
-            Place::Member { receiver, .. } | Place::ClassField { receiver, .. }
-            | Place::Index { receiver, .. } if loads(&cells, receiver) => return Ok(false),
-            Place::Value(value) if loads(&cells, value) => return Ok(false),
-            _ => {}
+    let search_work = u64::from(usize::BITS - aliases.len().leading_zeros()) + 1;
+    scope.work(WorkKind::Analysis, (aliases.len() as u64).saturating_mul(search_work))?;
+    aliases.sort_unstable();
+    let mut tracked = scope.vector(AllocationClass::Scratch, program.cells.len())?;
+    scope.work(WorkKind::Analysis, program.cells.len() as u64)?;
+    tracked.resize(program.cells.len(), false);
+    let mut pending = scope.vector(AllocationClass::Scratch, 1)?;
+    scope.push(AllocationClass::Scratch, &mut pending, parameter)?;
+    tracked[parameter.index()] = true;
+    let mut cursor = 0;
+    while cursor < pending.len() {
+        let cell = pending[cursor];
+        cursor += 1;
+        if program.units[program.cells[cell.index()].owner.index()].data().kind
+            == UnitKind::ModuleInitialization { return Ok(false); }
+        scope.work(WorkKind::Analysis, search_work)?;
+        let start = aliases.partition_point(|&(from, _)| from < cell);
+        for &(from, to) in &aliases[start..] {
+            scope.work(WorkKind::Analysis, 1)?;
+            if from != cell { break; }
+            if !tracked[to.index()] {
+                tracked[to.index()] = true;
+                scope.push(AllocationClass::Scratch, &mut pending, to)?;
+            }
         }
     }
-    for region in &data.regions {
-        scope.work(WorkKind::Analysis, cells.len() as u64 + 1)?;
-        if region.result.is_some_and(|value| loads(&cells, value)) { return Ok(false); }
+    for unit in &program.units {
+        let data = unit.data();
+        let loads = |value: ValueId| loaded_cell(data, value).is_some_and(|cell| tracked[cell.index()]);
+        for operation in &data.operations {
+            let operands = data.operands(operation.operands).unwrap();
+            scope.work(WorkKind::Analysis, operands.len() as u64 + 1)?;
+            if !matches!(operation.kind, OperationKind::Initialize(cell) if tracked[cell.index()])
+                && !matches!(operation.kind, OperationKind::IsUndefined { parameter: Some(_), .. })
+                && operands.iter().any(|&value| loads(value)) { return Ok(false); }
+            if let OperationKind::Call(call) = operation.kind {
+                let call = &data.calls[call.index()];
+                // Only ordinary callable invocation may consume the adapter.
+                if matches!(call.target, CallTarget::Intrinsic { receiver: Some(value), .. }
+                    if loads(value)) { return Ok(false); }
+                for argument in data.arguments(call.arguments).unwrap() {
+                    scope.work(WorkKind::Analysis, 1)?;
+                    match *argument {
+                        CallArgument::Value(value) | CallArgument::Spread(value) if loads(value) => return Ok(false),
+                        CallArgument::Reference(place) if matches!(data.places[place.index()], Place::Cell(cell) if tracked[cell.index()]) => return Ok(false),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        for place in &data.places {
+            scope.work(WorkKind::Analysis, 1)?;
+            match *place {
+                Place::Member { receiver, .. } | Place::ClassField { receiver, .. }
+                    if loads(receiver) => return Ok(false),
+                Place::Index { receiver, key } if loads(receiver) || loads(key) => return Ok(false),
+                Place::Value(value) if loads(value) => return Ok(false),
+                _ => {}
+            }
+        }
+        for region in &data.regions {
+            scope.work(WorkKind::Analysis, 1)?;
+            if region.result.is_some_and(loads) { return Ok(false); }
+        }
     }
     Ok(true)
 }
@@ -1115,5 +1152,28 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         }
         self.work(self.module.expressions.len())?;
         Ok(!self.module.references_host(name))
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn s4_captured_callback_admission_restores_its_parent_on_every_exit() {
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+    let arena = bumpalo::Bump::new();
+    let source = "struct Point{int x;}export func()->int make(func(Point)->int f){auto alias=f;return ()=>{auto copy=alias;return copy(Point{3});};}";
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let semantics = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &semantics).unwrap();
+    let cell = program.cells.iter().find(|cell| cell.name == "make").unwrap();
+    let CellBinding::Function(unit) = cell.binding else { panic!("function owner"); };
+    for (work, memory, succeeds) in [(100_000, 100_000, true), (2, 100_000, false), (100_000, 37, false)] {
+        let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+            baseline_work: work, optional_work: 0, baseline_retained_bytes: 0, retained_bytes: memory,
+        }).unwrap();
+        ledger.retain(WorkDomain::Baseline, 37).unwrap();
+        let result = call_only_parameter(&program, unit, 0,
+            &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline))));
+        if succeeds { assert!(result.unwrap()); } else { assert!(result.is_err()); }
+        assert_eq!(ledger.retained_bytes(), 37);
     }
 }

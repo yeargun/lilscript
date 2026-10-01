@@ -89,16 +89,65 @@ fn s4_public_callbacks_adapt_structs_without_observing_callable_identity() {
 }
 
 #[test]
-fn s4_public_callbacks_keep_identity_and_capture_boundaries_explicit() {
+fn s4_public_callbacks_keep_identity_and_escape_boundaries_explicit() {
     for body in [
         "observe(f);return 0;",
-        "auto nested=()=>f(Point{1});return nested();",
+        "auto nested=()=>{observe(f);return 0;};return nested();",
+        "auto nested=()=>f;observe(nested());return 0;",
+        "auto alias=f;auto nested=()=>{auto copy=alias;observe(copy);return 0;};return nested();",
+        "auto nested=()=>{JsValue raw=f;observe(raw[\"name\"]);return 0;};return nested();",
         "auto alias=f;observe(alias);return 0;",
     ] {
         let source=format!("struct Point{{int x;}}extern void observe(JsValue f);export int run(func(Point)->int f){{{body}}}");
         let mut settings=config("[policy.tactics]\ninlining='off'\nconstant-folding='off'");settings.effort.level=0;
         let error=compile_source(&source,&settings,ServiceOptions::default()).unwrap_err();
         assert!(error.to_string().contains("public value-struct ABI adaptation"),"{error}");
+    }
+}
+
+#[test]
+fn s4_public_callbacks_capture_private_adapters_in_escaped_nested_closures() {
+    let source=r"
+        struct Point{int x;}
+        export int immediate(func(Point)->int f){auto nested=()=>f(Point{1});return nested();}
+        export func(int)->int make(func(Point)->Point f,int offset){
+            auto alias=f;
+            return (int n)=>{auto nested=(int x)=>{auto local=alias;Point got=local(Point{x});return got.x;};return nested(n+offset);};
+        }
+        Point add(Point p){p.x+=4;return p;}
+        export func()->int defaulted(func(Point)->Point f=add){return ()=>{Point got=f(Point{3});return got.x;};}
+        export func()->int replace(func(Point)->Point f){auto nested=()=>{Point got=f(Point{5});return got.x;};f=add;return nested;}
+    ";
+    for effort in [0,13] {
+        let mut settings=config("[policy.tactics]\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'");settings.effort.level=effort;
+        let built=compile_source(source,&settings,ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",r#"
+                const events=[];
+                const first=library.make(p=>{events.push(p.x);return {get x(){events.push('x');return p.x+10}}},2);
+                const second=library.make(p=>({x:p.x*2}),5);
+                const delayed=library.make(()=>{throw 'delayed'},0);let thrown=false;
+                try{delayed(1)}catch(e){thrown=e==='delayed'}
+                console.log(JSON.stringify([library.immediate(p=>p.x+1),first(3),first(4),second(3),events,library.defaulted()(),library.defaulted(p=>({x:p.x+20}))(),library.replace(()=>{throw 'unused'})(),thrown]));
+            "#),"[2,15,16,16,[5,\"x\",6,\"x\"],7,23,9,true]\n");
+        }
+        check_scores(&built);
+    }
+}
+
+#[test]
+fn s4_public_callbacks_capture_development_checks_at_invocation() {
+    let source="struct Point{int x;}export func()->int make(func(Point)->Point f){auto alias=f;return ()=>{Point p=alias(Point{4});return p.x;};}";
+    let built=compile_source(source,&config("checks='development'"),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",r#"
+            let calls=0,reads=0;const f=library.make(p=>{calls++;return {get x(){reads++;return p.x+3}}});
+            const before=[calls,reads],value=f(),bad=[];
+            try{library.make(3);bad.push(false)}catch(e){bad.push(e instanceof TypeError)}
+            const delayed=library.make(()=>({x:'wrong'}));
+            try{delayed();bad.push(false)}catch(e){bad.push(e instanceof TypeError)}
+            console.log(JSON.stringify([before,value,calls,reads,bad]));
+        "#),"[[0,0],7,1,1,[true,true]]\n");
     }
 }
 

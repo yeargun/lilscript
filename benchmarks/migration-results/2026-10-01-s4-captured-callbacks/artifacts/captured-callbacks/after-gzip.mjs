@@ -1,0 +1,1 @@
+let n=(n,t)=>r=>{let e=r+t|0;return n([e])[0]};function t(n){return{x:n[0]}}function r(n){return[n.x]}function a(n){return function(a){return r(n(t(a)))}}function make(t,r){return n(a(t),r)}export{make};

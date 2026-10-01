@@ -1,0 +1,1 @@
+struct Point{int x;}export func()->int make(func(Point)->Point f){return ()=>{Point got=f(Point{4});return got.x;};}
