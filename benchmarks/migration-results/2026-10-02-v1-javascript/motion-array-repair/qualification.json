@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+    "sha256": "42b48470e2436ab8fffdfdab1c2e28402d103ce445dc8974146ae268c6c3aa5b"
+  },
+  "source_sha256": "7bdb9c9297b4f12eebf4dc8f35f9a045ff654fd7e96b7796d977150f2c496ec5",
+  "test_sha256": "eeb5209742f35de3986250669e306ba331072f3381e4fac6257ad19c6b659958",
+  "rows": [
+    {
+      "objective": "raw",
+      "exit": 0,
+      "artifact": "/tmp/lilscript-v1-motion-arrays/output/raw/array.js",
+      "sha256": "1204d5f6afc7992ca07c755eb329e6fda8f87fe3181c41924049907eec5ac6a0",
+      "raw": 290,
+      "gzip9": 204,
+      "brotli11": 168,
+      "archived": "motion-array-repair/raw.mjs"
+    },
+    {
+      "objective": "gzip",
+      "exit": 0,
+      "artifact": "/tmp/lilscript-v1-motion-arrays/output/gzip/array.js",
+      "sha256": "915dca4cf038702eb5b6cf695bbd97821e03ced9144f7d891411779de3a28d86",
+      "raw": 290,
+      "gzip9": 190,
+      "brotli11": 167,
+      "archived": "motion-array-repair/gzip.mjs"
+    },
+    {
+      "objective": "brotli",
+      "exit": 0,
+      "artifact": "/tmp/lilscript-v1-motion-arrays/output/brotli/array.js",
+      "sha256": "b27d248ab66fc2db9dd5bfc0c78958d8b162f5d47c5341f78d0aeea31c8e9282",
+      "raw": 292,
+      "gzip9": 194,
+      "brotli11": 157,
+      "archived": "motion-array-repair/brotli.mjs"
+    }
+  ],
+  "scope": "Three Motion array-utility upstream differential tests per objective, isolated compiler-written effort-15 ESM. Full package and consumer tests remain pending.",
+  "node": {
+    "path": "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+    "sha256": "89af8424dd53e560b1933f87ba650d8bf57c83ca5a04600eefb31f416aabbae7"
+  },
+  "source_commit": "dddd208d4316824f32fe7afa722a526f0d78b398",
+  "reference": {
+    "package": "motion-utils",
+    "version": "13.0.0",
+    "implementation": {
+      "path": "/home/azureuser/motionlil/node_modules/motion-utils/dist/es/array.mjs",
+      "sha256": "b8e46b51dfade7e911818118b26faa653781ce0cdce51cbed93c0dcfc179466d"
+    },
+    "dependency_lock": {
+      "path": "/home/azureuser/motionlil/package-lock.json",
+      "sha256": "51c3be59621a1173b930f799b8ab6aac5c94d86eef4584a51e81463b22e586d4"
+    }
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  }
+}

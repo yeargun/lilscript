@@ -345,6 +345,29 @@ fn constant_calls_are_evaluated_for_each_argument_tuple() {
 }
 
 #[test]
+fn captured_parameter_readers_follow_the_complete_call_set() {
+    let source = include_str!("../../../tests/cases/captured_parameter_call_sets.lil");
+    let expected = include_str!("../../../tests/cases/captured_parameter_call_sets.out");
+    // Both initializer orders must converge to the same facts. The callback
+    // result is learned after the first undefined input reaches the factory.
+    for source in [source.to_owned(), source.replace(
+        "\"plain\", closer(JS.undefined()), \"full\", closer(after)",
+        "\"full\", closer(after), \"plain\", closer(JS.undefined())",
+    )] {
+        for request in [FOLD_ONLY, MODULE, SCRIPT] {
+            let arena = bumpalo::Bump::new();
+            let syntax = crate::parse_source(&arena, &source).unwrap();
+            let semantics = crate::analyze(&syntax).unwrap();
+            let program = from_checked_source(&syntax, &semantics).unwrap();
+            assert_eq!(run(&program), expected);
+            let (program, _) = optimize(program, request).unwrap();
+            program.verify().unwrap();
+            assert_eq!(run(&program), expected, "{request:?}\n{source}");
+        }
+    }
+}
+
+#[test]
 fn finite_call_sets_fold_a_common_branch_without_sampling_overflow() {
     fn source(arguments: &[i32]) -> String {
         let tail = (0..70).map(|_| "print(0);").collect::<String>();

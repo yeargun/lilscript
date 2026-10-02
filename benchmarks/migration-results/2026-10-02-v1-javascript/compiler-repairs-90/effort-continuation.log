@@ -1,0 +1,49 @@
+
+running 31 tests
+test program::publication::search::cursor_tests::partial_finish_refusal_keeps_exact_incumbent_and_releases_discovery_owners ... ok
+test program::publication::search::cursor_tests::partial_reclaim_refusal_preserves_pins_and_unvisited_states ... ok
+test program::publication::search::cursor_tests::reclaim_scan_skips_active_states_and_charges_empty_state_slots ... ok
+test program::publication::search::cursor_tests::refused_cursor_scan_preserves_progress_and_exact_incumbent ... ok
+test program::publication::search::cursor_tests::structural_age_turns_preserve_quality_turns_and_use_canonical_ties ... ok
+test program::publication::search::cursor_tests::width_one_keeps_a_waiting_cursor_but_never_an_exhausted_tail ... ok
+test program::publication::search::selection::memory_tests::cold_memory_refusal_scores_existing_names_and_preserves_fixed_probe_prefixes ... ok
+test program::publication::search::selection::memory_tests::refused_facts_session_releases_prepared_proof_but_keeps_owned_cache ... ok
+test program::publication::search::selection::memory_tests::zero_byte_and_partial_all_codec_failures_are_never_retried_or_observed ... ok
+test program::publication::search::terminal::tests::a_terminal_formation_of_the_winners_own_assignment_is_the_winner ... ok
+test program::publication::search::terminal::tests::accounting_errors_cannot_masquerade_as_a_completed_shorter_search ... ok
+test program::publication::search::terminal::tests::codec_reuse_preserves_logical_search_and_final_bytes_for_every_objective ... ok
+test program::publication::search::terminal::tests::deferred_naming::deferred_naming_combines_private_fields_and_local_names_with_real_toml_vetoes ... ok
+test program::publication::search::terminal::tests::deferred_naming::deferred_naming_default_changes_at_fourteen_without_spending_work_at_thirteen ... ok
+test program::publication::search::terminal::tests::deferred_naming::deferred_naming_exhaustion_keeps_the_completed_winner ... ok
+test program::publication::search::terminal::tests::deferred_naming::deferred_naming_obeys_fast_tiers_naming_vetoes_and_no_prune_mode ... ok
+test program::publication::search::terminal::tests::deferred_naming::deferred_naming_protects_the_completed_prefix_and_recovers_an_uphill_start ... ok
+test program::publication::search::terminal::tests::dominance_refuses_a_smaller_sum_that_grows_one_row ... ok
+test program::publication::search::terminal::tests::every_effort_level_starts_from_the_same_baseline_and_ends_at_most_there ... ok
+test program::publication::search::terminal::tests::g1_compact_allocation_preserves_the_completed_search_and_delivers_its_score ... ok
+test program::publication::search::terminal::tests::incumbents_never_worsen_within_a_search_or_its_terminal_stage ... FAILED
+test program::publication::search::terminal::tests::local_read_order_polish_protects_the_completed_search_under_each_objective ... ok
+test program::publication::search::terminal::tests::private_properties_polish_protects_the_completed_search_and_replays ... ok
+test program::publication::search::terminal::tests::proxy_modes::configured_proxy_modes_preserve_oracles_and_expose_their_actual_work ... ok
+test program::publication::search::terminal::tests::proxy_modes::library_proxy_policy_ignores_the_legacy_cli_environment ... ok
+test program::publication::search::terminal::tests::q2_configured_codec_cache_preserves_each_objectives_search_and_bytes ... ok
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... ok
+test program::publication::search::terminal::tests::q2_normalization_reuse_preserves_logical_search_and_objective_bytes ... ok
+test program::publication::search::terminal::tests::q3_protected_effort_keeps_each_completed_lower_objective_winner ... ok
+test program::publication::search::terminal::tests::terminal_family_vetoes_hold_under_each_objective ... ok
+test program::publication::search::terminal::tests::the_choice_schedule_resets_every_site_at_once_then_orders_by_stake ... ok
+
+failures:
+
+---- program::publication::search::terminal::tests::incumbents_never_worsen_within_a_search_or_its_terminal_stage stdout ----
+
+thread 'program::publication::search::terminal::tests::incumbents_never_worsen_within_a_search_or_its_terminal_stage' (2429220) panicked at src/program/search_terminal_tests.rs:402:17:
+assertion `left == right` failed: raw
+  left: 493
+ right: 567
+
+
+failures:
+    program::publication::search::terminal::tests::incumbents_never_worsen_within_a_search_or_its_terminal_stage
+
+test result: FAILED. 30 passed; 1 failed; 0 ignored; 0 measured; 2126 filtered out; finished in 162.88s
+

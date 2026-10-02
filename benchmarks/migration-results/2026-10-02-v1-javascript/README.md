@@ -163,21 +163,73 @@ algorithm artifacts have exactly the candidate-4 hashes. Library qualification
 resumes on candidate 5 without repeating cnlil. No fleet timing improvement is
 claimed from the interrupted run.
 
-The resumed run retains each completed port under `ports-initial/`; the full
-fleet is still running. Hast-util-to-html passes all 456 tests. jQuery passes
+The resumed run retains each completed port under `ports-initial/`; it stopped
+after seven completed ports to repair the defects described below. Its
+[partial receipt](ports-production-2-interrupted.json) retains all seven results
+and the remaining 18 ports. Hast-util-to-html passes all 456 tests. jQuery passes
 six behavioral checks and exposes a stale syntax assertion: its default export
 uses an export specifier. The repaired check compares the imported default,
 `jQuery` and `$` identities and passes on the unchanged compiled artifact.
 Together these qualify all seven jQuery checks without rebuilding the package.
 
 Motion's generic array-identity helper now declares its JavaScript boundary
-explicitly; the ten-entry checker passes, while its production build and new
-upstream comparisons remain pending. MobX builds all four profiles, but its old
+explicitly; the ten-entry checker and all nine isolated upstream comparisons
+(three tests under each objective) pass. Its complete production package and
+delivery qualification remain pending. MobX builds all four profiles, but its old
 test command immediately replaces `dist` with development-only output. Three
 production imports consequently fail; 766 tests pass and 11 are upstream skips.
 Its corrected test command consumes the completed package. The affected
 production checks still need a fresh artifact, because the initial test command
 deleted it. [Repair dispositions](port-repairs.json) keep these distinctions.
+
+KaTeX's clean build could not resolve extensions importing the generated core
+before atomic installation. The source/config repair maps an explicit bare
+provider to the existing core outputs. All five extensions check with no `dist`
+directory; its full package still needs production qualification. Its browser
+guard now refreshes the site from existing compiler artifacts and fails if they
+are missing, avoiding a stale site or an implicit duplicate compilation.
+
+Marked passes 28 of 29 initial tests, including its 660 specification cases and
+concatenation check. Its last test expected an obsolete banner and particular
+export spelling. The replacement verifies the exact compiler-manifest artifact
+hash; it passes against the unchanged output. Public namespace identity and
+behavior assertions remain in place. These runs jointly qualify all 29 tests.
+
+Two actual compiler defects are repaired in [candidate 6](compiler-identity-6.json):
+
+- Effort handoff could discard a smaller completed winner when optional work
+  ran out during requalification. On the unchanged spelling fixture, a raw
+  winner of 493 bytes fell back to 495; Brotli winners of 278 or 274 fell back
+  to 292. [Initial evidence](effort-handoff/before.json) retains the ceilings
+  and completed checkpoints. Algorithm 90 funds this bounded metadata work
+  before exploration, without skipping any admission checks or replenishing
+  the compilation's quota. [All nine CLI pairs](effort-handoff/qualification.json)
+  pass their runtime goldens and retain every smaller completed checkpoint.
+  Raw improves by two bytes in each pair; gzip by 4, 12 and 18; Brotli by
+  14, 18 and 18. This is a defect reproducer, not a new calibration corpus.
+- Mdast-util-from-markdown's fresh candidate-5 package passes 439 checks and
+  fails 307, including stale site checks. Its opener/closer factories lose
+  callback effects even in development mode. The reduced language fixture
+  `captured_parameter_call_sets.lil` exposes an incomplete propagation worklist:
+  when parameter input facts change, capturing closures must be revisited as
+  well as the owning function. The repair adds those dependency edges using
+  the existing bounded reader index. The tests keep the independent expected
+  callback order. [The old compiler](captured-callback/before.json) fails all
+  12 production lanes; [the repair](captured-callback/after.json) passes all
+  24 JavaScript lanes, including formation controls. Six native lanes explicitly
+  exclude this JavaScript-host fixture; the portable native closure check passes.
+  A [fresh development library](captured-callback/mdast-development.json) matches
+  upstream exactly on all 652 CommonMark inputs. Full package qualification is
+  running on candidate 6, followed by Motion, MobX, KaTeX and the remaining ports.
+
+[Focused Rust qualification](compiler-repairs-90/qualification.json) retains
+each initial failure and its recheck. The final affected rule/search batch has
+124 initial passes and three passing rechecks after correcting the test's JSON
+host call and Clang environment. The earlier handoff/admission batches and
+their two affected rechecks are also covered. No whole-library rerun is claimed.
+
+The Markdown build was deliberately paused for 705 seconds during the focused
+Rust build; its receipt's wall time is not controlled compile-cost evidence.
 
 The runner now preserves build receipts before tests can overwrite them and
 reports changed/deleted artifacts afterwards. It skips dependent suites after a

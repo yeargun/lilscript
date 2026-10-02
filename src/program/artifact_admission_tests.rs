@@ -64,6 +64,47 @@ fn render(
 }
 
 #[test]
+fn prepaid_requalification_keeps_contract_permissions_and_runtime_admission() {
+    with_source(|compilation, source| {
+        let original = policy("", true);
+        let artifact = render(compilation, source, &original);
+        let qualified = compilation.qualify_artifact(artifact, &original, CompressionCostModel::Raw,
+            ArtifactRuntimeEvidence::default(), None, WorkDomain::Baseline).unwrap();
+        let credit = compilation.prepare_artifact_requalification(&original).unwrap();
+        let before = compilation.ledger().work_used(WorkDomain::Baseline);
+        let result = compilation.requalify_prepared_artifact(qualified, &original,
+            ArtifactRuntimeEvidence::default(), None, credit).unwrap();
+        assert_eq!(result.artifact(), artifact);
+        assert_eq!(compilation.ledger().work_used(WorkDomain::Baseline), before);
+
+        let credit = compilation.prepare_artifact_requalification(&original).unwrap();
+        assert!(matches!(compilation.requalify_prepared_artifact(qualified, &policy("", false),
+            ArtifactRuntimeEvidence::default(), None, credit), Err(CandidateError::ContractMismatch)));
+
+        let bounded = policy("[policy.constraints]\nmax_recurring_work=0\n", true);
+        let credit = compilation.prepare_artifact_requalification(&bounded).unwrap();
+        assert!(matches!(compilation.requalify_prepared_artifact(qualified, &bounded,
+            ArtifactRuntimeEvidence::default(), None, credit),
+            Err(CandidateError::Admission(AdmissionError::MissingCostEvidence("recurring work")))));
+
+        let forbidden: crate::config::ProjectConfig = toml::from_str(
+            "[policy.tactics]\nidentifier-mangling='off'\nnaming-search='off'\n").unwrap();
+        let forbidden = forbidden.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+        let credit = compilation.prepare_artifact_requalification(&forbidden).unwrap();
+        assert!(compilation.requalify_prepared_artifact(qualified, &forbidden,
+            ArtifactRuntimeEvidence::default(), None, credit).is_err());
+
+        // The receipt cannot bless changed bytes, even if their cached score
+        // still matches. Normal production records are immutable.
+        let credit = compilation.prepare_artifact_requalification(&original).unwrap();
+        compilation.replace_artifact_text(artifact, "not valid javascript {".into());
+        assert!(compilation.requalify_prepared_artifact(qualified, &original,
+            ArtifactRuntimeEvidence::default(), None, credit).is_err());
+        compilation.discard_artifact(artifact).unwrap();
+    });
+}
+
+#[test]
 fn direct_artifacts_require_exact_scores_and_known_required_runtime_evidence() {
     with_source(|compilation, source| {
         let bounded = policy("[policy.constraints]\nmax_startup_work=0\n", true);

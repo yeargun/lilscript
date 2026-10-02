@@ -1,0 +1,38 @@
+[
+  {
+    "port": "cnlil",
+    "branch": "codex/d3-compiler-delivery",
+    "head": "5b8a0fa3b683c56b5b3d17aacb1c36efba7566ea",
+    "scope": "test/build workflow; runtime qualification remains in the V1 port receipt"
+  },
+  {
+    "port": "playcanvaslil",
+    "branch": "codex/d3-compiler-delivery",
+    "head": "ee86c81afc3e5566aa534325a94b6cb42b8b4bdb",
+    "scope": "test/build workflow; runtime qualification remains in the V1 port receipt"
+  },
+  {
+    "port": "remark-breakslil",
+    "branch": "codex/d3-compiler-delivery",
+    "head": "7660b01d52649fe018e590ff9c4ed5c5adc7ee31",
+    "scope": "test/build workflow; runtime qualification remains in the V1 port receipt"
+  },
+  {
+    "port": "remark-gfmlil",
+    "branch": "codex/d3-compiler-delivery",
+    "head": "9eff40007f501783f8519c005b6ef9eb8bbab310",
+    "scope": "test/build workflow; runtime qualification remains in the V1 port receipt"
+  },
+  {
+    "port": "remark-mathlil",
+    "branch": "codex/d3-compiler-delivery",
+    "head": "52c1c0b353e76e795e0e8b8466cc46dc0f0ebd89",
+    "scope": "test/build workflow; runtime qualification remains in the V1 port receipt"
+  },
+  {
+    "port": "zodlil",
+    "branch": "codex/d3-compiler-delivery",
+    "head": "48c74aed525f4be418105206d22b7a4b111f87a7",
+    "scope": "test/build workflow; runtime qualification remains in the V1 port receipt"
+  }
+]

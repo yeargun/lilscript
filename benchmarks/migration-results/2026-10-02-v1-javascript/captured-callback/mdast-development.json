@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "complete": true,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+    "sha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240"
+  },
+  "source_snapshot": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil",
+  "command": [
+    "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+    "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/entry.lil",
+    "--config",
+    "/home/azureuser/lilscript-work/out/v1-mdast-development-90/single.toml",
+    "--target",
+    "js-module",
+    "--mode",
+    "development",
+    "--explain",
+    "json",
+    "-o",
+    "/home/azureuser/lilscript-work/out/v1-mdast-development-90/from-markdown.mjs"
+  ],
+  "config": "# Compiler-owned delivery; no JavaScript post-minifier or export rewriting.\n[policy]\nversion = 3\n[javascript]\npriority = \"size-first\"\n# Assumes unpatched platform builtins; disable when consumers replace them.\nassume_pristine_builtins = true\n# Remove debugLog instrumentation; ordinary print and host console effects remain.\nstrip_debug = true\n# Plain-data reads must not run getters; disable for effectful accessor integrations.\nassume_pure_property_reads = true\nassume_unconstructed_callbacks = true\n\n# Preserved effort setting. 13 favors size; 14/15 allow more expensive marginal searches.\n[effort]\nlevel = 15\n\n# Optimize the delivered files for this codec, independently of raw/gzip objectives.\n[objective]\ncodecs = \"brotli\"\n[mangle]\nidentifiers = true\nproperties = true\npool_strings = false\n\n# Public/extern keys are preserved in every build; effort controls search, not ABI.\n",
+  "compile_status": 0,
+  "compile_seconds": 0.77,
+  "runtime_status": 0,
+  "runtime": {
+    "tests": 652,
+    "passed": 652,
+    "failures": []
+  },
+  "artifact": {
+    "path": "/home/azureuser/lilscript-work/out/v1-mdast-development-90/from-markdown.mjs",
+    "sha256": "ef174cbbe0ad75a1d7c90ebdc562cd888b94691b94e0289299a7b57ef5de0315",
+    "bytes": 74107
+  }
+}

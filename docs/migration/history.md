@@ -2248,3 +2248,27 @@ upstream, 300,000-case fuzz and join suites pass. An interrupted HTML-library
 compilation is recorded as incomplete while the DAG traversal repair is applied;
 it is not a test failure or a timing claim. Remaining port/API and cost results
 continue under V1.
+
+## 2026-10-02: V1 completed winners and captured callback effects
+
+Library qualification exposed two compiler defects, repaired in algorithm 90.
+Effort handoff now funds its full bounded admission before optional exploration:
+exhausting work cannot discard a smaller result already found. Nine matched
+finite-budget CLI pairs retain every completed winner and pass their independent
+runtime golden. The raw/gzip/Brotli savings are recorded per pair, not promoted
+to a fleet-wide improvement claim.
+
+The parameter-value worklist now schedules capturing closures as well as their
+parameter owner when the joined call inputs change. The old compiler omitted
+callbacks from Markdown opener/closer factories, causing real runtime failures.
+The reduced case passes all 24 JavaScript lanes after repair; the old compiler
+fails its 12 production lanes. A fresh development Markdown output matches the
+upstream tree on all 652 CommonMark inputs. The affected rule/search tests pass
+after focused rechecks; the native captured-storage check also passes.
+
+[Candidate 6 and retained evidence](../../benchmarks/migration-results/2026-10-02-v1-javascript/README.md)
+separate these compiler defects from port build-workflow problems and stale
+banner/export-spelling assertions. The latter use actual namespace identities
+or exact compiler-manifest bytes while preserving behavior assertions. The
+third serial fleet continues on candidate 6; V1 remains active, with production
+package, Vue, held-out and matched compile-cost qualification still to finish.

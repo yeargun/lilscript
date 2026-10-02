@@ -1,0 +1,21 @@
+
+> @itslil/katex@0.16.24 build
+> node scripts/build.mjs --compile
+
+
+error: cannot resolve foreign module `../../dist/katex.mjs`: No such file or directory (os error 2)
+ --> /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/contrib/auto-render/auto-render.lil:1:8
+  |
+ 1 | import extern { default as katex } from "../../dist/katex.mjs";
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/scripts/compiler-package.mjs:55
+        child.on('close', status => status === 0 ? accept() : reject(Error(`LilScript ${profile.name} exited ${status}`)))
+                                                                     ^
+
+Error: LilScript auto-render exited 1
+    at ChildProcess.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/scripts/compiler-package.mjs:55:70)
+    at ChildProcess.emit (node:events:514:28)
+    at maybeClose (node:internal/child_process:1141:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:306:5)
+
+Node.js v24.20.0

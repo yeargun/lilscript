@@ -2901,6 +2901,26 @@ impl<'src> Compilation<'src> {
         )
     }
 
+    pub(super) fn prepare_artifact_requalification(
+        &mut self,
+        policy: &ResolvedPolicy,
+    ) -> Result<super::artifacts::QualificationCredit, CandidateError> {
+        self.check_existing_javascript_contract(policy, WorkDomain::Baseline)?;
+        self.artifacts.prepare_requalification(policy,
+            &mut AllocationBudget::new(Some((&mut self.ledger, WorkDomain::Baseline))))
+    }
+
+    pub(super) fn requalify_prepared_artifact(
+        &self,
+        qualified: QualifiedArtifact,
+        policy: &ResolvedPolicy,
+        runtime: ArtifactRuntimeEvidence,
+        baseline: Option<&QualifiedArtifact>,
+        credit: super::artifacts::QualificationCredit,
+    ) -> Result<QualifiedArtifact, CandidateError> {
+        self.artifacts.requalify_prepared(qualified, policy, runtime, baseline, credit)
+    }
+
     pub fn with_qualified_artifact<R>(
         &self,
         artifact: &QualifiedArtifact,

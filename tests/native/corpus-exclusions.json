@@ -4,6 +4,12 @@
   "evidence": "benchmarks/migration-results/2026-10-02-n2-native/capability-census.json",
   "cases": [
     {
+      "id": "cases/captured_parameter_call_sets",
+      "input_digest": "5c56feecb021cc66ca4885cb446e272fdee1e3fc3ecdbb869ea5a11c65595cb8",
+      "category": "javascript-host",
+      "reason": "The callback-adapter regression uses the JavaScript JSON host global. Native reports: native extern globals require a function provider; declare getter/setter functions. Portable captured storage is qualified by the native closure tests."
+    },
+    {
       "id": "cases/constant_methods_patched",
       "input_digest": "cc698095668fa4e12073e49cd5a91fbd92a74335e14d76525a1d4f0437339900",
       "category": "javascript-observation",

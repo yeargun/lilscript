@@ -1,0 +1,8 @@
+
+running 3 tests
+test build::objective_tests::captured_callback_effects_survive_every_objective_and_development_mode ... ok
+test program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return ... ok
+test program::rules::tests::captured_parameter_readers_follow_the_complete_call_set ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2156 filtered out; finished in 3.94s
+

@@ -1,0 +1,3479 @@
+{
+  "schema": 1,
+  "complete": true,
+  "source": {
+    "path": "/home/azureuser/lilscript/tests/cases/objective_judged_spellings.lil",
+    "sha256": "a44337af87de53fe10f881732ca238d6afb0bc15fe809764fe9708293d35d89f"
+  },
+  "expected": {
+    "path": "/home/azureuser/lilscript/tests/cases/objective_judged_spellings.out",
+    "sha256": "410d0bd9e2528f16240faa15cb17315818bbe4de9b586f41d1afb32ae6a832e0"
+  },
+  "tools": {
+    "previous": {
+      "path": "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+      "sha256": "42b48470e2436ab8fffdfdab1c2e28402d103ce445dc8974146ae268c6c3aa5b"
+    },
+    "candidate": {
+      "path": "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+      "sha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240"
+    },
+    "node": {
+      "path": "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+      "sha256": "89af8424dd53e560b1933f87ba650d8bf57c83ca5a04600eefb31f416aabbae7"
+    }
+  },
+  "driver": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-02-v1-javascript/qualify-effort-handoff.py",
+    "sha256": "178ac257f42f24c32201dbbbde76413f181ee7412a010c1831c2a3cf42d790b1"
+  },
+  "rows": [
+    {
+      "codec": "raw",
+      "work_ceiling": 2000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 495,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-raw-2000000.mjs",
+            "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 2,
+              "optional_work": 1400895,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1401205,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "raw",
+                  495,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1401205,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 2,
+              "optional_work": 1400895,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1401205,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 598795,
+            "optional_work": 1401205,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 493,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-raw-2000000.mjs",
+            "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 2,
+              "optional_work": 1400482,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1400514,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1400514,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 599479,
+            "optional_work": 1400514,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -2
+    },
+    {
+      "codec": "raw",
+      "work_ceiling": 5000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 495,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-raw-5000000.mjs",
+            "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 4,
+              "optional_work": 1773547,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 3,
+              "optional_work": 4401205,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "raw",
+                  495,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4401205,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 4,
+              "optional_work": 1773547,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 3,
+              "optional_work": 4401205,
+              "stopped": null
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 598795,
+            "optional_work": 4401205,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 493,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-raw-5000000.mjs",
+            "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 4,
+              "optional_work": 1773585,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 3,
+              "optional_work": 4400521,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4400521,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 599479,
+            "optional_work": 4400521,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -2
+    },
+    {
+      "codec": "raw",
+      "work_ceiling": 10000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 495,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-raw-10000000.mjs",
+            "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 4,
+              "optional_work": 1773585,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 11,
+              "optional_work": 8749619,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 1,
+              "optional_work": 9401193,
+              "stopped": "Limit(WalkReserve)"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 4,
+              "optional_work": 1773585,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 11,
+              "optional_work": 8749619,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 1,
+              "optional_work": 9401193,
+              "stopped": "Limit(WalkReserve)"
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 598807,
+            "optional_work": 9401193,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 493,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-raw-10000000.mjs",
+            "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "raw",
+                  [
+                    {
+                      "level": 0,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 1,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 495,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 6,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 7,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 8,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 9,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 10,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 11,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    },
+                    {
+                      "level": 12,
+                      "size": 493,
+                      "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 4,
+              "optional_work": 1773623,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 11,
+              "optional_work": 8749777,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "raw",
+                  493,
+                  "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 1,
+              "optional_work": 9400506,
+              "stopped": "Limit(WalkReserve)"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 599494,
+            "optional_work": 9400506,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -2
+    },
+    {
+      "codec": "gzip",
+      "work_ceiling": 2000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 329,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-gzip-2000000.mjs",
+            "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 6,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 7,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 8,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 9,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 10,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  325,
+                  "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 1,
+              "optional_work": 1156814,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  325,
+                  "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1208785,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "gzip",
+                  329,
+                  "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1208785,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 6,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 7,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 8,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 9,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 10,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  325,
+                  "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 1,
+              "optional_work": 1156814,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  325,
+                  "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1208785,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 791215,
+            "optional_work": 1208785,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 325,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-gzip-2000000.mjs",
+            "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 6,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 7,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 8,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 9,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 10,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 325,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  325,
+                  "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 1,
+              "optional_work": 1156819,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  325,
+                  "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1208098,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "gzip",
+                  325,
+                  "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1208098,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 791902,
+            "optional_work": 1208098,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -4
+    },
+    {
+      "codec": "gzip",
+      "work_ceiling": 5000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 329,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-gzip-5000000.mjs",
+            "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 6,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 7,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 8,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 9,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 10,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 11,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 12,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  317,
+                  "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 5,
+              "optional_work": 4167123,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  317,
+                  "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4208781,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "gzip",
+                  329,
+                  "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4208781,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 6,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 7,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 8,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 9,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 10,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 11,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 12,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  317,
+                  "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 5,
+              "optional_work": 4167123,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  317,
+                  "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4208781,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 791215,
+            "optional_work": 4208781,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 317,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-gzip-5000000.mjs",
+            "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 6,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 7,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 8,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 9,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 10,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 11,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 12,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  317,
+                  "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 5,
+              "optional_work": 4167145,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  317,
+                  "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4208097,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "gzip",
+                  317,
+                  "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4208097,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 791902,
+            "optional_work": 4208097,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -12
+    },
+    {
+      "codec": "gzip",
+      "work_ceiling": 10000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 329,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-gzip-10000000.mjs",
+            "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 6,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 7,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 8,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 9,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 10,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 11,
+                      "size": 311,
+                      "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                    },
+                    {
+                      "level": 12,
+                      "size": 311,
+                      "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  311,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 8,
+              "optional_work": 6275260,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  311,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 3,
+              "optional_work": 9208773,
+              "stopped": "Limit(WalkReserve)"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "gzip",
+                  329,
+                  "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 9208773,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 6,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 7,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 8,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 9,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 10,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 11,
+                      "size": 311,
+                      "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                    },
+                    {
+                      "level": 12,
+                      "size": 311,
+                      "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  311,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 8,
+              "optional_work": 6275260,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  311,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 3,
+              "optional_work": 9208773,
+              "stopped": "Limit(WalkReserve)"
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 791227,
+            "optional_work": 9208773,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 311,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-gzip-10000000.mjs",
+            "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "gzip",
+                  [
+                    {
+                      "level": 0,
+                      "size": 329,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 2,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 3,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 4,
+                      "size": 324,
+                      "sha256": "8b3bc413d9c4acf9d1fc60919cbd9cc9181479e19190713d59a84d6d3ed0401a"
+                    },
+                    {
+                      "level": 5,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 6,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 7,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 8,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 9,
+                      "size": 319,
+                      "sha256": "1a54fb5bc42a4b540e295b8ed4242d5d7d0423e8818384e6b4d6bd9ba0c3d920"
+                    },
+                    {
+                      "level": 10,
+                      "size": 317,
+                      "sha256": "6d005a8ffa5cbaa7dcd6dbbb1d4088b382472fe387809d41cc7a1296dcac3700"
+                    },
+                    {
+                      "level": 11,
+                      "size": 311,
+                      "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                    },
+                    {
+                      "level": 12,
+                      "size": 311,
+                      "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "gzip",
+                  311,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 8,
+              "optional_work": 6275295,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "gzip",
+                  311,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 3,
+              "optional_work": 9208083,
+              "stopped": "Limit(WalkReserve)"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "gzip",
+                  311,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 9208083,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 791917,
+            "optional_work": 9208083,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -18
+    },
+    {
+      "codec": "brotli",
+      "work_ceiling": 2000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 292,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-brotli-2000000.mjs",
+            "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090716,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 5,
+              "optional_work": 1476869,
+              "stopped": "Limit(WalkReserve)"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "brotli",
+                  292,
+                  "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1476869,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090716,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 5,
+              "optional_work": 1476869,
+              "stopped": "Limit(WalkReserve)"
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 523127,
+            "optional_work": 1476869,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 278,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-brotli-2000000.mjs",
+            "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090743,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 5,
+              "optional_work": 1476180,
+              "stopped": "Limit(WalkReserve)"
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 1476180,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 523820,
+            "optional_work": 1476180,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -14
+    },
+    {
+      "codec": "brotli",
+      "work_ceiling": 5000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 292,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-brotli-5000000.mjs",
+            "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090716,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 31,
+              "optional_work": 4476799,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4476873,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090716,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 31,
+              "optional_work": 4476799,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4476873,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 523127,
+            "optional_work": 4476873,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 274,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-brotli-5000000.mjs",
+            "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090743,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 31,
+              "optional_work": 4476142,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 0,
+              "optional_work": 4476174,
+              "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 523820,
+            "optional_work": 4476174,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -18
+    },
+    {
+      "codec": "brotli",
+      "work_ceiling": 10000000,
+      "results": {
+        "previous": {
+          "selected_bytes": 292,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/previous-brotli-10000000.mjs",
+            "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090743,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 65,
+              "optional_work": 7588762,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 21,
+              "optional_work": 9476861,
+              "stopped": "Limit(WalkReserve)"
+            }
+          ],
+          "lost_completed_winners": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090743,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 65,
+              "optional_work": 7588762,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 21,
+              "optional_work": 9476861,
+              "stopped": "Limit(WalkReserve)"
+            }
+          ],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 523139,
+            "optional_work": 9476861,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        },
+        "candidate": {
+          "selected_bytes": 274,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/out/v1-effort-handoff-90/candidate-brotli-10000000.mjs",
+            "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+          },
+          "checkpoints": [
+            {
+              "level": 12,
+              "fast_stops": [
+                [
+                  "brotli",
+                  [
+                    {
+                      "level": 0,
+                      "size": 292,
+                      "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+                    },
+                    {
+                      "level": 1,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 2,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 3,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 4,
+                      "size": 290,
+                      "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+                    },
+                    {
+                      "level": 5,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 6,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 7,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 8,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 9,
+                      "size": 288,
+                      "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+                    },
+                    {
+                      "level": 10,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 11,
+                      "size": 284,
+                      "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+                    },
+                    {
+                      "level": 12,
+                      "size": 278,
+                      "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                    }
+                  ]
+                ]
+              ],
+              "objectives": [
+                [
+                  "brotli",
+                  278,
+                  "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 12,
+              "optional_work": 1090770,
+              "stopped": null
+            },
+            {
+              "level": 13,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 5,
+              "renders": 6,
+              "judgments": 65,
+              "optional_work": 7588905,
+              "stopped": null
+            },
+            {
+              "level": 14,
+              "objectives": [
+                [
+                  "brotli",
+                  274,
+                  "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+                ]
+              ],
+              "proposals": 0,
+              "renders": 1,
+              "judgments": 21,
+              "optional_work": 9476165,
+              "stopped": "Limit(WalkReserve)"
+            }
+          ],
+          "lost_completed_winners": [],
+          "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+          "resources": {
+            "baseline_work": 523835,
+            "optional_work": 9476165,
+            "retained_bytes_after_handoff": 0
+          },
+          "runtime": "passed"
+        }
+      },
+      "delta": -18
+    }
+  ]
+}

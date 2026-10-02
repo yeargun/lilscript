@@ -1,0 +1,78 @@
+[
+  {
+    "name": "effort-handoff-qualification",
+    "command": [
+      "python3",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-02-v1-javascript/qualify-effort-handoff.py",
+      "--previous",
+      "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+      "--candidate",
+      "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+      "--node",
+      "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+      "--work",
+      "/home/azureuser/lilscript-work/out/v1-effort-handoff-90",
+      "--json",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-02-v1-javascript/effort-handoff/qualification.json"
+    ],
+    "log": "/tmp/lilscript-v1-effort-handoff-qualification.log",
+    "status": 0,
+    "seconds": 2.477
+  },
+  {
+    "name": "captured-callback-before",
+    "command": [
+      "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+      "/home/azureuser/lilscript/scripts/cases.mjs",
+      "--compiler",
+      "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+      "--node",
+      "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+      "--codec",
+      "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+      "--filter",
+      "cases/captured_parameter_call_sets",
+      "--lanes",
+      "all",
+      "--jobs",
+      "1",
+      "--work",
+      "/home/azureuser/lilscript-work/out/v1-captured-callback-before",
+      "--json",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-02-v1-javascript/captured-callback/before.json",
+      "--level",
+      "15"
+    ],
+    "log": "/tmp/lilscript-v1-captured-callback-before.log",
+    "status": 1,
+    "seconds": 2.232
+  },
+  {
+    "name": "captured-callback-after",
+    "command": [
+      "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+      "/home/azureuser/lilscript/scripts/cases.mjs",
+      "--compiler",
+      "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+      "--node",
+      "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+      "--codec",
+      "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+      "--filter",
+      "cases/captured_parameter_call_sets",
+      "--lanes",
+      "all",
+      "--jobs",
+      "1",
+      "--work",
+      "/home/azureuser/lilscript-work/out/v1-captured-callback-after",
+      "--json",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-02-v1-javascript/captured-callback/after.json",
+      "--level",
+      "15"
+    ],
+    "log": "/tmp/lilscript-v1-captured-callback-after.log",
+    "status": 0,
+    "seconds": 2.778
+  }
+]

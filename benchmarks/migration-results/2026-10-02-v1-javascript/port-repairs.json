@@ -9,21 +9,24 @@
   },
   "motionlil": {
     "classification": "source boundary",
-    "change": "Public array identity helpers now take JsValue and retain strict index comparison. Native/value-struct equality was not their contract.",
-    "check": "Ten-entry target check passes; production rebuild and two new upstream differential tests are pending."
+    "change": "Public array identity helpers now take JsValue and retain strict index comparison. Native/value-struct equality was not their contract. moveItem indices use float and JavaScript splice coercion, matching upstream number inputs.",
+    "check": "Ten-entry target check passes. The three array utility differential tests pass on each independently selected raw/gzip/Brotli effort-15 output (9 tests). Full production package/consumer qualification remains pending.",
+    "commit": "dddd208d4316824f32fe7afa722a526f0d78b398"
   },
   "mobxlil": {
     "classification": "test build workflow",
     "observation": "The complete package built; npm test then replaced it with development-only dist, so three production imports failed. 766 passed; 11 upstream skips.",
     "change": "npm test uses the completed package. test:build explicitly builds before testing.",
-    "qualification": "Affected production tests and workflow recheck pending; initial failures remain retained."
+    "qualification": "Affected production tests and workflow recheck pending; initial failures remain retained.",
+    "commit": "56f25b2d69a7ae34ee9c5bb5dd051628aeadf371"
   },
   "jquerylil": {
     "classification": "test syntax assumption",
     "observation": "Six behavioral tests passed. The remaining assertion required export default syntax although the namespace exposes its default using an export specifier.",
     "change": "Assert actual default/jQuery/$ identity while retaining compact-output checks.",
     "qualification": "Affected test passes against unchanged candidate-5 artifacts. Together with the six initial passing tests, all seven are qualified.",
-    "test_sha256": "d6bbf85b3caab03534a3dcb1089e6be12818c49cd999751dcbfc3a54d157b647"
+    "test_sha256": "d6bbf85b3caab03534a3dcb1089e6be12818c49cd999751dcbfc3a54d157b647",
+    "commit": "cf6dda3099345d18a0cda0778153365fdc3281af"
   },
   "runner": {
     "qualification": "23 tests pass",
@@ -45,12 +48,33 @@
       "zodlil"
     ],
     "change": "Separate npm test from test:build; release/check commands still request a fresh build. This removes duplicate compiler work from qualification.",
-    "qualification": "Cnlil runtime evidence is retained; other ports use the updated source-owned command in the continuing batch."
+    "qualification": "Cnlil runtime evidence is retained; remaining ports use the updated source-owned command when their qualification resumes."
   },
   "cost_observation": {
     "old_hast_logical_work": 200000000,
     "current_cli_logical_work": 40000000000,
     "same_config_sha256": "a7c05c78534a607af965a1188725c16a98c5f5a9186b59cc972f9bd11339370f",
     "interpretation": "Historical 2.7s public compile and fresh full 736.4s package build differ in both scope and effective budgets. Neither is an isolated compiler timing comparison. Matched cost work must pin both ceilings."
+  },
+  "katexlil": {
+    "classification": "clean build dependency and test workflow",
+    "observation": "Public/closed compilation finished, but contrib tried to resolve an uninstalled dist/katex.mjs. Atomic installation had not happened; the failed stage was removed. The browser test then retried the full compiler implicitly. That redundant retry compiler was stopped; the initial attempt provides no complete package or runtime qualification.",
+    "change": "Contrib sources now name the explicit @itslil/katex provider; per-format TOML mappings reference installed sibling core outputs and browser globals. The browser test always refreshes site assets from the current dist and refuses a missing dist without rebuilding.",
+    "qualification": "All five extension target checks pass in a clean directory with no dist. Missing-dist refusal and stale-site refresh pass. Full production build, official/browser/package runtime checks remain pending.",
+    "commit": "e067313c0999dd4815a8f6d15d21421d294de58d",
+    "evidence": "katex-clean-build-repair/qualification.json"
+  },
+  "markedlil": {
+    "classification": "test output banner assumption",
+    "observation": "28 tests pass, including comparison against 660 CommonMark/GFM cases and their concatenation. The remaining check expected an obsolete literal version banner.",
+    "change": "Verify compact ESM bytes against the compiler manifest; existing runtime checks retain default/marked export identities.",
+    "qualification": "Affected check passes on unchanged compiler-5 artifacts; all 29 checks jointly qualified. Size handoff defect independently reproduced and being repaired in the compiler.",
+    "commit": "124c1b8b09b2316a8699af8fee4325c81933dbb2"
+  },
+  "mdast-util-from-markdownlil": {
+    "classification": "compiler captured-parameter propagation",
+    "observation": "Fresh candidate 5: 439 of 746 checks passed, 307 failed, including stale site receipts. The callback factory reduced to a compiler defect, independent of the library.",
+    "change": "Algorithm 90 revisits closures reading a parameter when the complete call set supplies new input facts.",
+    "qualification": "The reduced callback fixture passes 24 JavaScript lanes across raw/gzip/Brotli and IIFE/ESM/CJS/bare; candidate 5 failed all 12 production lanes. Full fresh library qualification is in progress. Fresh development output matches upstream on all 652 CommonMark inputs."
   }
 }

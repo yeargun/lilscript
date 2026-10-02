@@ -9,7 +9,7 @@ use crate::admission_parse::StructureDigest;
 use crate::compilation_contract::JavaScriptExecution;
 use crate::compilation_policy::{
     AdmissionError, BudgetLedger, CandidateCostEvidence, CompilationContract, ResolvedPolicy,
-    TacticUse, WorkKind,
+    TacticId, TacticUse, WorkKind,
 };
 use crate::compression::CodecSettings;
 use crate::config::CompressionCostModel;
@@ -78,6 +78,14 @@ pub struct QualifiedArtifact {
     /// (M3.5).
     exact: bool,
     policy_fingerprint: [u8; 32],
+}
+
+/// One allocation-free requalification, funded before optional exploration.
+/// The artifact must already have a live qualification and a cached parse.
+pub(super) struct QualificationCredit {
+    arena: RevisionId,
+    policy_fingerprint: [u8; 32],
+    work: u64,
 }
 impl QualifiedArtifact {
     pub fn artifact(self) -> ArtifactId {
@@ -864,6 +872,50 @@ impl ArtifactArena {
     }
     pub(super) fn provenance(&self, id: ArtifactId) -> Result<&ArtifactProvenance, CandidateError> {
         Ok(&self.get(id.0)?.provenance)
+    }
+
+    pub(super) fn prepare_requalification(
+        &self,
+        policy: &ResolvedPolicy,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<QualificationCredit, CandidateError> {
+        // qualify_with charges one visit, both contract property lists and
+        // their strings, then one provenance visit and at most every tactic.
+        // An already qualified immutable record needs no second parse.
+        let mut work = 2 + TacticId::ALL.len() as u64;
+        if let CompilationContract::JavaScript { preserved_properties, .. } = policy.contract() {
+            work = work.checked_add((preserved_properties.len() as u64).checked_mul(2)
+                .ok_or(AllocationError::Capacity)?).ok_or(AllocationError::Capacity)?;
+            budget.work(WorkKind::Analysis, work)?;
+            for name in preserved_properties {
+                let bytes = (name.len() as u64).checked_mul(2).ok_or(AllocationError::Capacity)?;
+                budget.work(WorkKind::Analysis, bytes)?;
+                work = work.checked_add(bytes).ok_or(AllocationError::Capacity)?;
+            }
+        } else {
+            return Err(CandidateError::NotJavaScript);
+        }
+        Ok(QualificationCredit { arena: self.identity, policy_fingerprint: policy.fingerprint(), work })
+    }
+
+    pub(super) fn requalify_prepared(
+        &self,
+        qualified: QualifiedArtifact,
+        policy: &ResolvedPolicy,
+        runtime: ArtifactRuntimeEvidence,
+        baseline: Option<&QualifiedArtifact>,
+        mut credit: QualificationCredit,
+    ) -> Result<QualifiedArtifact, CandidateError> {
+        if credit.arena != self.identity || credit.policy_fingerprint != policy.fingerprint() {
+            return Err(CandidateError::ContractMismatch);
+        }
+        self.check_qualified(&qualified)?;
+        let record = self.get(qualified.artifact.0)?;
+        if !qualified.exact || !matches!(record.parsed.get(), Some(Ok(()))) {
+            return Err(CandidateError::Artifact("requalification requires a parsed, exactly qualified artifact"));
+        }
+        self.qualify(qualified.artifact, policy.contract(), policy, qualified.codec, runtime,
+            baseline, &mut AllocationBudget::prepaid_work(&mut credit.work))
     }
 
     pub(super) fn qualify(

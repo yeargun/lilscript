@@ -1,0 +1,1 @@
+let addUniqueItem=function(a,b){a.indexOf(b)===-1&&a.push(b)},removeItem=function(a,b){let c=a.indexOf(b);c>-1&&a.splice(c,1)},moveItem=function(a,b,c){let d=[...a],e=d.length,f=b<0?e+b:b;if(f>=0&&f<e)d.splice(c<0?e+c:c,0,d.splice(b,1)[0]);return d};export{addUniqueItem,removeItem,moveItem};

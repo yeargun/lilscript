@@ -40,7 +40,14 @@ impl<'src> Compilation<'src> {
         )?;
         continuation?;
         let mut seal = None;
-        let previous = if let Some(lower_policy) = policy.preceding_effort() {
+        let lower_policy = policy.preceding_effort();
+        let mut qualifications = [None, None, None];
+        if lower_policy.is_some() {
+            for codec in request.objectives.iter() {
+                qualifications[index(codec)] = Some(search.compilation.prepare_artifact_requalification(policy)?);
+            }
+        }
+        let previous = if let Some(lower_policy) = lower_policy {
             let result = (|| {
                 let mut lower = search.compilation.prepare_effort_search(
                     source,
@@ -153,7 +160,7 @@ impl<'src> Compilation<'src> {
             search.protected_choices = choices;
             checkpoints.push(row);
             search.effort_checkpoints = checkpoints;
-            search.qualify_protected(policy, request.objectives)?;
+            search.qualify_protected(policy, request.objectives, qualifications)?;
         }
         if objective.walk.starts && objective.optional_alternatives != 0 {
             let continuation =
@@ -179,31 +186,20 @@ impl JavaScriptSearch<'_, '_> {
         &mut self,
         policy: &ResolvedPolicy,
         objectives: Objectives,
+        mut qualifications: [Option<crate::program::artifacts::QualificationCredit>; 3],
     ) -> Result<(), SearchError> {
         for codec in objectives.iter() {
             let Some(previous) = self.protected[index(codec)] else {
                 continue;
             };
             let baseline = self.portfolio.baseline_qualification(codec).copied();
-            match self.compilation.qualify_artifact(
-                previous.artifact(),
+            self.protected[index(codec)] = Some(self.compilation.requalify_prepared_artifact(
+                previous,
                 policy,
-                codec,
                 ArtifactRuntimeEvidence::default(),
                 baseline.as_ref(),
-                WorkDomain::Optional,
-            ) {
-                Ok(qualified) => self.protected[index(codec)] = Some(qualified),
-                Err(error) => {
-                    let error = SearchError::from(error);
-                    if !terminal::resource(&error) && !error.optional_memory_refusal() {
-                        return Err(error);
-                    }
-                    self.effort_refusal = Some(format!("{error:?}"));
-                    let artifact = self.remove_protected(codec).unwrap();
-                    self.compilation.discard_artifact(artifact)?;
-                }
-            }
+                qualifications[index(codec)].take().expect("effort handoff was funded before exploration"),
+            )?);
         }
         Ok(())
     }

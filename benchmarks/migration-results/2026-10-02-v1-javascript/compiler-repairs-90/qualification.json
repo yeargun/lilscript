@@ -1,0 +1,1113 @@
+{
+  "schema": 1,
+  "groups": [
+    {
+      "name": "effort-initial",
+      "log": "effort-initial.log",
+      "sha256": "3bf8b78b5db63ca49e89394b25a063fd8e1cf673107745e07dcea782b24a28f5",
+      "counts": {
+        "ok": 99,
+        "FAILED": 1,
+        "ignored": 0
+      },
+      "tests": [
+        {
+          "name": "build::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources",
+          "status": "ok"
+        },
+        {
+          "name": "build::budget_tests::service_ceilings_participate_in_policy_identity_without_loosening_toml",
+          "status": "ok"
+        },
+        {
+          "name": "build::budget_tests::small_no_search_service_needs_no_optional_cache_admission",
+          "status": "ok"
+        },
+        {
+          "name": "build::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::completed_effort_winners_survive_optional_work_exhaustion",
+          "status": "FAILED"
+        },
+        {
+          "name": "build::objective_tests::completed_effort_winners_survive_shared_output_budget_exhaustion",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::configured_objective_sets_and_order_keep_only_the_requested_results",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::independent_baselines_precede_optional_work_and_survive_exhaustion",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::independent_objective_callback_unwind_restores_allowance_and_releases_handoffs",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::independent_objectives_match_separate_policies_searches_and_execution",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::independent_search_off_preserves_each_objectives_direct_spelling",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::objective_override_resolves_the_requested_codec_and_encoder_settings",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::q3_level_zero_selection_uses_no_codec_or_checkpoint_work",
+          "status": "ok"
+        },
+        {
+          "name": "build::objective_tests::two_objective_budget_counts_only_requested_baselines_and_shares",
+          "status": "ok"
+        },
+        {
+          "name": "build::outputs::tests::d3_outputs_allow_format_specific_default_surfaces",
+          "status": "ok"
+        },
+        {
+          "name": "build::outputs::tests::d3_outputs_share_input_with_independent_formats_codecs_and_subsets",
+          "status": "ok"
+        },
+        {
+          "name": "build::outputs::tests::d3_outputs_validate_config_and_keep_complete_build_cache_receipts",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::a_vetoed_family_is_never_formed",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::each_objective_judges_alphabets_and_the_dedicated_toml_flag_vetoes_them",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::each_objective_vetoes_reconstruction_before_forming_search_candidates",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::every_objective_judges_the_data_tables_and_delivers_them_exactly",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::modern_runtime_permissions_hold_through_every_objective_search",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::the_objective_seeds_the_families_and_its_codec_judges_them",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::the_stage_is_deterministic_across_runs_and_threads",
+          "status": "ok"
+        },
+        {
+          "name": "build::terminal_tests::the_stage_keeps_a_challenger_that_shrinks_the_artifact_and_rejects_one_that_grows_it",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::absent_deadline_has_no_clock_owner_and_large_limits_do_not_overflow",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::baseline_entry_guard_checks_phase_and_deadline_without_mutating_allowances",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::baseline_first_deadline_seal_failure_and_clone_keep_cleanup_available",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::baseline_first_fixed_partition_compatibility_and_extreme_caps",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::baseline_first_limits_cap_plans_and_reject_unavailable_terminal_reserve",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::baseline_first_phase_gates_are_atomic_including_zero_admissions",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::baseline_first_seal_opens_only_actual_remaining_headroom",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::baseline_first_terminal_work_is_reserved_before_and_after_seal",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::cloned_ledgers_keep_the_compilation_deadline_origin",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::compatibility_startup_grants_are_diagnosed_until_explicitly_migrated",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::deadline_blocks_memory_admission_but_always_allows_cleanup",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::deadline_checks_all_work_admissions_without_partial_charges",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::deadlines_are_explicit_cooperative_limits",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::deferred_naming_auto_starts_at_fourteen_with_an_explicit_thirteen_opt_in",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::every_schedule_field_changes_the_receipt_without_changing_contract_or_caps",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::every_tactic_obeys_explicit_off_and_on_without_forcing_a_winner",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::exact_size_ranking_does_not_quantize_away_real_bytes",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::explicit_alias_conflicts_fail_instead_of_selecting_an_order",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::explicit_search_schedules_round_trip_through_the_common_config_owner",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::hard_constraints_precede_size_and_explicit_tactic_permissions",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::independent_objective_shares_preserve_counters_deadline_and_released_allowance",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::invalid_search_cadences_and_unknown_schedule_controls_are_rejected",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::legacy_and_new_permissions_have_the_same_resolved_identity",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::legacy_lists_cannot_reenable_off_through_another_producer",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::logging_and_boundaries_are_independent_of_effort_and_codec",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::native_policy_has_no_search_objective_or_schedule_identity",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::native_policy_ignores_javascript_effort_and_build_choices",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::optional_work_and_memory_cannot_consume_the_direct_artifact_reserve",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::q3_preceding_effort_resolves_like_standalone_with_explicit_controls",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::q4_lazy_data_requires_explicit_recurring_and_startup_permissions",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::registry_dependencies_propagate_parent_vetoes_and_native_availability",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::resolved_script_containers_have_distinct_identity_without_changing_strictness",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::search_schedule_defaults_and_partial_configuration_are_resolved_once",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::startup_effort_and_recurring_permissions_are_candidate_specific",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::stronger_cached_analysis_cannot_leak_into_lower_effort",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::the_effort_level_alone_sets_the_walk_and_retired_budgets_change_nothing",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::unavailable_baseline_and_overflow_fail_without_partial_charges",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::version_and_level_boundaries_are_explicit",
+          "status": "ok"
+        },
+        {
+          "name": "compilation_policy::tests::zero_optional_work_still_has_a_measured_direct_route",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::boxed_tests::boxed_memory_or_work_refusal_drops_input_once_and_retains_nothing",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::boxed_tests::boxed_value_is_admitted_until_actual_drop_and_scope_release",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::boxed_tests::zero_size_box_observes_drop_without_memory_admission",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::callback_error_and_unwind_release_only_their_scope_and_drop_values_once",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::denied_growth_keeps_original_noncopy_storage_and_does_not_steal_baseline_reserve",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::exact_capacity_checks_zst_and_temporary_inspection_wrappers_use_same_allocator",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::exact_layout_growth_moves_overaligned_noncopy_values_once_and_counts_overlap",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::nested_phase_promotes_only_live_result_and_drops_scratch_before_transfer",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::partition_transfer_preserves_reservation_and_refused_token",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::prepaid_work_is_shared_bounded_and_cannot_allocate",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::retained_artifact_transfer_is_nonduplicating_owner_checked_and_move_safe",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::shared_ledger_callback_keeps_other_owners_separate_from_target_classes",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::strings_preserve_unicode_and_lone_surrogates_with_exact_backing_charges",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::temporary_input_releases_its_owner_after_success_refusal_and_unwind",
+          "status": "ok"
+        },
+        {
+          "name": "output_budget::tests::text_growth_and_copy_work_fail_before_mutating_existing_text",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::detached_plan_owns_original_domain_and_rejected_admission_releases_storage",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::explicit_encoded_sites_cannot_bypass_a_disabled_encoding_rule",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::full_plan_is_canonical_but_overrides_still_require_search",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::g1_retained_compact_order_keeps_search_permission_and_distinct_provenance",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::level_16_grants_declared_startup_risk_and_a_tactic_override_still_wins",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::naming_records_actual_choices_and_revalidates_equal_cached_bytes",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::q1_retained_site_risk_and_joint_permission_are_revalidated",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::reconstruction_risks_survive_retention_and_cannot_replay_under_weaker_permissions",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::retained_alphabet_keeps_its_own_veto_and_parent_permissions",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::retained_local_read_order_keeps_search_permission_and_distinct_provenance",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::retained_target_rule_permissions_survive_score_reuse",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::source_baseline_and_searched_source_keep_different_permission_dependencies",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::structural_and_output_tactics_are_actual_and_not_lost_to_cost_reuse",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifact_provenance::tests::unknown_runtime_cost_remains_unknown_under_policy_constraints",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifacts::admission_tests::a_private_wrapper_cannot_be_replayed_as_a_bare_script",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifacts::admission_tests::admission_parses_the_delivered_file_and_refuses_a_misprint",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifacts::admission_tests::baseline_receipts_survive_byte_disposal_but_cannot_cross_source_meanings",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifacts::admission_tests::direct_artifacts_require_exact_scores_and_known_required_runtime_evidence",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifacts::admission_tests::prepaid_requalification_keeps_contract_permissions_and_runtime_admission",
+          "status": "ok"
+        },
+        {
+          "name": "program::artifacts::admission_tests::qualification_rejects_changed_formation_contract_but_inspection_remains_available",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "name": "effort-continuation",
+      "log": "effort-continuation.log",
+      "sha256": "022c38b286f94f4b11d859a3e037df23d313634dfb3d889928c1336eface65d3",
+      "counts": {
+        "ok": 30,
+        "FAILED": 1,
+        "ignored": 0
+      },
+      "tests": [
+        {
+          "name": "program::publication::search::cursor_tests::partial_finish_refusal_keeps_exact_incumbent_and_releases_discovery_owners",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::cursor_tests::partial_reclaim_refusal_preserves_pins_and_unvisited_states",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::cursor_tests::reclaim_scan_skips_active_states_and_charges_empty_state_slots",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::cursor_tests::refused_cursor_scan_preserves_progress_and_exact_incumbent",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::cursor_tests::structural_age_turns_preserve_quality_turns_and_use_canonical_ties",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::cursor_tests::width_one_keeps_a_waiting_cursor_but_never_an_exhausted_tail",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::selection::memory_tests::cold_memory_refusal_scores_existing_names_and_preserves_fixed_probe_prefixes",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::selection::memory_tests::refused_facts_session_releases_prepared_proof_but_keeps_owned_cache",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::selection::memory_tests::zero_byte_and_partial_all_codec_failures_are_never_retried_or_observed",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::a_terminal_formation_of_the_winners_own_assignment_is_the_winner",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::accounting_errors_cannot_masquerade_as_a_completed_shorter_search",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::codec_reuse_preserves_logical_search_and_final_bytes_for_every_objective",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::deferred_naming::deferred_naming_combines_private_fields_and_local_names_with_real_toml_vetoes",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::deferred_naming::deferred_naming_default_changes_at_fourteen_without_spending_work_at_thirteen",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::deferred_naming::deferred_naming_exhaustion_keeps_the_completed_winner",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::deferred_naming::deferred_naming_obeys_fast_tiers_naming_vetoes_and_no_prune_mode",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::deferred_naming::deferred_naming_protects_the_completed_prefix_and_recovers_an_uphill_start",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::dominance_refuses_a_smaller_sum_that_grows_one_row",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::every_effort_level_starts_from_the_same_baseline_and_ends_at_most_there",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::g1_compact_allocation_preserves_the_completed_search_and_delivers_its_score",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::incumbents_never_worsen_within_a_search_or_its_terminal_stage",
+          "status": "FAILED"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::local_read_order_polish_protects_the_completed_search_under_each_objective",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::private_properties_polish_protects_the_completed_search_and_replays",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::proxy_modes::configured_proxy_modes_preserve_oracles_and_expose_their_actual_work",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::proxy_modes::library_proxy_policy_ignores_the_legacy_cli_environment",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::q2_configured_codec_cache_preserves_each_objectives_search_and_bytes",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::q2_normalization_reuse_preserves_logical_search_and_objective_bytes",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::q3_protected_effort_keeps_each_completed_lower_objective_winner",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::terminal_family_vetoes_hold_under_each_objective",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::the_choice_schedule_resets_every_site_at_once_then_orders_by_stake",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "name": "rules-and-effort",
+      "log": "rules-and-effort.log",
+      "sha256": "c17de66a12913da4bd09a40348c82d920b67abac3569849691cedee2bd7dd313",
+      "counts": {
+        "ok": 124,
+        "FAILED": 3,
+        "ignored": 0
+      },
+      "tests": [
+        {
+          "name": "build::objective_tests::captured_callback_effects_survive_every_objective_and_development_mode",
+          "status": "FAILED"
+        },
+        {
+          "name": "build::objective_tests::completed_effort_winners_survive_optional_work_exhaustion",
+          "status": "ok"
+        },
+        {
+          "name": "program::publication::search::terminal::tests::incumbents_never_worsen_within_a_search_or_its_terminal_stage",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::admission_tests::q2_exact_value_analysis_releases_answers_and_propagates_nested_refusals",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::admission_tests::q2_legality_probes_distinguish_decline_from_refusal_and_drop_temporaries",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::admission_tests::q2_source_shared_body_and_tables_keep_old_reservations_until_readers_drop",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::admission_tests::q2_stable_local_plans_replay_identical_logical_work_and_peak_storage",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_aliases_share_mutable_array_fields_and_keep_effect_order",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_capture_has_one_bank_per_loop_activation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_closure_reentry_sees_completed_allocation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_early_capture_and_throwing_initializers_keep_failure_order",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_field_constants_respect_alias_writers",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_fresh_field_collection_obeys_the_pristine_contract",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_namespace_reads_and_calls_remove_private_receiver",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_nullable_control_join_does_not_claim_an_allocation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_open_script_roots_remain_observable",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_private_class_fields_and_alias_mutation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_record_absence_and_special_keys_keep_normalization",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_record_aliases_share_captured_writes_and_absence",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_record_undefined_payload_keeps_nullish_normalization",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_scalar_cells_keep_nullable_declared_storage_types",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_scalar_permission_is_independent_of_field_folding",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_store_collection_keeps_record_absence_and_reads",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_unread_fields_preserve_calls_and_overwritten_stores",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::aggregate_tests::s2_whole_identity_dynamic_keys_and_escape_retain_storage",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_cross_module_cycle_keeps_captured_tdz_observable",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_cross_module_inlining_keeps_global_capture_and_initialization_order",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_field_written_reference_parameter_does_not_copy_its_handle",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_inlined_argument_mutation_keeps_earlier_snapshot",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return",
+          "status": "FAILED"
+        },
+        {
+          "name": "program::rules::call_tests::s3_nested_closure_subtree_remaps_every_capture",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_return_normalization_does_not_keep_a_range_after_mutation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_returned_closures_keep_distinct_loop_activations",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_scoped_result_survives_value_product_parameter_mutation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_tail_guard_return_keeps_the_untaken_suffix_lazy",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_terminal_branches_preserve_lazy_effects_and_return_types",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::d2_public_const_products_preserve_private_layout_and_reference_aliases",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::n2_const_readers_preserve_mutable_outer_copies",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_const_alias_rebinding_is_distinct_from_mutation_and_nested_values_copy",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_const_array_construction_and_nested_alias_reads",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_const_bindings_cannot_be_reassigned_or_export_functions",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_const_cross_module_evaluation_owns_transitive_static_captures",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_const_mutation_rejects_alias_parameter_and_nested_container",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_const_nested_value_copy_static_alias_paths_and_utf16",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_const_record_computed_keys_and_utf16_values",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_const_required_failures_and_configured_bounds_are_diagnostic",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_define_defaults_overrides_types_and_exact_policy_identity",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_many_const_initializers_reuse_one_sparse_frame",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_private_const_returns_preserve_aliases_but_public_returns_are_refused",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_public_const_data_is_deeply_frozen_and_keeps_keys_and_aliases",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_required_const_evaluation_survives_folding_veto",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::const_data::tests::q4_static_schema_parameter_specialization_preserves_runtime_inputs",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::scalar_tests::constant_scalar_code_point_count_matches_utf16_iteration",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::scalar_tests::constant_scalar_evaluation_obeys_arity_and_storage_limits",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::scalar_tests::constant_scalar_to_int_matches_number_bit_patterns",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::scalar_tests::primitive_predicates_match_node_on_type_zero_nan_and_utf16_edges",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::tests::constant_method_limits_refuse_expansion_and_unknown_unicode_case",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::evaluate::tests::exact_methods_match_node_on_utf16_indices_whitespace_and_signed_zero",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_copied_body_reads_the_storage_its_function_captured",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_default_only_the_callee_builds_still_applies",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_false_branch_leaves_with_the_function_only_it_called",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_fold_counts_what_the_output_may_name_at_one_character",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_folded_exit_leaves_one_return_that_inlines",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_function_called_once_moves_into_its_caller",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_loop_whose_test_is_false_never_runs",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_parameter_cell_is_a_statement",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_parameter_every_call_passes_the_same_constant_becomes_it",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_published_signature_stays",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_repeated_nonempty_body_stays_available_to_objective_judging",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_result_leaves_a_scoped_copy_through_private_storage",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_result_no_call_uses_leaves",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_script_keeps_its_root_bindings",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_settled_root_condition_chooses_its_branch_only_when_sealed",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_signature_changes_for_every_function_that_shares_it",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::a_typed_caller_never_triggers_a_default",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::an_argument_is_not_read_after_something_observable",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::an_arrow_held_in_a_local_is_inlined_at_its_calls",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::an_unread_parameter_leaves_every_call",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::bitwise_identities_of_an_int_are_the_int",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::bounded_constant_calls_preserve_nontermination_and_throwing_methods",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::captured_parameter_readers_follow_the_complete_call_set",
+          "status": "FAILED"
+        },
+        {
+          "name": "program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::completed_constant_loops_preserve_control_flow_and_iteration_state",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::conditional_values_keep_the_operand_that_runs",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_call_folding_preserves_argument_effects_and_mutable_captures",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_calls_are_evaluated_for_each_argument_tuple",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_loop_evaluation_preserves_observable_exceptions",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_loops_keep_effects_and_calls_that_exhaust_evaluation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_numeric_conversion_needs_no_pristine_host_assumption",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::constant_scalar_methods_fold_through_nested_pure_calls",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::default_transport_keeps_observed_argument_count_and_signed_zero",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::effects_and_their_order_stay",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::exact_values_cross_settled_cells_parameters_and_results",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::finite_call_sets_fold_a_common_branch_without_sampling_overflow",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::finite_values_are_refined_on_each_branch_path",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::forwarded_locals_allow_an_expression_inside_another_calls_arguments",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::forwarded_locals_preserve_an_expression_that_is_still_waiting",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::forwarding_preserves_snapshots_writes_and_argument_evaluation",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::host_annotations_do_not_authorize_common_coercions",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::immutable_scalar_cells_and_common_primitive_operations_forward",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::known_methods_fold_only_with_the_builtin_contract",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::nested_constant_structures_fold_over_rounds",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::operations_after_an_exit_go_and_initializations_stay_whole",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::primitive_truthiness_in_finite_paths_matches_javascript",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::q2_effect_components_follow_body_storage_callee_and_tdz_edits",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::q2_local_dirty_admission_refuses_cleanly_and_tracks_newly_created_bodies",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::recursion_stays_callable_and_terminal_returns_inline",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::repeated_parameter_loads_share_one_evaluated_argument",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::rule_views_survive_empty_commits_and_follow_every_edit_owner",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_checked_reads_and_value_updates_preserve_snapshot_and_evaluation_order",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_constructor_fields_run_before_declaration_defaults",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_default_expressions_execute_in_the_callee_and_capture_earlier_parameters",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_defaults_and_constructor_rest_keep_omission_and_fresh_arrays",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_defaults_belong_to_the_selected_callee_and_keep_fresh_values",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_frozen_records_128_matches_the_independent_calibration_oracle",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_known_nonnull_folds_keep_the_refined_result_type",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_receiver_functions_are_typed_and_accept_rest_without_adapter_limits",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_short_circuit_typed_views_preserve_lazy_effects_and_widening",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_spread_consumption_precedes_later_mutations",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::s4_variadic_values_keep_typed_arrays_and_call_contracts",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::the_default_fold_bound_keeps_large_constants_as_expressions",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::typed_arithmetic_duplication_is_a_representation_choice",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::unread_values_and_stores_leave",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "name": "rules-affected-recheck",
+      "log": "rules-affected-recheck.log",
+      "sha256": "6c7f4aa52190d243e8fb08700d4a630029b27485b8d77b8c5bd96625db28ecb0",
+      "counts": {
+        "ok": 3,
+        "FAILED": 0,
+        "ignored": 0
+      },
+      "tests": [
+        {
+          "name": "build::objective_tests::captured_callback_effects_survive_every_objective_and_development_mode",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return",
+          "status": "ok"
+        },
+        {
+          "name": "program::rules::tests::captured_parameter_readers_follow_the_complete_call_set",
+          "status": "ok"
+        }
+      ]
+    }
+  ],
+  "scope": "One initial effort/admission batch and continuation, followed by the captured-parameter implementation batch. Only the three affected test/environment errors were rechecked; no full library suite rerun.",
+  "repairs": {
+    "effort_initial": "The 700,000-work case could not admit every codec baseline; qualification now uses the predeclared 2m/5m/10m budgets that reproduce the lost-winner defect.",
+    "effort_continuation": "The observer-based test must include completed lower-effort winners, whose searches have independent observers. Final exact scoring and non-worsening assertions remain.",
+    "rules_and_effort": "The new fixture now calls the JavaScript JSON host; portable JSON.stringify does not accept arbitrary JsValue. The native closure test requires the installed LILSCRIPT_NATIVE_CLANG executable."
+  },
+  "qualified_groups": [
+    "rules-and-effort",
+    "rules-affected-recheck"
+  ],
+  "latest_test_binary": {
+    "path": "target/release/deps/lilscript-d896da51f3517c13",
+    "sha256": "8766916acf945938fe876c392b0da56d599de00eef7e517dc3b325ee50c5cebe"
+  },
+  "remaining_failures": [],
+  "complete": true
+}

@@ -1,0 +1,472 @@
+
+> @itslil/katex@0.16.24 test
+> node --test test/*.test.mjs && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand
+
+file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/scripts/compiler-package.mjs:55
+        child.on('close', status => status === 0 ? accept() : reject(Error(`LilScript ${profile.name} exited ${status}`)))
+                                                                     ^
+
+Error: LilScript public exited null
+    at ChildProcess.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/scripts/compiler-package.mjs:55:70)
+    at ChildProcess.emit (node:events:514:28)
+    at maybeClose (node:internal/child_process:1141:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:306:5)
+
+Node.js v24.20.0
+▶ browser performance (Playwright, Chromium)
+  ✖ renders the corpus identically and within the regression guard rail (354429.570087ms)
+✖ browser performance (Playwright, Chromium) (354430.719952ms)
+▶ contrib LilScript parity
+  ✔ contains no runtime JavaScript host modules (1.427014ms)
+  ✖ matches official render-a11y-string outputs and errors (2.928376ms)
+  ✖ matches official mhchem rendering across parser state machines (0.680736ms)
+✖ contrib LilScript parity (6.93822ms)
+▶ font metrics in the built dist
+  ✔ reference is upstream's full table (1.902685ms)
+  ✖ dist/katex.mjs decodes the pinned upstream metrics exactly (0.910807ms)
+  ✖ dist/katex.esm.js decodes the pinned upstream metrics exactly (0.587992ms)
+  ✖ dist/katex.closed.js decodes the pinned upstream metrics exactly (0.564669ms)
+  ✖ dist/katex.cjs decodes the pinned upstream metrics exactly (0.615142ms)
+  ✖ dist/katex.umd.js decodes the pinned upstream metrics exactly (0.35762ms)
+  ✖ dist/katex.min.js decodes the pinned upstream metrics exactly (0.230712ms)
+✖ font metrics in the built dist (7.591445ms)
+▶ @itslil/katex
+  ✖ renders x^2 with MathML and HTML (4.042555ms)
+  ✖ renders frac (0.748542ms)
+  ✖ matches the upstream root exports (0.542847ms)
+  ✖ honors throwOnError and errorColor (0.788818ms)
+  ✖ pins option keys on the library artifact (0.337693ms)
+  ✖ render appends a DOM tree and covers the TeX surface (0.690053ms)
+  ✖ closed artifact performs the core call (1.191112ms)
+✖ @itslil/katex (10.566569ms)
+▶ published surface
+  ✖ reports the pinned upstream version in ESM, CJS, and the CLI (4.515141ms)
+  ✖ matches pinned upstream root and contrib export keys (28.451622ms)
+  ✖ renders stdin through the CLI (0.61401ms)
+  ✖ loads ESM and CommonJS contrib entry points (0.860653ms)
+  ✖ loads browser builds as classic scripts (0.395582ms)
+  ✖ matches official mhchem output (0.578924ms)
+  ✖ matches official output across the screenshot corpus (0.570859ms)
+✖ published surface (39.591806ms)
+▶ site
+  ✔ has a markedlil-style lab with receipts (3.316143ms)
+  ✔ ships the benchmark page and the corpus it shares with Node (0.308959ms)
+  ✔ publishes results that name their sources and both worlds (1.018639ms)
+✔ site (6.844845ms)
+ℹ tests 28
+ℹ suites 6
+ℹ pass 5
+ℹ fail 23
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 354889.151472
+
+✖ failing tests:
+
+test at test/browser-perf.test.mjs:20:3
+✖ renders the corpus identically and within the regression guard rail (354429.570087ms)
+  AssertionError [ERR_ASSERTION]: build-site failed
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/browser-perf.test.mjs:24:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.start (node:internal/test_runner/test:1257:17)
+      at node:internal/test_runner/test:1887:71
+      at node:internal/per_context/primordials:504:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:478:3)
+      at node:internal/per_context/primordials:504:9
+      at Array.map (<anonymous>) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/contrib-differential.test.mjs:25:3
+✖ matches official render-a11y-string outputs and errors (2.928376ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/contrib/render-a11y-string.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/contrib-differential.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/contrib/render-a11y-string.mjs'
+  }
+
+test at test/contrib-differential.test.mjs:68:3
+✖ matches official mhchem rendering across parser state machines (0.680736ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/contrib-differential.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs'
+  }
+
+test at test/font-metrics.test.mjs:105:5
+✖ dist/katex.mjs decodes the pinned upstream metrics exactly (0.910807ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs'
+  }
+
+test at test/font-metrics.test.mjs:105:5
+✖ dist/katex.esm.js decodes the pinned upstream metrics exactly (0.587992ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js'
+  }
+
+test at test/font-metrics.test.mjs:105:5
+✖ dist/katex.closed.js decodes the pinned upstream metrics exactly (0.564669ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.closed.js' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.closed.js'
+  }
+
+test at test/font-metrics.test.mjs:112:3
+✖ dist/katex.cjs decodes the pinned upstream metrics exactly (0.615142ms)
+  Error: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.cjs'
+  Require stack:
+  - /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1142:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at Module._load (node:internal/modules/cjs/loader:1341:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+      at Module.require (node:internal/modules/cjs/loader:1674:12)
+      at require (node:internal/modules/helpers:157:16)
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs:113:19)
+      at Test.runInAsyncScope (node:async_hooks:227:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs' ]
+  }
+
+test at test/font-metrics.test.mjs:117:5
+✖ dist/katex.umd.js decodes the pinned upstream metrics exactly (0.35762ms)
+  Error: ENOENT: no such file or directory, open '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.umd.js'
+      at readFileSync (node:fs:484:20)
+      at classicScript (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs:92:22)
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs:118:13)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.umd.js'
+  }
+
+test at test/font-metrics.test.mjs:117:5
+✖ dist/katex.min.js decodes the pinned upstream metrics exactly (0.230712ms)
+  Error: ENOENT: no such file or directory, open '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.min.js'
+      at readFileSync (node:fs:484:20)
+      at classicScript (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs:92:22)
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/font-metrics.test.mjs:118:13)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.min.js'
+  }
+
+test at test/katex.test.mjs:38:3
+✖ renders x^2 with MathML and HTML (4.042555ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/katex.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js'
+  }
+
+test at test/katex.test.mjs:47:3
+✖ renders frac (0.748542ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/katex.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js'
+  }
+
+test at test/katex.test.mjs:56:3
+✖ matches the upstream root exports (0.542847ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/katex.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js'
+  }
+
+test at test/katex.test.mjs:82:3
+✖ honors throwOnError and errorColor (0.788818ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/katex.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js'
+  }
+
+test at test/katex.test.mjs:90:3
+✖ pins option keys on the library artifact (0.337693ms)
+  Error: ENOENT: no such file or directory, open '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js'
+      at readFileSync (node:fs:484:20)
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/katex.test.mjs:91:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js'
+  }
+
+test at test/katex.test.mjs:98:3
+✖ render appends a DOM tree and covers the TeX surface (0.690053ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/katex.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.esm.js'
+  }
+
+test at test/katex.test.mjs:124:3
+✖ closed artifact performs the core call (1.191112ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/katex.test.mjs:126:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/package.test.mjs:14:3
+✖ reports the pinned upstream version in ESM, CJS, and the CLI (4.515141ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/package.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs'
+  }
+
+test at test/package.test.mjs:27:3
+✖ matches pinned upstream root and contrib export keys (28.451622ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/package.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs'
+  }
+
+test at test/package.test.mjs:49:3
+✖ renders stdin through the CLI (0.61401ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/package.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs'
+  }
+
+test at test/package.test.mjs:59:3
+✖ loads ESM and CommonJS contrib entry points (0.860653ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/contrib/auto-render.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/package.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/contrib/auto-render.mjs'
+  }
+
+test at test/package.test.mjs:70:3
+✖ loads browser builds as classic scripts (0.395582ms)
+  Error: ENOENT: no such file or directory, open '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.umd.js'
+      at readFileSync (node:fs:484:20)
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/package.test.mjs:83:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.umd.js'
+  }
+
+test at test/package.test.mjs:100:3
+✖ matches official mhchem output (0.578924ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/package.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs'
+  }
+
+test at test/package.test.mjs:113:3
+✖ matches official output across the screenshot corpus (0.570859ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/test/package.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at node:internal/modules/esm/loader:636:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:361:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/katexlil/katexlil/dist/katex.mjs'
+  }
+

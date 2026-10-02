@@ -1,0 +1,12 @@
+[policy]
+version = 3
+[effort]
+level = 15
+[objective]
+codecs = ["raw", "gzip", "brotli"]
+[javascript]
+assume_pure_property_reads = true
+assume_pristine_builtins = true
+[delivery]
+annotations = "all"
+mode = "single"

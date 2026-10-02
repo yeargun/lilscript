@@ -1,0 +1,2558 @@
+{
+ "schema": 1,
+ "kind": "lilscript-case-runner",
+ "started": "2026-10-02T13:40:20.693Z",
+ "completed": "2026-10-02T13:40:22.783Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "fadf467193759c9367fc4661c3d191292dfd132a",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+  "path": "/home/azureuser/lilscript-work/out/v1-captured-callback-before/bin/lilscript-42b48470e2436ab8",
+  "sha256": "42b48470e2436ab8fffdfdab1c2e28402d103ce445dc8974146ae268c6c3aa5b",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/out/v1-captured-callback-before/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "node": {
+  "path": "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+  "version": "v24.20.0"
+ },
+ "cc": {
+  "path": "/usr/bin/cc",
+  "flagsOwner": "compiler NativeToolchain; per-artifact nativeToolchainReceipt",
+  "defaultFlags": [
+   "-O2"
+  ],
+  "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+ },
+ "scrubbedEnvironment": [],
+ "tactics": {
+  "source": "--print-policy",
+  "ids": [
+   "dead-code-elimination",
+   "constant-folding",
+   "inlining",
+   "loop-unrolling",
+   "scalar-replacement",
+   "call-specialization",
+   "helper-sharing",
+   "target-compaction",
+   "statement-spellings",
+   "declaration-order",
+   "receiver-aliases",
+   "identifier-mangling",
+   "property-mangling",
+   "string-pooling",
+   "string-array-packing",
+   "startup-reconstruction",
+   "recurring-reconstruction",
+   "naming-search",
+   "naming-compaction",
+   "representation-joints",
+   "naming-alphabet"
+  ]
+ },
+ "ledger": {
+  "path": "tests/cases/expected-failures.json",
+  "sha256": "4450b8b4b20a8888fcd0166f0748203da2da132a671a3e5c0c7b19e3804983d9",
+  "entries": 1
+ },
+ "masks": [
+  {
+   "id": "host-prelude",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "a .host.js prelude defines externs in a JavaScript realm",
+   "lifts": null
+  },
+  {
+   "id": "module-probe",
+   "targets": [
+    "module",
+    "cjs"
+   ],
+   "why": "a .module-probe.mjs reads the library export surface",
+   "lifts": null
+  },
+  {
+   "id": "JsValue",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "conservative corpus classification: native tagged transport is supported; host object operations require separate recipes",
+   "lifts": null
+  },
+  {
+   "id": "import extern",
+   "targets": [
+    "module"
+   ],
+   "why": "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports",
+   "lifts": null
+  },
+  {
+   "id": "extern",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "this corpus fixture needs a C provider/host-equivalent boundary; configured native function providers are supported",
+   "lifts": "N2 (M11.3 provider-backed corpus qualification)"
+  },
+  {
+   "id": "export",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "entry exports require a format with a library boundary; native uses its generated C interface",
+   "lifts": "M11.8 (a C library ABI)"
+  },
+  {
+   "id": "JS namespace",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "JavaScript host operations; portable checked views are classified per native case",
+   "lifts": null
+  },
+  {
+   "id": "async",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "portable async/tasks; native eligibility is classified per case",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "generator",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "portable generators; native eligibility is classified per case",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "object literal",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: object {} is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "native-provider-setup",
+   "why": "The fixture has no configured C equivalent for its declared host provider; this is not a native runtime pass.",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "lifts": null
+  },
+  {
+   "id": "native-javascript-host",
+   "why": "The checked source uses a declared JavaScript host facility; see the per-case source diagnostic.",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "lifts": null
+  },
+  {
+   "id": "native-javascript-observation",
+   "why": "Expected output observes the JavaScript prototype/module boundary through a JS prelude or probe.",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "lifts": null
+  },
+  {
+   "id": "native-obsolete-config",
+   "why": "The fixture still requests the retired positional JavaScript ABI; tracked in V1.",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "lifts": null
+  }
+ ],
+ "nativeExclusions": {
+  "path": "tests/native/corpus-exclusions.json",
+  "sha256": "a2abb40e8c583ea782c6314360e4309857b811d86e75f9e20e143dd5ade52d48"
+ },
+ "lanes": [
+  {
+   "id": "formation-only/brotli/script",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "6e898be6488b8c839bafa7ba6d0ffbe9fb85c6633fdd71ed2939f67301bf27f2",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/brotli/module",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "6f33026e116d66d4b14fe214ee1927d6f710305712f774e37998c5c225ad3e6a",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/brotli/cjs",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "c9671c644821907c15cd76ac6bd876775eb998408b8915d0db638d1654ec695b",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/brotli/bare",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "28d165007583b6a8b1bf4e4710d55b56ac8bddad49933e1bf9677bf48d0be878",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/brotli/c",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "c821b2049daf6e3eb838efca4e463a809314bd6318a39b45ed7309f7cf65057c",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "formation-only/gzip/script",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "21d0edfb8faf137bccece8deb80fdce39b0ccbe50e36997a9f4747c25035a69b",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/gzip/module",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "39cf490c2b0f6397bfe91c9ae869f8cedcaf732e1de538c892bf17ed237f2751",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/gzip/cjs",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "2bd8dad3a6593f3177dbb7402c5a827236b4a73e9e44466492d81713bc5694ef",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/gzip/bare",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "8032e6f8149c3714d28a16e5372d93585ebc2a03c307c911de51c5e6982eef28",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/gzip/c",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "c821b2049daf6e3eb838efca4e463a809314bd6318a39b45ed7309f7cf65057c",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "formation-only/raw/script",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "e0580c30452da1fe6a153a09ee568302046633297e29bc5ebbafb5d1926b133a",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/module",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "a9deb8fe8dac75e646385a5131977b8b25c6ee99c85339f4479949dc43f16149",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/cjs",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "8569bc60c227b8ec402fee7af7b23becc7b068c33a9e6ba8947fec556cb259f6",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/bare",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "8ba4eb00ce728d822ee6dad3d0ed41c0c124260dffd199e7a69c9c7ab0dff573",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/c",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "c821b2049daf6e3eb838efca4e463a809314bd6318a39b45ed7309f7cf65057c",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/brotli/script",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "05c745eb4fa6ce7b39fe8f17276b62f24d6f0e3aaf605629681c4795ef71fbac",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/brotli/module",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "befc25e11fac93742476a57b9228328a9e9702270b272f8305ece3dd127b5db3",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/brotli/cjs",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "8332558e1fa3f67307126755b872051a989f682ba4addf9471bd2a4cadf1c741",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/brotli/bare",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "6d5870ac9fbfa39ff35e8063548bfb412d0d6f297f2a58306f623940ca60e56c",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/brotli/c",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "e3bd9a7c6cad941a5efafe9f963cadb1bd2732fbb1fc8ddb32f66be6e536799c",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/gzip/script",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "51853cec1cea8e691b3d52ef771774507db8854eeddd3bec468abea6aa480abb",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/gzip/module",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "00d48953442af0499fbd7c80909077e0d44f174d92b78c701dd3a9d22f19c7b5",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/gzip/cjs",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "b682292dee8ac783996432ea296f86066ac70f2440580037d86242c251090ff8",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/gzip/bare",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "92ca32f538a1003f73b8c0e86430a4181851ed3b4c62b3b893278a5598b12049",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/gzip/c",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "e3bd9a7c6cad941a5efafe9f963cadb1bd2732fbb1fc8ddb32f66be6e536799c",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/raw/script",
+   "mode": "production",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "8c4452ef9cda373ff0c466cbdb3e2c4f5b5d7658ae3a26ee7df1d1300b0c2149",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/raw/module",
+   "mode": "production",
+   "codec": "raw",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "faf3007fa8b8d663729cfe0dc54224184a4dad7d41a2059e2f03a306d64423c2",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/raw/cjs",
+   "mode": "production",
+   "codec": "raw",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "d4815a0a1ae981e5981cc352d1ce8003fe725679c3e0fd93f9ec067c8f40658d",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/raw/bare",
+   "mode": "production",
+   "codec": "raw",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "9637834904334672d1a52886661cc5010cd1adefc5eef6b0ecae52da4db4b736",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/raw/c",
+   "mode": "production",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "e3bd9a7c6cad941a5efafe9f963cadb1bd2732fbb1fc8ddb32f66be6e536799c",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  }
+ ],
+ "cases": [
+  {
+   "id": "cases/captured_parameter_call_sets",
+   "digest": "5c56feecb021cc66ca4885cb446e272fdee1e3fc3ecdbb869ea5a11c65595cb8",
+   "features": [
+    "JsValue",
+    "extern",
+    "export",
+    "JS namespace"
+   ]
+  }
+ ],
+ "summary": {
+  "formation-only/brotli/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 875,
+   "brotli11Total": 386
+  },
+  "formation-only/brotli/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 881,
+   "brotli11Total": 384
+  },
+  "formation-only/brotli/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 995,
+   "brotli11Total": 450
+  },
+  "formation-only/brotli/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 864,
+   "brotli11Total": 380
+  },
+  "formation-only/brotli/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "formation-only/gzip/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 875,
+   "gzip9Total": 435
+  },
+  "formation-only/gzip/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 881,
+   "gzip9Total": 440
+  },
+  "formation-only/gzip/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 995,
+   "gzip9Total": 510
+  },
+  "formation-only/gzip/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 864,
+   "gzip9Total": 431
+  },
+  "formation-only/gzip/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "formation-only/raw/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 850,
+   "rawTotal": 850
+  },
+  "formation-only/raw/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 861,
+   "rawTotal": 861
+  },
+  "formation-only/raw/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 963,
+   "rawTotal": 963
+  },
+  "formation-only/raw/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 839,
+   "rawTotal": 839
+  },
+  "formation-only/raw/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "production/brotli/script": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 239,
+   "brotli11Total": 149
+  },
+  "production/brotli/module": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 280,
+   "brotli11Total": 164
+  },
+  "production/brotli/cjs": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 382,
+   "brotli11Total": 220
+  },
+  "production/brotli/bare": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 247,
+   "brotli11Total": 146
+  },
+  "production/brotli/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "production/gzip/script": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 239,
+   "gzip9Total": 185
+  },
+  "production/gzip/module": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 280,
+   "gzip9Total": 206
+  },
+  "production/gzip/cjs": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 382,
+   "gzip9Total": 271
+  },
+  "production/gzip/bare": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 228,
+   "gzip9Total": 180
+  },
+  "production/gzip/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "production/raw/script": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 239,
+   "rawTotal": 239
+  },
+  "production/raw/module": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 280,
+   "rawTotal": 280
+  },
+  "production/raw/cjs": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 382,
+   "rawTotal": 382
+  },
+  "production/raw/bare": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 1,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 228,
+   "rawTotal": 228
+  },
+  "production/raw/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  }
+ },
+ "unexpected": 12,
+ "staleLedgerEntries": [],
+ "narrowableLedgerEntries": [],
+ "unknownLedgerCases": [],
+ "results": [
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/script",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_brotli_script/cases/captured_parameter_call_sets.js",
+    "bytes": 875,
+    "sha256": "035667660ab2fb5301735d7b7ed5994603788860f9b0c861bfd0d6d980e912b9",
+    "raw": 875,
+    "gzip9": 435,
+    "brotli11": 386
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/module",
+   "compileMs": 8,
+   "artifact": {
+    "path": "lanes/formation-only_brotli_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 881,
+    "sha256": "12d7277787c8c8bbe2e10ee119932b95f53cd5a28574c9bbcb4451514a600e72",
+    "raw": 881,
+    "gzip9": 440,
+    "brotli11": 384
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/cjs",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_brotli_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 995,
+    "sha256": "b8b85c77ff785a100b0a7c825ed57633c0aed39346677c75f018a59b149a6197",
+    "raw": 995,
+    "gzip9": 510,
+    "brotli11": 450
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/bare",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_brotli_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 864,
+    "sha256": "73b166f97b868c95dad170952f4b59e3d252cbb99d121b55dec6c000f89abae3",
+    "raw": 864,
+    "gzip9": 431,
+    "brotli11": 380
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/script",
+   "compileMs": 7,
+   "artifact": {
+    "path": "lanes/formation-only_gzip_script/cases/captured_parameter_call_sets.js",
+    "bytes": 875,
+    "sha256": "035667660ab2fb5301735d7b7ed5994603788860f9b0c861bfd0d6d980e912b9",
+    "raw": 875,
+    "gzip9": 435,
+    "brotli11": 386
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/module",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_gzip_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 881,
+    "sha256": "12d7277787c8c8bbe2e10ee119932b95f53cd5a28574c9bbcb4451514a600e72",
+    "raw": 881,
+    "gzip9": 440,
+    "brotli11": 384
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/cjs",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_gzip_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 995,
+    "sha256": "b8b85c77ff785a100b0a7c825ed57633c0aed39346677c75f018a59b149a6197",
+    "raw": 995,
+    "gzip9": 510,
+    "brotli11": 450
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/bare",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_gzip_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 864,
+    "sha256": "73b166f97b868c95dad170952f4b59e3d252cbb99d121b55dec6c000f89abae3",
+    "raw": 864,
+    "gzip9": 431,
+    "brotli11": 380
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/script",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_script/cases/captured_parameter_call_sets.js",
+    "bytes": 850,
+    "sha256": "6288e02982fee2a0e3ba10d57f89530f2185184370e14254a46b0d09f713c958",
+    "raw": 850,
+    "gzip9": 437,
+    "brotli11": 383
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/module",
+   "compileMs": 7,
+   "artifact": {
+    "path": "lanes/formation-only_raw_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 861,
+    "sha256": "ccea2d1921ac0f8af1a037cad44f8c48f7b7d409f04f6bd49c39878a32d4326d",
+    "raw": 861,
+    "gzip9": 444,
+    "brotli11": 388
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/cjs",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_raw_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 963,
+    "sha256": "1c069d97d9c3974ac73154cd8b86caa6a8589eb9c2af8ebeffe61741a0c19971",
+    "raw": 963,
+    "gzip9": 509,
+    "brotli11": 448
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/bare",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_raw_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 839,
+    "sha256": "58e4f6f57c0adb24f0c6485628b9fdcf960e8a56409613bcc0f5de021257d622",
+    "raw": 839,
+    "gzip9": 433,
+    "brotli11": 381
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/script",
+   "compileMs": 90,
+   "artifact": {
+    "path": "lanes/production_brotli_script/cases/captured_parameter_call_sets.js",
+    "bytes": 239,
+    "sha256": "12f3b5ee052aa8280eaa6ae98c2ef146873006de882848bce72b237cd999deb1",
+    "raw": 239,
+    "gzip9": 186,
+    "brotli11": 149
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 237,
+    "judged": 24,
+    "pruned": 0,
+    "passes": 11,
+    "starts": 7,
+    "stops": [
+     {
+      "level": 0,
+      "size": 156,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 1,
+      "size": 156,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 2,
+      "size": 156,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 3,
+      "size": 156,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 4,
+      "size": 156,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 5,
+      "size": 152,
+      "sha256": "ebd36c7f8c288d8d8eb12fefcdf4470538b0b97ac783d0cf6a8a7f0b3e174859"
+     },
+     {
+      "level": 6,
+      "size": 152,
+      "sha256": "ebd36c7f8c288d8d8eb12fefcdf4470538b0b97ac783d0cf6a8a7f0b3e174859"
+     },
+     {
+      "level": 7,
+      "size": 152,
+      "sha256": "ebd36c7f8c288d8d8eb12fefcdf4470538b0b97ac783d0cf6a8a7f0b3e174859"
+     },
+     {
+      "level": 8,
+      "size": 152,
+      "sha256": "ebd36c7f8c288d8d8eb12fefcdf4470538b0b97ac783d0cf6a8a7f0b3e174859"
+     },
+     {
+      "level": 9,
+      "size": 152,
+      "sha256": "ebd36c7f8c288d8d8eb12fefcdf4470538b0b97ac783d0cf6a8a7f0b3e174859"
+     },
+     {
+      "level": 10,
+      "size": 152,
+      "sha256": "ebd36c7f8c288d8d8eb12fefcdf4470538b0b97ac783d0cf6a8a7f0b3e174859"
+     },
+     {
+      "level": 11,
+      "size": 152,
+      "sha256": "ebd36c7f8c288d8d8eb12fefcdf4470538b0b97ac783d0cf6a8a7f0b3e174859"
+     },
+     {
+      "level": 12,
+      "size": 152,
+      "sha256": "ebd36c7f8c288d8d8eb12fefcdf4470538b0b97ac783d0cf6a8a7f0b3e174859"
+     },
+     {
+      "level": 13,
+      "size": 149,
+      "sha256": "12f3b5ee052aa8280eaa6ae98c2ef146873006de882848bce72b237cd999deb1"
+     },
+     {
+      "level": 14,
+      "size": 149,
+      "sha256": "12f3b5ee052aa8280eaa6ae98c2ef146873006de882848bce72b237cd999deb1"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/module",
+   "compileMs": 78,
+   "artifact": {
+    "path": "lanes/production_brotli_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 280,
+    "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f",
+    "raw": 280,
+    "gzip9": 207,
+    "brotli11": 164
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 266,
+    "judged": 34,
+    "pruned": 0,
+    "passes": 12,
+    "starts": 7,
+    "stops": [
+     {
+      "level": 0,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 1,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 2,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 3,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 4,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 5,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 6,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 7,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 8,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 9,
+      "size": 165,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 10,
+      "size": 164,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     },
+     {
+      "level": 11,
+      "size": 164,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     },
+     {
+      "level": 12,
+      "size": 164,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     },
+     {
+      "level": 13,
+      "size": 164,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     },
+     {
+      "level": 14,
+      "size": 164,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/cjs",
+   "compileMs": 152,
+   "artifact": {
+    "path": "lanes/production_brotli_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 382,
+    "sha256": "799183d8933928abff336adfc37babbcc1a4dc17e92e86ca66b3799bf3330346",
+    "raw": 382,
+    "gzip9": 273,
+    "brotli11": 220
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 295,
+    "judged": 57,
+    "pruned": 0,
+    "passes": 13,
+    "starts": 7,
+    "stops": [
+     {
+      "level": 0,
+      "size": 227,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 1,
+      "size": 227,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 2,
+      "size": 227,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 3,
+      "size": 227,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 4,
+      "size": 227,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 5,
+      "size": 225,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 6,
+      "size": 225,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 7,
+      "size": 225,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 8,
+      "size": 225,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 9,
+      "size": 225,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 10,
+      "size": 225,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 11,
+      "size": 223,
+      "sha256": "e70df5630657497766dc2412437dca10386d71378e7af0da4e718783db2464f3"
+     },
+     {
+      "level": 12,
+      "size": 223,
+      "sha256": "e70df5630657497766dc2412437dca10386d71378e7af0da4e718783db2464f3"
+     },
+     {
+      "level": 13,
+      "size": 221,
+      "sha256": "2b5efdda64ccdad1269d47867573b1484901a81cb3090977c8e161e975602dfa"
+     },
+     {
+      "level": 14,
+      "size": 220,
+      "sha256": "4f16210f440e6d25d5e8d8cf9b51ba064867919fc1a3fff25a602a934ffc13b0"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/bare",
+   "compileMs": 109,
+   "artifact": {
+    "path": "lanes/production_brotli_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 247,
+    "sha256": "1a0071f7066e4be48b06f589c6d13b28d30a4046b69de1c4aa3e4ee214af48df",
+    "raw": 247,
+    "gzip9": 189,
+    "brotli11": 146
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 382,
+    "judged": 45,
+    "pruned": 0,
+    "passes": 16,
+    "starts": 7,
+    "stops": [
+     {
+      "level": 0,
+      "size": 152,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 1,
+      "size": 152,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 2,
+      "size": 152,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 3,
+      "size": 152,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 4,
+      "size": 152,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 5,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 6,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 7,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 8,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 9,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 10,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 11,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 12,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 13,
+      "size": 147,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 14,
+      "size": 146,
+      "sha256": "1a0071f7066e4be48b06f589c6d13b28d30a4046b69de1c4aa3e4ee214af48df"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/script",
+   "compileMs": 88,
+   "artifact": {
+    "path": "lanes/production_gzip_script/cases/captured_parameter_call_sets.js",
+    "bytes": 239,
+    "sha256": "ed201748812f3898ebe9be78e369d52ac179a66fc52afde14118d446c0f179f5",
+    "raw": 239,
+    "gzip9": 185,
+    "brotli11": 150
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 301,
+    "judged": 28,
+    "pruned": 31,
+    "passes": 15,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 195,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 1,
+      "size": 195,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 2,
+      "size": 195,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 3,
+      "size": 195,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 4,
+      "size": 195,
+      "sha256": "aec68bfa561b9a1b7c9a3cd6cc7bab0011e09c141d9b35d0e730b3d07b4a7534"
+     },
+     {
+      "level": 5,
+      "size": 190,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 6,
+      "size": 190,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 7,
+      "size": 190,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 8,
+      "size": 190,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 9,
+      "size": 190,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 10,
+      "size": 186,
+      "sha256": "b82ecb84729aef12308d5881a252164edd918b1cab13a9fa6bee969e553b05e1"
+     },
+     {
+      "level": 11,
+      "size": 186,
+      "sha256": "b82ecb84729aef12308d5881a252164edd918b1cab13a9fa6bee969e553b05e1"
+     },
+     {
+      "level": 12,
+      "size": 186,
+      "sha256": "b82ecb84729aef12308d5881a252164edd918b1cab13a9fa6bee969e553b05e1"
+     },
+     {
+      "level": 13,
+      "size": 186,
+      "sha256": "b82ecb84729aef12308d5881a252164edd918b1cab13a9fa6bee969e553b05e1"
+     },
+     {
+      "level": 14,
+      "size": 185,
+      "sha256": "ed201748812f3898ebe9be78e369d52ac179a66fc52afde14118d446c0f179f5"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/module",
+   "compileMs": 48,
+   "artifact": {
+    "path": "lanes/production_gzip_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 280,
+    "sha256": "761a9c96036d24b5fbd186849f6955fc798e10db9685b1fe5e7fc7b18848261e",
+    "raw": 280,
+    "gzip9": 206,
+    "brotli11": 182
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 330,
+    "judged": 14,
+    "pruned": 22,
+    "passes": 16,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 1,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 2,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 3,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 4,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 5,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 6,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 7,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 8,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 9,
+      "size": 209,
+      "sha256": "cfdc549493ac1f223794d1d44f8b1e9d4c90cfc3363337108f9bcc6e158257c6"
+     },
+     {
+      "level": 10,
+      "size": 207,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     },
+     {
+      "level": 11,
+      "size": 207,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     },
+     {
+      "level": 12,
+      "size": 207,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     },
+     {
+      "level": 13,
+      "size": 207,
+      "sha256": "0616a4982def492d00515fe9ccb5e3976203efb6ce9b019b3b55fa064a34987f"
+     },
+     {
+      "level": 14,
+      "size": 206,
+      "sha256": "761a9c96036d24b5fbd186849f6955fc798e10db9685b1fe5e7fc7b18848261e"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/cjs",
+   "compileMs": 90,
+   "artifact": {
+    "path": "lanes/production_gzip_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 382,
+    "sha256": "9d185134646c1010b9bd49649971e883ee2d45f116a9aef611d8e1942ce63cf7",
+    "raw": 382,
+    "gzip9": 271,
+    "brotli11": 220
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 301,
+    "judged": 24,
+    "pruned": 34,
+    "passes": 15,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 278,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 1,
+      "size": 278,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 2,
+      "size": 278,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 3,
+      "size": 278,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 4,
+      "size": 278,
+      "sha256": "ed8dbbcf43afd48fecda3f199a439344ee12c2c4d56e4099bae0dc0023b5cda0"
+     },
+     {
+      "level": 5,
+      "size": 276,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 6,
+      "size": 276,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 7,
+      "size": 276,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 8,
+      "size": 276,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 9,
+      "size": 276,
+      "sha256": "469be8fa7f9bc4d6d7d452ad8c6feefdb28712d01e696437f0a95c542a5a466b"
+     },
+     {
+      "level": 10,
+      "size": 273,
+      "sha256": "e70df5630657497766dc2412437dca10386d71378e7af0da4e718783db2464f3"
+     },
+     {
+      "level": 11,
+      "size": 273,
+      "sha256": "e70df5630657497766dc2412437dca10386d71378e7af0da4e718783db2464f3"
+     },
+     {
+      "level": 12,
+      "size": 273,
+      "sha256": "e70df5630657497766dc2412437dca10386d71378e7af0da4e718783db2464f3"
+     },
+     {
+      "level": 13,
+      "size": 271,
+      "sha256": "90b63aaccd1c28ea0df201ed3094f4c71bbd8bc5b5824851dd81c60bf1aaac2b"
+     },
+     {
+      "level": 14,
+      "size": 271,
+      "sha256": "90b63aaccd1c28ea0df201ed3094f4c71bbd8bc5b5824851dd81c60bf1aaac2b"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/bare",
+   "compileMs": 102,
+   "artifact": {
+    "path": "lanes/production_gzip_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 228,
+    "sha256": "056be51376a6a058ff607428a56ebe87e41e897b18e9936160e745b35265657d",
+    "raw": 228,
+    "gzip9": 180,
+    "brotli11": 148
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 359,
+    "judged": 31,
+    "pruned": 39,
+    "passes": 17,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 191,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 1,
+      "size": 191,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 2,
+      "size": 191,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 3,
+      "size": 191,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 4,
+      "size": 191,
+      "sha256": "cb46c00b31ef092f8db295156a70db9b6d103eacf07cc7e8b9434d65332a9ec6"
+     },
+     {
+      "level": 5,
+      "size": 183,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 6,
+      "size": 183,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 7,
+      "size": 183,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 8,
+      "size": 183,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 9,
+      "size": 183,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 10,
+      "size": 181,
+      "sha256": "bded7858cde7985965e920ce1f1e60d7de3311edf5ad0bdfce7944d75a684a9a"
+     },
+     {
+      "level": 11,
+      "size": 181,
+      "sha256": "bded7858cde7985965e920ce1f1e60d7de3311edf5ad0bdfce7944d75a684a9a"
+     },
+     {
+      "level": 12,
+      "size": 181,
+      "sha256": "bded7858cde7985965e920ce1f1e60d7de3311edf5ad0bdfce7944d75a684a9a"
+     },
+     {
+      "level": 13,
+      "size": 180,
+      "sha256": "056be51376a6a058ff607428a56ebe87e41e897b18e9936160e745b35265657d"
+     },
+     {
+      "level": 14,
+      "size": 180,
+      "sha256": "056be51376a6a058ff607428a56ebe87e41e897b18e9936160e745b35265657d"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/script",
+   "compileMs": 67,
+   "artifact": {
+    "path": "lanes/production_raw_script/cases/captured_parameter_call_sets.js",
+    "bytes": 239,
+    "sha256": "caa9c0a926b3d283ed39e216c91d709dcefd97d8209743e47affe45af4fe1f2f",
+    "raw": 239,
+    "gzip9": 196,
+    "brotli11": 173
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 182,
+    "judged": 16,
+    "pruned": 15,
+    "passes": 10,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 1,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 2,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 3,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 4,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 5,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 6,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 7,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 8,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 9,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 10,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 11,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 12,
+      "size": 239,
+      "sha256": "3118e18f2d8c0712d476c88c7d6fe82288a79fd0d6a9275bf3cf34ac18df1f5a"
+     },
+     {
+      "level": 13,
+      "size": 239,
+      "sha256": "caa9c0a926b3d283ed39e216c91d709dcefd97d8209743e47affe45af4fe1f2f"
+     },
+     {
+      "level": 14,
+      "size": 239,
+      "sha256": "caa9c0a926b3d283ed39e216c91d709dcefd97d8209743e47affe45af4fe1f2f"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/module",
+   "compileMs": 51,
+   "artifact": {
+    "path": "lanes/production_raw_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 280,
+    "sha256": "4271b2a236d8d5ae25d72916758ca9aea50eca88a7f89b0efce57dd3729f365b",
+    "raw": 280,
+    "gzip9": 216,
+    "brotli11": 172
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 182,
+    "judged": 24,
+    "pruned": 7,
+    "passes": 10,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 1,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 2,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 3,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 4,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 5,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 6,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 7,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 8,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 9,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 10,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 11,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 12,
+      "size": 280,
+      "sha256": "cf309b192071592e133d0a5ef4fcc281fb9cce19e3a2df032fbaa3145b0cedbb"
+     },
+     {
+      "level": 13,
+      "size": 280,
+      "sha256": "4271b2a236d8d5ae25d72916758ca9aea50eca88a7f89b0efce57dd3729f365b"
+     },
+     {
+      "level": 14,
+      "size": 280,
+      "sha256": "4271b2a236d8d5ae25d72916758ca9aea50eca88a7f89b0efce57dd3729f365b"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/cjs",
+   "compileMs": 62,
+   "artifact": {
+    "path": "lanes/production_raw_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 382,
+    "sha256": "f7969ef75e7628c3f44c94a0ead302aa57982cdf3c16e654826266c8983dc737",
+    "raw": 382,
+    "gzip9": 281,
+    "brotli11": 230
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 182,
+    "judged": 16,
+    "pruned": 15,
+    "passes": 10,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 1,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 2,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 3,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 4,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 5,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 6,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 7,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 8,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 9,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 10,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 11,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 12,
+      "size": 382,
+      "sha256": "9f34ce29565cfff9d86d29e902a1d55507eda2c8ef073c1dc3363f0281b4dca2"
+     },
+     {
+      "level": 13,
+      "size": 382,
+      "sha256": "9fa7edfab233ce620d84f81011678e3bae774ef524f9434d312db76b23f39d42"
+     },
+     {
+      "level": 14,
+      "size": 382,
+      "sha256": "9fa7edfab233ce620d84f81011678e3bae774ef524f9434d312db76b23f39d42"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/bare",
+   "compileMs": 68,
+   "artifact": {
+    "path": "lanes/production_raw_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 228,
+    "sha256": "720113e7bb339a11081e11cbd236ff5fe809fa9d96eefa847e4585d88e1877f1",
+    "raw": 228,
+    "gzip9": 189,
+    "brotli11": 156
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 182,
+    "judged": 16,
+    "pruned": 15,
+    "passes": 10,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 1,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 2,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 3,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 4,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 5,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 6,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 7,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 8,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 9,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 10,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 11,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 12,
+      "size": 228,
+      "sha256": "f7306ee0699c7d61cfc93a2343e3ce64f7e7ee9f4e15394ae13e85fbb8d2ed15"
+     },
+     {
+      "level": 13,
+      "size": 228,
+      "sha256": "720113e7bb339a11081e11cbd236ff5fe809fa9d96eefa847e4585d88e1877f1"
+     },
+     {
+      "level": 14,
+      "size": 228,
+      "sha256": "720113e7bb339a11081e11cbd236ff5fe809fa9d96eefa847e4585d88e1877f1"
+     }
+    ]
+   },
+   "state": "wrong-output",
+   "detail": "line 1: expected \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"after\\\",\\\"f\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\", got \"[[\\\"exit\\\",\\\"self\\\",\\\"p\\\"],[\\\"exit\\\",\\\"self\\\",\\\"f\\\"]]\"",
+   "firstDifference": {
+    "line": 1,
+    "expected": "[[\"exit\",\"self\",\"p\"],[\"after\",\"f\"],[\"exit\",\"self\",\"f\"]]",
+    "actual": "[[\"exit\",\"self\",\"p\"],[\"exit\",\"self\",\"f\"]]"
+   }
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  }
+ ]
+}

@@ -15,6 +15,9 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 Complete **V1**: finish maintained/held-out library delivery and compile-cost
 qualification. Known JavaScript formation/runtime gaps, the compiler language
 matrix and separate objective size matrix are qualified. Then follow **V2**.
+Library qualification has additionally exposed and repaired captured-parameter
+propagation and lost effort-winner defects. Candidate 6 passes their focused
+gates; the serial package batch continues under the [handoff](handoff.md).
 
 Q2's safe reuse boundaries and D3's shared graph/session integration are qualified.
 D3 implements bounded, conservatively invalidated per-module elaboration reuse. Arbitrary

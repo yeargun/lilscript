@@ -1,0 +1,28 @@
+// These public utilities use JavaScript array identity. Keep the host values
+// intact, including objects/functions, NaN and sparse arrays; a portable value
+// struct has a different contract from an element of this JavaScript API.
+export void addUniqueItem(JsValue arr, JsValue item) {
+  if (JS.strictEqual(arr.indexOf(item), -1)) {
+    arr.push(item);
+  }
+}
+
+export void removeItem(JsValue arr, JsValue item) {
+  JsValue index = arr.indexOf(item);
+  if (index > -1) {
+    arr.splice(index, 1);
+  }
+}
+
+// Upstream indices are JavaScript numbers, including fractional/non-finite
+// values. Let splice apply ToIntegerOrInfinity; an int32 parameter would grant
+// range/coercion proofs that this public API does not promise.
+export T[] moveItem<T>(T[] input, float fromIndex, float toIndex) {
+  T[] arr = [...input];
+  int length = arr.length;
+  float startIndex = if (fromIndex < 0) { length + fromIndex } else { fromIndex };
+  if (startIndex >= 0 && startIndex < length) {
+    JS.splice(arr, if (toIndex < 0) { length + toIndex } else { toIndex }, 0.0, JS.splice(arr, fromIndex, 1.0)[0]);
+  }
+  return arr;
+}

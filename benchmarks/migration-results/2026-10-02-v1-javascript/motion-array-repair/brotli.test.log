@@ -1,0 +1,11 @@
+✔ array utilities preserve upstream identity, NaN and sparse-array behavior (2.352649ms)
+✔ array utilities retain receiver, method order and strict index comparison (0.251241ms)
+✔ moveItem retains number indices, sparse spreading and item identity (0.555771ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 69.878733

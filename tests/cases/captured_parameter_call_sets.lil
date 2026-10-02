@@ -1,0 +1,27 @@
+// Reduced from mdast-util-from-markdown's opener/closer factories. A later
+// callback input must invalidate an earlier undefined-only parameter fact in
+// the returned method, not just in the factory that owns the parameter.
+extern JsValue JSON;
+export JsValue handlers() {
+  JsValue[] log = [];
+  JsValue exit = JS.method1((JsValue self, JsValue token) => {
+    log.push(JS.array("exit", self["id"], token));
+    return JS.undefined();
+  });
+  func(JsValue)->JsValue closer = (JsValue and) => JS.method1((JsValue self, JsValue token) => {
+    if (and.truthy()) {
+      JS.call(and, JS.undefined(), token);
+    }
+    JS.call(exit, self, token);
+    return JS.undefined();
+  });
+  JsValue after = JS.method1((JsValue _self, JsValue token) => {
+    log.push(JS.array("after", token));
+    return JS.undefined();
+  });
+  return JS.object("id", "self", "plain", closer(JS.undefined()), "full", closer(after), "log", log);
+}
+JsValue instance = handlers();
+JS.invoke(instance, "plain", "p");
+JS.invoke(instance, "full", "f");
+print(JS.invoke(JSON, "stringify", instance["log"]));

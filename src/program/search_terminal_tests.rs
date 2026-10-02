@@ -13,13 +13,11 @@
 //! * **The terminal stage is monotone in effort.** It tries a prefix of one
 //!   declared schedule whose length is the effort's budget, sequentially,
 //!   so from the same search winner a higher level keeps at least as much.
-//! * **Not guaranteed today:** between two search-enabled levels whose
-//!   search winners differ. Beam width, retained-candidate capacity and the
-//!   effort-gated tactics (naming search at 8, call specialization at 11)
-//!   shape the search's trajectory, so a higher level can explore a different
-//!   frontier. Replaying the lower level's schedule as the first phase of the
-//!   higher one closes this; it belongs with the calibrated effort ladder
-//!   (M9.10), which re-derives those parameters.
+//! * **Protected effort:** from level 13, completed lower-tier winners join
+//!   the current frontier's eligible results. Their observers are separate,
+//!   so their scores must also participate in the expected minimum. Finite
+//!   ceilings still bound how far each checkpoint can explore; turning off
+//!   protection permits different frontiers to choose different results.
 use super::*;
 #[path = "search_proxy_tests.rs"]
 mod proxy_modes;
@@ -111,6 +109,7 @@ fn request(objectives: Objectives) -> SearchRequest {
 struct Run {
     /// Every scored artifact's size per codec, in scoring order.
     scored: Vec<[Option<usize>; 3]>,
+    checkpoint_best: [Option<usize>; 3],
     baseline: String,
     winners: [Option<(usize, String)>; 3],
     report: TerminalReport,
@@ -176,7 +175,11 @@ fn search_source(
                 (size, view.javascript.to_string())
             })
         });
-        (winners, report)
+        let checkpoint_best = [Objective::Raw, Objective::Gzip, Objective::Brotli].map(|codec| {
+            search.effort_checkpoints.iter().flat_map(|checkpoint| &checkpoint.objectives)
+                .filter(|(name, _, _)| *name == codec.name()).map(|(_, size, _)| *size).min()
+        });
+        (winners, report, checkpoint_best)
     };
     let logical_work = [WorkDomain::Baseline, WorkDomain::Optional]
         .map(|domain| compilation.ledger().work_used(domain));
@@ -184,6 +187,7 @@ fn search_source(
     assert_eq!(compilation.finish().retained_bytes(), 0);
     Run {
         scored,
+        checkpoint_best: run.2,
         baseline,
         winners: run.0,
         report: run.1,
@@ -397,8 +401,9 @@ fn incumbents_never_worsen_within_a_search_or_its_terminal_stage() {
                 .unwrap()
             );
             if !challenge {
-                // Every replacement was strictly smaller: the winner is the
-                // minimum of everything the search scored for this codec.
+                // Completed lower efforts have separate observers but their
+                // qualified winners are also eligible for this codec.
+                let best = best.min(run.checkpoint_best[index].unwrap_or(best));
                 assert_eq!(winner, best, "{codec}");
                 continue;
             }

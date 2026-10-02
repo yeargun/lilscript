@@ -1,0 +1,9 @@
+warning: /home/azureuser/lilscript/lilscript.toml: `javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it
+warning: /home/azureuser/lilscript/lilscript.toml: `javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it
+warning: /home/azureuser/lilscript/lilscript.toml: `javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it
+warning: /home/azureuser/lilscript/lilscript.toml: `javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it
+error: native extern globals require a function provider; declare getter/setter functions
+ --> /home/azureuser/lilscript/tests/cases/captured_parameter_call_sets.lil:4:16
+  |
+ 4 | extern JsValue JSON;
+  |                ^^^^

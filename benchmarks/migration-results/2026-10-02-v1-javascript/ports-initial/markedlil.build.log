@@ -1,0 +1,6 @@
+
+> @itslil/marked@18.0.14 build
+> node scripts/build.mjs --compile
+
+Built 7 compiler-written artifacts (public, closed)
+

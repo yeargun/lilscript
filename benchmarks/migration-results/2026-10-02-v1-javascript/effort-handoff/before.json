@@ -1,0 +1,1550 @@
+[
+  {
+    "codec": "raw",
+    "budget": 700000,
+    "actual": 495,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "raw",
+            [
+              {
+                "level": 0,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 1,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 2,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 3,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 4,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 5,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 6,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 7,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 8,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 9,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 10,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 11,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 12,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 101319,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 101319,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 101319,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 598675,
+      "optional_work": 101319
+    }
+  },
+  {
+    "codec": "raw",
+    "budget": 1000000,
+    "actual": 495,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "raw",
+            [
+              {
+                "level": 0,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 1,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 2,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 3,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 4,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 5,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 6,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 7,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 8,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 9,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 10,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 11,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 12,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 401313,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 401313,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 401313,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 598687,
+      "optional_work": 401313
+    }
+  },
+  {
+    "codec": "raw",
+    "budget": 2000000,
+    "actual": 495,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "raw",
+            [
+              {
+                "level": 0,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 1,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 2,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 3,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 4,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 5,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 6,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 7,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 8,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 9,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 10,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 11,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 12,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "raw",
+            493,
+            "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 2,
+        "optional_work": 1401303,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 1401303,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 1401303,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 598687,
+      "optional_work": 1401303
+    }
+  },
+  {
+    "codec": "raw",
+    "budget": 5000000,
+    "actual": 495,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "raw",
+            [
+              {
+                "level": 0,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 1,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 2,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 3,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 4,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 5,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 6,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 7,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 8,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 9,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 10,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 11,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 12,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "raw",
+            493,
+            "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 4,
+        "optional_work": 1773205,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "raw",
+            493,
+            "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+          ]
+        ],
+        "proposals": 5,
+        "renders": 6,
+        "judgments": 3,
+        "optional_work": 4401313,
+        "stopped": null
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "raw",
+            495,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 4401313,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 598687,
+      "optional_work": 4401313
+    }
+  },
+  {
+    "codec": "raw",
+    "budget": 10000000,
+    "actual": 495,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "raw",
+            [
+              {
+                "level": 0,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 1,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 2,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 3,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 4,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 5,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 6,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 7,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 8,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 9,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 10,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 11,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 12,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "raw",
+            493,
+            "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 4,
+        "optional_work": 1773243,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "raw",
+            493,
+            "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+          ]
+        ],
+        "proposals": 5,
+        "renders": 6,
+        "judgments": 11,
+        "optional_work": 8747711,
+        "stopped": null
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "raw",
+            493,
+            "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 1,
+        "optional_work": 9401301,
+        "stopped": "Limit(WalkReserve)"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 598699,
+      "optional_work": 9401301
+    }
+  },
+  {
+    "codec": "raw",
+    "budget": 20000000,
+    "actual": 493,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "raw",
+            [
+              {
+                "level": 0,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 1,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 2,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 3,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 4,
+                "size": 495,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              },
+              {
+                "level": 5,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 6,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 7,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 8,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 9,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 10,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 11,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              },
+              {
+                "level": 12,
+                "size": 493,
+                "sha256": "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "raw",
+            493,
+            "402dbc6b9cd89ce570e34d083b37b43b41fe0196d34f0469926593a06f729be4"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 4,
+        "optional_work": 1773243,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "raw",
+            493,
+            "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+          ]
+        ],
+        "proposals": 5,
+        "renders": 6,
+        "judgments": 11,
+        "optional_work": 8747711,
+        "stopped": null
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "raw",
+            493,
+            "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d"
+          ]
+        ],
+        "proposals": 5,
+        "renders": 6,
+        "judgments": 20,
+        "optional_work": 18205762,
+        "stopped": null
+      }
+    ],
+    "stop": "Limit(WalkReserve)",
+    "resources": {
+      "baseline_work": 598699,
+      "optional_work": 19401300
+    }
+  },
+  {
+    "codec": "brotli",
+    "budget": 700000,
+    "actual": 292,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "brotli",
+            [
+              {
+                "level": 0,
+                "size": 292,
+                "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+              },
+              {
+                "level": 1,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 2,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 3,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 4,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 5,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 6,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 7,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 8,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 9,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 10,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 11,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 12,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "brotli",
+            290,
+            "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 2,
+        "optional_work": 176984,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "brotli",
+            292,
+            "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 176984,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "brotli",
+            292,
+            "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 176984,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 523007,
+      "optional_work": 176984
+    }
+  },
+  {
+    "codec": "brotli",
+    "budget": 1000000,
+    "actual": 292,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "brotli",
+            [
+              {
+                "level": 0,
+                "size": 292,
+                "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+              },
+              {
+                "level": 1,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 2,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 3,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 4,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 5,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 6,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 7,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 8,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 9,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 10,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 11,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 12,
+                "size": 292,
+                "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "brotli",
+            292,
+            "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 7,
+        "optional_work": 476981,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "brotli",
+            292,
+            "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 476981,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "brotli",
+            292,
+            "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 476981,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 523019,
+      "optional_work": 476981
+    }
+  },
+  {
+    "codec": "brotli",
+    "budget": 2000000,
+    "actual": 292,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "brotli",
+            [
+              {
+                "level": 0,
+                "size": 292,
+                "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+              },
+              {
+                "level": 1,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 2,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 3,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 4,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 5,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 6,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 7,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 8,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 9,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 10,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 11,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 12,
+                "size": 278,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "brotli",
+            278,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 12,
+        "optional_work": 1090473,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "brotli",
+            278,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 5,
+        "optional_work": 1476981,
+        "stopped": "Limit(WalkReserve)"
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "brotli",
+            292,
+            "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 1476981,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 523019,
+      "optional_work": 1476981
+    }
+  },
+  {
+    "codec": "brotli",
+    "budget": 5000000,
+    "actual": 292,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "brotli",
+            [
+              {
+                "level": 0,
+                "size": 292,
+                "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+              },
+              {
+                "level": 1,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 2,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 3,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 4,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 5,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 6,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 7,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 8,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 9,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 10,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 11,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 12,
+                "size": 278,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "brotli",
+            278,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 12,
+        "optional_work": 1090473,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "brotli",
+            278,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 5,
+        "renders": 6,
+        "judgments": 31,
+        "optional_work": 4476981,
+        "stopped": null
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "brotli",
+            292,
+            "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 0,
+        "optional_work": 4476981,
+        "stopped": "Candidate(Budget(WorkExhausted(Optional)))"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 523019,
+      "optional_work": 4476981
+    }
+  },
+  {
+    "codec": "brotli",
+    "budget": 10000000,
+    "actual": 292,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "brotli",
+            [
+              {
+                "level": 0,
+                "size": 292,
+                "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+              },
+              {
+                "level": 1,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 2,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 3,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 4,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 5,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 6,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 7,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 8,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 9,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 10,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 11,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 12,
+                "size": 278,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "brotli",
+            278,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 12,
+        "optional_work": 1090500,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "brotli",
+            274,
+            "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+          ]
+        ],
+        "proposals": 5,
+        "renders": 6,
+        "judgments": 65,
+        "optional_work": 7586962,
+        "stopped": null
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "brotli",
+            274,
+            "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 21,
+        "optional_work": 9476969,
+        "stopped": "Limit(WalkReserve)"
+      }
+    ],
+    "stop": "Candidate(Budget(WorkExhausted(Optional)))",
+    "resources": {
+      "baseline_work": 523031,
+      "optional_work": 9476969
+    }
+  },
+  {
+    "codec": "brotli",
+    "budget": 20000000,
+    "actual": 274,
+    "checkpoints": [
+      {
+        "level": 12,
+        "fast_stops": [
+          [
+            "brotli",
+            [
+              {
+                "level": 0,
+                "size": 292,
+                "sha256": "9eb9b40d2b3ed4de90d2cab33726a5f10c9ecf501fb2b5d7439772f8b3062fc8"
+              },
+              {
+                "level": 1,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 2,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 3,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 4,
+                "size": 290,
+                "sha256": "86d9ceed95023c5ca1872e50b330ae4b3a61fa69af22aa478e2b9fca03c412b3"
+              },
+              {
+                "level": 5,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 6,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 7,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 8,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 9,
+                "size": 288,
+                "sha256": "bb74c02f44a46741f4c0e42ad085faae3c822973f4b8767765fd655624e9df88"
+              },
+              {
+                "level": 10,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 11,
+                "size": 284,
+                "sha256": "d159c4c65dd370d7ef84a8c421cf56a9e9d457cf9b362db8c6479dba439433e3"
+              },
+              {
+                "level": 12,
+                "size": 278,
+                "sha256": "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+              }
+            ]
+          ]
+        ],
+        "objectives": [
+          [
+            "brotli",
+            278,
+            "e61e15b047fb3f6ca27fc700db3f332376dd14b542b592e58d111383b4a6305a"
+          ]
+        ],
+        "proposals": 0,
+        "renders": 1,
+        "judgments": 12,
+        "optional_work": 1090500,
+        "stopped": null
+      },
+      {
+        "level": 13,
+        "objectives": [
+          [
+            "brotli",
+            274,
+            "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+          ]
+        ],
+        "proposals": 5,
+        "renders": 6,
+        "judgments": 65,
+        "optional_work": 7586962,
+        "stopped": null
+      },
+      {
+        "level": 14,
+        "objectives": [
+          [
+            "brotli",
+            274,
+            "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6"
+          ]
+        ],
+        "proposals": 5,
+        "renders": 6,
+        "judgments": 80,
+        "optional_work": 15519878,
+        "stopped": null
+      }
+    ],
+    "stop": "Limit(WalkReserve)",
+    "resources": {
+      "baseline_work": 523031,
+      "optional_work": 19476969
+    }
+  }
+]

@@ -573,8 +573,9 @@ The fast-tier walk extends a fixed sequence of moves (the replay checks in
 [testing.md](testing.md#the-effort-schedules-monotonicity-m35)). Each build
 retains its best admitted artifact. From 13, `protect_effort=true` completes and
 retains the preceding effort under its own policy before opening the wider
-frontier. Hard limits can prevent completing or requalifying a checkpoint; the
-report identifies that limit instead of promising unbounded monotonicity.
+frontier. Hard limits can cut a checkpoint's exploration short. Its completed
+winner remains eligible for handoff: bounded requalification work is funded
+before optional search, so exhaustion cannot discard an already found win.
 `candidate_search = "off"` (and `--mode development`) keeps only the level-0
 artifact at any level.
 
@@ -1724,16 +1725,21 @@ completes the preceding effort's search, then retains its complete winner while
 trying the new frontier and newly available tactics. All requested objectives
 and preceding tiers admit their mandatory baselines before optional search.
 The preceding winner is qualified again under the current policy, including
-runtime permissions and every explicit veto. Final selection requires that no
+runtime permissions and every explicit veto. This allocation-free metadata
+check is funded before exploration and remains bounded after work exhaustion;
+it does not reparse or recompress the immutable, already admitted artifact.
+Final selection requires that no
 entry's objective cost grows. Levels 0–12 retain their existing deterministic
 walk prefixes; turning search off does not run checkpoint searches.
 
 Use `false` when faster compilation matters more than retaining a preceding
 effort's result. It removes checkpoint work and ownership; a higher effort can
 then select a larger file because its search order or frontier changed. The
-same finite hard work and memory ceilings still apply with protection on. A
-refused checkpoint or requalification is reported and the current admitted
-incumbent survives; this is not an unlimited-resource promise. Fingerprinted
+same finite hard work and memory ceilings still apply with protection on.
+Extra baseline preparation uses part of that ceiling, so a constrained combined
+request need not explore as far as a standalone lower-effort request. Completed
+preceding winners survive optional exhaustion; incomplete exploration is
+reported rather than described as exhaustive. Fingerprinted
 decision locks are specific to the requested effort and run only in that tier.
 
 `objective_prior` is `"auto"`, `"on"`, or `"off"` (boolean aliases are accepted).

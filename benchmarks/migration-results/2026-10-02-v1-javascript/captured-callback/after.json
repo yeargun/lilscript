@@ -1,0 +1,2487 @@
+{
+ "schema": 1,
+ "kind": "lilscript-case-runner",
+ "started": "2026-10-02T13:40:22.929Z",
+ "completed": "2026-10-02T13:40:25.564Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "fadf467193759c9367fc4661c3d191292dfd132a",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+  "path": "/home/azureuser/lilscript-work/out/v1-captured-callback-after/bin/lilscript-9500df391444d3a1",
+  "sha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/out/v1-captured-callback-after/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "node": {
+  "path": "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+  "version": "v24.20.0"
+ },
+ "cc": {
+  "path": "/usr/bin/cc",
+  "flagsOwner": "compiler NativeToolchain; per-artifact nativeToolchainReceipt",
+  "defaultFlags": [
+   "-O2"
+  ],
+  "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+ },
+ "scrubbedEnvironment": [],
+ "tactics": {
+  "source": "--print-policy",
+  "ids": [
+   "dead-code-elimination",
+   "constant-folding",
+   "inlining",
+   "loop-unrolling",
+   "scalar-replacement",
+   "call-specialization",
+   "helper-sharing",
+   "target-compaction",
+   "statement-spellings",
+   "declaration-order",
+   "receiver-aliases",
+   "identifier-mangling",
+   "property-mangling",
+   "string-pooling",
+   "string-array-packing",
+   "startup-reconstruction",
+   "recurring-reconstruction",
+   "naming-search",
+   "naming-compaction",
+   "representation-joints",
+   "naming-alphabet"
+  ]
+ },
+ "ledger": {
+  "path": "tests/cases/expected-failures.json",
+  "sha256": "4450b8b4b20a8888fcd0166f0748203da2da132a671a3e5c0c7b19e3804983d9",
+  "entries": 1
+ },
+ "masks": [
+  {
+   "id": "host-prelude",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "a .host.js prelude defines externs in a JavaScript realm",
+   "lifts": null
+  },
+  {
+   "id": "module-probe",
+   "targets": [
+    "module",
+    "cjs"
+   ],
+   "why": "a .module-probe.mjs reads the library export surface",
+   "lifts": null
+  },
+  {
+   "id": "JsValue",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "conservative corpus classification: native tagged transport is supported; host object operations require separate recipes",
+   "lifts": null
+  },
+  {
+   "id": "import extern",
+   "targets": [
+    "module"
+   ],
+   "why": "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports",
+   "lifts": null
+  },
+  {
+   "id": "extern",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "this corpus fixture needs a C provider/host-equivalent boundary; configured native function providers are supported",
+   "lifts": "N2 (M11.3 provider-backed corpus qualification)"
+  },
+  {
+   "id": "export",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "entry exports require a format with a library boundary; native uses its generated C interface",
+   "lifts": "M11.8 (a C library ABI)"
+  },
+  {
+   "id": "JS namespace",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "JavaScript host operations; portable checked views are classified per native case",
+   "lifts": null
+  },
+  {
+   "id": "async",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "portable async/tasks; native eligibility is classified per case",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "generator",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "portable generators; native eligibility is classified per case",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "object literal",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: object {} is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "native-provider-setup",
+   "why": "The fixture has no configured C equivalent for its declared host provider; this is not a native runtime pass.",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "lifts": null
+  },
+  {
+   "id": "native-javascript-host",
+   "why": "The checked source uses a declared JavaScript host facility; see the per-case source diagnostic.",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "lifts": null
+  },
+  {
+   "id": "native-javascript-observation",
+   "why": "Expected output observes the JavaScript prototype/module boundary through a JS prelude or probe.",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "lifts": null
+  },
+  {
+   "id": "native-obsolete-config",
+   "why": "The fixture still requests the retired positional JavaScript ABI; tracked in V1.",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "lifts": null
+  }
+ ],
+ "nativeExclusions": {
+  "path": "tests/native/corpus-exclusions.json",
+  "sha256": "a2abb40e8c583ea782c6314360e4309857b811d86e75f9e20e143dd5ade52d48"
+ },
+ "lanes": [
+  {
+   "id": "formation-only/brotli/script",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "d8d6866c1e2d6779f0622e8e699f82d5a7a735467ca82464246eb16989af9357",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/brotli/module",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "f35cf89fd0259b5c137a6d8ec9aedaeba107729daef397089a07dd20efe31fc7",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/brotli/cjs",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "791d4eda78a80879de73efb7fb1588fa76aaaedcbab590ce584c8931b6983cc0",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/brotli/bare",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "f80fb0a8b85a643ac8b737a75fe79cde76299d902cb53cde58b41b8bb7b565a7",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/brotli/c",
+   "mode": "formation-only",
+   "codec": "brotli",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "703a082460331283c3671cf4024bf625cc6c67b57666e34b3f156f41a1e23362",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "formation-only/gzip/script",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "64c58c4ce47ac98c9ddcf722ea7e686389d7c2244c1814e1dcf82e7689e91947",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/gzip/module",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "45f43f7d98194d65496a127ffc05b306d8e494f1ab0b04409c3ca96f14aafaee",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/gzip/cjs",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "e2507426850342f1cc02101978cf5bf7a5fa5b2a1d4b7ddee8eada0012cddb6c",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/gzip/bare",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "06530daaa0b8868d9674527f2d46bc72c34092bceec059f263b14e8413c02c2b",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/gzip/c",
+   "mode": "formation-only",
+   "codec": "gzip",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "703a082460331283c3671cf4024bf625cc6c67b57666e34b3f156f41a1e23362",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "formation-only/raw/script",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "b0108ded95b0599a4f79ddf6e4cf4944699db256e3afe80ec615a2f088f46ae6",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/module",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "fc0551f5be686ae011666cb9abfd0d3e9c14b7bd9e5499b4305f5034d145a75b",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/cjs",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "20d0303b2d0aec783be047f08497fbebb47853cb02530beb4b91ff2c0084bed6",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/bare",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "4ce671c014e366032acebccbeedec16fd44554f652e63a2094f711e28cdf505a",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/c",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "703a082460331283c3671cf4024bf625cc6c67b57666e34b3f156f41a1e23362",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/brotli/script",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "316c9e1085a9f20cff09944203048e19082a335c41998c8c34d17eda5739c0fd",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/brotli/module",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "18b2faa4407dc254c108a9cfd8008c3938fc31a8ab6f67e6516514a6e0aeb09e",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/brotli/cjs",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "60917da2d463a0401f1bd719f668149c097790e785bf80da2eed8c03702a1db0",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/brotli/bare",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "43920b09df01fe95bf66dd3813774b61e2f8b30b624bbaddc88a658acc5a5e0f",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/brotli/c",
+   "mode": "production",
+   "codec": "brotli",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"brotli\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "16a73ae6ea48b154c26e7af0eca7ba3638b42c78b1e722d0ff11b07faeecba02",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/gzip/script",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "e89a08161cdee849c412f3ddb8b63252d603bc009ce6d276148ffc7320b6ada5",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/gzip/module",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "25098c01bd0005836e37a15a899925f70fde5ce701b602a64782d350c4ca741e",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/gzip/cjs",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "f1df0833188fb35c65661bf857843d292ecd1c66dac880ee49cae81d87ab1456",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/gzip/bare",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "11420616df00c0915c0e42bf1ef6472bd80d2cf4b32e349e9a33ceae1ebb5bce",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/gzip/c",
+   "mode": "production",
+   "codec": "gzip",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"gzip\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "16a73ae6ea48b154c26e7af0eca7ba3638b42c78b1e722d0ff11b07faeecba02",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/raw/script",
+   "mode": "production",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "706a45347f6f5b8c29bb6eee7112a5c93c56e86aa5970a2258cdfa6597859821",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/raw/module",
+   "mode": "production",
+   "codec": "raw",
+   "target": "module",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "2c000de6f78d1e0bec70dd7a59a383278e23cd710d05f0480fca23fc42f44acb",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/raw/cjs",
+   "mode": "production",
+   "codec": "raw",
+   "target": "cjs",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "249f1858ccabbc0732699b2485d5361d2d8dac9ab02835a563b9e3ea724e7a7c",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/raw/bare",
+   "mode": "production",
+   "codec": "raw",
+   "target": "bare",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "28241af00307eb9eb808538efa60acd723bac60c9fec49913a3a9547986a6860",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "declaration-order",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-compaction",
+    "representation-joints",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1536
+  },
+  {
+   "id": "production/raw/c",
+   "mode": "production",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[effort]\nlevel = 15\n\n",
+   "policyFingerprint": "16a73ae6ea48b154c26e7af0eca7ba3638b42c78b1e722d0ff11b07faeecba02",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  }
+ ],
+ "cases": [
+  {
+   "id": "cases/captured_parameter_call_sets",
+   "digest": "5c56feecb021cc66ca4885cb446e272fdee1e3fc3ecdbb869ea5a11c65595cb8",
+   "features": [
+    "JsValue",
+    "extern",
+    "export",
+    "JS namespace"
+   ]
+  }
+ ],
+ "summary": {
+  "formation-only/brotli/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 875,
+   "brotli11Total": 386
+  },
+  "formation-only/brotli/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 881,
+   "brotli11Total": 384
+  },
+  "formation-only/brotli/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 995,
+   "brotli11Total": 450
+  },
+  "formation-only/brotli/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 864,
+   "brotli11Total": 380
+  },
+  "formation-only/brotli/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "formation-only/gzip/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 875,
+   "gzip9Total": 435
+  },
+  "formation-only/gzip/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 881,
+   "gzip9Total": 440
+  },
+  "formation-only/gzip/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 995,
+   "gzip9Total": 510
+  },
+  "formation-only/gzip/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 864,
+   "gzip9Total": 431
+  },
+  "formation-only/gzip/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "formation-only/raw/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 850,
+   "rawTotal": 850
+  },
+  "formation-only/raw/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 861,
+   "rawTotal": 861
+  },
+  "formation-only/raw/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 963,
+   "rawTotal": 963
+  },
+  "formation-only/raw/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 839,
+   "rawTotal": 839
+  },
+  "formation-only/raw/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "production/brotli/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 247,
+   "brotli11Total": 154
+  },
+  "production/brotli/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 288,
+   "brotli11Total": 172
+  },
+  "production/brotli/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 390,
+   "brotli11Total": 223
+  },
+  "production/brotli/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 238,
+   "brotli11Total": 148
+  },
+  "production/brotli/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "production/gzip/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 249,
+   "gzip9Total": 189
+  },
+  "production/gzip/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 290,
+   "gzip9Total": 208
+  },
+  "production/gzip/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 390,
+   "gzip9Total": 276
+  },
+  "production/gzip/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 236,
+   "gzip9Total": 184
+  },
+  "production/gzip/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  },
+  "production/raw/script": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 247,
+   "rawTotal": 247
+  },
+  "production/raw/module": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 288,
+   "rawTotal": 288
+  },
+  "production/raw/cjs": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 390,
+   "rawTotal": 390
+  },
+  "production/raw/bare": {
+   "cases": 1,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 236,
+   "rawTotal": 236
+  },
+  "production/raw/c": {
+   "cases": 1,
+   "pass": 0,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 1,
+   "artifactBytes": 0
+  }
+ },
+ "unexpected": 0,
+ "staleLedgerEntries": [],
+ "narrowableLedgerEntries": [],
+ "unknownLedgerCases": [],
+ "results": [
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/script",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_brotli_script/cases/captured_parameter_call_sets.js",
+    "bytes": 875,
+    "sha256": "035667660ab2fb5301735d7b7ed5994603788860f9b0c861bfd0d6d980e912b9",
+    "raw": 875,
+    "gzip9": 435,
+    "brotli11": 386
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/module",
+   "compileMs": 7,
+   "artifact": {
+    "path": "lanes/formation-only_brotli_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 881,
+    "sha256": "12d7277787c8c8bbe2e10ee119932b95f53cd5a28574c9bbcb4451514a600e72",
+    "raw": 881,
+    "gzip9": 440,
+    "brotli11": 384
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/cjs",
+   "compileMs": 7,
+   "artifact": {
+    "path": "lanes/formation-only_brotli_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 995,
+    "sha256": "b8b85c77ff785a100b0a7c825ed57633c0aed39346677c75f018a59b149a6197",
+    "raw": 995,
+    "gzip9": 510,
+    "brotli11": 450
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/bare",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_brotli_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 864,
+    "sha256": "73b166f97b868c95dad170952f4b59e3d252cbb99d121b55dec6c000f89abae3",
+    "raw": 864,
+    "gzip9": 431,
+    "brotli11": 380
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/brotli/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/script",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_gzip_script/cases/captured_parameter_call_sets.js",
+    "bytes": 875,
+    "sha256": "035667660ab2fb5301735d7b7ed5994603788860f9b0c861bfd0d6d980e912b9",
+    "raw": 875,
+    "gzip9": 435,
+    "brotli11": 386
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/module",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_gzip_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 881,
+    "sha256": "12d7277787c8c8bbe2e10ee119932b95f53cd5a28574c9bbcb4451514a600e72",
+    "raw": 881,
+    "gzip9": 440,
+    "brotli11": 384
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/cjs",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_gzip_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 995,
+    "sha256": "b8b85c77ff785a100b0a7c825ed57633c0aed39346677c75f018a59b149a6197",
+    "raw": 995,
+    "gzip9": 510,
+    "brotli11": 450
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/bare",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_gzip_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 864,
+    "sha256": "73b166f97b868c95dad170952f4b59e3d252cbb99d121b55dec6c000f89abae3",
+    "raw": 864,
+    "gzip9": 431,
+    "brotli11": 380
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/gzip/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/script",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_script/cases/captured_parameter_call_sets.js",
+    "bytes": 850,
+    "sha256": "6288e02982fee2a0e3ba10d57f89530f2185184370e14254a46b0d09f713c958",
+    "raw": 850,
+    "gzip9": 437,
+    "brotli11": 383
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/module",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_raw_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 861,
+    "sha256": "ccea2d1921ac0f8af1a037cad44f8c48f7b7d409f04f6bd49c39878a32d4326d",
+    "raw": 861,
+    "gzip9": 444,
+    "brotli11": 388
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/cjs",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_raw_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 963,
+    "sha256": "1c069d97d9c3974ac73154cd8b86caa6a8589eb9c2af8ebeffe61741a0c19971",
+    "raw": 963,
+    "gzip9": 509,
+    "brotli11": 448
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/bare",
+   "compileMs": 8,
+   "artifact": {
+    "path": "lanes/formation-only_raw_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 839,
+    "sha256": "58e4f6f57c0adb24f0c6485628b9fdcf960e8a56409613bcc0f5de021257d622",
+    "raw": 839,
+    "gzip9": 433,
+    "brotli11": 381
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "formation-only/raw/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/script",
+   "compileMs": 263,
+   "artifact": {
+    "path": "lanes/production_brotli_script/cases/captured_parameter_call_sets.js",
+    "bytes": 247,
+    "sha256": "552ddf46a9712f0a92525b2eef93299bc64f0241dd9bbb92543a18b5a9bed202",
+    "raw": 247,
+    "gzip9": 190,
+    "brotli11": 154
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 441,
+    "judged": 115,
+    "pruned": 0,
+    "passes": 17,
+    "starts": 8,
+    "stops": [
+     {
+      "level": 0,
+      "size": 171,
+      "sha256": "e03890e150d55dac94dfd2fbf9b1e8469535c94a9d3f992a98add2f11e679a47"
+     },
+     {
+      "level": 1,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 2,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 3,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 4,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 5,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 6,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 7,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 8,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 9,
+      "size": 165,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 10,
+      "size": 163,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 11,
+      "size": 163,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 12,
+      "size": 163,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 13,
+      "size": 154,
+      "sha256": "552ddf46a9712f0a92525b2eef93299bc64f0241dd9bbb92543a18b5a9bed202"
+     },
+     {
+      "level": 14,
+      "size": 154,
+      "sha256": "552ddf46a9712f0a92525b2eef93299bc64f0241dd9bbb92543a18b5a9bed202"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/module",
+   "compileMs": 93,
+   "artifact": {
+    "path": "lanes/production_brotli_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 288,
+    "sha256": "23da50665de33aa4dc5ece89b688364613afd76793c1fd1911f6f4ff6859fe40",
+    "raw": 288,
+    "gzip9": 214,
+    "brotli11": 172
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 253,
+    "judged": 40,
+    "pruned": 0,
+    "passes": 11,
+    "starts": 7,
+    "stops": [
+     {
+      "level": 0,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 1,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 2,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 3,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 4,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 5,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 6,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 7,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 8,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 9,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 10,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 11,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 12,
+      "size": 173,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 13,
+      "size": 172,
+      "sha256": "23da50665de33aa4dc5ece89b688364613afd76793c1fd1911f6f4ff6859fe40"
+     },
+     {
+      "level": 14,
+      "size": 172,
+      "sha256": "23da50665de33aa4dc5ece89b688364613afd76793c1fd1911f6f4ff6859fe40"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/cjs",
+   "compileMs": 274,
+   "artifact": {
+    "path": "lanes/production_brotli_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 390,
+    "sha256": "60fb2c648b70a22ed674158eb8dafa3e4574eaabbc91486c0872d03fe5a68926",
+    "raw": 390,
+    "gzip9": 276,
+    "brotli11": 223
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 403,
+    "judged": 92,
+    "pruned": 0,
+    "passes": 16,
+    "starts": 7,
+    "stops": [
+     {
+      "level": 0,
+      "size": 233,
+      "sha256": "ce06d3953aa947ea80c6f57981912c923cd6df85a0a7cc871126dd30282b0773"
+     },
+     {
+      "level": 1,
+      "size": 231,
+      "sha256": "7683ee4688789a9acf82eefaacb11281cd6b5f3c23bac56eadb5cc8e83333356"
+     },
+     {
+      "level": 2,
+      "size": 231,
+      "sha256": "7683ee4688789a9acf82eefaacb11281cd6b5f3c23bac56eadb5cc8e83333356"
+     },
+     {
+      "level": 3,
+      "size": 231,
+      "sha256": "7683ee4688789a9acf82eefaacb11281cd6b5f3c23bac56eadb5cc8e83333356"
+     },
+     {
+      "level": 4,
+      "size": 231,
+      "sha256": "7683ee4688789a9acf82eefaacb11281cd6b5f3c23bac56eadb5cc8e83333356"
+     },
+     {
+      "level": 5,
+      "size": 225,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 6,
+      "size": 225,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 7,
+      "size": 225,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 8,
+      "size": 225,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 9,
+      "size": 225,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 10,
+      "size": 225,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 11,
+      "size": 225,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 12,
+      "size": 225,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 13,
+      "size": 223,
+      "sha256": "e60912293b1c4ff7e52e48b714a91407424cf0b564daf99d6e118a81241c4222"
+     },
+     {
+      "level": 14,
+      "size": 223,
+      "sha256": "e60912293b1c4ff7e52e48b714a91407424cf0b564daf99d6e118a81241c4222"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/bare",
+   "compileMs": 149,
+   "artifact": {
+    "path": "lanes/production_brotli_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 238,
+    "sha256": "e35af0953e6b8f09e7dbdc7b43d112abedc6ce2cbc4e83d281b93df38dc0401c",
+    "raw": 238,
+    "gzip9": 185,
+    "brotli11": 148
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 440,
+    "judged": 79,
+    "pruned": 0,
+    "passes": 17,
+    "starts": 7,
+    "stops": [
+     {
+      "level": 0,
+      "size": 161,
+      "sha256": "65b412c60857deefaf7a11420e01d0b57e67fab7a19ab493598a41c5797a751b"
+     },
+     {
+      "level": 1,
+      "size": 158,
+      "sha256": "0602dd7f5be6d749897b931356a302d58a2fa0eb3c0a12002c24df732a2e0ba4"
+     },
+     {
+      "level": 2,
+      "size": 158,
+      "sha256": "0602dd7f5be6d749897b931356a302d58a2fa0eb3c0a12002c24df732a2e0ba4"
+     },
+     {
+      "level": 3,
+      "size": 158,
+      "sha256": "0602dd7f5be6d749897b931356a302d58a2fa0eb3c0a12002c24df732a2e0ba4"
+     },
+     {
+      "level": 4,
+      "size": 158,
+      "sha256": "0602dd7f5be6d749897b931356a302d58a2fa0eb3c0a12002c24df732a2e0ba4"
+     },
+     {
+      "level": 5,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 6,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 7,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 8,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 9,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 10,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 11,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 12,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 13,
+      "size": 155,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 14,
+      "size": 148,
+      "sha256": "e35af0953e6b8f09e7dbdc7b43d112abedc6ce2cbc4e83d281b93df38dc0401c"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/brotli/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/script",
+   "compileMs": 151,
+   "artifact": {
+    "path": "lanes/production_gzip_script/cases/captured_parameter_call_sets.js",
+    "bytes": 249,
+    "sha256": "e2c76f9fcd6d21d8f61cfad57cd092b1dbf87e1f3fc61b3ddb497a8e96702339",
+    "raw": 249,
+    "gzip9": 189,
+    "brotli11": 152
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 480,
+    "judged": 36,
+    "pruned": 81,
+    "passes": 20,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 201,
+      "sha256": "e03890e150d55dac94dfd2fbf9b1e8469535c94a9d3f992a98add2f11e679a47"
+     },
+     {
+      "level": 1,
+      "size": 200,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 2,
+      "size": 200,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 3,
+      "size": 200,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 4,
+      "size": 200,
+      "sha256": "3656a59634ffb94d0245ab1d07e6edb227a8d7aa7344c4832ac15dfa412a03ec"
+     },
+     {
+      "level": 5,
+      "size": 195,
+      "sha256": "c10a6663ab4d55f93c269f249e102e25d5463e5c14515e8ca8a7a825b7119d84"
+     },
+     {
+      "level": 6,
+      "size": 195,
+      "sha256": "c10a6663ab4d55f93c269f249e102e25d5463e5c14515e8ca8a7a825b7119d84"
+     },
+     {
+      "level": 7,
+      "size": 195,
+      "sha256": "c10a6663ab4d55f93c269f249e102e25d5463e5c14515e8ca8a7a825b7119d84"
+     },
+     {
+      "level": 8,
+      "size": 195,
+      "sha256": "c10a6663ab4d55f93c269f249e102e25d5463e5c14515e8ca8a7a825b7119d84"
+     },
+     {
+      "level": 9,
+      "size": 195,
+      "sha256": "c10a6663ab4d55f93c269f249e102e25d5463e5c14515e8ca8a7a825b7119d84"
+     },
+     {
+      "level": 10,
+      "size": 193,
+      "sha256": "f0c6607e617252133ca5c53562015d15b323817c8c2d946dbe4730a90551e617"
+     },
+     {
+      "level": 11,
+      "size": 193,
+      "sha256": "f0c6607e617252133ca5c53562015d15b323817c8c2d946dbe4730a90551e617"
+     },
+     {
+      "level": 12,
+      "size": 193,
+      "sha256": "f0c6607e617252133ca5c53562015d15b323817c8c2d946dbe4730a90551e617"
+     },
+     {
+      "level": 13,
+      "size": 190,
+      "sha256": "8fbb5528dad77038d33ed2dcff880044de2c78a1d43181c46159b3e43e24231d"
+     },
+     {
+      "level": 14,
+      "size": 189,
+      "sha256": "e2c76f9fcd6d21d8f61cfad57cd092b1dbf87e1f3fc61b3ddb497a8e96702339"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/module",
+   "compileMs": 106,
+   "artifact": {
+    "path": "lanes/production_gzip_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 290,
+    "sha256": "9c9a7cd541ceb70dd083a4719589fc9853a38c0bf939030c594e619c062c700a",
+    "raw": 290,
+    "gzip9": 208,
+    "brotli11": 174
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 511,
+    "judged": 32,
+    "pruned": 82,
+    "passes": 21,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 1,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 2,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 3,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 4,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 5,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 6,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 7,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 8,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 9,
+      "size": 215,
+      "sha256": "4ddcb894a81e13794907713fe0f4df84d2f2714d2b49a612c8fea7f98a902bbe"
+     },
+     {
+      "level": 10,
+      "size": 213,
+      "sha256": "414f967513aa8df780dc334ef809022dea9e2cb0a5d74ab0c41bd1082d145cb5"
+     },
+     {
+      "level": 11,
+      "size": 213,
+      "sha256": "414f967513aa8df780dc334ef809022dea9e2cb0a5d74ab0c41bd1082d145cb5"
+     },
+     {
+      "level": 12,
+      "size": 213,
+      "sha256": "414f967513aa8df780dc334ef809022dea9e2cb0a5d74ab0c41bd1082d145cb5"
+     },
+     {
+      "level": 13,
+      "size": 208,
+      "sha256": "9c9a7cd541ceb70dd083a4719589fc9853a38c0bf939030c594e619c062c700a"
+     },
+     {
+      "level": 14,
+      "size": 208,
+      "sha256": "9c9a7cd541ceb70dd083a4719589fc9853a38c0bf939030c594e619c062c700a"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/cjs",
+   "compileMs": 135,
+   "artifact": {
+    "path": "lanes/production_gzip_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 390,
+    "sha256": "60fb2c648b70a22ed674158eb8dafa3e4574eaabbc91486c0872d03fe5a68926",
+    "raw": 390,
+    "gzip9": 276,
+    "brotli11": 223
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 290,
+    "judged": 32,
+    "pruned": 54,
+    "passes": 14,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 284,
+      "sha256": "ce06d3953aa947ea80c6f57981912c923cd6df85a0a7cc871126dd30282b0773"
+     },
+     {
+      "level": 1,
+      "size": 284,
+      "sha256": "7683ee4688789a9acf82eefaacb11281cd6b5f3c23bac56eadb5cc8e83333356"
+     },
+     {
+      "level": 2,
+      "size": 284,
+      "sha256": "7683ee4688789a9acf82eefaacb11281cd6b5f3c23bac56eadb5cc8e83333356"
+     },
+     {
+      "level": 3,
+      "size": 284,
+      "sha256": "7683ee4688789a9acf82eefaacb11281cd6b5f3c23bac56eadb5cc8e83333356"
+     },
+     {
+      "level": 4,
+      "size": 284,
+      "sha256": "7683ee4688789a9acf82eefaacb11281cd6b5f3c23bac56eadb5cc8e83333356"
+     },
+     {
+      "level": 5,
+      "size": 280,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 6,
+      "size": 280,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 7,
+      "size": 280,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 8,
+      "size": 280,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 9,
+      "size": 280,
+      "sha256": "196735f3cf1ea832c0a7220a86265d21da49e7c75ca4ea574e2e9cadb5d8a0e2"
+     },
+     {
+      "level": 10,
+      "size": 278,
+      "sha256": "3a5951c42f8f3f89b1422d4b73dc52f665393342d95b71d27c31a56eeff5e7a2"
+     },
+     {
+      "level": 11,
+      "size": 278,
+      "sha256": "3a5951c42f8f3f89b1422d4b73dc52f665393342d95b71d27c31a56eeff5e7a2"
+     },
+     {
+      "level": 12,
+      "size": 278,
+      "sha256": "3a5951c42f8f3f89b1422d4b73dc52f665393342d95b71d27c31a56eeff5e7a2"
+     },
+     {
+      "level": 13,
+      "size": 276,
+      "sha256": "e60912293b1c4ff7e52e48b714a91407424cf0b564daf99d6e118a81241c4222"
+     },
+     {
+      "level": 14,
+      "size": 276,
+      "sha256": "e60912293b1c4ff7e52e48b714a91407424cf0b564daf99d6e118a81241c4222"
+     }
+    ]
+   },
+   "reused": true,
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/bare",
+   "compileMs": 137,
+   "artifact": {
+    "path": "lanes/production_gzip_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 236,
+    "sha256": "515bd5e400362440634ae0dd7b84173ec376b297a09d2bcfa910cfe9c60dc80f",
+    "raw": 236,
+    "gzip9": 184,
+    "brotli11": 163
+   },
+   "walk": {
+    "searchProbes": 2,
+    "structures": 1,
+    "examined": 384,
+    "judged": 39,
+    "pruned": 60,
+    "passes": 17,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 197,
+      "sha256": "65b412c60857deefaf7a11420e01d0b57e67fab7a19ab493598a41c5797a751b"
+     },
+     {
+      "level": 1,
+      "size": 196,
+      "sha256": "0602dd7f5be6d749897b931356a302d58a2fa0eb3c0a12002c24df732a2e0ba4"
+     },
+     {
+      "level": 2,
+      "size": 196,
+      "sha256": "0602dd7f5be6d749897b931356a302d58a2fa0eb3c0a12002c24df732a2e0ba4"
+     },
+     {
+      "level": 3,
+      "size": 196,
+      "sha256": "0602dd7f5be6d749897b931356a302d58a2fa0eb3c0a12002c24df732a2e0ba4"
+     },
+     {
+      "level": 4,
+      "size": 196,
+      "sha256": "0602dd7f5be6d749897b931356a302d58a2fa0eb3c0a12002c24df732a2e0ba4"
+     },
+     {
+      "level": 5,
+      "size": 188,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 6,
+      "size": 188,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 7,
+      "size": 188,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 8,
+      "size": 188,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 9,
+      "size": 188,
+      "sha256": "9f883fe32f66397f6a801767a0639afc01d8273f8f14c1e3321efb3474e6e401"
+     },
+     {
+      "level": 10,
+      "size": 186,
+      "sha256": "1775b1a416ac807a9d6a5f0f7c10ddf4649ca63c50af34335007e42550ae09f8"
+     },
+     {
+      "level": 11,
+      "size": 186,
+      "sha256": "1775b1a416ac807a9d6a5f0f7c10ddf4649ca63c50af34335007e42550ae09f8"
+     },
+     {
+      "level": 12,
+      "size": 186,
+      "sha256": "1775b1a416ac807a9d6a5f0f7c10ddf4649ca63c50af34335007e42550ae09f8"
+     },
+     {
+      "level": 13,
+      "size": 185,
+      "sha256": "286fbd647ce4e96dcd980f54537f4c3486a04828b0d01d6d02dbda8d04e78697"
+     },
+     {
+      "level": 14,
+      "size": 184,
+      "sha256": "515bd5e400362440634ae0dd7b84173ec376b297a09d2bcfa910cfe9c60dc80f"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/gzip/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/script",
+   "compileMs": 87,
+   "artifact": {
+    "path": "lanes/production_raw_script/cases/captured_parameter_call_sets.js",
+    "bytes": 247,
+    "sha256": "cf429e7851b027b29c79ce8cf688a59c83f698c7bff354f67b2f7578af32f8d1",
+    "raw": 247,
+    "gzip9": 202,
+    "brotli11": 185
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 189,
+    "judged": 17,
+    "pruned": 15,
+    "passes": 10,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 1,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 2,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 3,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 4,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 5,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 6,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 7,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 8,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 9,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 10,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 11,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 12,
+      "size": 247,
+      "sha256": "a6e2e20cce45f23cde20c191577b8db0fe97bd2eef859289e5a3e22342bbe794"
+     },
+     {
+      "level": 13,
+      "size": 247,
+      "sha256": "cf429e7851b027b29c79ce8cf688a59c83f698c7bff354f67b2f7578af32f8d1"
+     },
+     {
+      "level": 14,
+      "size": 247,
+      "sha256": "cf429e7851b027b29c79ce8cf688a59c83f698c7bff354f67b2f7578af32f8d1"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/module",
+   "compileMs": 75,
+   "artifact": {
+    "path": "lanes/production_raw_module/cases/captured_parameter_call_sets.mjs",
+    "bytes": 288,
+    "sha256": "88702edf2badd1bbd3eb36414a77ade8002478028d3254481a62425cb048eb92",
+    "raw": 288,
+    "gzip9": 223,
+    "brotli11": 182
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 189,
+    "judged": 21,
+    "pruned": 11,
+    "passes": 10,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 1,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 2,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 3,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 4,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 5,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 6,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 7,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 8,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 9,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 10,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 11,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 12,
+      "size": 288,
+      "sha256": "e339cedd7d55f1dfe3afdc85741f3006c002208201ff96a0e7c4b392b46d76b5"
+     },
+     {
+      "level": 13,
+      "size": 288,
+      "sha256": "88702edf2badd1bbd3eb36414a77ade8002478028d3254481a62425cb048eb92"
+     },
+     {
+      "level": 14,
+      "size": 288,
+      "sha256": "88702edf2badd1bbd3eb36414a77ade8002478028d3254481a62425cb048eb92"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/cjs",
+   "compileMs": 89,
+   "artifact": {
+    "path": "lanes/production_raw_cjs/cases/captured_parameter_call_sets.cjs",
+    "bytes": 390,
+    "sha256": "cc4b10a93cda9549085afec72391d7bebc8e5bf4f9cde1ea8f82e66eb5e85b9c",
+    "raw": 390,
+    "gzip9": 286,
+    "brotli11": 234
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 189,
+    "judged": 17,
+    "pruned": 15,
+    "passes": 10,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 1,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 2,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 3,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 4,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 5,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 6,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 7,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 8,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 9,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 10,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 11,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 12,
+      "size": 390,
+      "sha256": "3ca0a6e1eb1411f8e5ffe91eee26e2a93bb4d4934619b3a86539100580ef4566"
+     },
+     {
+      "level": 13,
+      "size": 390,
+      "sha256": "ad45a53ccb7ec69b549a019ed06f89c02a6cd24f866ca3fa5a855ad1fbe9ae07"
+     },
+     {
+      "level": 14,
+      "size": 390,
+      "sha256": "ad45a53ccb7ec69b549a019ed06f89c02a6cd24f866ca3fa5a855ad1fbe9ae07"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/bare",
+   "compileMs": 85,
+   "artifact": {
+    "path": "lanes/production_raw_bare/cases/captured_parameter_call_sets.js",
+    "bytes": 236,
+    "sha256": "295b228057c65eadd54b755f14ef1f58d203fffb9c7ca2303c90f95826cf808f",
+    "raw": 236,
+    "gzip9": 196,
+    "brotli11": 165
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 189,
+    "judged": 17,
+    "pruned": 15,
+    "passes": 10,
+    "starts": 9,
+    "stops": [
+     {
+      "level": 0,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 1,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 2,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 3,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 4,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 5,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 6,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 7,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 8,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 9,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 10,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 11,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 12,
+      "size": 236,
+      "sha256": "ef3a0fb6a3685a7882eca58817c6fbabf7ce29b2d275b54c4fe96b97bddc647d"
+     },
+     {
+      "level": 13,
+      "size": 236,
+      "sha256": "295b228057c65eadd54b755f14ef1f58d203fffb9c7ca2303c90f95826cf808f"
+     },
+     {
+      "level": 14,
+      "size": 236,
+      "sha256": "295b228057c65eadd54b755f14ef1f58d203fffb9c7ca2303c90f95826cf808f"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/captured_parameter_call_sets",
+   "lane": "production/raw/c",
+   "state": "masked",
+   "features": [
+    "native-javascript-host"
+   ]
+  }
+ ]
+}

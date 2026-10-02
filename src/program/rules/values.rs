@@ -252,7 +252,14 @@ impl ProgramValues {
                 visit(work, 1)?;
                 if let OperationKind::Load(place) = operation.kind {
                     if let Some(&Place::Cell(cell)) = data.places.get(place.index()) {
-                        if settled[cell.index()].is_some() {
+                        // A parameter's joined input also belongs to every
+                        // closure that captures it. Re-evaluating only its
+                        // owning body leaves a descendant with an earlier,
+                        // incomplete call-set answer (for example undefined
+                        // before a later caller supplies a callback).
+                        if settled[cell.index()].is_some()
+                            || matches!(program.cells[cell.index()].binding, CellBinding::Parameter(_))
+                        {
                             work.push(Scratch, &mut readers[cell.index()], frozen.id())?;
                         }
                     }
@@ -397,18 +404,21 @@ impl ProgramValues {
                         *slot = slot.join(&argument, work);
                     }
                 }
-                let mut rose = false;
-                for (old, new) in formals[callee.index()].iter_mut().zip(&next) {
+                for (position, (old, new)) in
+                    formals[callee.index()].iter_mut().zip(&next).enumerate()
+                {
                     let joined = old.join(new, work);
                     if joined != *old {
                         *old = joined;
-                        rose = true;
+                        enqueue(callee, &mut queue);
+                        let cell = program.units[callee.index()].data().parameters[position];
+                        visit(work, readers[cell.index()].len() as u64)?;
+                        for &reader in &readers[cell.index()] {
+                            enqueue(reader, &mut queue);
+                        }
                     }
                 }
                 work.release(Scratch, next)?;
-                if rose {
-                    enqueue(callee, &mut queue);
-                }
             }
 
             // The cells this body initializes.

@@ -1,0 +1,117 @@
+
+running 100 tests
+test build::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources ... ok
+test build::budget_tests::service_ceilings_participate_in_policy_identity_without_loosening_toml ... ok
+test build::budget_tests::small_no_search_service_needs_no_optional_cache_admission ... ok
+test build::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget ... ok
+test build::objective_tests::completed_effort_winners_survive_optional_work_exhaustion ... FAILED
+test build::objective_tests::completed_effort_winners_survive_shared_output_budget_exhaustion ... ok
+test build::objective_tests::configured_objective_sets_and_order_keep_only_the_requested_results ... ok
+test build::objective_tests::independent_baselines_precede_optional_work_and_survive_exhaustion ... ok
+test build::objective_tests::independent_objective_callback_unwind_restores_allowance_and_releases_handoffs ... ok
+test build::objective_tests::independent_objectives_match_separate_policies_searches_and_execution ... ok
+test build::objective_tests::independent_search_off_preserves_each_objectives_direct_spelling ... ok
+test build::objective_tests::objective_override_resolves_the_requested_codec_and_encoder_settings ... ok
+test build::objective_tests::q3_level_zero_selection_uses_no_codec_or_checkpoint_work ... ok
+test build::objective_tests::two_objective_budget_counts_only_requested_baselines_and_shares ... ok
+test build::outputs::tests::d3_outputs_allow_format_specific_default_surfaces ... ok
+test build::outputs::tests::d3_outputs_share_input_with_independent_formats_codecs_and_subsets ... ok
+test build::outputs::tests::d3_outputs_validate_config_and_keep_complete_build_cache_receipts ... ok
+test build::terminal_tests::a_vetoed_family_is_never_formed ... ok
+test build::terminal_tests::each_objective_judges_alphabets_and_the_dedicated_toml_flag_vetoes_them ... ok
+test build::terminal_tests::each_objective_vetoes_reconstruction_before_forming_search_candidates ... ok
+test build::terminal_tests::every_objective_judges_the_data_tables_and_delivers_them_exactly ... ok
+test build::terminal_tests::modern_runtime_permissions_hold_through_every_objective_search ... ok
+test build::terminal_tests::the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger ... ok
+test build::terminal_tests::the_objective_seeds_the_families_and_its_codec_judges_them ... ok
+test build::terminal_tests::the_stage_is_deterministic_across_runs_and_threads ... ok
+test build::terminal_tests::the_stage_keeps_a_challenger_that_shrinks_the_artifact_and_rejects_one_that_grows_it ... ok
+test compilation_policy::tests::absent_deadline_has_no_clock_owner_and_large_limits_do_not_overflow ... ok
+test compilation_policy::tests::baseline_entry_guard_checks_phase_and_deadline_without_mutating_allowances ... ok
+test compilation_policy::tests::baseline_first_deadline_seal_failure_and_clone_keep_cleanup_available ... ok
+test compilation_policy::tests::baseline_first_fixed_partition_compatibility_and_extreme_caps ... ok
+test compilation_policy::tests::baseline_first_limits_cap_plans_and_reject_unavailable_terminal_reserve ... ok
+test compilation_policy::tests::baseline_first_phase_gates_are_atomic_including_zero_admissions ... ok
+test compilation_policy::tests::baseline_first_seal_opens_only_actual_remaining_headroom ... ok
+test compilation_policy::tests::baseline_first_terminal_work_is_reserved_before_and_after_seal ... ok
+test compilation_policy::tests::cloned_ledgers_keep_the_compilation_deadline_origin ... ok
+test compilation_policy::tests::compatibility_startup_grants_are_diagnosed_until_explicitly_migrated ... ok
+test compilation_policy::tests::deadline_blocks_memory_admission_but_always_allows_cleanup ... ok
+test compilation_policy::tests::deadline_checks_all_work_admissions_without_partial_charges ... ok
+test compilation_policy::tests::deadlines_are_explicit_cooperative_limits ... ok
+test compilation_policy::tests::deferred_naming_auto_starts_at_fourteen_with_an_explicit_thirteen_opt_in ... ok
+test compilation_policy::tests::every_schedule_field_changes_the_receipt_without_changing_contract_or_caps ... ok
+test compilation_policy::tests::every_tactic_obeys_explicit_off_and_on_without_forcing_a_winner ... ok
+test compilation_policy::tests::exact_size_ranking_does_not_quantize_away_real_bytes ... ok
+test compilation_policy::tests::explicit_alias_conflicts_fail_instead_of_selecting_an_order ... ok
+test compilation_policy::tests::explicit_search_schedules_round_trip_through_the_common_config_owner ... ok
+test compilation_policy::tests::hard_constraints_precede_size_and_explicit_tactic_permissions ... ok
+test compilation_policy::tests::independent_objective_shares_preserve_counters_deadline_and_released_allowance ... ok
+test compilation_policy::tests::invalid_search_cadences_and_unknown_schedule_controls_are_rejected ... ok
+test compilation_policy::tests::legacy_and_new_permissions_have_the_same_resolved_identity ... ok
+test compilation_policy::tests::legacy_lists_cannot_reenable_off_through_another_producer ... ok
+test compilation_policy::tests::logging_and_boundaries_are_independent_of_effort_and_codec ... ok
+test compilation_policy::tests::native_policy_has_no_search_objective_or_schedule_identity ... ok
+test compilation_policy::tests::native_policy_ignores_javascript_effort_and_build_choices ... ok
+test compilation_policy::tests::optional_work_and_memory_cannot_consume_the_direct_artifact_reserve ... ok
+test compilation_policy::tests::q3_preceding_effort_resolves_like_standalone_with_explicit_controls ... ok
+test compilation_policy::tests::q4_lazy_data_requires_explicit_recurring_and_startup_permissions ... ok
+test compilation_policy::tests::registry_dependencies_propagate_parent_vetoes_and_native_availability ... ok
+test compilation_policy::tests::resolved_script_containers_have_distinct_identity_without_changing_strictness ... ok
+test compilation_policy::tests::search_schedule_defaults_and_partial_configuration_are_resolved_once ... ok
+test compilation_policy::tests::startup_effort_and_recurring_permissions_are_candidate_specific ... ok
+test compilation_policy::tests::stronger_cached_analysis_cannot_leak_into_lower_effort ... ok
+test compilation_policy::tests::the_effort_level_alone_sets_the_walk_and_retired_budgets_change_nothing ... ok
+test compilation_policy::tests::unavailable_baseline_and_overflow_fail_without_partial_charges ... ok
+test compilation_policy::tests::version_and_level_boundaries_are_explicit ... ok
+test compilation_policy::tests::zero_optional_work_still_has_a_measured_direct_route ... ok
+test output_budget::boxed_tests::boxed_memory_or_work_refusal_drops_input_once_and_retains_nothing ... ok
+test output_budget::boxed_tests::boxed_value_is_admitted_until_actual_drop_and_scope_release ... ok
+test output_budget::boxed_tests::zero_size_box_observes_drop_without_memory_admission ... ok
+test output_budget::tests::callback_error_and_unwind_release_only_their_scope_and_drop_values_once ... ok
+test output_budget::tests::denied_growth_keeps_original_noncopy_storage_and_does_not_steal_baseline_reserve ... ok
+test output_budget::tests::exact_capacity_checks_zst_and_temporary_inspection_wrappers_use_same_allocator ... ok
+test output_budget::tests::exact_layout_growth_moves_overaligned_noncopy_values_once_and_counts_overlap ... ok
+test output_budget::tests::nested_phase_promotes_only_live_result_and_drops_scratch_before_transfer ... ok
+test output_budget::tests::partition_transfer_preserves_reservation_and_refused_token ... ok
+test output_budget::tests::prepaid_work_is_shared_bounded_and_cannot_allocate ... ok
+test output_budget::tests::retained_artifact_transfer_is_nonduplicating_owner_checked_and_move_safe ... ok
+test output_budget::tests::shared_ledger_callback_keeps_other_owners_separate_from_target_classes ... ok
+test output_budget::tests::strings_preserve_unicode_and_lone_surrogates_with_exact_backing_charges ... ok
+test output_budget::tests::temporary_input_releases_its_owner_after_success_refusal_and_unwind ... ok
+test output_budget::tests::text_growth_and_copy_work_fail_before_mutating_existing_text ... ok
+test program::artifact_provenance::tests::detached_plan_owns_original_domain_and_rejected_admission_releases_storage ... ok
+test program::artifact_provenance::tests::explicit_encoded_sites_cannot_bypass_a_disabled_encoding_rule ... ok
+test program::artifact_provenance::tests::full_plan_is_canonical_but_overrides_still_require_search ... ok
+test program::artifact_provenance::tests::g1_retained_compact_order_keeps_search_permission_and_distinct_provenance ... ok
+test program::artifact_provenance::tests::level_16_grants_declared_startup_risk_and_a_tactic_override_still_wins ... ok
+test program::artifact_provenance::tests::naming_records_actual_choices_and_revalidates_equal_cached_bytes ... ok
+test program::artifact_provenance::tests::q1_retained_site_risk_and_joint_permission_are_revalidated ... ok
+test program::artifact_provenance::tests::reconstruction_risks_survive_retention_and_cannot_replay_under_weaker_permissions ... ok
+test program::artifact_provenance::tests::retained_alphabet_keeps_its_own_veto_and_parent_permissions ... ok
+test program::artifact_provenance::tests::retained_local_read_order_keeps_search_permission_and_distinct_provenance ... ok
+test program::artifact_provenance::tests::retained_target_rule_permissions_survive_score_reuse ... ok
+test program::artifact_provenance::tests::source_baseline_and_searched_source_keep_different_permission_dependencies ... ok
+test program::artifact_provenance::tests::structural_and_output_tactics_are_actual_and_not_lost_to_cost_reuse ... ok
+test program::artifact_provenance::tests::unknown_runtime_cost_remains_unknown_under_policy_constraints ... ok
+test program::artifacts::admission_tests::a_private_wrapper_cannot_be_replayed_as_a_bare_script ... ok
+test program::artifacts::admission_tests::admission_parses_the_delivered_file_and_refuses_a_misprint ... ok
+test program::artifacts::admission_tests::baseline_receipts_survive_byte_disposal_but_cannot_cross_source_meanings ... ok
+test program::artifacts::admission_tests::direct_artifacts_require_exact_scores_and_known_required_runtime_evidence ... ok
+test program::artifacts::admission_tests::prepaid_requalification_keeps_contract_permissions_and_runtime_admission ... ok
+test program::artifacts::admission_tests::qualification_rejects_changed_formation_contract_but_inspection_remains_available ... ok
+
+failures:
+
+---- build::objective_tests::completed_effort_winners_survive_optional_work_exhaustion stdout ----
+
+thread 'build::objective_tests::completed_effort_winners_survive_optional_work_exhaustion' (2421880) panicked at src/build_objective_tests.rs:14:125:
+called `Result::unwrap()` on an `Err` value: ServiceError { phase: "javascript", message: "Candidate(Budget(WorkExhausted(Baseline)))", diagnostic: None, resource: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    build::objective_tests::completed_effort_winners_survive_optional_work_exhaustion
+
+test result: FAILED. 99 passed; 1 failed; 0 ignored; 0 measured; 2057 filtered out; finished in 104.95s
+

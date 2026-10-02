@@ -4,6 +4,74 @@ use crate::config::{CandidateSearch, CompressionCostModel};
 const SOURCE: &str = include_str!("program/fixtures/search-structural-valley/entry.lil");
 const CODECS: [Objective; 3] = [Objective::Raw, Objective::Gzip, Objective::Brotli];
 
+#[test]
+fn captured_callback_effects_survive_every_objective_and_development_mode() {
+    let source = include_str!("../tests/cases/captured_parameter_call_sets.lil");
+    let expected = include_str!("../tests/cases/captured_parameter_call_sets.out");
+    for codec in CODECS {
+        for development in [false, true] {
+            let mut config: ProjectConfig = toml::from_str(&format!(
+                "policy.version=3\neffort.level=15\nobjective.codecs='{}'\n", codec.name()
+            )).unwrap();
+            if development {
+                config.javascript.candidate_search = CandidateSearch::Off;
+            }
+            let built = compile_source(source, &config, ServiceOptions::default()).unwrap();
+            let javascript = built.javascript(codec).unwrap().javascript();
+            let output = std::process::Command::new("node")
+                .args(["--input-type=module", "-e", javascript]).output().unwrap();
+            assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+            assert_eq!(String::from_utf8(output.stdout).unwrap(), expected,
+                "{codec:?}, development={development}\n{javascript}");
+            assert_eq!(built.report()["resources"]["retained_bytes_after_handoff"], 0);
+        }
+    }
+}
+
+#[test]
+fn completed_effort_winners_survive_optional_work_exhaustion() {
+    let source = include_str!("../tests/cases/objective_judged_spellings.lil");
+    for codec in CODECS {
+        // All codecs must first have enough work for their mandatory baselines.
+        for work in [2_000_000, 5_000_000, 10_000_000] {
+            let config: ProjectConfig = toml::from_str(&format!(
+                "effort.level=15\nobjective.codecs='{}'\n", codec.name())).unwrap();
+            let built = compile_source(source, &config, ServiceOptions { logical_work: work, ..ServiceOptions::default() }).unwrap();
+            let report = built.report();
+            let winner = built.javascript(codec).unwrap();
+            let size = winner.sizes().get(codec).unwrap() as u64;
+            assert_eq!(size as usize, crate::compression::measure(winner.javascript().as_bytes(), codec).unwrap());
+            for checkpoint in report["search"]["terminal"]["effort_checkpoints"].as_array().unwrap() {
+                let previous = checkpoint["objectives"][0][1].as_u64().unwrap();
+                assert!(size <= previous, "{codec:?}/{work}: completed {}-byte effort {} winner was lost to {size}", previous, checkpoint["level"]);
+            }
+            assert!(report["search"]["stop"].as_str().is_some(), "exercise an exhausted or limited search");
+            assert!(report["resources"]["baseline_work"].as_u64().unwrap() + report["resources"]["optional_work"].as_u64().unwrap() <= work);
+            assert_eq!(report["resources"]["retained_bytes_after_handoff"], 0);
+        }
+    }
+}
+
+#[test]
+fn completed_effort_winners_survive_shared_output_budget_exhaustion() {
+    let config: ProjectConfig = toml::from_str("effort.level=15\nobjective.codecs=['raw','gzip','brotli']\n[[delivery.also]]\nname='cjs'\nformat='cjs'\n").unwrap();
+    let built = compile_source(include_str!("../tests/cases/objective_judged_spellings.lil"),
+        &config, ServiceOptions { logical_work: 5_000_000, ..ServiceOptions::default() }).unwrap();
+    for lane in built.report()["search"]["outputs"].as_array().unwrap() {
+        let name = lane["output"].as_str().unwrap();
+        let codec = match lane["policy"]["objective"]["codec"].as_str().unwrap() {
+            "Raw" => Objective::Raw, "Gzip" => Objective::Gzip, "Brotli" => Objective::Brotli,
+            unexpected => panic!("unexpected codec {unexpected}"),
+        };
+        let size = built.javascript_output(name, codec).unwrap().sizes().get(codec).unwrap() as u64;
+        for checkpoint in lane["terminal"]["effort_checkpoints"].as_array().unwrap() {
+            assert!(size <= checkpoint["objectives"][0][1].as_u64().unwrap(), "{name}/{codec:?}: {lane}");
+        }
+        assert!(lane["optional_work_used"].as_u64().unwrap() <= lane["optional_work_allowance"].as_u64().unwrap());
+    }
+    assert_eq!(built.report()["resources"]["retained_bytes_after_handoff"], 0);
+}
+
 // The shared artifact arena has a different live capacity for one versus
 // several objectives. Its admitted allocation work may differ; choices,
 // exact judgments, stops and delivered bytes must still agree.

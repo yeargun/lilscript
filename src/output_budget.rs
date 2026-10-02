@@ -68,6 +68,7 @@ pub(crate) type BudgetSession<'a> = AllocationBudget<'a>;
 #[must_use = "keep the allocation owner alive until its actual buffers are dropped or transferred"]
 pub(crate) struct AllocationBudget<'a> {
     ledger: Option<&'a mut BudgetLedger>,
+    prepaid_work: Option<&'a mut u64>,
     domain: WorkDomain,
     live: [u64; 2],
     parent_retained: Option<&'a mut u64>,
@@ -81,10 +82,21 @@ impl<'a> AllocationBudget<'a> {
         };
         Self {
             ledger,
+            prepaid_work: None,
             domain,
             live: [0; 2],
             parent_retained: None,
         }
+    }
+
+    /// Execute bounded, allocation-free metadata work already charged to the
+    /// compilation. Child scopes share the remaining credit; none may replenish
+    /// it or acquire storage. Exhaustion is an accounting error, not a search
+    /// refusal that may silently discard an already qualified incumbent.
+    pub(crate) fn prepaid_work(remaining: &'a mut u64) -> Self {
+        let mut budget = Self::new(None);
+        budget.prepaid_work = Some(remaining);
+        budget
     }
 
     /// Measure a complete, fresh formation. Only a fully funded result can
@@ -154,6 +166,7 @@ impl<'a> AllocationBudget<'a> {
     pub(crate) fn scope(&mut self) -> AllocationBudget<'_> {
         AllocationBudget {
             ledger: self.ledger.as_deref_mut(),
+            prepaid_work: self.prepaid_work.as_deref_mut(),
             domain: self.domain,
             live: [0; 2],
             parent_retained: Some(&mut self.live[AllocationClass::Retained.index()]),
@@ -245,6 +258,9 @@ impl<'a> AllocationBudget<'a> {
     }
 
     pub(crate) fn work(&mut self, kind: WorkKind, units: u64) -> Result<(), AllocationError> {
+        if let Some(remaining) = self.prepaid_work.as_deref_mut() {
+            *remaining = remaining.checked_sub(units).ok_or(BudgetError::InvalidPlan)?;
+        }
         if let Some(ledger) = self.ledger.as_deref_mut() {
             ledger.charge(self.domain, kind, units)?;
         }
@@ -270,6 +286,9 @@ impl<'a> AllocationBudget<'a> {
         class: AllocationClass,
         bytes: u64,
     ) -> Result<(), AllocationError> {
+        if self.prepaid_work.is_some() && bytes != 0 {
+            return Err(AllocationError::Unaccounted);
+        }
         if self.ledger.is_none() {
             return Ok(());
         }
@@ -711,6 +730,21 @@ mod tests {
     use std::cell::Cell;
     use std::panic::{catch_unwind, AssertUnwindSafe};
     use std::rc::Rc;
+
+    #[test]
+    fn prepaid_work_is_shared_bounded_and_cannot_allocate() {
+        let mut remaining = 7;
+        {
+            let mut budget = AllocationBudget::prepaid_work(&mut remaining);
+            budget.work(WorkKind::Analysis, 2).unwrap();
+            budget.scope().work(WorkKind::Analysis, 3).unwrap();
+            assert_eq!(budget.work(WorkKind::Analysis, 3),
+                Err(AllocationError::Budget(BudgetError::InvalidPlan)));
+            budget.work(WorkKind::Analysis, 2).unwrap();
+            assert_eq!(budget.retain(AllocationClass::Scratch, 1), Err(AllocationError::Unaccounted));
+        }
+        assert_eq!(remaining, 0);
+    }
 
     fn new_ledger(memory: u64, work: u64) -> BudgetLedger {
         BudgetLedger::new(

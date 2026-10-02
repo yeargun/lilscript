@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "compilerSha256": "42b48470e2436ab8fffdfdab1c2e28402d103ce445dc8974146ae268c6c3aa5b",
+  "profiles": [
+    {
+      "profile": "auto-render",
+      "status": 0,
+      "args": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+        "--config",
+        "/tmp/lilscript-v1-katex-clean-check/config/auto-render.toml",
+        "--target",
+        "js-module",
+        "--check"
+      ],
+      "log": "auto-render.log"
+    },
+    {
+      "profile": "copy-tex",
+      "status": 0,
+      "args": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+        "--config",
+        "/tmp/lilscript-v1-katex-clean-check/config/copy-tex.toml",
+        "--target",
+        "js-module",
+        "--check"
+      ],
+      "log": "copy-tex.log"
+    },
+    {
+      "profile": "mathtex-script-type",
+      "status": 0,
+      "args": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+        "--config",
+        "/tmp/lilscript-v1-katex-clean-check/config/mathtex-script-type.toml",
+        "--target",
+        "js-module",
+        "--check"
+      ],
+      "log": "mathtex-script-type.log"
+    },
+    {
+      "profile": "mhchem",
+      "status": 0,
+      "args": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+        "--config",
+        "/tmp/lilscript-v1-katex-clean-check/config/mhchem.toml",
+        "--target",
+        "js-module",
+        "--check"
+      ],
+      "log": "mhchem.log"
+    },
+    {
+      "profile": "render-a11y-string",
+      "status": 0,
+      "args": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+        "--config",
+        "/tmp/lilscript-v1-katex-clean-check/config/render-a11y-string.toml",
+        "--target",
+        "js-module",
+        "--check"
+      ],
+      "log": "render-a11y-string.log"
+    }
+  ],
+  "missingDistRefused": true,
+  "siteRefreshCopiesCurrentArtifact": true,
+  "qualification": "Source admission and site packaging only; full production package and runtime suites pending.",
+  "sourceCommit": "e067313c0999dd4815a8f6d15d21421d294de58d",
+  "sourceFiles": {
+    "config/render-a11y-string.toml": "c30e079d3170b39f3b11aa4061ed799ac23df20802374f5e50929201645c0da0",
+    "config/mathtex-script-type.toml": "9a1aa3dc40031191103790919233d0fa54532e59d050b58965913f1c26ca3058",
+    "config/mhchem.toml": "53d0818b9272b4b6d0d6d3dcb8d4896a5378b30a4acdaa49653b84c65dd5f2ed",
+    "config/copy-tex.toml": "acb165ba06daa33b3f8b93e055d9551e634090625840898ceab638d6a266603a",
+    "config/auto-render.toml": "88856ccf5f2819dbbf9311326bed9c2a7d5a33c0d558cf614f6b202287cb959f",
+    "contrib/mhchem/mhchem.lil": "59389cf5fcf8e8755687e0f61307d16e68ca7bda385b9dd04f02d1b4179482d1",
+    "contrib/auto-render/auto-render.lil": "01077996a81f420ddc0f5fcd31af32fd7773117375dff9fa517c2c2fea4c514c",
+    "contrib/auto-render/splitAtDelimiters.lil": "64f99c21efb3eab701e416dbb21710a366fff5b7aaca7fcd5f1b608c7f3422f4",
+    "contrib/copy-tex/katex2tex.lil": "0383603937129b642f7702b6aff68d57ddfef7ab9cd0647b571864b50dcbd778",
+    "contrib/copy-tex/copy-tex.lil": "9dea204b17c81440b5d3e3df8faedd8f7f14dd155a6d95ce7d1eedf9ab1cea43",
+    "contrib/render-a11y-string/render-a11y-string.lil": "25153223237110ca63a1e5266b6fbbb69a0bb2ec17a41431a3d3565a8bae869a",
+    "contrib/mathtex-script-type/mathtex-script-type.lil": "b831a99988d886ac5e5422212fcf714c0a834c9e3e6b72fbc76f807bf9738102",
+    "scripts/build-site.mjs": "093a302d06dc937bc480dc79a7db90f7d267fbd6ac60459fb05f691a051bcf76",
+    "test/browser-perf.test.mjs": "2f2b3e32b319253798c5af993337de94f14c21151b3744c2ffd7b9d86586869d"
+  }
+}
