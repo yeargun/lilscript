@@ -266,3 +266,31 @@ array's nullable element type. Neither is presented as a passing initial run.
 No broad library rerun or performance claim. Updated Rust expectations await
 N2's consolidated check; callable containers, static data, suspension, native
 interfaces and performance qualification remain open.
+
+## Callable containers
+
+Algorithm79, pin `n2-callable-1`, adds a paid native representation-conversion
+demand owner. Actual transfers, emitted array descriptors and tagged callable
+producers/readers request physical signature bridges; unrelated program
+signatures do not form an unconditional all-pairs adapter matrix. Generic arrays
+keep their shared identity and convert both reads and writes. Products, shapes,
+records, nested callable arguments and returned closures use the same bridge
+recipes. Statement temporaries own new adapters until their consumer retains
+them; reverse views recover the original callable and preserve identity.
+Checked call-argument conversion completes before user code is invoked.
+
+The new independent ECMAScript fixture and existing call-transport fixture pass
+**14** focused source/build/run steps under strict GCC, Clang18 and ASan/UBSan.
+The full new source also passes all **3** native effort13 build/run steps.
+Checks include shared arrays, function identity, generic callback fields, value
+copies, managed captures, nested callback bridges and repeated reverse views
+with bounded owner counts and zero owners at completion. No full library suite
+or performance claim. [Evidence and reproduction driver](callable-containers).
+
+JavaScript formation refuses the same source at effort0 and13 with `erased
+product escapes a closed typed interface` at the generic `getMapper` callback
+field read. Both failed receipts are retained and V1 owns the gap. Native
+qualification uses the independent ECMAScript oracle; it is not claimed as
+full emitted-JavaScript parity. N2's remaining static data, safe representation
+failures, suspension, native interfaces and performance/cross-target work remain
+open.

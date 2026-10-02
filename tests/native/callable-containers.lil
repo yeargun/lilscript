@@ -1,0 +1,69 @@
+extern void assertNativeCount(int expected);
+extern void collectNative();
+extern void assertMaxNativeCount(int maximum);
+struct Payload { string text; int[] shared; }
+struct Mapper<T> { func(T)->T callback; }
+shape Handler<T> { data func(T)->T callback; }
+
+int increment(int value) { return value+1; }
+Payload annotate(Payload value) { value.text+="!"; value.shared.push(9); return value; }
+T identity<T>(T value) { return value; }
+T invoke<T>(T value,func(T)->T callback) { return callback(value); }
+func(T)->T constant<T>(T saved) { return (T value)=>saved; }
+T useArray<T>((func(T)->T)[] callbacks,T value) {
+    func(T)->T before=callbacks[0];
+    callbacks[0]=(T item)=>item;
+    print(callbacks.length);
+    return before(value);
+}
+void cycleView<T>((func(T)->T)[] callbacks) {
+    func(T)->T same=callbacks[0];
+    callbacks[0]=same;
+}
+func(T)->T getMapper<T>(Mapper<T> value) { return value.callback; }
+T fromRecord<T>(Record<func(T)->T> values,T item) {
+    func(T)->T callback=values.first??((T value)=>value);
+    values.second=callback;
+    return callback(item);
+}
+T nested<T>(T value,func(func(T)->T,T)->T outer,func(T)->T inner) {
+    return outer(inner,value);
+}
+int useInteger(func(int)->int inner,int value) { return inner(value); }
+Payload usePayload(func(Payload)->Payload inner,Payload value) { return inner(value); }
+
+void run() {
+    (func(int)->int)[] numbers=[increment];
+    print(useArray(numbers,10)); print(numbers[0](10));
+    numbers[0]=increment;
+    for(int i=0;i<200;i++) { cycleView(numbers); assertMaxNativeCount(24); }
+    print(numbers[0]==increment); print(numbers[0](20));
+    Mapper<int> mapper=Mapper{increment};
+    print(getMapper(mapper)(30));
+    Mapper<int> copy=mapper; copy.callback=(int value)=>value+10;
+    print(getMapper(mapper)(1)); print(getMapper(copy)(1));
+    Handler<int> handler=Handler{callback:increment};
+    print(invoke(2,handler.callback));
+    Record<func(int)->int> records=record{first:increment};
+    print(fromRecord(records,40));
+    func(int)->int second=records.second??increment; print(second(50));
+    print(second==increment);
+    func(int)->int held=constant(17); print(held(999));
+    print(nested(60,useInteger,increment));
+    Payload original=Payload{"owned".repeat(2),[1]};
+    (func(Payload)->Payload)[] products=[annotate];
+    Payload result=useArray(products,original);
+    print(result.text); print(original.text); print(original.shared.length);
+    Mapper<Payload> productMapper=Mapper{annotate};
+    Payload mapped=getMapper(productMapper)(original); print(mapped.text);
+    Payload deep=nested(original,usePayload,annotate); print(deep.text);
+    func(Payload)->Payload retained=constant(original);
+    original.text="changed"; print(retained(original).text);
+    for(int i=0;i<200;i++) {
+        func(Payload)->Payload saved=constant(original);
+        printIfLast(i,saved(original).text);
+        assertMaxNativeCount(96);
+    }
+}
+void printIfLast(int i,string value) { if(i==199) {print(value);} }
+run(); collectNative(); assertNativeCount(0); print("callable containers done");

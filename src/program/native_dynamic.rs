@@ -12,25 +12,29 @@ pub(in crate::program) const INTERFACE: &str = include_str!("runtime/value.h");
 pub(in crate::program) const RUNTIME: &str = concat!(include_str!("runtime/value.h"), include_str!("runtime/value.c"));
 
 impl Emitter<'_, '_, '_, '_, '_> {
-    /// Boxing and unboxing of each callable signature. Every callable record
-    /// has the tagged value's callable layout, which the assertion checks.
+    /// Tagged callable views only bridge pairs admitted by actual storage and
+    /// call demands. The activation owns allocated bridges until a consumer
+    /// retains them; the function identity survives every physical view.
     pub(super) fn dynamic_callables(&mut self) -> Result<(), NativeError> {
-        if !self.plan.helpers.contains(Helper::Dynamic) {
-            return Ok(());
-        }
+        if !self.plan.helpers.contains(Helper::Dynamic) { return Ok(()); }
         for index in 0..self.plan.signatures.len() {
-            self.budget.work(WorkKind::Render, 1)?;
-            if !self.plan.callable_signature_needed(index) {
-                continue;
-            }
+            self.budget.work(WorkKind::Render,1)?;
+            if !self.plan.callable_signature_needed(index) { continue; }
             self.write(format_args!(
                 "_Static_assert(sizeof(ls_callable{index}) == sizeof(((ls_value *)0)->as.c), \"callable layout\");\n\
-static LS_NATIVE_UNUSED ls_value ls_value_callable{index}(ls_callable{index} value) {{ ls_value result = {{.tag = LS_CALLABLE, .signature = {index}}}; memcpy(&result.as.c, &value, sizeof value); return result; }}\n\
-static LS_NATIVE_UNUSED ls_callable{index} ls_value_to_callable{index}(ls_value value) {{\n\
-if (value.tag == LS_NULL) return (ls_callable{index}){{0}};\n\
-if (value.tag != LS_CALLABLE || value.signature != {index}) {{ ls_value_mismatch(); return (ls_callable{index}){{0}}; }}\n\
-ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return result;\n}}\n"
-            ))?;
+static LS_NATIVE_UNUSED ls_value ls_value_callable{index}(ls_callable{index} value) {{ ls_value result = {{.tag=LS_CALLABLE,.signature={index}}}; memcpy(&result.as.c,&value,sizeof value); return result; }}\n"))?;
+        }
+        for &(from,to) in &self.plan.adapters {
+            self.write(format_args!("static LS_NATIVE_UNUSED ls_callable{to} ls_borrow_adapt{from}_{to}(ls_native_temporary **temps,ls_callable{from} inner);\n"))?;
+        }
+        for index in 0..self.plan.signatures.len() {
+            self.budget.work(WorkKind::Render,1)?;
+            if !self.plan.callable_signature_needed(index) { continue; }
+            self.write(format_args!("static LS_NATIVE_UNUSED ls_callable{index} ls_value_to_callable{index}(ls_native_temporary **temps,ls_value value) {{\n(void)temps;\nif(value.tag==LS_CALLABLE) switch(value.signature) {{\ncase {index}: {{ls_callable{index} result; memcpy(&result,&value.as.c,sizeof result); return result;}}\n"))?;
+            for &(from,to) in &self.plan.adapters {
+                if to==index { self.write(format_args!("case {from}: {{ls_callable{from} inner; memcpy(&inner,&value.as.c,sizeof inner); return ls_borrow_adapt{from}_{to}(temps,inner);}}\n"))?; }
+            }
+            self.write(format_args!("}}\nls_value_mismatch(); return (ls_callable{index}){{0}};\n}}\n"))?;
         }
         Ok(())
     }
@@ -66,7 +70,8 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
             }
             (Dynamic(_), Symbol) => ("ls_value_to_symbol(".into(), ")"),
             (Dynamic(_), Array(array)) => (format!("(ls_array{array} *)ls_value_to_array("), ")"),
-            (Dynamic(_), Callable(signature)) => (format!("ls_value_to_callable{signature}("), ")"),
+            (Dynamic(_), Callable(signature)) => (format!("ls_value_to_callable{signature}(&ls_temps,"), ")"),
+            (Callable(from), Callable(to)) => (format!("ls_borrow_adapt{from}_{to}(&ls_temps,"), ")"),
             (I32, F64) => ("(double)(".into(), ")"),
             _ => unreachable!("native plan admits only these representation changes"),
         }
@@ -137,76 +142,59 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
 }
 
 impl Emitter<'_, '_, '_, '_, '_> {
-    /// One adapter per admitted `(from, to)` pair: a callable of signature
-    /// `to` whose environment owns the adapted callable. Parameters convert
-    /// from `to` to `from` and the result back, which changes no ownership.
-    /// The adapter keeps the inner identity, so equality sees one function.
+    /// A bridge owns its original callable and keeps its identity. Reversing
+    /// a view recovers that original instead of growing an adapter chain.
     pub(super) fn adapters(&mut self) -> Result<(), NativeError> {
+        if !self.plan.adapters.is_empty() { self.text(include_str!("runtime/callable_bridge.c"))?; }
         for index in 0..self.plan.adapters.len() {
             self.budget.work(WorkKind::Render, 1)?;
-            let (from, to) = self.plan.adapters[index];
-            let name = format!("ls_adapter{from}_{to}");
-            self.write(format_args!(
-                "typedef struct {{ ls_native_object owner; ls_callable{from} inner; }} {name};\n\
-static LS_NATIVE_UNUSED void {name}_destroy(ls_native_object *owner) {{ ls_callable{from}_clear(&(({name} *)owner)->inner); }}\n\
-static LS_NATIVE_UNUSED void {name}_trace(ls_native_object *owner, ls_native_visit visit, void *context) {{ visit((({name} *)owner)->inner.environment, context); }}\n\
-static LS_NATIVE_UNUSED {} {name}_code(void *environment",
-                self.plan.signatures[to].result
-            ))?;
-            self.signature_parameters(to, true, true)?;
-            self.write(format_args!(") {{\n{name} *adapter = environment;\n"))?;
-            let (inner, outer) = (
-                self.plan.signatures[from].result,
-                self.plan.signatures[to].result,
-            );
-            self.temporary_declaration()?;
-            let (prefix, suffix) = Self::conversion(inner, outer);
-            if inner != NativeType::Void {
-                self.write(format_args!("{inner} ls_inner = "))?;
+            let (from,to)=self.plan.adapters[index];
+            let (inner,outer)=(self.plan.signatures[from].result,self.plan.signatures[to].result);
+            if self.plan.callable_view(NativeType::Callable(from),NativeType::Callable(to)) {
+                self.write(format_args!("static LS_NATIVE_UNUSED ls_callable{to} ls_borrow_adapt{from}_{to}(ls_native_temporary **temps,ls_callable{from} inner) {{ (void)temps; return (ls_callable{to}){{inner.code,inner.environment,inner.identity}}; }}\n"))?;
+                continue;
             }
-            self.text("adapter->inner.code(adapter->inner.environment")?;
+            self.write(format_args!("static LS_NATIVE_UNUSED {outer} ls_adapter{from}_{to}_code(void *environment"))?;
+            self.signature_parameters(to,true,true)?;
+            self.write(format_args!(") {{\nls_callable_bridge *adapter=environment;\nls_callable{from} inner; memcpy(&inner,&adapter->inner.as.c,sizeof inner);\n"))?;
+            self.temporary_declaration()?;
             let mut missing=Vec::new();
             for position in 0..self.plan.signatures[to].parameters.len() {
                 let actual=self.plan.signatures[to].parameters[position];
+                let target=self.plan.signatures[from].parameters[position];
                 let argument=format!("ls_p{position}");
                 let absent=self.absent_argument(&argument,actual);
                 let absent=if self.plan.signatures[to].has_optional() {
                     format!("(ls_args.count<={position} || (ls_args.absent && ls_args.absent[{position}]) || {absent})")
                 } else {absent};
-                self.text(",")?;
-                self.physical_argument(&argument,actual,self.plan.signatures[from].parameters[position],
-                    self.plan.signatures[from].source.params[position].optional.then_some(absent.as_str()))?;
+                self.write(format_args!("{target} ls_argument{position} = "))?;
+                self.physical_argument(&argument,actual,target,self.plan.signatures[from].source.params[position].optional.then_some(absent.as_str()))?;
+                self.text(";\n")?;
                 missing.push(if self.plan.signatures[from].source.params[position].optional {absent} else {"false".to_owned()});
             }
-            if self.plan.signatures[from].has_optional() {
-                self.argument_presence(self.plan.signatures[to].parameters.len(),&missing)?;
-            }
-            self.text(");\nif (ls_native_raised) {\n")?;
-            if let Some(drop)=inner.release("ls_inner") { self.text(&drop)?; }
-            self.clear_temporaries()?;
-            if outer==NativeType::Void { self.text("return;\n")?; }
-            else { self.write(format_args!("return ({outer}){{0}};\n"))?; }
+            self.text("if (ls_native_raised) {\n")?; self.clear_temporaries()?;
+            if outer==NativeType::Void {self.text("return;\n")?;} else {self.write(format_args!("return ({outer}){{0}};\n"))?;}
             self.text("}\n")?;
-            if outer != NativeType::Void {
-                self.write(format_args!("{outer} ls_outer = {prefix}ls_inner{suffix};\n"))?;
-                if Self::product_conversion(inner, outer) {
-                    if let Some(retain) = outer.retain("ls_outer") { self.text(&retain)?; }
-                    if let Some(drop) = inner.release("ls_inner") { self.text(&drop)?; }
-                }
-            }
+            if inner!=NativeType::Void {self.write(format_args!("{inner} ls_inner = "))?;}
+            self.text("inner.code(inner.environment")?;
+            for position in 0..self.plan.signatures[from].parameters.len() {self.write(format_args!(",ls_argument{position}"))?;}
+            if self.plan.signatures[from].has_optional() {self.argument_presence(missing.len(),&missing)?;}
+            self.text(");\nif (ls_native_raised) {\n")?;
+            if let Some(drop)=inner.release("ls_inner") {self.text(&drop)?;}
             self.clear_temporaries()?;
-            if outer != NativeType::Void { self.text("return ls_outer;\n")?; }
-            self.write(format_args!(
-                "}}\n\
-static LS_NATIVE_UNUSED ls_callable{to} ls_adapt{from}_{to}(ls_callable{from} inner) {{\n\
-{name} *adapter = ls_native_allocate(sizeof *adapter, {name}_destroy, {name}_trace);\n\
-ls_native_retain(inner.environment);\n\
-adapter->inner = inner;\n\
-return (ls_callable{to}){{{name}_code, adapter, inner.identity}};\n}}\n\
-static LS_NATIVE_UNUSED ls_value ls_adapt_value{from}_{to}(ls_value value) {{\n\
-if (value.tag != LS_CALLABLE) {{ ls_value_retain(value); return value; }}\n\
-return ls_value_callable{to}(ls_adapt{from}_{to}(ls_value_to_callable{from}(value)));\n}}\n"
-            ))?;
+            if outer==NativeType::Void {self.text("return;\n")?;} else {self.write(format_args!("return ({outer}){{0}};\n"))?;}
+            self.text("}\n")?;
+            if outer!=NativeType::Void {
+                let (prefix,suffix)=Self::conversion(inner,outer);
+                self.write(format_args!("{outer} ls_outer = {prefix}ls_inner{suffix};\n"))?;
+                if inner!=outer {
+                    if let Some(retain)=outer.retain("ls_outer") {self.text(&retain)?;}
+                    if let Some(drop)=inner.release("ls_inner") {self.text(&drop)?;}
+                }
+            } else if let Some(drop)=inner.release("ls_inner") {self.text(&drop)?;}
+            self.clear_temporaries()?;
+            if outer!=NativeType::Void {self.text("return ls_outer;\n")?;}
+            self.write(format_args!("}}\nstatic LS_NATIVE_UNUSED ls_callable{to} ls_borrow_adapt{from}_{to}(ls_native_temporary **temps,ls_callable{from} inner) {{\nif(!inner.code) {{ls_value_mismatch(); return (ls_callable{to}){{0}};}}\nif(inner.environment && ((ls_native_object *)inner.environment)->destroy==ls_callable_bridge_destroy) {{\nls_callable_bridge *prior=inner.environment;\nif(prior->inner.signature=={to}) {{ls_callable{to} result; memcpy(&result,&prior->inner.as.c,sizeof result); return result;}}\n}}\nls_callable_bridge *adapter=ls_native_allocate(sizeof *adapter,ls_callable_bridge_destroy,ls_callable_bridge_trace);\nadapter->inner=ls_value_callable{from}(inner); ls_value_retain(adapter->inner);\nls_native_temporary_push(temps,&adapter->temporary,&adapter->owner);\nreturn (ls_callable{to}){{ls_adapter{from}_{to}_code,adapter,inner.identity}};\n}}\n"))?;
         }
         Ok(())
     }

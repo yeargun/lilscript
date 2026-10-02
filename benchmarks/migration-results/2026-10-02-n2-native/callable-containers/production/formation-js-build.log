@@ -1,0 +1,1 @@
+compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 721, end: 734 }, feature: "erased product escapes a closed typed interface" }))

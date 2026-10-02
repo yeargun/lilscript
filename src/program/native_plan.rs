@@ -5,6 +5,8 @@ use super::activation::StructuredDominance;
 use super::native::{NativeError, NativeHostBinding, NativeHostBindings};
 #[path = "native_signatures.rs"]
 mod signatures;
+#[path = "native_conversions.rs"]
+mod conversions;
 use super::native_runtime::{Helper, Helpers};
 use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
 use super::*;
@@ -383,8 +385,11 @@ pub(super) struct NativePlan<'program, 'src> {
     /// Nominal identity predicates needed by checked `is` / `as?` operations.
     pub(super) class_tests: Vec<bool>,
     /// Callable adapters `(from, to)` between physical signatures, used where
-    /// a call passes a callable to a parameter of another signature.
+    /// an admitted value transfer or container view crosses signatures.
     pub(super) adapters: Vec<(usize, usize)>,
+    conversions: Vec<(NativeType,NativeType)>,
+    boxed_callables: Vec<usize>,
+    unboxed_callables: Vec<usize>,
     /// Units something creates. A body nothing creates never runs (the
     /// program rules empty it) and is not written.
     pub(super) created: Vec<bool>,
@@ -1449,6 +1454,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             class_fields,
             class_tests: budget.filled(Scratch, program.classes.len(), false)?,
             adapters: Vec::new(),
+            conversions: Vec::new(), boxed_callables: Vec::new(), unboxed_callables: Vec::new(),
             created,
         };
         for frozen in &program.units {
@@ -1907,6 +1913,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 let at = OpId::from_index(index).unwrap();
                 let operands = data.operands(operation.operands).unwrap();
                 work(budget, operands.len())?;
+                plan.operation_conversions(data,&unit_plan,operation,operands,budget)?;
                 plan.check_operation(
                     unit,
                     data,
@@ -2024,6 +2031,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 }
             }
         }
+        plan.finish_conversions(budget)?;
         release(initializations, budget)?;
         if plan.helpers.contains(Helper::Dynamic) && !plan.struct_order.is_empty() { plan.helpers.require(Helper::Products); }
         Ok(plan)
@@ -2133,32 +2141,18 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Typed(_)
             )
         };
+        let (from,to)=(self.value_type(actual),self.value_type(expected));
+        if let (NativeType::Callable(from),NativeType::Callable(to))=(from,to) {
+            if self.adapters.contains(&(from,to)) { return true; }
+        }
         compatible(expected, actual)
             || match (expected, actual) {
                 (ValueStorage::Value(NativeType::Array(expected)), ValueStorage::Value(NativeType::Array(actual))) =>
                     self.compatible(ValueStorage::Value(self.arrays[expected]), ValueStorage::Value(self.arrays[actual])),
-                // A callable crosses only at its one physical signature.
-                (
-                    ValueStorage::Value(NativeType::Dynamic(expected)),
-                    ValueStorage::Value(NativeType::Dynamic(actual)),
-                ) => match (expected.callable, actual.callable) {
-                    (Some(left), Some(right)) => left == right,
-                    _ => true,
-                },
-                (
-                    ValueStorage::Value(NativeType::Dynamic(tagged)),
-                    ValueStorage::Value(NativeType::Callable(signature)),
-                )
-                | (
-                    ValueStorage::Value(NativeType::Callable(signature)),
-                    ValueStorage::Value(NativeType::Dynamic(tagged)),
-                ) => tagged.callable.is_none_or(|callable| callable == signature),
-                (
-                    ValueStorage::Value(NativeType::Dynamic(tagged)),
-                    ValueStorage::Function(unit),
-                ) => tagged
-                    .callable
-                    .is_none_or(|callable| callable == self.signature_for_unit(unit)),
+                (ValueStorage::Value(NativeType::Dynamic(_)), ValueStorage::Value(NativeType::Dynamic(_))) => true,
+                (ValueStorage::Value(NativeType::Dynamic(_)), ValueStorage::Value(NativeType::Callable(_)))
+                | (ValueStorage::Value(NativeType::Callable(_)), ValueStorage::Value(NativeType::Dynamic(_)))
+                | (ValueStorage::Value(NativeType::Dynamic(_)), ValueStorage::Function(_)) => true,
                 (ValueStorage::Value(NativeType::Dynamic(_)), ValueStorage::Value(actual)) => {
                     payload(actual)
                 }
@@ -2195,7 +2189,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
     }
     /// The adapter `(from, to)` a callable argument needs to reach a
     /// parameter of another physical signature: same arity, value passing,
-    /// each parameter and the result converting without another adapter.
+    /// each parameter/result using an admitted conversion, including nested bridges.
     pub(super) fn adaptation(
         &self,
         expected: ValueStorage,
@@ -2256,11 +2250,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 .iter()
                 .zip(&to.parameters)
                 .all(|(&inner, &outer)| {
-                    !matches!(inner, NativeType::Callable(_))
-                        && (self.compatible(ValueStorage::Value(inner), ValueStorage::Value(outer))
+                    (self.compatible(ValueStorage::Value(inner), ValueStorage::Value(outer))
                             || checked_view && matches!((inner, outer), (NativeType::Object(_), NativeType::Object(_))))
                 })
-            && !matches!(from.result, NativeType::Callable(_))
             && self.compatible(
                 ValueStorage::Value(to.result),
                 ValueStorage::Value(from.result),
@@ -2286,7 +2278,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         if !self.adapters.contains(&(from, to)) {
             budget.push(Scratch, &mut self.adapters, (from, to))?;
         }
-        self.helpers.require(Helper::ClosureRuntime);
+        self.helpers.require(Helper::Products);
         Ok(())
     }
     /// Omission follows the checked arity contract; the native ABI also passes
@@ -2907,8 +2899,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     Some(CallArgument::Value(id)) => Some(value(*id)),
                     _ => None,
                 };
-                // A caller-evaluated default follows the supplied arguments;
-                // a preserved omission would need `undefined`.
+                // Source defaults remain at their checked owner; optional
+                // native calls carry independent presence metadata.
                 expect(
                     site.contract.supplied as usize == arguments.len()
                         || matches!(

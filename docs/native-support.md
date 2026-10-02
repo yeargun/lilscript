@@ -14,10 +14,10 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 |---|---|---|
 | Scalars and control flow | Wrapping int32, strict binary64, bool, UTF-16, null, scalar unions, structured branches/loops | Further runtime qualification: N2 |
 | Semantic optimization | Shared folding, liveness, calls/inlining, aggregate scalar replacement, and proven final-use ownership transfer; the requested tactic vetoes apply in native and `all` builds | Performance corpus: N2 |
-| Functions | Direct/indirect calls, captured declarations, supported generic tagged values, per-argument absence/defaults and managed/callable references | Remaining polymorphic callable views and complete qualification: N2 |
-| Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Native specialization and remaining callable transport: N2 |
+| Functions | Direct/indirect calls, captured declarations, supported generic tagged values, per-argument absence/defaults and managed/callable references | Polymorphic container/callback bridges implemented; complete qualification: N2 |
+| Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Native specialization and full qualification: N2 |
 | Collections and classes | Shared-identity concrete/generic arrays, owned callbacks and sparse copies; class objects, maps, sets, symbols, buffers and typed arrays | Remaining recipes and comparisons: N2 |
-| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join | Remaining callable transport and immutable graph qualification: N2 |
+| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join | Callable transport implemented; immutable graph qualification: N2 |
 | Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | Remaining native error recipes and full corpus qualification: N2 |
 | Generators, async/tasks | Source-qualified refusal | Region state machines and microtask queue: N2 |
 | Regular expressions | Pinned QuickJS libregexp; typed construction/test/search/string replacement, metadata and shared lastIndex; catchable syntax/resource errors | Broad corpus qualification: N2; JsValue match objects use the JavaScript host ABI |
@@ -114,3 +114,10 @@ and releases partial containers. Nesting uses an explicit heap stack. Decimal
 input and shortest binary64 output use the pinned numeric library with documented
 rounding corrections, independent of the host locale. These are semantic
 guarantees, so compilation effort and native speed/size flags cannot weaken them.
+
+Polymorphic callable views use demand-driven signature bridges across tagged
+storage, arrays and generic product fields. Nested callback parameters and
+returned closures preserve their original function identity. Bridges own their
+inner callable; a reverse view recovers that callable instead of adding another
+wrapper. Equal physical conventions need no allocated adapter. These are
+representation recipes under the source contract, not configurable relaxations.

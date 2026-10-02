@@ -1564,18 +1564,6 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 unreachable!("native checked views take a value")
             };
             let destination = Destination::Value(result.unwrap());
-            let actual = self.plan.units[unit.index()].values[value.index()];
-            let expected = self.destination_type(unit, destination);
-            if !self.plan.compatible(ValueStorage::Value(expected), actual)
-                && !self.plan.callable_view(self.plan.value_type(actual), expected) {
-                if let Some((from,to)) = self.plan.checked_callable_adapter(ValueStorage::Value(expected), actual) {
-                    self.assignment_start(unit, destination, true)?;
-                    self.write(format_args!("ls_adapt{from}_{to}("))?;
-                    self.converted(unit, value, NativeType::Callable(from))?;
-                    self.text(")")?;
-                    return self.assignment_end(unit, destination);
-                }
-            }
             return self.copy_value(unit, destination, value);
         }
         if let PreparedTarget::Print = target {
@@ -1667,63 +1655,23 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             _ => (String::new(), ""),
         };
-        // A callable argument of another physical signature travels in an
-        // adapter the caller owns for the duration of the call.
         let parameter_type = |plan: &NativePlan<'_, '_>, index: usize| match target {
             PreparedTarget::ArrayPush { array, .. } => Some(plan.arrays[array]),
             _ => signature.map(|signature| plan.signatures[signature].parameters[index]),
         };
-        let mut adapted = Vec::new();
-        for (index, argument) in args.iter().enumerate() {
-            if let (CallArgument::Value(value), Some(parameter)) =
-                (*argument, parameter_type(self.plan, index))
-            {
-                let actual = self.plan.units[unit.index()].values[value.index()];
-                if !self.plan.compatible(ValueStorage::Value(parameter), actual) {
-                    if let Some(pair) = self.plan.adaptation(ValueStorage::Value(parameter), actual)
-                    {
-                        adapted.push((index, value, pair));
-                    }
-                }
+        // Complete checked conversions before invoking user code. A failing
+        // typed view must never call the callee with an inert error sentinel.
+        self.text("{\n")?;
+        for (index,argument) in args.iter().enumerate() {
+            if let (CallArgument::Value(value),Some(parameter))=(*argument,parameter_type(self.plan,index)) {
+                self.write(format_args!("{parameter} ls_argument{index} = "))?;
+                if let Some(signature)=signature.filter(|_| !matches!(target,PreparedTarget::Host {..})) {
+                    self.converted_argument(unit,value,signature,index)?;
+                } else {self.converted(unit,value,parameter)?;}
+                self.text(";\n")?;
             }
         }
-        // Each adapted argument is a fresh owner: a callable of the target
-        // signature, or a tagged value when both sides are tagged.
-        let tagged = |plan: &NativePlan<'_, '_>, value: ValueId| {
-            matches!(
-                plan.units[unit.index()].values[value.index()],
-                ValueStorage::Value(NativeType::Dynamic(_))
-            )
-        };
-        if !adapted.is_empty() {
-            self.text("{\n")?;
-            for &(index, value, (from, to)) in &adapted {
-                let parameter = parameter_type(self.plan, index).unwrap();
-                match (tagged(self.plan, value), parameter) {
-                    (true, NativeType::Dynamic(_)) => {
-                        self.write(format_args!(
-                            "ls_value ls_adapted{index} = ls_adapt_value{from}_{to}("
-                        ))?;
-                        self.value(unit, value)?;
-                        self.text(");\n")?;
-                    }
-                    (true, _) => {
-                        self.write(format_args!(
-                            "ls_callable{to} ls_adapted{index} = ls_adapt{from}_{to}(ls_value_to_callable{from}("
-                        ))?;
-                        self.value(unit, value)?;
-                        self.text("));\n")?;
-                    }
-                    (false, _) => {
-                        self.write(format_args!(
-                            "ls_callable{to} ls_adapted{index} = ls_adapt{from}_{to}("
-                        ))?;
-                        self.value(unit, value)?;
-                        self.text(");\n")?;
-                    }
-                }
-            }
-        }
+        self.check_exception(unit)?;
         if let Some((from, _)) = product_result {
             self.write(format_args!("{{\n{from} ls_call_result = "))?;
         } else {
@@ -1814,23 +1762,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.text(",")?;
             }
             let parameter = parameter_type(self.plan, index);
-            if let Some(&(_, value, (_, to))) = adapted.iter().find(|entry| entry.0 == index) {
-                let held = if tagged(self.plan, value)
-                    && matches!(parameter, Some(NativeType::Dynamic(_)))
-                {
-                    parameter.unwrap()
-                } else {
-                    NativeType::Callable(to)
-                };
-                let (prefix, suffix) = Self::conversion(held, parameter.unwrap());
-                self.write(format_args!("{prefix}ls_adapted{index}{suffix}"))?;
-                continue;
-            }
             match *value {
                 CallArgument::Value(value) => match parameter {
-                    Some(parameter) => if let Some(signature)=signature.filter(|_| !matches!(target,PreparedTarget::Host {..})) {
-                        self.converted_argument(unit,value,signature,index)?;
-                    } else { self.converted(unit,value,parameter)?; },
+                    Some(_) => self.write(format_args!("ls_argument{index}"))?,
                     None => self.value(unit, value)?,
                 },
                 CallArgument::Reference(_) => {
@@ -1903,21 +1837,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 call.index()
             ))?;
         }
-        if !adapted.is_empty() {
-            for &(index, value, (_, to)) in &adapted {
-                if tagged(self.plan, value)
-                    && matches!(
-                        parameter_type(self.plan, index),
-                        Some(NativeType::Dynamic(_))
-                    )
-                {
-                    self.write(format_args!("ls_value_clear(&ls_adapted{index});\n"))?;
-                } else {
-                    self.write(format_args!("ls_callable{to}_clear(&ls_adapted{index});\n"))?;
-                }
-            }
-            self.text("}\n")?;
-        }
+        self.text("}\n")?;
         Ok(())
     }
 }

@@ -219,3 +219,9 @@ managed/callable reference arguments pass native and the independent ECMAScript
 location model. The defaults-only extracted subset passes JavaScript at effort0
 and13; this is not full source parity. The retained N2 call-transport driver and
 failed formation log reproduce the distinction.
+
+The same **V1** erased-interface gap also refuses
+`tests/native/callable-containers.lil` at `getMapper`'s generic callable field
+read, at effort0 and13. Native formation/production and independent ECMAScript
+observations pass; both JavaScript refusal logs are retained with N2's callable
+container evidence.

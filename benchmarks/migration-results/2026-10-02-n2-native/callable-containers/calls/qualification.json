@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-callable-1/lilscript",
+    "sha256": "2d6f9feea630c76df169dd96b0d577d2c58b821d7c968bed834828b8e64635e7"
+  },
+  "fixtures": [
+    {
+      "path": "tests/native/runtime-ownership.c",
+      "sha256": "c6c4efd6fa5e611d8f8c77c8d74337ee3af7c710291e4db93b4c99d0cc0c6dae"
+    },
+    {
+      "path": "tests/native/call-transport.lil",
+      "sha256": "58626647c6a8282250bdcce84dcc9ce617e5336b0f79274f058582652a47f07b"
+    },
+    {
+      "path": "tests/native/call-transport.host.c",
+      "sha256": "3573ecc986d810a3a20c8a1517ed02ee6791e44c8aed30d0df0283e4f7c2fe62"
+    },
+    {
+      "path": "tests/native/call-transport.toml",
+      "sha256": "69eb341465cf4eb0460f176121d4fb1e5558bfac129d8f0f39a3228b3e074bc3"
+    },
+    {
+      "path": "tests/native/call-transport.out",
+      "sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    }
+  ],
+  "rows": [
+    {
+      "name": "source",
+      "command": "/home/azureuser/lilscript-work/bin/n2-callable-1/lilscript",
+      "args": [
+        "tests/native/call-transport.lil",
+        "--config",
+        "tests/native/call-transport.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-callable-1-calls/ownership.c"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 14.133561,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-build",
+      "command": "/usr/bin/cc",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-callable-1-calls/ownership.c",
+        "/tmp/lilscript-n2-callable-1-calls/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-callable-1-calls/ownership-gcc"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 1407.07786,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-run",
+      "command": "/tmp/lilscript-n2-callable-1-calls/ownership-gcc",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 2.43405000000007,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-callable-1-calls/ownership.c",
+        "/tmp/lilscript-n2-callable-1-calls/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-callable-1-calls/ownership-clang"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 1238.654591,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-run",
+      "command": "/tmp/lilscript-n2-callable-1-calls/ownership-clang",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 2.4504409999999552,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-sanitize-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-callable-1-calls/ownership.c",
+        "/tmp/lilscript-n2-callable-1-calls/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-callable-1-calls/ownership-clang-sanitize"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 3319.8809389999997,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-sanitize-run",
+      "command": "/tmp/lilscript-n2-callable-1-calls/ownership-clang-sanitize",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 10.317086000000018,
+      "passed": true
+    }
+  ]
+}

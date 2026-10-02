@@ -19,6 +19,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             let (boxed, boxed_end)=Self::conversion(e,NativeType::Dynamic(Tagged::ANY));
             let boxed=if let NativeType::Struct(index)=e { format!("ls_t{index}_box(temps,") } else { boxed };
             let (unbox, unbox_end)=Self::conversion(NativeType::Dynamic(Tagged::ANY),e);
+            let unbox=unbox.replace("&ls_temps,","temps,");
             let absent=match e {
                 NativeType::I32=>"return 0;".to_owned(),
                 NativeType::String|NativeType::Dynamic(_)=>format!("return ({e}){{0}};"),
@@ -36,7 +37,10 @@ static LS_NATIVE_UNUSED ls_value ls_array{s}_read_slot(ls_native_temporary **tem
 (void)temps; {e} value=*({e} const *)slot; return {boxed}value{boxed_end};
 }}
 static LS_NATIVE_UNUSED void ls_array{s}_write_slot(void *slot, ls_value input) {{
-{e} value={unbox}input{unbox_end}; ls_array{s}_acquire(value); ls_array{s}_drop(*({e} *)slot); *({e} *)slot=value;
+ls_native_temporary *ls_temps=NULL; ls_native_temporary **temps=&ls_temps; (void)temps;
+{e} value={unbox}input{unbox_end};
+if(!ls_native_raised) {{ls_array{s}_acquire(value); ls_array{s}_drop(*({e} *)slot); *({e} *)slot=value;}}
+ls_native_temporaries_clear(&ls_temps);
 }}
 static const ls_array_ops ls_array{s}_ops={{sizeof({e}),ls_array{s}_retain_slot,ls_array{s}_drop_slot,ls_array{s}_trace_slot,ls_array{s}_read_slot,ls_array{s}_write_slot}};
 static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_new(size_t capacity) {{ return ls_array_new(&ls_array{s}_ops,capacity); }}

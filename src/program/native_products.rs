@@ -19,7 +19,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
     /// owners; a call result cannot use the ordinary bitwise owner transfer.
     pub(super) fn product_conversion(from: NativeType, to: NativeType) -> bool {
         matches!((from, to), (NativeType::Struct(_), NativeType::Dynamic(_))
-            | (NativeType::Dynamic(_), NativeType::Struct(_)))
+            | (NativeType::Dynamic(_), NativeType::Struct(_))
+            | (NativeType::Dynamic(_), NativeType::Callable(_))
+            | (NativeType::Callable(_), NativeType::Dynamic(_))
+            | (NativeType::Callable(_), NativeType::Callable(_)))
     }
     pub(super) fn product_boxes(&mut self) -> Result<(), NativeError> {
         if !self.plan.helpers.contains(Helper::Products) { return Ok(()); }

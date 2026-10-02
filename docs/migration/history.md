@@ -2001,3 +2001,25 @@ findIndex distinguishes deleted positions from explicit nullable null. Full
 JavaScript formation exposes a reference-callable proof refusal now owned by V1.
 No broad suite or performance claim; remaining N2 work stays open.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#call-presence-and-managed-references).
+
+## 2026-10-02 — N2 callable containers (implementation)
+
+Implement one paid representation-conversion demand owner for actual value
+transfers, shared mutable-array descriptors and tagged callable producers/readers.
+Typed bridges preserve callable identity and ownership through products, records,
+arrays and nested generic function signatures. Reverse views recover the original
+callable to avoid growing wrapper chains. Complete checked argument conversions
+before invoking the callee. Defaults retain ABI3 presence.
+
+Expected effect: close portable callable-container refusals while retaining one
+array identity; only demanded signature bridges are emitted. A focused independent
+oracle will cover read/write/return bridges, nested callbacks and bounded owners
+after implementation. No performance result is claimed before qualification.
+
+**Callable-container result.** Algorithm79, pin `n2-callable-1`, passes 14
+focused GCC/Clang/sanitizer steps across callable containers and existing call
+transport, plus all three native production build/run steps. Nested and returned
+bridges preserve managed value copies and function/array identity; repeated
+reverse views keep bounded owners. JavaScript's generic callback-field refusal
+is recorded under V1. No full suite or performance claim.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#callable-containers).
