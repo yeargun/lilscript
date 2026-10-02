@@ -1,0 +1,7 @@
+effort.level=0
+[host]
+native_sources=['host.c']
+[host.native]
+compute='host_compute'
+[target.native]
+objective='balanced'

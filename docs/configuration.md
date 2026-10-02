@@ -75,6 +75,76 @@ conditions continue to select their source/host modules through the package
 resolver; output-format and condition-manifest completion belongs to D1–D3.
 See [web-platform.md](web-platform.md) for the bundled typed declarations.
 
+## Native toolchain
+
+`--target c` produces admitted C without executing an external compiler.
+`--target native` and the native part of `--target all` use the library's
+`NativeToolchain` owner. The accepted table is `[target.native]`; the retired
+top-level `[native]` table still has no effect.
+
+```toml
+[target.native]
+compiler = "/opt/llvm/bin/clang"
+objective = "speed"
+debug_info = false
+warnings_as_errors = false
+link_time_optimization = false
+sanitizers = []
+# triple = "aarch64-linux-gnu"
+# sysroot = "toolchains/aarch64-sysroot"
+```
+
+| Control | Default and use | Tradeoff |
+|---|---|---|
+| `compiler` | Unset: the CLI's `CC` adapter, then `cc` on `PATH`. An explicit TOML executable wins. Paths containing a directory resolve against the TOML directory; a bare name searches `PATH`. Library callers explicitly supply or omit the adapter. | Pin an absolute compiler to reproduce a toolchain. One executable is accepted, without shell parsing or implicit `CFLAGS`; use a wrapper executable if required. |
+| `objective` | `speed` selects `-O3`; `size` selects `-Os`; `balanced` selects `-O2`. | These guide the external compiler, whose results depend on the workload. They neither measure an optimum nor change the independent JavaScript raw/gzip/Brotli objectives. |
+| `triple` | Unset: compiler's host default. An explicit triple passes `--target=...`. | Requires a compiler supporting that option, target libraries and an appropriate SDK. Unsupported toolchains fail explicitly; cross-target qualification remains N2. |
+| `sysroot` | Unset: compiler default. A configured directory is relative to the TOML file. | Selects a target SDK without downloading it. Pin the SDK separately; the receipt is not a content hash of every system header/library. |
+| `debug_info` | `false`; `true` adds `-g` for debugging/profiling. | Larger artifacts, possibly embedded source paths; no source semantic change. |
+| `warnings_as_errors` | `false`; `true` adds `-Wall -Wextra -Werror`. | Useful for qualifying generated and provider C. A newer compiler can introduce warnings that stop the build. |
+| `link_time_optimization` | `false`; `true` adds `-flto`. | Can optimize across host translation units; costs link time and memory and requires compatible tools. It is not enabled by a JavaScript compression effort. |
+| `sanitizers` | Empty, or a duplicate-free list of `address` and `undefined`. | Diagnostic builds need matching runtimes and cost executable bytes, runtime and memory. They are not production performance measurements. |
+
+Every configuration uses C11, `-fno-fast-math` and `-ffp-contract=off`.
+No effort level relaxes numeric behavior. `[host] native_sources` joins the same
+invocation. The generated provider header is staged with the C build and
+published on success. A failed C compiler does not replace the previous
+executable. Its diagnostic takes precedence over a consequent broken input pipe.
+
+Executable builds write `<output>.native.json`: actual compiler path, version
+and executable hash; resolved controls/arguments; C/header and provider source
+hashes; and the linked output's bytes/hash. Arguments include the invocation's
+temporary staging path. This is toolchain evidence, separate from the semantic
+policy fingerprint and emitted C/header sizes. SDK/transitive provider includes,
+compiler subprocesses and ambient linker/toolchain environment need separate
+deployment pins; the receipt does not claim a hermetic system toolchain.
+`--print-policy` resolves controls without executing the compiler.
+
+Build harnesses can link already generated C through the same owner:
+`lilscript main.c --target native --link-c --config lilscript.toml -o main`.
+This mode links caller-owned C without asserting that it passed LilScript
+checking. If `main.h` exists it accompanies the build; keep that stem in the
+executable name (`main` or `main.exe`). The case runner and ordinary Rust
+native execution helper use this owner. Numeric source-guard and independent
+GCC/Clang qualification profiles retain their deliberately independent flags.
+
+`policy.tactics.dead-code-elimination` also controls native initialization guard
+removal. When enabled, the shared initialization/effects analysis must prove
+every cross-unit access follows initialization; one uncertain callback/reentry
+keeps the guard. `off` retains guards. The native delivery receipt reports
+`initialization_guards_removed`. This saves native source/runtime checks and
+adds one shared analysis when global storage needs it; it changes no JavaScript
+size objective or source semantics. Escaping storage and unproved ownership
+continue to use the existing RC representation.
+
+`--check --target native` checks the native representation and ABI without
+emitting files, running optional JavaScript search or invoking a C compiler.
+The Rust equivalents are `check_source_for_target`, `check_entries_for_target`
+and `CheckedSourceSession::check_native`. Ordinary compilation performs
+admission once; a caller choosing both a separate check and a build pays for
+both requests. Existing `check_source`/`check_path` remain JavaScript checks.
+See the [native matrix](native-support.md) for current scope and remaining N2 work.
+
 ## Precedence and explanations
 
 The nearest discovered file is the entire project configuration; parent files

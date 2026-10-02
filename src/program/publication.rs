@@ -1413,6 +1413,17 @@ impl SemanticView<'_, '_> {
             .get(id.index())
             .map(FrozenUnit::revision)
     }
+    /// Source origin for a target refusal. Rewrites may move an operation to
+    /// another unit; its original module still owns its span.
+    pub fn native_error_location(&self, error: &NativeError) -> Option<(usize, crate::span::Span)> {
+        let NativeError::Unsupported { unit: Some(unit), operation, span, .. } = error else { return None; };
+        let program = &self.checkpoint.semantic.program;
+        let data = program.unit(*unit)?;
+        let module = operation.and_then(|op| data.operations.get(op.index()))
+            .and_then(|op| op.origin).and_then(|origin| program.source_origin(origin))
+            .map_or(data.module, |(module, _)| module);
+        Some((module.index(), *span))
+    }
     pub fn unit_count(&self) -> usize {
         self.checkpoint.semantic.program.units.len()
     }
@@ -2371,30 +2382,8 @@ impl<'src> Compilation<'src> {
         self.publish_candidate(destination, shared, policy, domain, start, None)
     }
 
-    /// Inspect a complete, unqualified C11 translation unit from checked
-    /// meaning. Native formation creates no JavaScript implementation map,
-    /// naming basis, prepared target or codecs. Caller-owned C compilation is
-    /// outside this ledger; the qualified driver fixes the floating-point ABI.
-    pub fn with_native_c<R>(
-        &mut self,
-        source: SemanticId,
-        policy: &ResolvedPolicy,
-        domain: WorkDomain,
-        inspect: impl FnOnce(&mut BudgetedNativeOutput<'_, '_>) -> R,
-    ) -> Result<R, NativeError> {
-        self.with_native_c_and_hosts(source, policy, domain, &NativeHostBindings::EMPTY, inspect)
-    }
-
-    /// Form self-contained C and an optional separately compiled host header
-    /// through the same admitted native target plan and output owner.
-    pub fn with_native_c_and_hosts<R>(
-        &mut self,
-        source: SemanticId,
-        policy: &ResolvedPolicy,
-        domain: WorkDomain,
-        hosts: &NativeHostBindings<'_>,
-        inspect: impl FnOnce(&mut BudgetedNativeOutput<'_, '_>) -> R,
-    ) -> Result<R, NativeError> {
+    /// Policy admission shared by checking and both C publication routes.
+    fn native_checkpoint(&mut self, source: SemanticId, policy: &ResolvedPolicy, domain: WorkDomain) -> Result<usize, NativeError> {
         let index = self.lookup(source)?;
         match policy.contract() {
             CompilationContract::Native { abi_version }
@@ -2420,6 +2409,45 @@ impl<'src> Compilation<'src> {
             .lineage
             .check_policy(policy)
             .map_err(NativeError::Admission)?;
+        Ok(index)
+    }
+
+    /// Validate native representation and ABI without rendering or running an
+    /// external compiler. Uses exactly the plan that C formation consumes.
+    pub fn check_native(&mut self, source: SemanticId, policy: &ResolvedPolicy,
+        domain: WorkDomain, hosts: &NativeHostBindings<'_>) -> Result<(), NativeError> {
+        let index = self.native_checkpoint(source, policy, domain)?;
+        let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
+        let mut budget = AllocationBudget::new(Some((&mut self.ledger, domain)));
+        super::native::check(&checkpoint.semantic.program, &checkpoint.semantic.uses, hosts, &mut budget)
+    }
+
+    /// Inspect a complete, unqualified C11 translation unit from checked
+    /// meaning. Native formation creates no JavaScript implementation map,
+    /// naming basis, prepared target or codecs. Caller-owned C compilation is
+    /// outside this ledger; the qualified driver fixes the floating-point ABI.
+    pub fn with_native_c<R>(
+        &mut self,
+        source: SemanticId,
+        policy: &ResolvedPolicy,
+        domain: WorkDomain,
+        inspect: impl FnOnce(&mut BudgetedNativeOutput<'_, '_>) -> R,
+    ) -> Result<R, NativeError> {
+        self.with_native_c_and_hosts(source, policy, domain, &NativeHostBindings::EMPTY, inspect)
+    }
+
+    /// Form self-contained C and an optional separately compiled host header
+    /// through the same admitted native target plan and output owner.
+    pub fn with_native_c_and_hosts<R>(
+        &mut self,
+        source: SemanticId,
+        policy: &ResolvedPolicy,
+        domain: WorkDomain,
+        hosts: &NativeHostBindings<'_>,
+        inspect: impl FnOnce(&mut BudgetedNativeOutput<'_, '_>) -> R,
+    ) -> Result<R, NativeError> {
+        let index = self.native_checkpoint(source, policy, domain)?;
+        let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
         let mut budget = AllocationBudget::new(Some((&mut self.ledger, domain)));
         budget.retain(
             crate::output_budget::AllocationClass::Scratch,
@@ -2430,6 +2458,7 @@ impl<'src> Compilation<'src> {
             &checkpoint.semantic.uses,
             hosts,
             policy.tactic(TacticId::ScalarReplacement).enabled,
+            policy.tactic(TacticId::DeadCodeElimination).enabled,
             &mut budget,
         )?;
         budget.work(WorkKind::Render, 0)?;
@@ -2458,37 +2487,15 @@ impl<'src> Compilation<'src> {
         domain: WorkDomain,
         hosts: &NativeHostBindings<'_>,
     ) -> Result<QualifiedNativeArtifact, NativeError> {
-        let index = self.lookup(source)?;
-        match policy.contract() {
-            CompilationContract::Native { abi_version }
-                if *abi_version == crate::package::LILSCRIPT_ABI_VERSION => {}
-            CompilationContract::Native { .. } => return Err(NativeError::UnsupportedAbi),
-            _ => return Err(NativeError::WrongTarget),
-        }
+        let index = self.native_checkpoint(source, policy, domain)?;
         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
-        if checkpoint.semantic.program.authored_unrolling
-            && !policy.tactic(TacticId::LoopUnrolling).enabled
-        {
-            return Err(NativeError::Admission(
-                crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling),
-            ));
-        }
-        work(
-            &mut self.ledger,
-            domain,
-            checkpoint.semantic.lineage.tactics().len(),
-        )?;
-        checkpoint
-            .semantic
-            .lineage
-            .check_policy(policy)
-            .map_err(NativeError::Admission)?;
         let mut budget = AllocationBudget::new(Some((&mut self.ledger, domain)));
         let files = super::native::form(
             &checkpoint.semantic.program,
             &checkpoint.semantic.uses,
             hosts,
             policy.tactic(TacticId::ScalarReplacement).enabled,
+            policy.tactic(TacticId::DeadCodeElimination).enabled,
             &mut budget,
         )?;
         self.artifacts.retain_native(

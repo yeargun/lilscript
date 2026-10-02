@@ -183,6 +183,8 @@ pub(super) struct CellPlan {
     /// A module binding that functions read or write: C file-scope storage
     /// that outlives its module's initializer, cleared when `main` ends.
     pub(super) global: bool,
+    /// Some cross-unit access may occur before this module binding is settled.
+    pub(super) global_guard: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -532,6 +534,29 @@ fn compatible(expected: ValueStorage, actual: ValueStorage) -> bool {
         )
 }
 
+/// Attach a checked type occurrence only on failure. The success path neither
+/// rebuilds a type-use index nor scans the program for each interned type.
+fn type_error(program: &Program<'_>, index: usize, error: NativeError) -> NativeError {
+    let NativeError::Unsupported { unit: None, feature, .. } = error else { return error; };
+    if let Some(cell) = program.cells.iter().find(|cell| cell.ty.index() == index) {
+        return fail(Some(cell.owner), None, cell.declaration, feature);
+    }
+    for unit in program.units.iter() {
+        for value in &unit.data().values {
+            if value.ty.index() == index {
+                let operation = &unit.data().operations[value.definition.index()];
+                return fail(Some(unit.id()), Some(value.definition), operation.span, feature);
+            }
+        }
+    }
+    for definition in program.structs.iter() {
+        if definition.fields.clone().any(|field| program.fields[field].ty.index() == index) {
+            return fail(Some(program.modules[definition.module.index()].initializer), None, definition.span, feature);
+        }
+    }
+    error
+}
+
 /// C requires complete field layouts before a containing declaration. One
 /// explicit DFS over the admitted schema edges rejects infinite value layout;
 /// it neither follows the Rust stack nor expands nested structs into fields.
@@ -553,11 +578,12 @@ fn struct_layouts(
         while let Some((index, next)) = stack.last_mut() {
             work(budget, 1)?;
             let definition = &program.structs[*index];
+            let site = Some(program.modules[definition.module.index()].initializer);
             if !definition.type_parameters.is_empty() {
                 return Err(fail(
+                    site,
                     None,
-                    None,
-                    Span::default(),
+                    definition.span,
                     "native generic struct layout",
                 ));
             }
@@ -577,9 +603,9 @@ fn struct_layouts(
                     }
                     1 => {
                         return Err(fail(
+                            site,
                             None,
-                            None,
-                            Span::default(),
+                            definition.span,
                             "native recursive value struct",
                         ))
                     }
@@ -589,18 +615,18 @@ fn struct_layouts(
                 // own anything: no retain would follow the copy.
                 TypeClass::Value(ty) if ty.managed() => {
                     return Err(fail(
+                        site,
                         None,
-                        None,
-                        Span::default(),
+                        definition.span,
                         "native managed struct field",
                     ))
                 }
                 TypeClass::Value(ty) if ty != NativeType::Void => {}
                 _ => {
                     return Err(fail(
+                        site,
                         None,
-                        None,
-                        Span::default(),
+                        definition.span,
                         "native struct field representation",
                     ))
                 }
@@ -614,6 +640,7 @@ fn struct_layouts(
 
 fn plan_places(
     program: &Program<'_>,
+    unit_id: UnitId,
     unit: &UnitData,
     types: &[TypeClass],
     arrays: &[NativeType],
@@ -623,7 +650,15 @@ fn plan_places(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<PlacePlan>, NativeError> {
     let mut places: Vec<PlacePlan> = budget.vector(Scratch, unit.places.len())?;
-    for place in &unit.places {
+    for (index, place) in unit.places.iter().enumerate() {
+        let error = |feature| {
+            // This linear scan runs only for a refusal, never for valid places.
+            let operation = unit.operations.iter().enumerate().find(|(_, operation)|
+                matches!(operation.kind, OperationKind::Load(place) | OperationKind::Store(place) if place.index() == index));
+            let (at, span) = operation.map(|(at, operation)| (OpId::from_index(at), operation.span))
+                .unwrap_or((None, unit.regions[unit.entry.index()].span));
+            fail(Some(unit_id), at, span, feature)
+        };
         work(budget, 1)?;
         let plan = match *place {
             Place::Cell(cell) => PlacePlan {
@@ -656,12 +691,7 @@ fn plan_places(
                         (None, Some(NativeType::I32))
                     }
                     _ => {
-                        return Err(fail(
-                            None,
-                            None,
-                            Span::default(),
-                            "native host aggregate place",
-                        ))
+                        return Err(error("native host aggregate place"))
                     }
                 };
                 let Some((array, kind, item)) = indexed_union(
@@ -669,12 +699,7 @@ fn plan_places(
                     &program.types[unit.values[receiver.index()].ty.index()],
                     arrays,
                 ) else {
-                    return Err(fail(
-                        None,
-                        None,
-                        Span::default(),
-                        "native host aggregate place",
-                    ));
+                    return Err(error("native host aggregate place"));
                 };
                 PlacePlan {
                     recipe: PlaceRecipe::IndexedUnion {
@@ -736,12 +761,7 @@ fn plan_places(
                     ValueStorage::Value(NativeType::I32),
                 ) = (values[receiver.index()], values[key.index()])
                 else {
-                    return Err(fail(
-                        None,
-                        None,
-                        Span::default(),
-                        "native host aggregate place",
-                    ));
+                    return Err(error("native host aggregate place"));
                 };
                 PlacePlan {
                     recipe: PlaceRecipe::Element {
@@ -755,21 +775,11 @@ fn plan_places(
                 }
             }
             Place::Member { .. } => {
-                return Err(fail(
-                    None,
-                    None,
-                    Span::default(),
-                    "native host member place",
-                ));
+                return Err(error("native host member place"));
             }
             Place::ClassField { receiver, field } => {
                 let ValueStorage::Value(NativeType::Object(_)) = values[receiver.index()] else {
-                    return Err(fail(
-                        None,
-                        None,
-                        Span::default(),
-                        "native host member place",
-                    ));
+                    return Err(error("native host member place"));
                 };
                 work(budget, 1)?;
                 // The field's storage is laid out by the class declaring it,
@@ -777,7 +787,7 @@ fn plan_places(
                 let declaring = program
                     .class_index(field.nominal)
                     .filter(|&index| program.classes[index].fields.len() > field.slot as usize)
-                    .ok_or_else(|| fail(None, None, Span::default(), "native class member"))?;
+                    .ok_or_else(|| error("native class member"))?;
                 let slot = field.slot as usize;
                 let ty = match types[program.classes[declaring].fields[slot].1.index()] {
                     TypeClass::Value(ty) => ty,
@@ -798,12 +808,7 @@ fn plan_places(
                 // The shared verifier proves the canonical, earlier-base DAG.
                 let parent = places[base.index()];
                 let ValueStorage::Value(NativeType::Struct(index)) = parent.storage else {
-                    return Err(fail(
-                        None,
-                        None,
-                        Span::default(),
-                        "native field receiver representation",
-                    ));
+                    return Err(error("native field receiver representation"));
                 };
                 let mut found = None;
                 for slot in program.structs[index].fields.clone() {
@@ -815,14 +820,9 @@ fn plan_places(
                 }
                 let field = found
                     .map(|slot| &program.fields[slot])
-                    .ok_or_else(|| fail(None, None, Span::default(), "native field identity"))?;
+                    .ok_or_else(|| error("native field identity"))?;
                 let TypeClass::Value(ty) = types[field.ty.index()] else {
-                    return Err(fail(
-                        None,
-                        None,
-                        Span::default(),
-                        "native field representation",
-                    ));
+                    return Err(error("native field representation"));
                 };
                 PlacePlan {
                     recipe: PlaceRecipe::Field {
@@ -837,12 +837,7 @@ fn plan_places(
                 }
             }
             _ => {
-                return Err(fail(
-                    None,
-                    None,
-                    Span::default(),
-                    "native host aggregate place",
-                ))
+                return Err(error("native host aggregate place"))
             }
         };
         places.push(plan);
@@ -961,7 +956,10 @@ fn validate_hosts(
                 .checked_add(1)
                 .ok_or(AllocationError::Capacity)?,
         )?;
-        let error = |feature| fail(None, None, Span::default(), feature);
+        let error = |feature| {
+            let cell = program.cells.get(host.cell.index());
+            fail(cell.map(|cell| cell.owner), None, cell.map_or(Span::default(), |cell| cell.declaration), feature)
+        };
         if previous.is_some_and(|cell| cell >= host.cell) {
             return Err(error("native host binding order or duplicate"));
         }
@@ -1048,6 +1046,49 @@ fn generated_host_symbol(
 }
 
 impl<'program, 'src> NativePlan<'program, 'src> {
+    /// The shared initialization owner includes module order, recursive calls,
+    /// escaping callbacks and host reentry. A target-local call scan cannot
+    /// substitute for that proof. One uncertain access keeps the cell's guard.
+    pub(super) fn elide_initialized_global_guards(&mut self, uses: &UseIndex,
+        budget: &mut AllocationBudget<'_>) -> Result<(), NativeError> {
+        if !self.cells.iter().any(|cell| cell.global) { return Ok(()); }
+        let program = self.program;
+        budget.with_temporary(
+            |budget| Ok::<_, NativeError>(super::effects::ProgramEffects::build_reusing_in(
+                program, super::call_graph::Seal::Module, None, false, budget)?),
+            |effects, budget| {
+                for (index, target) in self.cells.iter_mut().enumerate() {
+                    work(budget, 1)?;
+                    if !target.global { continue; }
+                    let cell = CellId::from_index(index).unwrap();
+                    let mut safe = true;
+                    for site in uses.cell(cell).expect("complete checked cell uses").sites() {
+                        work(budget, 1)?;
+                        match *site {
+                            CellUseSite::Unit { unit, usage } => {
+                                if unit == program.cells[index].owner { continue; }
+                                let at = match usage {
+                                    CellUse::Read { operation, .. } | CellUse::Write { operation, .. }
+                                    | CellUse::Reference { operation, .. } => operation,
+                                    CellUse::Capture => continue,
+                                    _ => { safe = false; break; }
+                                };
+                                // initialized() follows at most one creator per unit.
+                                work(budget, program.units.len() + 1)?;
+                                if !effects.initialization().initialized(program, unit, at, cell) {
+                                    safe = false; break;
+                                }
+                            }
+                            CellUseSite::Export { .. } => { safe = false; break; }
+                        }
+                    }
+                    target.global_guard = !safe;
+                }
+                Ok(())
+            },
+        )
+    }
+
     /// All returned backing is Scratch in the caller's lexical owner. On Err,
     /// Rust drops partial buffers before that caller rolls back the phase.
     pub(super) fn build(
@@ -1068,8 +1109,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         // Type-only exports have no native runtime ABI. Charge the borrowed
         // interface filter's visits, including entries it does not yield.
         work(budget, program.exports().len())?;
-        if program.value_exports().next().is_some() {
-            return Err(fail(None, None, Span::default(), "native exported ABI"));
+        if let Some((_, cell)) = program.value_exports().next() {
+            let cell = &program.cells[cell.index()];
+            return Err(fail(Some(cell.owner), None, cell.declaration, "native exported ABI"));
         }
         if uses.tables_revision() != program.tables_revision {
             return Err(fail(None, None, Span::default(), "stale native use index"));
@@ -1089,8 +1131,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             signatures: Vec::new(),
         };
         let mut classes = budget.vector(Scratch, program.types.len())?;
-        for ty in program.types.iter() {
+        for (index, ty) in program.types.iter().enumerate() {
             work(budget, 1)?;
+            let classify = (|| {
             let class = if let Some(ty) = native_type(program, ty, &mut tables, budget)? {
                 TypeClass::Value(ty)
             } else if matches!(ty, Type::Function(_) | Type::GenericFunction(_)) {
@@ -1098,6 +1141,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             } else {
                 return Err(fail(None, None, Span::default(), "native source type"));
             };
+            Ok(class)
+            })();
+            let class = classify.map_err(|error| type_error(program, index, error))?;
             classes.push(class);
         }
         let TypeTables {
@@ -1254,6 +1300,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 storage,
                 captured,
                 global,
+                global_guard: global,
             });
             initializations.push(initialization);
         }
@@ -1402,6 +1449,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
             let places = plan_places(
                 program,
+                unit,
                 data,
                 &plan.types,
                 &plan.arrays,

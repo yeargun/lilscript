@@ -84,7 +84,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         Ok(())
     }
     pub(super) fn cell_place(&mut self, unit: UnitId, cell: CellId) -> Result<(), NativeError> {
-        if self.plan.global_cell(cell) && self.plan.program.cells[cell.index()].owner != unit {
+        if self.plan.cells[cell.index()].global_guard && self.plan.program.cells[cell.index()].owner != unit {
             self.write(format_args!("(*ls_g{}())", cell.index()))
         } else if self.plan.boxed_cell(cell) {
             self.box_pointer(unit, cell)?;

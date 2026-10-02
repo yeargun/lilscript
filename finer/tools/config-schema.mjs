@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url"
 const toolsDirectory = dirname(fileURLToPath(import.meta.url))
 const root = resolve(toolsDirectory, "../..")
 const OUTPUT = join(root, "docs/knowledge/config/schema.md")
-const SOURCES = ["src/config.rs", "src/config_host.rs", "src/compilation_policy.rs", "src/compilation_tactics.rs"]
+const SOURCES = ["src/config.rs", "src/config_host.rs", "src/config_native.rs", "src/compilation_policy.rs", "src/compilation_tactics.rs"]
 
 /** Every `pub struct` in the given Rust sources, with its fields. */
 export function parseStructs(text) {

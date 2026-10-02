@@ -99,6 +99,8 @@ Physical reuse of compilation and compression.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
+| `elaboration_reuse` | `bool` | `true` | Reuse parsed sources and dependency-scheduled elaboration in graph sessions. |
+| `frontend_cache_bytes` | `u64` | `64 * 1024 * 1024` | Soft session epoch limit. |
 | `build_reuse` | `bool` | `true` | Reuse completed builds when directory is set (default true). |
 | `normalization_reuse` | `bool` | `true` | Reuse stable local normalization proofs (default true). |
 | `formation_reuse` | `bool` | `true` | Reuse completed family tails inside a candidate (default true). |
@@ -121,6 +123,7 @@ Saved complete JavaScript assignments, re-proved and re-judged in the terminal w
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `javascript` | `TargetJavaScriptConfig` |  | `[target.javascript]`: the JavaScript contract's axes. |
+| `native` | `TargetNativeConfig` |  | The external C toolchain contract. |
 
 ### `[target.javascript]` — closed
 
@@ -130,15 +133,39 @@ Saved complete JavaScript assignments, re-proved and re-judged in the terminal w
 |---|---|---|---|
 | `format` | `JavaScriptFormat` |  | `auto`: ESM for libraries, private IIFE for application scripts. |
 
+### `[target.native]` — closed
+
+External C compiler settings; these never relax checked source semantics.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `compiler` | `Option<PathBuf>` | `None` | One executable, never a shell fragment. |
+| `objective` | `NativeObjective` | `NativeObjective::Speed` | `speed` (default): -O3; `size`: -Os; `balanced`: -O2. |
+| `triple` | `Option<String>` | `None` | Clang-compatible target triple and sysroot; omitted means host defaults. |
+| `sysroot` | `Option<PathBuf>` | `None` | Optional target SDK root, relative to the TOML file; never auto-downloaded. |
+| `debug_info` | `bool` | `false` | False by default. |
+| `warnings_as_errors` | `bool` | `false` | False by default. |
+| `link_time_optimization` | `bool` | `false` | False by default. |
+| `sanitizers` | `Vec<NativeSanitizer>` | `Vec::new()` | Empty by default. |
+
 ## `[delivery]` — closed
 
 `[delivery]` (architecture §14): how the one program is placed in files and named.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
+| `directory` | `Option<PathBuf>` | `None` | Optional directory beneath the CLI output root. |
+| `select` | `Vec<String>` | `Vec::new()` | Empty selects all configured source entries. |
+| `also` | `Vec<AdditionalOutput>` | `Vec::new()` | Additional compiler-written outputs, sharing source work and budgets. |
+| `annotations` | `ConsumerAnnotations` | `ConsumerAnnotations::Off` | Consumer hints, only when semantic discardability is proven. |
+| `export_placement` | `ExportPlacement` | `ExportPlacement::Auto` | See [configuration.md](../../configuration.md). |
+| `source_maps` | `SourceMaps` | `SourceMaps::Off` | See [configuration.md](../../configuration.md). |
+| `sources_content` | `bool` | `true` | See [configuration.md](../../configuration.md). |
+| `source_root` | `Option<String>` | `None` | See [configuration.md](../../configuration.md). |
 | `global` | `Option<String>` | `None` | IIFE/UMD namespace, with optional [name]/[index] entry placeholders. |
 | `global_binding` | `GlobalBinding` | `GlobalBinding::default()` | See [configuration.md](../../configuration.md). |
 | `globals` | `BTreeMap<String, String>` | `BTreeMap::new()` | See [configuration.md](../../configuration.md). |
+| `external_specifiers` | `BTreeMap<String, String>` | `BTreeMap::new()` | External module requests, mapped at delivery. |
 | `es_module_marker` | `EsModuleMarker` | `EsModuleMarker::default()` | See [configuration.md](../../configuration.md). |
 | `exports` | `CjsExports` | `CjsExports::default()` | See [configuration.md](../../configuration.md). |
 | `default_interop` | `DefaultInterop` | `DefaultInterop::default()` | See [configuration.md](../../configuration.md). |

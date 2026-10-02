@@ -2,6 +2,7 @@ use super::*;
 use lilscript::js::selection::Objective;
 use sha2::{Digest, Sha256};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::process::Command;
 
 #[test]
 fn d3_cli_format_manifests_preserve_judged_bytes_and_remove_retired_outputs() {

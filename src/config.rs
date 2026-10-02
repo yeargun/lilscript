@@ -17,6 +17,9 @@ use crate::js_syntax_target::{resolve_ecmascript_target, EcmaScriptEdition};
 #[path = "config_host.rs"]
 mod host;
 pub use host::HostConfig;
+#[path = "config_native.rs"]
+mod native;
+pub use native::{NativeObjective, NativeSanitizer, TargetNativeConfig};
 
 /// What becomes of a configuration key this compiler no longer reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1361,6 +1364,7 @@ impl ProjectConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        self.target.native.validate()?;
         if self.delivery.directory.as_ref().is_some_and(|path| path.components().any(|part|
             !matches!(part,std::path::Component::Normal(_) | std::path::Component::CurDir))) {
             return Err("`delivery.directory` must stay within the output directory".into());
@@ -2332,6 +2336,8 @@ pub fn valid_entry_name(name: &str) -> bool {
 pub struct TargetConfig {
     /// `[target.javascript]`: the JavaScript contract's axes.
     pub javascript: TargetJavaScriptConfig,
+    /// The external C toolchain contract. It never changes JavaScript policy.
+    pub native: TargetNativeConfig,
 }
 
 /// `[target.javascript]`: only `format` so far (plan M3.1 brings the

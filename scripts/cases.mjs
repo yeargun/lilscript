@@ -62,7 +62,7 @@ export const FEATURES = [
   { id: "module-probe", targets: ["module", "cjs"], why: "a .module-probe.mjs reads the library export surface" },
   { id: "JsValue", targets: JAVASCRIPT, pattern: /\bJsValue\b/, why: "language-v0.1: JsValue is JavaScript-only" },
   { id: "import extern", targets: ["module"], pattern: /\bimport\s+extern\b/, why: "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports" },
-  { id: "extern", targets: JAVASCRIPT, pattern: /\bextern\b/, why: "language-v0.1: C rejects host declarations", lifts: "M11.3 (externs per target)" },
+  { id: "extern", targets: JAVASCRIPT, pattern: /\bextern\b/, why: "this corpus fixture needs a C provider/host-equivalent boundary; configured native function providers are supported", lifts: "N2 (M11.3 provider-backed corpus qualification)" },
   { id: "export", targets: JAVASCRIPT, pattern: /\bexport\b/, entryOnly: true, why: "the entry's exports are a module ABI; C has none yet", lifts: "M11.8 (a C library ABI)" },
   { id: "JS namespace", targets: JAVASCRIPT, pattern: /\bJS\./, why: "language-v0.1: C rejects the JS.* operations" },
   { id: "async", targets: JAVASCRIPT, pattern: /\b(?:async|await|Task)\b/, why: "language-v0.1: native rejects async functions and tasks", lifts: "M11.6 (portable subset)" },
@@ -79,7 +79,6 @@ const FALLBACK_TACTICS = [
   "helper-sharing", "target-compaction", "identifier-mangling", "property-mangling", "string-pooling",
   "string-array-packing", "startup-reconstruction", "recurring-reconstruction", "naming-search",
 ];
-const CC_FLAGS = ["-std=c11", "-O2", "-fno-fast-math", "-ffp-contract=off"];
 // A case marked `// harness: cc default flags` builds with the C compiler's
 // own language and floating-point defaults (GCC's gnu17 contracts floating
 // point by default): the emitted C must keep binary64 semantics by itself
@@ -288,7 +287,7 @@ function laneTables(lane, tactics) {
 // never a second); a case key overrides the lane's value for that key. The
 // retired `strip_console` is refused: the compiler never strips `print`. A
 // run's `level` overrides a production lane's effort level last.
-export function composeConfig(lane, tactics, caseToml, level = null) {
+export function composeConfig(lane, tactics, caseToml, level = null, nativeCompiler = null) {
   const tables = laneTables(lane, tactics);
   if (caseToml) {
     for (const [name, entries] of parseTomlTables(caseToml)) {
@@ -302,6 +301,12 @@ export function composeConfig(lane, tactics, caseToml, level = null) {
   if (level !== null && lane.mode === "production") {
     if (!tables.has("effort")) tables.set("effort", new Map());
     tables.get("effort").set("level", String(level));
+  }
+  if (lane.target === "c" && nativeCompiler !== null) {
+    if (!tables.has("target.native")) tables.set("target.native", new Map());
+    const native = tables.get("target.native");
+    native.set("compiler", JSON.stringify(nativeCompiler));
+    if (!native.has("objective")) native.set("objective", '"balanced"');
   }
   return renderToml(tables);
 }
@@ -442,7 +447,7 @@ export async function runCases(options) {
     }
     const config = `${base}.toml`;
     try {
-      writeFileSync(config, composeConfig(lane, tactics, item.toml ? readFileSync(item.toml, "utf8") : null, options.level ?? null));
+      writeFileSync(config, composeConfig(lane, tactics, item.toml ? readFileSync(item.toml, "utf8") : null, options.level ?? null, cc.includes("/") ? resolve(cc) : cc));
     } catch (error) {
       return { ...row, state: "refused", detail: `case configuration: ${error.message}` };
     }
@@ -468,19 +473,25 @@ export async function runCases(options) {
     const expected = readFileSync(item.expected, "utf8");
     let execution;
     if (lane.target === "c") {
-      const flags = item.ccDefault ? CC_DEFAULT_FLAGS : CC_FLAGS;
-      const key = sha256(["c", cc, ...flags, row.artifact.sha256].join("\0"));
+      const key = sha256(["c", cc, item.ccDefault ? "independent-default-flags" : "compiler-toolchain", sha256File(config), row.artifact.sha256].join("\0"));
       if (!executions.has(key)) {
         executions.set(key, (async () => {
           const executable = `${base}.exe`;
           rmSync(executable, { force: true });
-          const build = await run(cc, [...flags, artifact, "-lm", "-o", executable], { timeoutMs: 300_000 });
+          // The marked arithmetic oracle deliberately uses the C compiler's
+          // defaults to verify the emitted source's own numeric guards. Every
+          // ordinary C lane uses the production toolchain owner and its receipt.
+          const build = item.ccDefault
+            ? await run(cc, [...CC_DEFAULT_FLAGS, artifact, "-lm", "-o", executable], { timeoutMs: 300_000 })
+            : await run(compiler.path, [artifact, "--target", "native", "--link-c", "--config", config, "-o", executable], { env: compilerEnv, timeoutMs: 300_000 });
           if (build.status !== 0) return { cc: build };
-          return { cc: build, run: await run(executable, [], { env: runEnv, cwd: directory, timeoutMs: options.timeoutMs }) };
+          return { cc: build, nativeReceipt: item.ccDefault ? null : relative(work, `${executable}.native.json`),
+            run: await run(executable, [], { env: runEnv, cwd: directory, timeoutMs: options.timeoutMs }) };
         })());
       } else row.reused = true;
       execution = await executions.get(key);
       if (!execution.run) return { ...row, state: "cc-rejected", detail: keyLine(execution.cc.stderr) || headLines(execution.cc.stderr, 2) };
+      row.nativeToolchainReceipt = execution.nativeReceipt;
       execution = execution.run;
     } else {
       const prelude = item.host ? `${readFileSync(item.host, "utf8")}\n` : "";
@@ -566,7 +577,7 @@ export async function runCases(options) {
     compiler,
     codec,
     node: { path: node, version: (await run(node, ["--version"])).stdout.trim() },
-    cc: { path: cc, flags: CC_FLAGS, defaultFlags: CC_DEFAULT_FLAGS, version: headLines((await run(cc, ["--version"])).stdout, 1) },
+    cc: { path: cc, flagsOwner: "compiler NativeToolchain; per-artifact nativeToolchainReceipt", defaultFlags: CC_DEFAULT_FLAGS, version: headLines((await run(cc, ["--version"])).stdout, 1) },
     scrubbedEnvironment: scrubbed,
     tactics: { source: tacticSource, ids: tactics },
     ledger: { path: ledger.path ? relative(repository, ledger.path) : null, sha256: ledger.sha256, entries: ledger.entries.length },

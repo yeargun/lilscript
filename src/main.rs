@@ -2,7 +2,6 @@ use std::fs;
 use std::io::Write;
 use std::num::{NonZeroU64, NonZeroUsize};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 
 use clap::{Parser, ValueEnum};
 use serde_json::{json, Value};
@@ -97,6 +96,14 @@ struct Args {
     /// `[target.javascript] format`.
     #[arg(long, value_enum, value_name = "FORMAT")]
     format: Option<FormatArg>,
+
+    /// Check the requested target without searching, writing files or running a C compiler.
+    #[arg(long = "check")]
+    check_only: bool,
+
+    /// Link caller-owned C with the configured native toolchain, without LilScript checking.
+    #[arg(long, requires = "input", conflicts_with_all = ["check_only", "print_dependencies", "entries", "out_dir", "write_choices", "choices", "write_lock"])]
+    link_c: bool,
 
     /// Compilation target.
     #[arg(long, value_enum, default_value_t = Target::Js)]
@@ -204,12 +211,6 @@ fn run() -> Result<(), String> {
             "-o FILE and --out-dir DIR both name where the delivery goes: give one".to_string(),
         );
     }
-    if matches!(args.target, Target::All) && args.out_dir.is_some() {
-        return Err(
-            "--target all writes FILE.js, FILE.c and the executable beside -o FILE, not a directory"
-                .to_string(),
-        );
-    }
     // The configuration is found from INPUT, else from the entry whose name
     // sorts first: never from the order of the flags (DL10).
     let discovery = args
@@ -231,6 +232,28 @@ fn run() -> Result<(), String> {
     );
     for warning in &loaded.warnings {
         eprintln!("warning: {config_label}: {warning}");
+    }
+    if args.link_c {
+        if !matches!(args.target, Target::Native) { return Err("--link-c requires --target native".into()); }
+        let cc = std::env::var_os("CC");
+        let toolchain = lilscript::native_toolchain::NativeToolchain::resolve(&loaded.config, cc.as_deref())?;
+        if args.print_policy {
+            println!("{}", serde_json::to_string_pretty(&toolchain.receipt()).map_err(|e|e.to_string())?);
+            return Ok(());
+        }
+        let input = args.input.as_ref().unwrap();
+        let output = args.output.as_ref().ok_or("--link-c requires -o <executable>")?;
+        if input == output { return Err("--link-c input and executable must have different paths".into()); }
+        let c = fs::read_to_string(input).map_err(|e|format!("failed to read {}: {e}",input.display()))?;
+        let header_path = input.with_extension("h");
+        let header = match fs::read_to_string(&header_path) {
+            Ok(text) => Some(text), Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(format!("failed to read native header {}: {error}",header_path.display())),
+        };
+        if header.is_some() && header_path.file_name() != output.with_extension("h").file_name() {
+            return Err("--link-c with a provider header must keep its input file stem (main.c -> main or main.exe)".into());
+        }
+        return compile_native(&c, header.as_deref(), output, &loaded.config);
     }
     if let Some(path) = &args.choices {
         loaded.config.decisions.read = if path == "off" { None } else {
@@ -332,6 +355,11 @@ fn run() -> Result<(), String> {
         }
     }
     let options = service_options(&args)?;
+    if matches!(args.target, Target::All) && args.out_dir.is_some()
+        && options.requested_objectives(&loaded.config)?.iter().count() == 1
+        && loaded.config.delivery.also.is_empty() {
+        return Err("--target all with one JavaScript output writes FILE.js, FILE.c and the executable beside -o FILE; several objectives/formats use --out-dir DIR".into());
+    }
     if std::env::var_os("LILSCRIPT_SEMANTIC_WORK").is_some() {
         eprintln!("warning: LILSCRIPT_SEMANTIC_WORK is deprecated; use --logical-work for the service ceiling or [policy.resources] logical_work to restrict it");
     }
@@ -340,6 +368,10 @@ fn run() -> Result<(), String> {
     }
     if args.print_policy {
         return print_policy(&args, &loaded, options);
+    }
+    if args.check_only {
+        return lilscript::check_entries_for_target(&entries, &loaded.config, options)
+            .map_err(|error| render_service_error(&error));
     }
     build(&args, &entries, &loaded.config, options)
 }
@@ -535,8 +567,7 @@ fn build(
         Target::Native => {
             let base = base();
             ensure_parent(&base)?;
-            write_native_header(&result, &base)?;
-            compile_native(native_c()?, &base, config)
+            compile_native(native_c()?, result.native_header(), &base, config)
         }
         Target::All => {
             if multiple {
@@ -550,8 +581,7 @@ fn build(
                 let c = base.with_extension("c");
                 fs::write(&c, native_c()?)
                     .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
-                write_native_header(&result, &base)?;
-                return compile_native(native_c()?, &base, config);
+                return compile_native(native_c()?, result.native_header(), &base, config);
             }
             let base = base();
             ensure_parent(&base)?;
@@ -566,8 +596,7 @@ fn build(
             let c = base.with_extension("c");
             fs::write(&c, native_c()?)
                 .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
-            write_native_header(&result, &base)?;
-            compile_native(native_c()?, &base, config)
+            compile_native(native_c()?, result.native_header(), &base, config)
         }
     }
 }
@@ -1309,6 +1338,14 @@ fn policy_report(
         receipt["fingerprint"] = json!(format!("{:x}",Sha256::digest(identity.to_string().as_bytes())));
         receipt["fingerprint_scope"] = json!("requested delivery and objective policies");
     }
+    if options.native_request().is_some() {
+        receipt["native_capabilities"] = lilscript::native_capabilities::receipt();
+        receipt["native_toolchain_controls"] = json!(loaded.config.target.native);
+        if matches!(args.target, Target::Native | Target::All) {
+            receipt["native_toolchain"] = lilscript::native_toolchain::NativeToolchain::resolve(
+                &loaded.config, std::env::var_os("CC").as_deref())?.receipt();
+        }
+    }
     if let (Some(_), Some((fingerprint, policy, diagnostics))) = (&javascript, native) {
         receipt["native_fingerprint"] = json!(fingerprint);
         receipt["native_policy"] = policy;
@@ -1386,55 +1423,15 @@ fn write_native_header(result: &lilscript::build::ServiceCompilation, output: &P
     fs::write(&path, header).map_err(|error| format!("failed to write {}: {error}", path.display()))
 }
 
-fn compile_native(c: &str, output: &Path, config: &ProjectConfig) -> Result<(), String> {
-    // The platform's C compiler unless `CC` names one.
-    let compiler = std::env::var("CC").unwrap_or_else(|_| "cc".to_string());
-    let mut command = Command::new(&compiler);
-    command.args([
-        "-x",
-        "c",
-        "-std=c11",
-        "-O3",
-        "-fno-fast-math",
-        "-ffp-contract=off",
-    ]);
-    #[cfg(target_os = "macos")]
-    command.arg("-Wl,-no_uuid");
-    command.arg("-o").arg(output).arg("-");
-    command.arg("-I").arg(output.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(|| Path::new(".")));
-    let base = config.config_dir.as_deref().unwrap_or_else(|| Path::new("."));
-    for source in &config.host.native_sources {
-        command.arg(base.join(source));
-    }
-    #[cfg(not(target_os = "windows"))]
-    command.arg("-lm");
-    let mut child = command
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| format!("failed to start native compiler `{compiler}`: {error}"))?;
-    // Feed the source from its own thread while this one drains stdout and
-    // stderr: a compiler that fills a pipe before reading all of its input
-    // would otherwise block both processes forever.
-    let mut stdin = child.stdin.take().expect("native compiler stdin was piped");
-    let source = c.to_string();
-    let writer = std::thread::spawn(move || stdin.write_all(source.as_bytes()));
-    let result = child
-        .wait_with_output()
-        .map_err(|error| format!("failed to wait for `{compiler}`: {error}"))?;
-    writer
-        .join()
-        .expect("the source writer does not panic")
-        .map_err(|error| format!("failed to send C source to `{compiler}`: {error}"))?;
-    if result.status.success() {
-        Ok(())
-    } else {
-        Err(format!(
-            "native compiler failed:\n{}",
-            String::from_utf8_lossy(&result.stderr)
-        ))
-    }
+fn compile_native(c: &str, header: Option<&str>, output: &Path, config: &ProjectConfig) -> Result<(), String> {
+    let cc = std::env::var_os("CC");
+    let toolchain = lilscript::native_toolchain::NativeToolchain::resolve(config, cc.as_deref())?;
+    let receipt = toolchain.compile(c, header, output)?;
+    let mut name = output.as_os_str().to_owned();
+    name.push(".native.json");
+    let path = PathBuf::from(name);
+    fs::write(&path, serde_json::to_vec_pretty(&receipt).map_err(|e| e.to_string())?)
+        .map_err(|e| format!("failed to write native receipt {}: {e}", path.display()))
 }
 
 #[cfg(test)]

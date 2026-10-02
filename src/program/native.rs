@@ -113,6 +113,7 @@ pub(super) struct NativeArtifacts {
     pub(super) c: String,
     pub(super) header: String,
     pub(super) ownership_transfers: u32,
+    pub(super) initialization_guards_removed: u32,
 }
 
 /// Unqualified inspection text stays allocation-admitted until this facade
@@ -154,6 +155,7 @@ pub struct BudgetedNativeOutput<'budget, 'ledger> {
     text: String,
     header: String,
     ownership_transfers: u32,
+    initialization_guards_removed: u32,
     budget: &'budget mut AllocationBudget<'ledger>,
 }
 impl<'budget, 'ledger> BudgetedNativeOutput<'budget, 'ledger> {
@@ -165,12 +167,16 @@ impl<'budget, 'ledger> BudgetedNativeOutput<'budget, 'ledger> {
             text: artifacts.c,
             header: artifacts.header,
             ownership_transfers: artifacts.ownership_transfers,
+            initialization_guards_removed: artifacts.initialization_guards_removed,
             budget,
         }
     }
     /// Managed SSA owners transferred without retaining and releasing a copy.
     pub fn ownership_transfers(&self) -> u32 {
         self.ownership_transfers
+    }
+    pub fn initialization_guards_removed(&self) -> u32 {
+        self.initialization_guards_removed
     }
     /// Generated declarations for a separately compiled host translation unit.
     /// Empty when no host bindings were requested. The C artifact is always a
@@ -210,11 +216,21 @@ impl Drop for BudgetedNativeOutput<'_, '_> {
     }
 }
 
+pub(super) fn check(program: &Program<'_>, uses: &UseIndex, hosts: &NativeHostBindings<'_>,
+    budget: &mut AllocationBudget<'_>) -> Result<(), NativeError> {
+    let mut phase = budget.scope();
+    phase.retain(AllocationClass::Scratch, size_of::<NativePlan<'_, '_>>() as u64)?;
+    let plan = NativePlan::build_with_hosts(program, uses, hosts, &mut phase)?;
+    drop(plan);
+    Ok(())
+}
+
 pub(super) fn form(
     program: &Program<'_>,
     uses: &UseIndex,
     hosts: &NativeHostBindings<'_>,
     scalar: bool,
+    dead_code: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<NativeArtifacts, NativeError> {
     let mut phase = budget.scope();
@@ -222,7 +238,9 @@ pub(super) fn form(
         AllocationClass::Scratch,
         size_of::<NativePlan<'_, '_>>() as u64 + size_of::<Emitter<'_, '_, '_, '_, '_>>() as u64,
     )?;
-    let plan = NativePlan::build_with_hosts(program, uses, hosts, &mut phase)?;
+    let mut plan = NativePlan::build_with_hosts(program, uses, hosts, &mut phase)?;
+    if dead_code { plan.elide_initialized_global_guards(uses, &mut phase)?; }
+    let initialization_guards_removed = plan.cells.iter().filter(|cell| cell.global && !cell.global_guard).count() as u32;
     let storage = if scalar {
         super::physical_storage::StorageProofs::build(
             program,
@@ -263,6 +281,7 @@ pub(super) fn form(
         c: text,
         header,
         ownership_transfers,
+        initialization_guards_removed,
     })
 }
 
@@ -443,16 +462,17 @@ impl Emitter<'_, '_, '_, '_, '_> {
             if !cell.global {
                 continue;
             }
+            let ValueStorage::Value(ty) = cell.storage else {
+                unreachable!("native globals are value storage")
+            };
+            self.write(format_args!("static {ty} ls_c{index}{};\n", ty.empty_slot()))?;
+            if !cell.global_guard { continue; }
             if first {
                 self.text("#include <stdlib.h>\nstatic void ls_native_unbound(void) {\nfputs(\"LilScript native module binding used before initialization\\n\", stderr);\nabort();\n}\n")?;
                 first = false;
             }
-            let ValueStorage::Value(ty) = cell.storage else {
-                unreachable!("native globals are value storage")
-            };
             self.write(format_args!(
-                "static {ty} ls_c{index}{};\nstatic bool ls_ready{index};\nstatic {ty} *ls_g{index}(void) {{\nif (!ls_ready{index}) ls_native_unbound();\nreturn &ls_c{index};\n}}\n",
-                ty.empty_slot()
+                "static bool ls_ready{index};\nstatic {ty} *ls_g{index}(void) {{\nif (!ls_ready{index}) ls_native_unbound();\nreturn &ls_c{index};\n}}\n"
             ))?;
         }
         Ok(())
@@ -736,7 +756,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     self.text(");\n")?;
                 } else if matches!(self.plan.cell_storage(*cell), ValueStorage::Value(_)) {
                     self.copy_value(id, Destination::Cell(*cell), args[0])?;
-                    if self.plan.global_cell(*cell) {
+                    if self.plan.cells[cell.index()].global_guard {
                         self.write(format_args!("ls_ready{} = true;\n", cell.index()))?;
                     }
                 }

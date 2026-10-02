@@ -1,0 +1,663 @@
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+warning: unused import: `std::io::Write`
+ --> src/build_tests.rs:3:5
+  |
+3 | use std::io::Write;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Stdio`
+ --> src/build_tests.rs:5:29
+  |
+5 | use std::process::{Command, Stdio};
+  |                             ^^^^^
+
+warning: unused import: `crate::diagnostics::render_service_error`
+ --> src/build_delivery_tests.rs:5:5
+  |
+5 | use crate::diagnostics::render_service_error;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `cycle_entries_admitted`, `lazy_roots_admitted`, and `lazy_roots_from_orders_admitted`
+   --> src/module.rs:156:24
+    |
+156 | pub(crate) use graph::{cycle_entries_admitted, fresh_orders_admitted, lazy_roots_admitted,
+    |                        ^^^^^^^^^^^^^^^^^^^^^^                         ^^^^^^^^^^^^^^^^^^^
+157 |     lazy_roots_from_orders_admitted, static_cycles_admitted};
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DefaultValue`
+   --> src/primitive.rs:723:24
+    |
+723 |     use crate::check::{DefaultValue, FunctionType, Type};
+    |                        ^^^^^^^^^^^^
+
+warning: unused import: `crate::program::publication::*`
+ --> src/program/rewrite_tests.rs:9:5
+  |
+9 | use crate::program::publication::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::program::*`
+  --> src/program/rewrite_tests.rs:10:5
+   |
+10 | use crate::program::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::program::*`
+  --> src/program/search_fairness_tests.rs:10:5
+   |
+10 | use crate::program::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::program::publication::*`
+  --> src/program/function_support_tests.rs:11:5
+   |
+11 | use crate::program::publication::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DefaultValue`
+ --> src/program/string_call_verify_tests.rs:5:20
+  |
+5 | use crate::check::{DefaultValue, FunctionSignature, FunctionType};
+  |                    ^^^^^^^^^^^^
+
+warning: unused import: `EvaluationBehavior`
+ --> src/program/reference_core_tests.rs:4:26
+  |
+4 | use super::facts::{self, EvaluationBehavior};
+  |                          ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DefaultValue`
+ --> src/program/parameter_contract_tests.rs:6:20
+  |
+6 | use crate::check::{DefaultValue, FunctionParameter, FunctionSignature, FunctionType};
+  |                    ^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/check/modules.rs:593:21
+    |
+593 |                 let mut ty = analyzer.resolve_value_type(decl.ty, "module binding")?;
+    |                     ----^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/check/narrowing_input_tests.rs:379:9
+    |
+379 |     let mut config = crate::config::ProjectConfig::default();
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `span`
+    --> src/check.rs:5387:63
+     |
+5387 |                 kind: ExprKind::ArrowFunction { params, body, span },
+     |                                                               ^^^^ help: try ignoring the field: `span: _`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `seed`
+   --> src/check/binding_ownership_tests.rs:191:9
+    |
+191 |     let seed = model
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_seed`
+
+warning: unused variable: `seed`
+   --> src/check/class_ownership_tests.rs:229:9
+    |
+229 |     let seed = model
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_seed`
+
+warning: unused variable: `seed`
+   --> src/check/constructor_ownership_tests.rs:164:9
+    |
+164 |     let seed = model
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_seed`
+
+warning: variable does not need to be mutable
+    --> src/js/tests.rs:1897:9
+     |
+1897 |     let mut sum = |module: &mut Module, right: f64| {
+     |         ----^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/demand.rs:3020:13
+     |
+3020 |         let mut config = crate::config::ProjectConfig::default();
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: unreachable pattern
+    --> src/program/from_source.rs:4424:13
+     |
+4424 |             _ => return self.unsupported(statement.span(), "statement conversion"),
+     |             ^ no value can reach this
+     |
+note: multiple earlier patterns match some of the same values
+    --> src/program/from_source.rs:4424:13
+     |
+4146 | /             Stmt::ArrayDestructure {
+4147 | |                 bindings, value, ..
+4148 | |             } => self.array_destructure(unit, region, bindings, value)?,
+     | |_____________- matches some of the same values
+4149 | /             Stmt::RecordDestructure {
+4150 | |                 bindings,
+4151 | |                 rest,
+4152 | |                 value,
+4153 | |                 span,
+4154 | |                 ..
+4155 | |             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
+     | |_____________- matches some of the same values
+4156 |               Stmt::VarDecl(declaration, ..) => {
+     |               ------------------------------ matches some of the same values
+...
+4193 |               Stmt::Expr(expr, ..) => {
+     |               -------------------- matches some of the same values
+...
+4424 |               _ => return self.unsupported(statement.span(), "statement conversion"),
+     |               ^ ...and 15 other patterns collectively make this unreachable
+     = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `program`
+   --> src/program/javascript_public_structs.rs:714:13
+    |
+714 |         let program = self.program;
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program`
+
+warning: unreachable pattern
+   --> src/program/native_plan.rs:839:13
+    |
+839 |             _ => {
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> src/program/native_plan.rs:839:13
+    |
+664 |             Place::Cell(cell) => PlacePlan {
+    |             ----------------- matches some of the same values
+...
+670 |             Place::Value(value) => PlacePlan {
+    |             ------------------- matches some of the same values
+...
+758 |             Place::Index { receiver, key } => {
+    |             ------------------------------ matches some of the same values
+...
+777 |             Place::Member { .. } => {
+    |             -------------------- matches some of the same values
+...
+839 |             _ => {
+    |             ^ ...and 2 other patterns collectively make this unreachable
+
+warning: variable does not need to be mutable
+  --> src/program/product_demand_tests.rs:68:9
+   |
+68 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/exclusive_publication_tests.rs:215:9
+    |
+215 |     let mut config = crate::config::ProjectConfig::default();
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/exclusive_publication_tests.rs:705:17
+    |
+705 |             let mut config = crate::config::ProjectConfig::default();
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/exclusive_publication_tests.rs:1064:17
+     |
+1064 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/search_terminal_tests.rs:536:17
+    |
+536 |             let mut search = compilation
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/search_independent.rs:22:9
+   |
+22 |         mut observe: impl FnMut(SearchObservation<'_>),
+   |         ----^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_support_tests.rs:63:9
+   |
+63 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/rules/dirty.rs:63:17
+   |
+63 |             let mut run = || {
+   |                 ----^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/value_placement.rs:1063:17
+     |
+1063 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/value_placement.rs:1379:17
+     |
+1379 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/verify.rs:559:17
+    |
+559 |             let mut name_work = 1;
+    |                 ----^^^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/frame_contract_tests.rs:18:9
+   |
+18 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/script_observation_tests.rs:25:9
+   |
+25 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/effects_tests.rs:108:9
+    |
+108 |     let mut config = crate::config::ProjectConfig::default();
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/helper_context_tests.rs:94:9
+   |
+94 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/javascript_reference_tests.rs:280:13
+    |
+280 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/module_helper_tests.rs:115:13
+    |
+115 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/publication_tests.rs:11:9
+   |
+11 |     let mut config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/publication_tests.rs:844:13
+    |
+844 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/publication_tests.rs:983:13
+    |
+983 |         let mut config: crate::config::ProjectConfig =
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/compilation_facts_tests.rs:57:9
+   |
+57 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/record_javascript_tests.rs:29:9
+   |
+29 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/string_demand_tests.rs:40:9
+   |
+40 |     let mut configuration = crate::config::ProjectConfig::default();
+   |         ----^^^^^^^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/formation_budget_tests.rs:30:9
+   |
+30 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/value_place_tests.rs:98:13
+   |
+98 |         let mut config = crate::config::ProjectConfig::default();
+   |             ----^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_publication_tests.rs:35:9
+   |
+35 |     let mut config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_demand_tests.rs:35:9
+   |
+35 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/cell_location_demand_tests.rs:40:9
+   |
+40 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/reference_support_tests.rs:85:9
+   |
+85 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/reference_support_demand_tests.rs:45:9
+   |
+45 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: multiple methods are never used
+    --> src/check.rs:1735:19
+     |
+1641 | impl<'ast, 'src> CheckedModule<'ast, 'src> {
+     | ------------------------------------------ methods in this implementation
+...
+1735 |     pub(crate) fn dynamic_operation(&self, id: SourceNodeId) -> Option<BuiltinCall> {
+     |                   ^^^^^^^^^^^^^^^^^
+...
+1739 |     pub(crate) fn resolved_operator(&self, node: SourceNodeId) -> Option<ResolvedOperator> {
+     |                   ^^^^^^^^^^^^^^^^^
+...
+1767 |     pub(crate) fn type_check_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+     |                   ^^^^^^^^^^^^^^^
+...
+1771 |     pub(crate) fn optional_present_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^
+...
+1839 |     pub(crate) fn base_class(&self, class: NominalId) -> Option<NominalId> {
+     |                   ^^^^^^^^^^
+...
+1862 |     pub(crate) fn dynamic_import_module(&self, node: SourceNodeId) -> Option<u32> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^
+...
+1866 |     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `dynamic_export_used` is never used
+    --> src/check.rs:2186:19
+     |
+1871 | impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
+     | ------------------------------------------------------ method in this implementation
+...
+2186 |     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `expected_array_element` is never used
+     --> src/check.rs:10052:4
+      |
+10052 | fn expected_array_element<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Type<'src>> {
+      |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `crosses_by_conversion` is never used
+     --> src/check.rs:10814:4
+      |
+10814 | fn crosses_by_conversion(ty: &Type<'_>) -> bool {
+      |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `equality_comparable` is never used
+     --> src/check.rs:11014:4
+      |
+11014 | fn equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
+      |    ^^^^^^^^^^^^^^^^^^^
+
+warning: variant `Default` is never constructed
+  --> src/check/type_payload.rs:12:5
+   |
+10 | pub(crate) enum Payload<'a, 'src> {
+   |                 ------- variant in this enum
+11 |     Type(&'a Type<'src>),
+12 |     Default(&'a DefaultValue<'src>),
+   |     ^^^^^^^
+   |
+   = note: `Payload` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mode`, `expected`, and `actual` are never read
+  --> src/check/type_relation.rs:27:9
+   |
+26 |     Visit {
+   |     ----- fields in this variant
+27 |         mode: RelationMode,
+   |         ^^^^
+28 |         expected: &'a Type<'src>,
+   |         ^^^^^^^^
+29 |         actual: &'a Type<'src>,
+   |         ^^^^^^
+   |
+   = note: `RelationEvent` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `single` is never used
+   --> src/host_modules.rs:352:12
+    |
+160 | impl HostDelivery {
+    | ----------------- method in this implementation
+...
+352 |     pub fn single(&self, strict: bool) -> Option<String> {
+    |            ^^^^^^
+
+warning: method `insert_statement` is never used
+    --> src/js/mod.rs:1291:19
+     |
+1200 | impl Module {
+     | ----------- method in this implementation
+...
+1291 |     pub(crate) fn insert_statement(
+     |                   ^^^^^^^^^^^^^^^^
+
+warning: method `extend` is never used
+   --> src/parser_admission.rs:418:19
+    |
+376 | impl<'arena, 'admission, T> ArenaVec<'arena, 'admission, T> {
+    | ----------------------------------------------------------- method in this implementation
+...
+418 |     pub(super) fn extend(
+    |                   ^^^^^^
+
+warning: field `identity` is never read
+   --> src/program/aggregates.rs:109:9
+    |
+105 | pub(super) struct AllocationFacts {
+    |                   --------------- field in this struct
+...
+109 |     pub identity: AllocationId,
+    |         ^^^^^^^^
+    |
+    = note: `AllocationFacts` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `name` is never read
+   --> src/program/from_source.rs:894:5
+    |
+890 | struct ClassMethod<'src> {
+    |        ----------- field in this struct
+...
+894 |     name: Option<&'src str>,
+    |     ^^^^
+    |
+    = note: `ClassMethod` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: associated items `structural` and `schedule` are never used
+   --> src/program/initialization.rs:364:19
+    |
+361 | impl ProgramInitialization {
+    | -------------------------- associated items in this implementation
+...
+364 |     pub(super) fn structural(program: &Program<'_>, graph: &CallGraph) -> Self {
+    |                   ^^^^^^^^^^
+...
+543 |     pub(super) fn schedule(
+    |                   ^^^^^^^^
+
+warning: function `share_program` is never used
+    --> src/program/publication.rs:3595:4
+     |
+3595 | fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
+     |    ^^^^^^^^^^^^^
+
+warning: methods `reserve` and `release` are never used
+    --> src/program/publication.rs:3693:8
+     |
+3685 | impl<'a> Workspace<'a> {
+     | ---------------------- methods in this implementation
+...
+3693 |     fn reserve(&mut self, bytes: u64) -> Result<(), PublicationError> {
+     |        ^^^^^^^
+...
+3702 |     fn release(&mut self, bytes: u64) -> Result<(), PublicationError> {
+     |        ^^^^^^^
+
+warning: field `bytes` is never read
+    --> src/program/publication.rs:3720:5
+     |
+3719 | struct PatchPlan {
+     |        --------- field in this struct
+3720 |     bytes: u64,
+     |     ^^^^^
+
+warning: field `0` is never read
+  --> src/program/rules/const_data.rs:52:14
+   |
+52 |     Function(UnitId),
+   |     -------- ^^^^^^
+   |     |
+   |     field in this variant
+   |
+   = note: `Data` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+52 -     Function(UnitId),
+52 +     Function(()),
+   |
+
+warning: method `invalidate` is never used
+   --> src/program/views.rs:160:19
+    |
+152 | impl ProgramViews {
+    | ----------------- method in this implementation
+...
+160 |     pub(super) fn invalidate(&mut self) {
+    |                   ^^^^^^^^^^
+
+warning: `lilscript` (lib test) generated 71 warnings (run `cargo fix --lib -p lilscript --tests` to apply 51 suggestions)
+    Finished `release-assert` profile [optimized] target(s) in 2m 15s
+     Running unittests src/lib.rs (target/release-assert/deps/lilscript-b8a6c46bbf246628)
+
+running 12 tests
+test build::tests::bounded_loop_folding_obeys_configuration_for_javascript_and_native ... ok
+test build::tests::n1_native_check_and_compile_share_source_qualified_representation_refusals ... ok
+test build::tests::n1_native_check_retains_no_output_and_releases_its_borrowed_source_index ... ok
+test build::tests::n1_native_global_guards_consume_shared_initialization_and_keep_reentry_hazards ... FAILED
+test build::tests::native_and_all_share_checked_meaning_without_native_codec_work ... ok
+test build::tests::s4_host_catalog_native_provider_configuration_delivers_a_matching_header ... ok
+test build::tests::s4_native_capabilities_are_reported_before_lowering_with_source_spans ... ok
+test native_toolchain::tests::n1_native_config_is_closed_validated_and_separate_from_js_objectives ... ok
+test native_toolchain::tests::n1_native_failure_drains_pipes_keeps_previous_outputs_and_prefers_config ... ok
+test native_toolchain::tests::n1_native_toolchain_executes_all_objectives_and_identifies_actual_files ... ok
+test program::physical_storage_tests::s2_native_final_use_transfer_preserves_loops_and_live_aliases ... ok
+test program::physical_storage_tests::s2_native_shared_banks_preserve_captures_and_class_aliases ... ok
+
+failures:
+
+---- build::tests::n1_native_global_guards_consume_shared_initialization_and_keep_reentry_hazards stdout ----
+
+thread 'build::tests::n1_native_global_guards_consume_shared_initialization_and_keep_reentry_hazards' (1804355) panicked at src/build_tests.rs:4826:60:
+called `Result::unwrap()` on an `Err` value: ServiceError { phase: "check", message: "<source>: cannot read `later` before its declaration", diagnostic: Some(ModuleError { path: "<source>", source: "extern void install(func()->int f);int read(){return later;}install(read);int later=9;print(read());", span: Span { start: 53, end: 58 }, message: "cannot read `later` before its declaration" }), resource: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    build::tests::n1_native_global_guards_consume_shared_initialization_and_keep_reentry_hazards
+
+test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 2132 filtered out; finished in 4.53s
+
+error: test failed, to rerun pass `--lib`

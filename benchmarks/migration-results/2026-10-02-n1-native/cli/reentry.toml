@@ -1,0 +1,6 @@
+effort.level=0
+[policy.tactics]
+dead-code-elimination='on'
+inlining='off'
+[host.native]
+install='host_install'

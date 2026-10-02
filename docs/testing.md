@@ -95,7 +95,7 @@ The mask is declared once, in `FEATURES` in `scripts/cases.mjs`. Detection is le
 | `.module-probe.mjs` | module | imports the ES module's exports | — |
 | `JsValue` | script, module | JavaScript-only (language-v0.1) | — |
 | `import extern` | module | a foreign ES module edge needs module syntax; a classic script carries only embedded host modules, which cannot have default exports. The case's folder `X/` is linked beside the artifact, so the output's imports resolve | — |
-| `extern` | script, module | C rejects host declarations | M11.3 |
+| `extern` | script, module | this fixture needs a C provider/host-equivalent boundary; configured native function providers are supported | N2 (M11.3 qualification) |
 | `export` in the entry | script, module | the exports are a module ABI; C has none yet | M11.8 |
 | `JS.` operations | script, module | JavaScript-only | — |
 | `async`, `await`, `Task` | script, module | native rejects them (language-v0.1) | M11.6 |
@@ -105,7 +105,19 @@ The mask is declared once, in `FEATURES` in `scripts/cases.mjs`. Detection is le
 | `object { … }` | script, module | JavaScript-only | — |
 | `JSON.parse` | script, module | returns `JsValue` | — |
 
-The first five rows are the base rule: a case with a `.host.js`, a `.module-probe.mjs`, or source mentioning `JsValue`, `extern` or `export` is JavaScript-only. The other rows are the native rejections that [language-v0.1.md](language-v0.1.md) states. A compiler gap is never a mask: native `Record<T>` is missing, so it is a ledgered failure owned by M11.4.
+These are corpus harness exclusions, not a claim that every excluded source is
+JavaScript-only. The [native matrix](native-support.md) distinguishes native
+implementation gaps, provider/ABI boundaries and declared JavaScript-only
+facilities. N2 owns the portable omissions and their unmasking. Native records
+remain a visible ledgered failure, not a newly masked success. N1's
+[inventory](../benchmarks/migration-results/2026-10-02-n1-native/masked-cases.json)
+classifies all 260 currently masked cases, including overlapping reasons.
+
+Ordinary C lanes link through `lilscript --target native --link-c` and retain its
+native toolchain receipt. Their default native objective is `balanced` (`-O2`);
+a case can select a different native objective and the runner pins its `--cc`
+selection in TOML. Cases explicitly marked `harness: cc default flags` remain
+independent numeric source-guard oracles and use the C compiler directly.
 
 ### Artifacts and comparison
 

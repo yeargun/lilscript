@@ -1,0 +1,7 @@
+effort.level=0
+[objective]
+codecs=['raw','gzip','brotli']
+[delivery]
+entry_names='main.mjs'
+[target.native]
+objective='size'

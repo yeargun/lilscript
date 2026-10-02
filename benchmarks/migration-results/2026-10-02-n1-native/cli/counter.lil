@@ -1,0 +1,1 @@
+int counter=1;int next(){counter+=1;return counter;}print(next());print(next());

@@ -7,13 +7,13 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is complete** under its [acceptance contract](q3-acceptance.md). **Q4 is complete** under its [acceptance contract](q4-acceptance.md). **D1 is complete** under its [acceptance contract](d1-acceptance.md). **D2 is complete** under its [acceptance contract](d2-acceptance.md). **D3 is complete** under its [acceptance contract](d3-acceptance.md). **N1 is the sole active milestone**.
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is complete** under its [acceptance contract](q3-acceptance.md). **Q4 is complete** under its [acceptance contract](q4-acceptance.md). **D1 is complete** under its [acceptance contract](d1-acceptance.md). **D2 is complete** under its [acceptance contract](d2-acceptance.md). **D3 is complete** under its [acceptance contract](d3-acceptance.md). **N1 is complete** under its [acceptance contract](n1-acceptance.md). **N2 is the sole active milestone**.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Complete **N1**: optimized shared native input, the toolchain owner and source-qualified
-capabilities. Then follow **N2 → V1 → V2**.
+Complete **N2**: remaining native language/runtime/ABI support and performance
+qualification. Then follow **V1 → V2**.
 
 Q2's safe reuse boundaries and D3's shared graph/session integration are qualified.
 D3 implements bounded, conservatively invalidated per-module elaboration reuse. Arbitrary
@@ -54,7 +54,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [D3](plan.md#d3) Integration | Shared configured graph/editor/reuse, independent multi-format output and source-owned compiler-written port delivery complete |
 | [ ] | [V1](plan.md#v1) Qualification | Maintained/held-out size and runtime gaps, independently per objective |
 | [ ] | [V2](plan.md#v2) Release | Reproducible packages, sites and current receipts |
-| [~] | [N1](plan.md#n1) Native integration | Optimized shared program, toolchain owner and capabilities |
+| [x] | [N1](plan.md#n1) Native integration | Shared optimized input, initialization proofs, toolchain/configuration owner and source-qualified capabilities complete |
 | [ ] | [N2](plan.md#n2) Native completion | Remaining language/runtime/ABI coverage and performance qualification |
 
 ## Working rules

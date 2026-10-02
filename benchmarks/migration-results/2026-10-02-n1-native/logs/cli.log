@@ -1,0 +1,1 @@
+{"passed":7,"compiler":{"path":"/home/azureuser/lilscript-work/bin/n1-native-1/lilscript","sha256":"e899c1009629697f51f3eb7be956ae3fb9fcd064090cd61547ac2bb10dd57595"},"c_bytes":[{"name":"global-guards-off","c_bytes":4647,"removed":0},{"name":"global-guards-on","c_bytes":4359,"removed":1}]}

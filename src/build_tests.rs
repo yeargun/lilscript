@@ -1,8 +1,7 @@
 use super::*;
 use crate::compilation_policy::{PolicyConfig, TacticId, TacticPermission};
-use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[test]
@@ -796,31 +795,11 @@ impl Drop for Scratch {
 fn execute_native(c: &str) -> String {
     let scratch = Scratch::new();
     let executable = scratch.0.join("program");
-    let cc = std::env::var_os("LILSCRIPT_NATIVE_CC").unwrap_or_else(|| "cc".into());
-    let mut child = Command::new(cc)
-        .args([
-            "-x",
-            "c",
-            "-std=c11",
-            "-O1",
-            "-fno-fast-math",
-            "-ffp-contract=off",
-            "-o",
-        ])
-        .arg(&executable)
-        .args(["-", "-lm"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child.stdin.take().unwrap().write_all(c.as_bytes()).unwrap();
-    let status = child.wait_with_output().unwrap();
-    assert!(
-        status.status.success(),
-        "{}",
-        String::from_utf8_lossy(&status.stderr)
-    );
+    let mut config = ProjectConfig::default();
+    config.target.native.objective = crate::config::NativeObjective::Balanced;
+    config.target.native.compiler = std::env::var_os("LILSCRIPT_NATIVE_CC").map(PathBuf::from);
+    crate::native_toolchain::NativeToolchain::resolve(&config, None).unwrap()
+        .compile(c, None, &executable).unwrap();
     let output = Command::new(&executable).output().unwrap();
     assert!(output.status.success());
     String::from_utf8(output.stdout).unwrap()
@@ -4780,3 +4759,72 @@ fn s4_choose_prevents_sharing_helpers_with_incompatible_pins() {
 
 #[path = "build_container_tests.rs"]
 mod delivery_formats;
+
+#[test]
+fn n1_native_check_and_compile_share_source_qualified_representation_refusals() {
+    let options = ServiceOptions { target: ServiceTarget::Native, preserve_root_exports: false, ..ServiceOptions::default() };
+    let settings: ProjectConfig = toml::from_str("effort.level=0\n[target.native]\ncompiler='/no/compiler/is/needed/to/check'").unwrap();
+    check_source_for_target("print(42);", &settings, options).unwrap();
+    for source in [
+        "struct Box { int[] values; }\nBox b=Box{[1,2]};print(b.values[0]);",
+        "struct Point { int x; }\nPoint? point=null;print(point==null);",
+        "int x=1;\ntry{print(x);}finally{print(2);}",
+        "export int answer(){return 42;}",
+        "extern class Error{string message;init(string message);}class Problem extends Error{init(string message){super(message);}}Problem p=new Problem(\"oops\");print(p.message);",
+    ] {
+        let checked = check_source_for_target(source, &settings, options).unwrap_err();
+        let compiled = compile_source(source, &settings, options).unwrap_err();
+        assert!(matches!(checked.phase, "check" | "native capability"), "{checked:?}");
+        assert_eq!(checked.message, compiled.message, "{source}");
+        let diagnostic = checked.diagnostic.expect("native refusal retains original source");
+        assert_eq!(diagnostic.source, source);
+        assert!(diagnostic.span.end > diagnostic.span.start, "{diagnostic:?}");
+        assert!(diagnostic.span.end <= source.len());
+    }
+    let scratch = Scratch::new();
+    let entry = scratch.0.join("main.lil"); let dependency = scratch.0.join("value.lil");
+    std::fs::write(&entry, "import {run} from \"./value.lil\";run();").unwrap();
+    let source = "struct Box { int[] values; }\nexport void run(){Box value=Box{[2,3]};print(value.values[0]);}";
+    std::fs::write(&dependency, source).unwrap();
+    let error = check_entries_for_target(&[EntrySource::of(&entry)], &settings, options).unwrap_err();
+    let diagnostic = error.diagnostic.unwrap();
+    assert_eq!(diagnostic.path, dependency.canonicalize().unwrap(), "{diagnostic:?}");
+    assert_eq!(diagnostic.source, source);
+    assert!(diagnostic.span.end > diagnostic.span.start);
+}
+
+#[test]
+fn n1_native_check_retains_no_output_and_releases_its_borrowed_source_index() {
+    let options = ServiceOptions { target: ServiceTarget::Native, preserve_root_exports: false, ..ServiceOptions::default() };
+    let ((), finished) = with_checked_source("int twice(int x){return x*2;}print(twice(21));", &config(""), options, |session| {
+        let before = session.compilation().ledger().retained_bytes();
+        session.check_native(session.source()).unwrap();
+        assert_eq!(session.compilation().ledger().retained_bytes(), before);
+    }).unwrap();
+    assert!(finished.report["native_sha256"].is_null());
+    assert_eq!(finished.report["resources"]["optional_work"], 0);
+    assert_eq!(finished.ledger.retained_bytes(), 0);
+    assert_eq!(finished.report["resources"]["codec_work"], 0);
+    assert!(finished.report["phases_ns"]["rules"]["folded_calls"].as_u64().unwrap() > 0);
+}
+
+#[test]
+fn n1_native_global_guards_consume_shared_initialization_and_keep_reentry_hazards() {
+    let options = ServiceOptions { target: ServiceTarget::Native, preserve_root_exports: false, ..ServiceOptions::default() };
+    // A mutable global cannot be folded away; each call follows its initializer.
+    let source = "int counter=1;int next(){counter+=1;return counter;}print(next());print(next());";
+    for enabled in [false, true] {
+        let settings: ProjectConfig = toml::from_str(&format!("effort.level=0\n[policy.tactics]\ndead-code-elimination='{}'\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'", if enabled {"on"} else {"off"})).unwrap();
+        let built = compile_source(source, &settings, options).unwrap();
+        assert_eq!(execute_native(built.native_c().unwrap()), "2\n3\n");
+        assert_eq!(built.report()["native_delivery"]["initialization_guards_removed"].as_u64().unwrap() > 0, enabled);
+        assert_eq!(built.native_c().unwrap().contains("ls_native_unbound"), !enabled);
+    }
+    // A provider may call this callback immediately. Its foreign body is not
+    // assumed to defer reentry until the later module initializer completes.
+    let source = "extern int install(func()->int f);int later=install(read);int read(){return later;}print(read());";
+    let settings: ProjectConfig = toml::from_str("effort.level=0\n[policy.tactics]\ndead-code-elimination='on'\ninlining='off'\n[host.native]\ninstall='host_install'").unwrap();
+    let built = compile_source(source, &settings, options).unwrap();
+    assert!(built.native_c().unwrap().contains("ls_native_unbound"));
+    assert_eq!(built.report()["native_delivery"]["initialization_guards_removed"], 0);
+}

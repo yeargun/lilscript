@@ -31,6 +31,8 @@ pub mod lexer;
 pub mod lint;
 pub mod literal;
 pub mod module;
+pub mod native_toolchain;
+pub mod native_capabilities;
 #[cfg(test)]
 mod no_library_knowledge_tests;
 mod output_budget;
@@ -50,6 +52,7 @@ pub mod typed_array;
 
 pub use build::{
     build_inputs, check_path, check_source, compile_entries, compile_path, compile_source,
+    check_source_for_target, check_entries_for_target,
     configured_entries, with_checked_graph,
     GraphSession, GraphSessionStats,
     with_checked_entries, with_checked_path, with_checked_program, with_checked_source,

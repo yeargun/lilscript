@@ -1,0 +1,4 @@
+cases: ReferenceError: CC_FLAGS is not defined
+    at runCases (file:///home/azureuser/lilscript/scripts/cases.mjs:580:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async main (file:///home/azureuser/lilscript/scripts/cases.mjs:790:18)

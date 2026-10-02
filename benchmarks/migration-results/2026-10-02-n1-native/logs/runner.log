@@ -1,0 +1,110 @@
+TAP version 13
+# Subtest: feature detection ignores comments and string text but not template expressions
+ok 1 - feature detection ignores comments and string text but not template expressions # SKIP test name does not match pattern
+  ---
+  duration_ms: 2.052125
+  ...
+# Subtest: lane selection unions items and intersects components
+ok 2 - lane selection unions items and intersects components # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.21332
+  ...
+# Subtest: a case configuration merges into the lane's tables, one [javascript] table
+ok 3 - a case configuration merges into the lane's tables, one [javascript] table
+  ---
+  duration_ms: 1.864785
+  ...
+# Subtest: production lanes carry no tactic table
+ok 4 - production lanes carry no tactic table
+  ---
+  duration_ms: 0.456416
+  ...
+# Subtest: objective rewriting replaces codecs or a port's cost_model, and inserts or appends codecs
+ok 5 - objective rewriting replaces codecs or a port's cost_model, and inserts or appends codecs # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.16524
+  ...
+# Subtest: failing-test names from node:test, jest and TAP
+ok 6 - failing-test names from node:test, jest and TAP # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.169508
+  ...
+# Subtest: the port ledger: regressions, removals, and intermittent entries
+ok 7 - the port ledger: regressions, removals, and intermittent entries # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.142136
+  ...
+# Subtest: a suite that ran no test reports no ledgered test as passing
+ok 8 - a suite that ran no test reports no ledgered test as passing # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.289182
+  ...
+# Subtest: ratchet: an item loses to a bar only when strictly larger, per metric
+ok 9 - ratchet: an item loses to a bar only when strictly larger, per metric # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.364744
+  ...
+# Subtest: ratchet: growth, a new loss and a broken lane block; shrinking is an improvement
+ok 10 - ratchet: growth, a new loss and a broken lane block; shrinking is an improvement # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.304461
+  ...
+# Subtest: ratchet: a default-container change cannot rewrite the old delivery baseline
+ok 11 - ratchet: a default-container change cannot rewrite the old delivery baseline # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.243476
+  ...
+# Subtest: ratchet: retained configuration identities detect changed and removed lane files
+ok 12 - ratchet: retained configuration identities detect changed and removed lane files # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.188323
+  ...
+# Subtest: ratchet: experimental configurations cannot overwrite the ordinary baseline through an alias
+ok 13 - ratchet: experimental configurations cannot overwrite the ordinary baseline through an alias # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.181029
+  ...
+# Subtest: ratchet: a named objective lane must resolve to that actual compiler objective
+ok 14 - ratchet: a named objective lane must resolve to that actual compiler objective # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.365945
+  ...
+# Subtest: ratchet: the ledger needs owners and reasons, covers by glob, bar and metric, and reports stale entries
+ok 15 - ratchet: the ledger needs owners and reasons, covers by glob, bar and metric, and reports stale entries # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.203221
+  ...
+# Subtest: ratchet: catalog ids carry the behavior family; filters take substrings and globs
+ok 16 - ratchet: catalog ids carry the behavior family; filters take substrings and globs # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.397966
+  ...
+# Subtest: the idiom debt ledger validates, and a malformed entry is refused (NO4)
+ok 17 - the idiom debt ledger validates, and a malformed entry is refused (NO4) # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.261049
+  ...
+# Subtest: ratchet: a lane that starts compiling may lose without growth; its losses still need the ledger
+ok 18 - ratchet: a lane that starts compiling may lose without growth; its losses still need the ledger # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.362529
+  ...
+# Subtest: the case runner reads a build's walk counts and stops from its explain report
+ok 19 - the case runner reads a build's walk counts and stops from its explain report # SKIP test name does not match pattern
+  ---
+  duration_ms: 0.235711
+  ...
+# Subtest: ratchet: explicit corpus growth retains separate full-population objective totals
+ok 20 - ratchet: explicit corpus growth retains separate full-population objective totals # SKIP test name does not match pattern
+  ---
+  duration_ms: 3.074311
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 18
+# todo 0
+# duration_ms 300.371013

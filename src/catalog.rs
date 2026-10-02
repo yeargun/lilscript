@@ -566,15 +566,15 @@ pub(crate) fn native_type_capability(ty: &crate::check::Type<'_>) -> Option<&'st
     use crate::check::Type;
     match ty {
         Type::Dynamic | Type::Unknown => Some("JsValue and unknown require a JavaScript target"),
-        Type::Record(_) => Some("native records are not implemented yet"),
-        Type::Regex => Some("native regular expressions are not implemented yet"),
-        Type::Task(_) => Some("native tasks and async functions are not implemented yet"),
-        Type::Generator(_) => Some("native generators are not implemented yet"),
+        Type::Record(_) => Some(crate::native_capabilities::RECORDS),
+        Type::Regex => Some(crate::native_capabilities::REGEX),
+        Type::Task(_) => Some(crate::native_capabilities::ASYNC),
+        Type::Generator(_) => Some(crate::native_capabilities::GENERATORS),
         Type::ModuleNamespace(_) | Type::ModuleLoadError => {
             Some("dynamic module loading requires a JavaScript target")
         }
         Type::StructInstance { .. } => {
-            Some("native instantiated value structs are not implemented yet")
+            Some(crate::native_capabilities::GENERIC_STRUCTS)
         }
         _ => None,
     }

@@ -1,0 +1,9 @@
+compiler /home/azureuser/lilscript-work/bin/n1-native-1/lilscript sha256 e899c1009629697f (lilscript 0.1.0)
+4 cases x 2 lanes; ledger tests/cases/expected-failures.json (8 entries)
+
+lane                   pass  fail  ledgered  masked  artifact bytes  objective total
+formation-only/raw/c      4     0         0       0           66035                -
+production/raw/c          4     0         0       0           60962                -
+
+OK: no failure outside the ledger
+report: /tmp/lilscript-n1-cases.json

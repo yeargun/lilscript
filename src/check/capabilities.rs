@@ -82,6 +82,9 @@ pub(crate) fn native(
         if definition.module != module {
             continue;
         }
+        if let Some(base) = &definition.base {
+            check_type(view, base, definition.span, budget)?;
+        }
         if definition.shape {
             return Err(AdmittedCheckError::new(definition.span, "native shape storage is not implemented yet (N2)"));
         }
@@ -118,9 +121,9 @@ pub(crate) fn native(
         }
         let unsupported = match statement {
             Stmt::Try { span, .. } | Stmt::Throw { span, .. } => {
-                Some((*span, "native exceptions are not implemented yet"))
+                Some((*span, crate::native_capabilities::EXCEPTIONS))
             }
-            Stmt::Yield { span, .. } => Some((*span, "native generators are not implemented yet")),
+            Stmt::Yield { span, .. } => Some((*span, crate::native_capabilities::GENERATORS)),
             _ => None,
         };
         if let Some((span, message)) = unsupported {

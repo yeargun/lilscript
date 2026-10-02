@@ -1,0 +1,26 @@
+{
+  "base": "dbcb72f6",
+  "pins": [
+    {
+      "pin": 1,
+      "path": "/home/azureuser/lilscript-work/bin/n1-native-1/lilscript",
+      "sha256": "e899c1009629697f51f3eb7be956ae3fb9fcd064090cd61547ac2bb10dd57595",
+      "algorithm": 73,
+      "scope": "Focused C-runner gate; before export and host-base source diagnostic fixes"
+    },
+    {
+      "pin": 2,
+      "path": "/home/azureuser/lilscript-work/bin/n1-native-2/lilscript",
+      "sha256": "9f0d143226982a18e1e82806aaf8f20e1e10bc17ee61da5dbce925efed5dec6c",
+      "algorithm": 73,
+      "scope": "Export-span fix; intermediate census found missing host-base check"
+    },
+    {
+      "pin": 3,
+      "path": "/home/azureuser/lilscript-work/bin/n1-native-3/lilscript",
+      "sha256": "18901b8129376a50bdd9ef7cec042f3afc821dcb604e542329744e4d81acdb72",
+      "algorithm": 73,
+      "scope": "Final N1 source, census and CLI qualification"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+effort.level=0
+[policy.tactics]
+dead-code-elimination='off'
+inlining='off'
+constant-folding='off'
+scalar-replacement='off'
+[target.native]
+objective='balanced'

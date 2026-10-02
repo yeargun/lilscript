@@ -1811,3 +1811,28 @@ Generated release artifacts, current site reports and broad compatibility
 requalification remain V1/V2. Site receipts move from the old D3 mapping to V2
 because they consume qualified releases, not merely the installed build adapter.
 D3 is complete under [its contract](d3-acceptance.md); N1 follows.
+
+## 2026-10-02: N1 native integration completion
+
+Algorithm73 makes target-aware native checking share compilation admission and
+original-module diagnostics. Native consumes common effects/initialization
+facts to remove proved global guards. One library toolchain owner handles TOML
+controls, compiler/flags/providers, exact header staging, robust subprocess
+errors and input/output receipts. CLI, ordinary C-case and Rust execution share
+it; independent compiler/numeric oracles retain their declared profiles. The
+actual multi-objective `all --out-dir` CLI now reaches its existing build path.
+
+[Evidence](../../benchmarks/migration-results/2026-10-02-n1-native/README.md)
+retains 14 distinct focused Rust checks, seven public CLI cases, eight C-runner
+cells and all 403 native target checks. The census admits 134 and refuses 269;
+all native source refusals have locations, while four obsolete positional-ABI
+TOML cases remain V1. Existing harness masks total 260; admission and masks are
+not execution claims. The guard fixture shrinks emitted C by 288 bytes with
+unchanged output, with no executable-size or speed claim. Initial diagnostic,
+fixture and harness failures and exact pins are retained. No broad suite rerun.
+
+The capability/ABI matrix distinguishes portable omissions from JavaScript-only
+facilities. N2 retains exception status, native specialization, RC strings,
+cycles, the remaining language/ABI runtime and performance requirements; none
+is counted as implemented by N1. N1 is complete under
+[its acceptance contract](n1-acceptance.md); N2 follows.

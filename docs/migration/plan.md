@@ -247,6 +247,15 @@ V1 runs throughout S/G/Q/D and is the final JavaScript qualification milestone. 
 
 Native remains an owned commitment. Its completion does not gate JavaScript naming or compression work. Shared semantic changes cover both supported targets as they land; native-complete and JavaScript-qualified are separate statuses until both are achieved.
 
+N1's capability matrix makes portable omissions explicit; N2 must close them
+before the native-complete declaration. The legacy M11.11 coverage inventory
+therefore spans both milestones. Likewise M11.5's shared-input, initialization,
+scalar-storage and ownership-transfer integration is N1; omission of exception
+status checks depends on N2's exception protocol, and native generic/borrowed
+closure specialization depends on the runtime/ABI and native performance
+qualification in N2. These requirements remain open under N2 rather than being
+treated as already implemented by the JavaScript specialization producer.
+
 ## 8. Working order
 
 Complete milestones in this dependency order:

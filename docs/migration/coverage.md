@@ -30,7 +30,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M4.2 | [S4](plan.md#s4) | Implemented: type-parameter identity and canonical checked types |
 | M4.3 | [S4](plan.md#s4) | Implemented: defaults evaluated in the selected declaration's scope |
 | M4.4 | [S4](plan.md#s4) | Implemented: statement ids, binder identity and canonical checked types |
-| M4.5 | [S4](plan.md#s4), complete; [N1](plan.md#n1) | Supported source/host/public-ABI checks retain module spans before search; N1 owns native capability completion |
+| M4.5 | [S4](plan.md#s4), complete; [N1](plan.md#n1), complete | Source/host/public-ABI and native target checks retain original module spans; edited programs retain backend validation |
 | M4.6 | [S4](plan.md#s4), complete | One operation catalog, host/provider identities and shared effect transfer; `Object.hasOwn` and detached-method audit resolved |
 | M5.1 | [Q2](plan.md#q2), implemented | Rooted target `UseIndex` closes chains/cycles; the private repeated pruning walk is deleted |
 | M5.2 | [S4](plan.md#s4), complete | Shared physical binding/operation facts, regenerated after edits; duplicate target derivations removed |
@@ -86,16 +86,16 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.18 | [S4](plan.md#s4), complete under current contract | Value updates and `with` implemented; `ref` remains supported until a separate Y2 amendment |
 | M10.10 | [S4](plan.md#s4) | Implemented: internal constructor visibility, root ABI publication, canonical first-class/dynamic observations and zero-use singleton retirement (R16); delivery production remains D1–D3 |
 | M10.17 | [S4](plan.md#s4) | Host catalog, configurable JS/native providers, generic extern schemas and closed private erased product/container/callback transport implemented; supported public codecs and diagnostics complete; wider ABI proposals remain [explicit](s4-public-abi.md) |
-| M11.1 | [N1](plan.md#n1) | Toolchain owner |
+| M11.1 | [N1](plan.md#n1), complete | One library toolchain owner, TOML controls, strict flags, provider/header staging and input/output receipts |
 | M11.3 | [N2](plan.md#n2) | Externs per target |
 | M11.4 | [N2](plan.md#n2) | Portable records |
-| M11.5 | [N1](plan.md#n1) | Native from the optimized program |
+| M11.5 | [N1](plan.md#n1), complete; [N2](plan.md#n2) | N1: optimized shared input, initialization guards, scalar storage and final-use transfers. N2: exception-status omission, ABI-dependent generic specialization/borrowed closures and performance qualification |
 | M11.6 | [N2](plan.md#n2) | Exceptions, suspension, regex, strings |
 | M11.7 | [N2](plan.md#n2) | Runtime and symbols |
 | M11.8 | [N2](plan.md#n2) | Native objective and the library ABI |
 | M11.9 | [N2](plan.md#n2) | Profiles |
 | M11.10 | [N2](plan.md#n2) | Host API |
-| M11.11 | [N1](plan.md#n1) | Native-complete definition, after M4.5 |
+| M11.11 | [N1](plan.md#n1), complete; [N2](plan.md#n2) | N1: target checks, source diagnostics and explicit matrix/corpus inventory. N2: close portable omissions before claiming native-complete |
 | M11.12 | [N2](plan.md#n2) | Cycles |
 | M12.1 | [D3](plan.md#d3), complete | Source-owned port revisions and controls; compiler patch layer archived; assumptions documented beside their controls |
 | M12.2 | [D3](plan.md#d3), complete | Compiler-written package formats and exact-byte installers; upstream comparison tools remain independent oracles |
@@ -187,3 +187,12 @@ Q2 decision-lock qualification also encountered a pre-existing parse refusal in
 integration fixture during the deferred broad qualification. The new focused
 reconstruction control covers records, helpers, strings, products and call
 layouts without depending on that obsolete syntax; no full-suite claim follows.
+
+N1's target-checking census covers 403 cases, including 260 with existing native
+harness masks. Four older constructor cases still request the retired
+`javascript.public_aggregate_abi="positional"` setting. **V1** owns replacing
+those historical fixture controls and expectations with the supported named
+public ABI while preserving their independent setter/default observations.
+The [N1 inventory](../../benchmarks/migration-results/2026-10-02-n1-native/capability-census.json)
+records each refusal and the separate masks; neither masks nor admission are
+runtime qualification. N2 owns the portable implementation gaps.

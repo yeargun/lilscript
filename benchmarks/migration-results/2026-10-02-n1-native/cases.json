@@ -1,0 +1,372 @@
+{
+ "schema": 1,
+ "kind": "lilscript-case-runner",
+ "started": "2026-10-02T02:45:30.715Z",
+ "completed": "2026-10-02T02:45:31.743Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "dbcb72f6dbeb46ed3a27c4d5f5f7544bb57a28bb",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/n1-native-1/lilscript",
+  "path": "/tmp/lilscript-n1-cases/bin/lilscript-e899c1009629697f",
+  "sha256": "e899c1009629697f51f3eb7be956ae3fb9fcd064090cd61547ac2bb10dd57595",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": null,
+ "node": {
+  "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+  "version": "v20.19.0"
+ },
+ "cc": {
+  "path": "/usr/bin/cc",
+  "flagsOwner": "compiler NativeToolchain; per-artifact nativeToolchainReceipt",
+  "defaultFlags": [
+   "-O2"
+  ],
+  "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+ },
+ "scrubbedEnvironment": [],
+ "tactics": {
+  "source": "--print-policy",
+  "ids": [
+   "dead-code-elimination",
+   "constant-folding",
+   "inlining",
+   "loop-unrolling",
+   "scalar-replacement",
+   "call-specialization",
+   "helper-sharing",
+   "target-compaction",
+   "statement-spellings",
+   "declaration-order",
+   "receiver-aliases",
+   "identifier-mangling",
+   "property-mangling",
+   "string-pooling",
+   "string-array-packing",
+   "startup-reconstruction",
+   "recurring-reconstruction",
+   "naming-search",
+   "naming-compaction",
+   "representation-joints",
+   "naming-alphabet"
+  ]
+ },
+ "ledger": {
+  "path": "tests/cases/expected-failures.json",
+  "sha256": "c50963edf6d726fce305fd39ffa7ce1b6e297dba30312e2d7535b9f0a9c260f0",
+  "entries": 8
+ },
+ "masks": [
+  {
+   "id": "host-prelude",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "a .host.js prelude defines externs in a JavaScript realm",
+   "lifts": null
+  },
+  {
+   "id": "module-probe",
+   "targets": [
+    "module",
+    "cjs"
+   ],
+   "why": "a .module-probe.mjs reads the library export surface",
+   "lifts": null
+  },
+  {
+   "id": "JsValue",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: JsValue is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "import extern",
+   "targets": [
+    "module"
+   ],
+   "why": "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports",
+   "lifts": null
+  },
+  {
+   "id": "extern",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "this corpus fixture needs a C provider/host-equivalent boundary; configured native function providers are supported",
+   "lifts": "N2 (M11.3 provider-backed corpus qualification)"
+  },
+  {
+   "id": "export",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "the entry's exports are a module ABI; C has none yet",
+   "lifts": "M11.8 (a C library ABI)"
+  },
+  {
+   "id": "JS namespace",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: C rejects the JS.* operations",
+   "lifts": null
+  },
+  {
+   "id": "async",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects async functions and tasks",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "exceptions",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects exceptions",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "Regex",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects Regex",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "generator",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects generators",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "object literal",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: object {} is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "JSON.parse",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: JSON.parse returns JsValue",
+   "lifts": null
+  }
+ ],
+ "lanes": [
+  {
+   "id": "formation-only/raw/c",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "828d59e5e3557e2bfc119d60c05716a77aa15d2677bd7560b3c19c59e242e6a6",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/raw/c",
+   "mode": "production",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n",
+   "policyFingerprint": "485e2db3f8dde7666ee21b5f19032113f9c399246c7c467b3c5fb173bb333f5c",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  }
+ ],
+ "cases": [
+  {
+   "id": "cases/01_constants",
+   "digest": "0fd0f97d3d12a2fe4de2a93cf168f20c14d142fca99b1b59121b3b4909b81eec",
+   "features": []
+  },
+  {
+   "id": "cases/21_float",
+   "digest": "02c7baf2bb9aede3e05596f0db9acb4689368a353662403e30b33f9100b2eb91",
+   "features": []
+  },
+  {
+   "id": "cases/27_string_case",
+   "digest": "1dbf3d2ccf38d5ce079d5f80fae34d626f55dfc5a663054b024a6f08ced6b803",
+   "features": []
+  },
+  {
+   "id": "cases/native/float_default_flags",
+   "digest": "66d177c2abc6dfd1488065aec76820d2c11301aabfaf47e3255d303959e01233",
+   "features": []
+  }
+ ],
+ "summary": {
+  "formation-only/raw/c": {
+   "cases": 4,
+   "pass": 4,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 66035
+  },
+  "production/raw/c": {
+   "cases": 4,
+   "pass": 4,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 60962
+  }
+ },
+ "unexpected": 0,
+ "staleLedgerEntries": [],
+ "narrowableLedgerEntries": [],
+ "unknownLedgerCases": [],
+ "results": [
+  {
+   "case": "cases/01_constants",
+   "lane": "formation-only/raw/c",
+   "compileMs": 4,
+   "artifact": {
+    "path": "lanes/formation-only_raw_c/cases/01_constants.c",
+    "bytes": 5818,
+    "sha256": "31b9275aedd64cb6228f70c6aaaf48a8293d637b567e89fd13677103b38a0158"
+   },
+   "nativeToolchainReceipt": "lanes/formation-only_raw_c/cases/01_constants.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/01_constants",
+   "lane": "production/raw/c",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/production_raw_c/cases/01_constants.c",
+    "bytes": 4110,
+    "sha256": "dd369e8ce39d4430ce062dbb481614b49020f4c17e17e07b2fc4ac521696f35c"
+   },
+   "nativeToolchainReceipt": "lanes/production_raw_c/cases/01_constants.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/21_float",
+   "lane": "formation-only/raw/c",
+   "compileMs": 4,
+   "artifact": {
+    "path": "lanes/formation-only_raw_c/cases/21_float.c",
+    "bytes": 18876,
+    "sha256": "969842d058e0cc18f45836ee0621f2be8b6ee506b2308c7b7f9535394310d77a"
+   },
+   "nativeToolchainReceipt": "lanes/formation-only_raw_c/cases/21_float.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/21_float",
+   "lane": "production/raw/c",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/production_raw_c/cases/21_float.c",
+    "bytes": 18004,
+    "sha256": "5847af12b65646f5e3bf95bca9a98d5026fc172c08a91345754265331bc5b00e"
+   },
+   "nativeToolchainReceipt": "lanes/production_raw_c/cases/21_float.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/27_string_case",
+   "lane": "formation-only/raw/c",
+   "compileMs": 4,
+   "artifact": {
+    "path": "lanes/formation-only_raw_c/cases/27_string_case.c",
+    "bytes": 17595,
+    "sha256": "bc873c95fc1a811b6a292767abbd20edc6cb54301c65d935246fa86270332f99"
+   },
+   "nativeToolchainReceipt": "lanes/formation-only_raw_c/cases/27_string_case.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/27_string_case",
+   "lane": "production/raw/c",
+   "compileMs": 4,
+   "artifact": {
+    "path": "lanes/production_raw_c/cases/27_string_case.c",
+    "bytes": 17595,
+    "sha256": "bc873c95fc1a811b6a292767abbd20edc6cb54301c65d935246fa86270332f99"
+   },
+   "nativeToolchainReceipt": "lanes/production_raw_c/cases/27_string_case.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/native/float_default_flags",
+   "lane": "formation-only/raw/c",
+   "compileMs": 4,
+   "artifact": {
+    "path": "lanes/formation-only_raw_c/cases/native/float_default_flags.c",
+    "bytes": 23746,
+    "sha256": "f950187a5cc8762af212e64cb111e49f422d00e0f83aef3e545058957ba5c66d"
+   },
+   "nativeToolchainReceipt": null,
+   "state": "pass"
+  },
+  {
+   "case": "cases/native/float_default_flags",
+   "lane": "production/raw/c",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/production_raw_c/cases/native/float_default_flags.c",
+    "bytes": 21253,
+    "sha256": "00a76e9c04dba7eec1dc2948ebed23acf23b54c71a3b980f60f6cf0750f9e745"
+   },
+   "nativeToolchainReceipt": null,
+   "state": "pass"
+  }
+ ]
+}

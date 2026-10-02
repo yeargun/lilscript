@@ -1,0 +1,1 @@
+extern int install(func()->int f);int later=install(read);int read(){return later;}print(read());

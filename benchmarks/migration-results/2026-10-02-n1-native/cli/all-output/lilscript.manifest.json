@@ -1,0 +1,295 @@
+{
+  "version": 4,
+  "source_sha256": "74ef6d993524ac2be40ecb81f4dac444d574cd469386b90221d7db6a04ae97cf",
+  "inputs": {
+    "root": 0,
+    "entries": [
+      {
+        "name": "all",
+        "module": 0
+      }
+    ],
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-02-n1-native/cli/all.lil",
+        "bytes": 9,
+        "sha256": "836b37d47ae7ff499f4ee22e875c65f74ec8fbaa118981866c6974b8417fac74",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ],
+    "host_modules": [],
+    "host_reserved": []
+  },
+  "codecs": [
+    "raw",
+    "gzip",
+    "brotli"
+  ],
+  "outputs": [
+    {
+      "mode": "single",
+      "format": "iife",
+      "entries": [
+        {
+          "name": "all",
+          "file": "raw/main.mjs",
+          "dynamic": false,
+          "closure": [
+            "raw/main.mjs"
+          ],
+          "row": 26,
+          "raw_row": 26
+        }
+      ],
+      "files": [
+        {
+          "file": "raw/main.mjs",
+          "role": "entry",
+          "source_map_for": null,
+          "label": [
+            "all"
+          ],
+          "modules": [
+            "all.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 26,
+          "codec_bytes": 26,
+          "sha256": "57f90007e6e2ecab81c78162a79b1b3600b26c926607cea1d538e357f2648ed1"
+        }
+      ],
+      "side_effects": [
+        "raw/main.mjs"
+      ],
+      "codec_total": 26,
+      "rows_total": 26,
+      "setters": 0,
+      "output": "primary",
+      "codec": "raw",
+      "codec_settings": {
+        "brotli": {
+          "quality": 11,
+          "window": 22,
+          "mode": "generic"
+        },
+        "gzip": {
+          "level": 9,
+          "window": 15
+        }
+      },
+      "policy_fingerprint": [
+        149,
+        48,
+        107,
+        233,
+        44,
+        204,
+        37,
+        79,
+        251,
+        152,
+        24,
+        56,
+        3,
+        165,
+        38,
+        123,
+        113,
+        232,
+        14,
+        236,
+        194,
+        132,
+        154,
+        15,
+        42,
+        151,
+        112,
+        8,
+        66,
+        197,
+        141,
+        85
+      ]
+    },
+    {
+      "mode": "single",
+      "format": "iife",
+      "entries": [
+        {
+          "name": "all",
+          "file": "gzip/main.mjs",
+          "dynamic": false,
+          "closure": [
+            "gzip/main.mjs"
+          ],
+          "row": null,
+          "raw_row": 26
+        }
+      ],
+      "files": [
+        {
+          "file": "gzip/main.mjs",
+          "role": "entry",
+          "source_map_for": null,
+          "label": [
+            "all"
+          ],
+          "modules": [
+            "all.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 26,
+          "codec_bytes": null,
+          "sha256": "57f90007e6e2ecab81c78162a79b1b3600b26c926607cea1d538e357f2648ed1"
+        }
+      ],
+      "side_effects": [
+        "gzip/main.mjs"
+      ],
+      "codec_total": null,
+      "rows_total": null,
+      "setters": 0,
+      "output": "primary",
+      "codec": "gzip",
+      "codec_settings": {
+        "brotli": {
+          "quality": 11,
+          "window": 22,
+          "mode": "generic"
+        },
+        "gzip": {
+          "level": 9,
+          "window": 15
+        }
+      },
+      "policy_fingerprint": [
+        154,
+        239,
+        44,
+        20,
+        196,
+        23,
+        138,
+        2,
+        168,
+        66,
+        236,
+        34,
+        121,
+        201,
+        43,
+        56,
+        195,
+        161,
+        129,
+        41,
+        72,
+        91,
+        41,
+        107,
+        174,
+        232,
+        251,
+        162,
+        58,
+        188,
+        129,
+        69
+      ]
+    },
+    {
+      "mode": "single",
+      "format": "iife",
+      "entries": [
+        {
+          "name": "all",
+          "file": "brotli/main.mjs",
+          "dynamic": false,
+          "closure": [
+            "brotli/main.mjs"
+          ],
+          "row": null,
+          "raw_row": 26
+        }
+      ],
+      "files": [
+        {
+          "file": "brotli/main.mjs",
+          "role": "entry",
+          "source_map_for": null,
+          "label": [
+            "all"
+          ],
+          "modules": [
+            "all.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 26,
+          "codec_bytes": null,
+          "sha256": "57f90007e6e2ecab81c78162a79b1b3600b26c926607cea1d538e357f2648ed1"
+        }
+      ],
+      "side_effects": [
+        "brotli/main.mjs"
+      ],
+      "codec_total": null,
+      "rows_total": null,
+      "setters": 0,
+      "output": "primary",
+      "codec": "brotli",
+      "codec_settings": {
+        "brotli": {
+          "quality": 11,
+          "window": 22,
+          "mode": "generic"
+        },
+        "gzip": {
+          "level": 9,
+          "window": 15
+        }
+      },
+      "policy_fingerprint": [
+        12,
+        20,
+        24,
+        168,
+        171,
+        162,
+        123,
+        79,
+        184,
+        96,
+        17,
+        7,
+        9,
+        34,
+        251,
+        61,
+        123,
+        20,
+        179,
+        63,
+        192,
+        40,
+        72,
+        101,
+        187,
+        137,
+        134,
+        205,
+        197,
+        103,
+        106,
+        199
+      ]
+    }
+  ]
+}

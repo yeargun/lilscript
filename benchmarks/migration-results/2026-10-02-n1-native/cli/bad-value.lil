@@ -1,0 +1,2 @@
+struct Box{int[] values;}
+export void run(){Box b=Box{[1,2]};print(b.values[0]);}

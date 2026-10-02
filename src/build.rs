@@ -6,6 +6,10 @@ mod cache;
 mod decisions;
 #[path = "build_graph.rs"]
 mod graph;
+#[path = "build_native.rs"]
+mod native;
+pub use native::{check_source_for_target, check_entries_for_target};
+use native::NativeSources;
 pub use graph::{GraphSession, GraphSessionStats};
 #[path = "build_outputs.rs"]
 mod outputs;
@@ -341,7 +345,7 @@ impl ServiceCompilation {
     }
 }
 
-struct Frontend {
+struct Frontend<'src> {
     started: Instant,
     options: ServiceOptions,
     javascript: Option<ResolvedPolicy>,
@@ -355,6 +359,7 @@ struct Frontend {
     hosts: crate::host_modules::HostDelivery,
     source_maps: Option<crate::source_maps::PreparedSources>,
     native_bindings: Vec<(crate::program::CellId, String)>,
+    native_sources: NativeSources<'src>,
     decisions: decisions::Request,
 }
 
@@ -370,7 +375,14 @@ thread_local! {
         const { std::cell::Cell::new(false) };
 }
 
-impl Frontend {
+impl<'src> Frontend<'src> {
+    /// End all borrowed diagnostic inputs before the factory frees its arena.
+    fn finish_inputs(self) -> BudgetLedger {
+        let Self { mut ledger, native_sources, source_maps, .. } = self;
+        native_sources.discard(&mut ledger);
+        if let Some(maps) = source_maps { maps.discard(&mut ledger); }
+        ledger
+    }
     fn wants_source_maps(&self) -> bool {
         self.javascript.as_ref().into_iter().chain(self.independent_javascript.iter().flatten()).chain(self.additional_outputs.iter().flat_map(|output| &output.policies))
             .any(|policy| policy.delivery().is_some_and(|delivery| delivery.container.source_maps != crate::config::SourceMaps::Off))
@@ -494,6 +506,7 @@ impl Frontend {
             hosts: Default::default(),
             source_maps: None,
             native_bindings: Vec::new(),
+            native_sources: NativeSources::default(),
             decisions: decisions::Request::new(config, options)?,
         };
         frontend.checkpoint(1)?;
@@ -506,12 +519,13 @@ impl Frontend {
             .map_err(|error| ServiceError::resources("frontend resources", error.into()))
     }
 
-    fn adopt<'src>(
+    fn adopt(
         mut self,
         prepared: PreparedProgram<'src>,
         inputs: Value,
     ) -> Result<CheckedSourceSession<'src>, (ServiceError, BudgetLedger)> {
         if let Err(error) = self.checkpoint(0) {
+            self.native_sources.discard(&mut self.ledger);
             if let Some(maps) = self.source_maps.take() { maps.discard(&mut self.ledger); }
             prepared.discard(&mut self.ledger);
             #[cfg(test)]
@@ -531,6 +545,7 @@ impl Frontend {
             hosts,
             source_maps,
             native_bindings,
+            native_sources,
             mut decisions,
         } = self;
         let frontend_work = ledger.work_used(WorkDomain::Baseline);
@@ -547,6 +562,7 @@ impl Frontend {
             match Compilation::new_preserving_ledger(ledger, CheckpointLimit { max_live: 128 }) {
                 Ok(compilation) => compilation,
                 Err((mut ledger, error)) => {
+                    native_sources.discard(&mut ledger);
                     if let Some(maps) = source_maps { maps.discard(&mut ledger); }
                     prepared.discard(&mut ledger);
                     #[cfg(test)]
@@ -558,7 +574,9 @@ impl Frontend {
         let source = match compilation.adopt_prepared(prepared) {
             Ok(source) => source,
             Err(error) => {
-                return Err((ServiceError::new("adoption", error), compilation.finish()));
+                let mut ledger = compilation.finish();
+                native_sources.discard(&mut ledger);
+                return Err((ServiceError::new("adoption", error), ledger));
             }
         };
         // Module paths name delivered files (`[path]`, `[name]`); they
@@ -577,12 +595,16 @@ impl Frontend {
             .unwrap_or_default();
         let names = module_paths(&paths);
         if let Err(error) = compilation.set_module_names(names) {
-            return Err((ServiceError::new("adoption", error), compilation.finish()));
+            let mut ledger = compilation.finish();
+            native_sources.discard(&mut ledger);
+            return Err((ServiceError::new("adoption", error), ledger));
         }
         compilation.set_chunk_extension(options.chunk_extension.as_str());
         if !hosts.is_empty() {
             if let Err(error) = compilation.set_host_modules(hosts) {
-                return Err((ServiceError::new("adoption", error), compilation.finish()));
+                let mut ledger = compilation.finish();
+                native_sources.discard(&mut ledger);
+                return Err((ServiceError::new("adoption", error), ledger));
             }
         }
         phases["adopt_ns"] = json!(nanos(phase));
@@ -602,6 +624,7 @@ impl Frontend {
             shape,
             source_buffer_bytes,
             native_bindings,
+            native_sources,
             decisions,
         })
     }
@@ -625,6 +648,7 @@ pub struct CheckedSourceSession<'src> {
     shape: Value,
     source_buffer_bytes: Option<u64>,
     native_bindings: Vec<(crate::program::CellId, String)>,
+    native_sources: NativeSources<'src>,
     decisions: decisions::Request,
 }
 
@@ -973,7 +997,7 @@ impl<'src> CheckedSourceSession<'src> {
                 WorkDomain::Baseline,
                 &hosts,
             )
-            .map_err(|error| ServiceError::new("native", error))
+            .map_err(|error| self.native_error(source, error))
     }
 
     /// Compile every configured output/objective through this session's one
@@ -1016,17 +1040,19 @@ impl<'src> CheckedSourceSession<'src> {
             self.phases["javascript_ns"] = json!(nanos(phase));
         }
         let native_cost = if let Some(artifact) = native {
-            let (semantic, ownership_transfers) = self
+            let (semantic, ownership_transfers, initialization_guards_removed) = self
                 .compilation
                 .with_qualified_native_artifact(&artifact, |view| {
                     (
                         semantic_report(Some(view.snapshot), Some(view.meaning), view.rewrites),
                         view.ownership_transfers,
+                        view.initialization_guards_removed,
                     )
                 })
                 .map_err(|error| ServiceError::new("native metadata", error))?;
             let cost = json!({"c_bytes":artifact.c_bytes(), "header_bytes":artifact.header_bytes(),
-                "scope":"C and host-header delivery, not linked executable bytes", "semantic":semantic, "ownership_transfers":ownership_transfers});
+                "scope":"C and host-header delivery, not linked executable bytes", "semantic":semantic, "ownership_transfers":ownership_transfers,
+                "initialization_guards_removed":initialization_guards_removed});
             let (c, header) = self
                 .compilation
                 .take_qualified_native_artifact(artifact)
@@ -1070,12 +1096,14 @@ impl<'src> CheckedSourceSession<'src> {
             inputs,
             shape,
             source_buffer_bytes,
+            native_sources,
             ..
         } = self;
         let before = ledger_report(compilation.ledger());
         let codec_cache = compilation.measurement_stats();
         let phase = Instant::now();
-        let ledger = compilation.finish();
+        let mut ledger = compilation.finish();
+        native_sources.discard(&mut ledger);
         #[cfg(test)]
         record_retained("compilation", ledger.retained_bytes());
         let mut phases = phases;
@@ -1133,6 +1161,7 @@ impl<'src> CheckedSourceSession<'src> {
                 "scope":"admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate"
             }
         });
+        report["native_capabilities"] = json!(native.as_ref().map(|_|crate::native_capabilities::receipt()));
         report["additional_outputs"] = json!(additional_outputs.iter().map(|output| output.receipt()).collect::<Vec<_>>());
         report["resources"]["target_allocation_accounting"] = json!("partial");
         report["resources"]["target_allocation_scope"] = json!("complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact");
@@ -1463,7 +1492,7 @@ fn prepare_checked_graph<'ast, 'src>(
 /// The single-source frontend: parsing, checking and conversion under the
 /// frontend's ledger. Syntax and checker storage are gone when it returns.
 fn check_source_frontend<'src>(
-    frontend: &mut Frontend,
+    frontend: &mut Frontend<'src>,
     source: &'src str,
 ) -> Result<PreparedProgram<'src>, ServiceError> {
     let rules = frontend.rules();
@@ -1559,6 +1588,12 @@ fn check_source_frontend<'src>(
         });
     }
     frontend.phases["frontend_release_ns"] = json!(nanos(release_started));
+    if frontend.native.is_some() {
+        frontend.native_sources = match NativeSources::prepare(std::iter::once(source), &mut frontend.ledger) {
+            Ok(sources) => sources,
+            Err(error) => { program.discard(&mut frontend.ledger); return Err(error); }
+        };
+    }
     Ok(program)
 }
 
@@ -1584,7 +1619,7 @@ pub fn with_checked_source<R>(
 /// both are alive. A build also takes the relative host modules its output
 /// carries; a check does not deliver.
 fn check_path_frontend<'src, T>(
-    frontend: &mut Frontend,
+    frontend: &mut Frontend<'src>,
     entries: &[EntrySource],
     root_source: Option<&str>,
     overlays: &[crate::module::SourceOverride<'_>],
@@ -1704,6 +1739,12 @@ fn check_path_frontend<'src, T>(
             Err(error) => { program.discard(&mut frontend.ledger); return Err(ServiceError::resources("source-map inputs", error)); }
         });
     }
+    if frontend.native.is_some() {
+        frontend.native_sources = match NativeSources::prepare(modules.modules.iter().map(|module| module.source), &mut frontend.ledger) {
+            Ok(sources) => sources,
+            Err(error) => { program.discard(&mut frontend.ledger); return Err(error); }
+        };
+    }
     drop(modules);
     frontend.phases["frontend_release_ns"] = json!(nanos(release_started));
     Ok((program, inputs, inspected))
@@ -1758,7 +1799,8 @@ pub fn with_checked_entries<R>(
     let (program, inputs, ()) = match prepared {
         Ok(prepared) => prepared,
         Err(error) => {
-            release_source_buffers(sources, &mut frontend.ledger);
+            let mut ledger = frontend.finish_inputs();
+            release_source_buffers(sources, &mut ledger);
             return Err(error);
         }
     };
@@ -2025,7 +2067,8 @@ pub fn with_checked_graph<R>(
         program.discard(&mut frontend.ledger);
         inspected
     });
-    release_source_buffers(sources, &mut frontend.ledger);
+    let mut ledger = frontend.finish_inputs();
+    release_source_buffers(sources, &mut ledger);
     checked
 }
 
