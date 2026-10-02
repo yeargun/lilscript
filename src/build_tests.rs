@@ -4781,7 +4781,7 @@ fn n1_native_check_and_compile_share_source_qualified_representation_refusals() 
     let scratch = Scratch::new();
     let entry = scratch.0.join("main.lil"); let dependency = scratch.0.join("value.lil");
     std::fs::write(&entry, "import {run} from \"./value.lil\";run();").unwrap();
-    let source = r#"export void run(){JsValue value=JSON.parse("1");print(value);}"#;
+    let source = r#"export void run(){JsValue value=JS.object("x",1);print(value);}"#;
     std::fs::write(&dependency, source).unwrap();
     let error = check_entries_for_target(&[EntrySource::of(&entry)], &settings, options).unwrap_err();
     let diagnostic = error.diagnostic.unwrap();

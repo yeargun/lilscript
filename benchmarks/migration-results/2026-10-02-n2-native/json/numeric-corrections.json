@@ -1,0 +1,68 @@
+[
+  {
+    "pin": 2,
+    "compiler_sha256": "dc7127582345529f8bfa25180f0f589d5e708b723b82eab0d71279e3d4c80847",
+    "output_sha256": "ce8abf480f21cbb9ad7dbbaf16ee532619e2a586512f31f2c2bf5ac13926326e",
+    "sections": [
+      {
+        "begin": 0,
+        "end": 108191,
+        "mismatches": 108
+      },
+      {
+        "begin": 108191,
+        "end": 208191,
+        "mismatches": 0
+      },
+      {
+        "begin": 208191,
+        "end": 248109,
+        "mismatches": 5966
+      }
+    ]
+  },
+  {
+    "pin": 3,
+    "compiler_sha256": "5b284a99192401e0d0bf2c20e34dade5f271127408f6c4b593e8f835266570b3",
+    "output_sha256": "1a2cf273c79734f74cc06f7d22264e9f79948fbbce0bac846092925da248c1b3",
+    "sections": [
+      {
+        "begin": 0,
+        "end": 108191,
+        "mismatches": 8
+      },
+      {
+        "begin": 108191,
+        "end": 208191,
+        "mismatches": 0
+      },
+      {
+        "begin": 208191,
+        "end": 248109,
+        "mismatches": 0
+      }
+    ]
+  },
+  {
+    "pin": 4,
+    "compiler_sha256": "6107fb41bc4155a066b85273f3411a570cd15e0c29a45e56d90b569e32613f15",
+    "output_sha256": "9ee3ef5c6e51f09165a30612129c607e240fc2f8a399faebe8dd956bfbc122fb",
+    "sections": [
+      {
+        "begin": 0,
+        "end": 108191,
+        "mismatches": 0
+      },
+      {
+        "begin": 108191,
+        "end": 208191,
+        "mismatches": 0
+      },
+      {
+        "begin": 208191,
+        "end": 248109,
+        "mismatches": 0
+      }
+    ]
+  }
+]

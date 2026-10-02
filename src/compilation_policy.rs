@@ -46,7 +46,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // with objective fragments and admits fixed batches of independent file scores.
 // Version69 retains abrupt-exit finalizers and resolves embedded ESM re-exports.
 // Version71 preserves per-module identity for opaque embedded hosts.
-pub const POLICY_ALGORITHM_VERSION: u32 = 76;
+pub const POLICY_ALGORITHM_VERSION: u32 = 77;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

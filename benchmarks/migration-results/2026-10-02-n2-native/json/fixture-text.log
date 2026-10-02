@@ -1,0 +1,7 @@
+source: passed
+ownership-gcc-build: passed
+ownership-gcc-run: passed
+ownership-clang-build: passed
+ownership-clang-run: passed
+ownership-clang-sanitize-build: passed
+ownership-clang-sanitize-run: passed

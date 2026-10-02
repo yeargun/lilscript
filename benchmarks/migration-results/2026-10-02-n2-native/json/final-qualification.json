@@ -1,0 +1,191 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-json-4/lilscript",
+    "sha256": "6107fb41bc4155a066b85273f3411a570cd15e0c29a45e56d90b569e32613f15"
+  },
+  "rows": [
+    {
+      "name": "numbers-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I/tmp/lilscript-n2-json-4",
+        "tests/native/json-numbers.c",
+        "/tmp/lilscript-n2-json-4/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-json-4/numbers-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 3083,
+      "passed": true
+    },
+    {
+      "name": "numbers-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-json-4/numbers-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 615,
+      "passed": true
+    },
+    {
+      "name": "locale-create",
+      "args": [
+        "localedef",
+        "--no-archive",
+        "-i",
+        "de_DE",
+        "-f",
+        "UTF-8",
+        "/tmp/lilscript-n2-json-4/locales/de_DE.UTF-8"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1295,
+      "passed": true
+    },
+    {
+      "name": "numbers-comma-locale",
+      "args": [
+        "/tmp/lilscript-n2-json-4/numbers-sanitize",
+        "de_DE.UTF-8"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1423,
+      "passed": true
+    },
+    {
+      "name": "fixture-json",
+      "args": [
+        "node",
+        "tests/native/qualify-ownership.mjs",
+        "/home/azureuser/lilscript-work/bin/n2-json-4/lilscript",
+        "/tmp/lilscript-n2-json-4/json",
+        "--fixture=tests/native/json",
+        "--generated-only"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8873,
+      "passed": true
+    },
+    {
+      "name": "fixture-data",
+      "args": [
+        "node",
+        "tests/native/qualify-ownership.mjs",
+        "/home/azureuser/lilscript-work/bin/n2-json-4/lilscript",
+        "/tmp/lilscript-n2-json-4/data",
+        "--fixture=tests/native/data",
+        "--generated-only"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5420,
+      "passed": true
+    },
+    {
+      "name": "fixture-arrays",
+      "args": [
+        "node",
+        "tests/native/qualify-ownership.mjs",
+        "/home/azureuser/lilscript-work/bin/n2-json-4/lilscript",
+        "/tmp/lilscript-n2-json-4/arrays",
+        "--fixture=tests/native/arrays",
+        "--generated-only"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8681,
+      "passed": true
+    },
+    {
+      "name": "fixture-text",
+      "args": [
+        "node",
+        "tests/native/qualify-ownership.mjs",
+        "/home/azureuser/lilscript-work/bin/n2-json-4/lilscript",
+        "/tmp/lilscript-n2-json-4/text",
+        "--fixture=tests/native/text",
+        "--generated-only"
+      ],
+      "exit": 0,
+      "elapsed_ms": 14833,
+      "passed": true
+    },
+    {
+      "name": "fixture-ownership",
+      "args": [
+        "node",
+        "tests/native/qualify-ownership.mjs",
+        "/home/azureuser/lilscript-work/bin/n2-json-4/lilscript",
+        "/tmp/lilscript-n2-json-4/ownership",
+        "--fixture=tests/native/ownership"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5039,
+      "passed": true
+    },
+    {
+      "name": "source-js",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-json-4/lilscript",
+        "tests/native/json.lil",
+        "--config",
+        "tests/native/json.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-json-4/json.js"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "run-js",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "--input-type=module",
+        "-e",
+        "globalThis.assertNativeCount=()=>{};globalThis.assertMaxNativeCount=()=>{};globalThis.collectNative=()=>{};await import(\"/tmp/lilscript-n2-json-4/json.js\");"
+      ],
+      "exit": 0,
+      "elapsed_ms": 38,
+      "passed": true
+    },
+    {
+      "name": "oracle-js",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/json.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 34,
+      "passed": true
+    },
+    {
+      "name": "numeric-parity",
+      "passed": true,
+      "samples": 248109,
+      "sha256": "9ee3ef5c6e51f09165a30612129c607e240fc2f8a399faebe8dd956bfbc122fb",
+      "bytes": 4908206,
+      "midpoint_samples": 39918,
+      "input_sha256": "5ebce8e76b77baa347a4916e2cefbd0d710fd1d0c7a87e6e82a2ca26fed0c16b"
+    }
+  ],
+  "fixtures": {
+    "tests/native/json-numbers.oracle.mjs": "66b641155e1717fda50573ba6dc83e605347cf8cf7ba0c965c27c540560b54f9",
+    "tests/native/json.host.c": "eece0c784c33b16f9a6318c6d4685f527aa312698e0aebb85c3d9a76c63df84f",
+    "tests/native/json-numbers.c": "68e20e92b73612c0a7ab077d6fd6b26587da012bb48abf5ef93a9bc412acf2aa",
+    "tests/native/json-midpoints.py": "24a6a867ddaca989cf4be8b2f165e46bcf2f326336ac4aa688397e07480eb3f5",
+    "tests/native/json.oracle.mjs": "9bc74071542e0d9d73a819d6ad19020f6047e3fde7ea288c82791bb2d411f074",
+    "tests/native/json.lil": "4a04de4b771d1cc7be92e98aae71e96eddf6345306770435b9ef02555cf6f2a6",
+    "tests/native/json.out": "bbf0139d13b9a46a24d307f10858455dc4b25aa5509271a8e5ca2b5c550466c3",
+    "tests/native/json.toml": "3b8ae9899f82fb138d0cdfd5c4a35f9265b9bbc753caac7a12027d8eb6ed5450"
+  },
+  "node": "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node"
+}

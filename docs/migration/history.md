@@ -1938,3 +1938,37 @@ reduces identical fixture C from 2,673,298 to 664,938 bytes. A JavaScript escape
 line-terminator regex-literal bug is corrected with independent parity coverage.
 No broad library rerun or native performance claim; N2 remains active.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#unicode-and-typed-regular-expressions).
+
+
+## 2026-10-02 — N2 portable JSON and decimal conversion (implementation)
+
+1. Replace libc-dependent decimal roundtrip formatting with pinned MIT QuickJS
+   binary64 printing/parsing. Keep ordinary Unicode tables conditional and share
+   the dependency's C utilities without duplicate definitions. Add float JSON
+   output only with the exact numeric recipe in place.
+2. Parse JSON into the existing owned tagged record/array/scalar storage with
+   strict JSON syntax, correct duplicate keys, UTF-16 and number rounding, and
+   iterative heap-backed nesting. Existing typed views retain their documented
+   source preconditions; this does not claim arbitrary JavaScript host objects.
+3. Compare numeric edge cases and independently generated binary64 samples with
+   JavaScript, plus nested JSON, error, ownership and existing typed data paths
+   under strict C compiler/sanitizer profiles after this coherent batch.
+
+Expected effect: the portable data boundary gains parsing and float output;
+C helpers replace repeated printf/strtod probing with fixed numeric scratch.
+No measured speed, size or complete typed-object decoder claim precedes evidence.
+
+**JSON/decimal result.** Algorithm77, pin `n2-json-4`, passes all 41 focused
+source/build/run steps across JSON, data, arrays, text and ownership with GCC,
+Clang 18 and ASan/UBSan. Emitted JavaScript agrees with the independent JSON
+oracle. Numeric output agrees with Node 24 on 248,109 observations, including
+39,918 exact midpoint/neighbor decimals, in both C and comma-decimal locales.
+The numeric stream is 4,908,206 bytes; its SHA-256 is
+`9ee3ef5c6e51f09165a30612129c607e240fc2f8a399faebe8dd956bfbc122fb`.
+
+The expanded oracle exposed upstream long-mantissa truncation and nonshortest
+power-of-two printing. A bounded exact decimal correction and an explicit
+amalgamation correction now cover those cases; the original vendor files retain
+their immutable hashes. Initial implementation failures and their corrections
+are retained. No broad suite or runtime/size performance claim; remaining N2
+work is still open. [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#json-and-binary64-decimal-conversion).

@@ -17,7 +17,7 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 | Functions | Direct/indirect calls, closures/captures, supported generic tagged values, defaults and references | Absent-value transport and mutable-reference callable payloads: N2 |
 | Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Native specialization and remaining callable transport: N2 |
 | Collections and classes | Shared-identity concrete/generic arrays, owned callbacks and sparse copies; class objects, maps, sets, symbols, buffers and typed arrays | Remaining recipes and comparisons: N2 |
-| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, checked JSON stringify, shape fields/spreads/optional writes/tag narrowing, scalar array join | Typed parsing and immutable graph qualification: N2 |
+| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join | Remaining callable transport and immutable graph qualification: N2 |
 | Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | Remaining native error recipes and full corpus qualification: N2 |
 | Generators, async/tasks | Source-qualified refusal | Region state machines and microtask queue: N2 |
 | Regular expressions | Pinned QuickJS libregexp; typed construction/test/search/string replacement, metadata and shared lastIndex; catchable syntax/resource errors | Broad corpus qualification: N2; JsValue match objects use the JavaScript host ABI |
@@ -91,3 +91,11 @@ warnings are isolated; generated program and provider warnings remain enabled.
 Unicode tables are included only when case conversion or regex needs them.
 TOML stack/backtracking limits report catchable exhaustion;
 resource rejection does not turn a regex operation into an ordinary non-match.
+
+JSON parsing creates the same owned tagged arrays/records used by ordinary
+native code; typed views use the existing `JS.assume` precondition, without a
+new schema-validation promise. Invalid text raises a catchable syntax error
+and releases partial containers. Nesting uses an explicit heap stack. Decimal
+input and shortest binary64 output use the pinned numeric library with documented
+rounding corrections, independent of the host locale. These are semantic
+guarantees, so compilation effort and native speed/size flags cannot weaken them.

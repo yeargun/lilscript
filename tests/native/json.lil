@@ -1,0 +1,49 @@
+extern void assertNativeCount(int expected);
+extern void assertMaxNativeCount(int expected);
+extern void collectNative();
+float parseNumber(string text) { return JS.assume(JSON.parse(text)); }
+void invalid(string text) {
+    try { JSON.parse(text); print("accepted invalid JSON"); }
+    catch(auto error) { Record<string> detail=JS.assume(error); print(detail["name"]); }
+}
+void depth() {
+    JSON.parse("[".repeat(10000)+"null"+"]".repeat(10000));
+    print("deep JSON passed");
+}
+void run() {
+    int integer=JS.assume(JSON.parse("42")); print(integer);
+    bool yes=JS.assume(JSON.parse("true")); print(yes);
+    print(JSON.parse("null")==null);
+    string text=JS.assume(JSON.parse("\"a\\n\\t\\b\\f\\r\\/\\\\\\\"\\u0000\\ud800\\uDC00\\ud800x\""));
+    print(JSON.stringify(text));
+    float[] values=JS.assume(JSON.parse("[0.1,-1.25,9007199254740993,1e400,-1e-400,5e-324]"));
+    print(JSON.stringify(values));
+    print(1.0/values[4]);
+    int[] integers=JS.assume(JSON.parse("[1,2,3]"));
+    integers.push(4); print(JSON.stringify(integers));
+    Record<float> ordered=JS.assume(JSON.parse("{\"b\":1,\"a\":2,\"b\":3,\"01\":4,\"1\":5,\"__proto__\":6}"));
+    print(JSON.stringify(ordered)); print(Object.keys(ordered).join(","));
+    print(ordered["__proto__"]);
+    Record<int[]> nested=JS.assume(JSON.parse("{\"a\":[1,2],\"b\":[],\"a\":[3,4]}"));
+    int[]? left=nested["a"]; if(left!=null) { left.push(5); print(JSON.stringify(left)); }
+    int[]? right=nested["b"]; if(right!=null) print(right.length);
+    Record<string>[] records=JS.assume(JSON.parse("[{\"name\":\"first\"},{\"name\":\"second\"}]"));
+    print(records[1]["name"]);
+    print(JSON.stringify(parseNumber("1.00000000000000011102230246251565404236316680908203125")));
+    print(JSON.stringify(parseNumber("1.00000000000000011102230246251565404236316680908203126")));
+    print(JSON.stringify(parseNumber("2.2250738585072011e-308")));
+    print(JSON.stringify(parseNumber("1.7976931348623157e308")));
+    print(JSON.stringify(parseNumber("1e-6"))); print(JSON.stringify(parseNumber("1e21")));
+    print(1.0/parseNumber("-0")); print(JSON.stringify(0.0/0.0));
+    string[] bad=[""," ","undefined","NaN","Infinity","+1","01","-","1.","1e","1e+",".1","nullx","true false","[1,]","{\"x\":1,}","{\"x\" 1}","[","{","[}","\"unterminated","\"\\x20\"","\"\\u123Z\"","\"\n\"","\u00A01"];
+    for(int i=0;i<bad.length;i++) invalid(bad[i]);
+    depth();
+    for(int i=0;i<300;i++) {
+        Record<string[]> value=JS.assume(JSON.parse("{\"x\":[\"owned\",\"text\"]}"));
+        string[]? items=value["x"]; if(items!=null) items.push("more");
+        assertMaxNativeCount(256);
+        try { JSON.parse("{\"partial\":[1,2,{\"x\":\"owned\"}],\"bad\":"); }
+        catch(auto error) { assertMaxNativeCount(256); }
+    }
+}
+run(); collectNative(); assertNativeCount(0); print("JSON ownership passed");

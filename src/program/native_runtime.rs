@@ -52,10 +52,13 @@ pub(super) enum Helper {
     Binary,
     Unicode,
     Regex,
+    TextUtilities,
+    Numbers,
+    JsonParse,
 }
 
 impl Helper {
-    pub(super) const ALL: [Self; 30] = [
+    pub(super) const ALL: [Self; 33] = [
         Self::FromU32,
         Self::ToInt32,
         Self::RoundBinary64,
@@ -68,6 +71,8 @@ impl Helper {
         Self::ShiftRight,
         Self::UnsignedShiftRight,
         Self::ClosureRuntime,
+        Self::TextUtilities,
+        Self::Numbers,
         Self::StringLength,
         Self::CharCodeAt,
         Self::CharCodeAtNumber,
@@ -86,6 +91,7 @@ impl Helper {
         Self::Binary,
         Self::Unicode,
         Self::Regex,
+        Self::JsonParse,
     ];
 
     pub(super) const fn name(self) -> &'static str {
@@ -119,6 +125,9 @@ impl Helper {
             Self::Binary => "ls_buffer_new",
             Self::Unicode => "ls_string_case",
             Self::Regex => "ls_regex_new",
+            Self::TextUtilities => "unicode_to_utf8",
+            Self::Numbers => "js_dtoa",
+            Self::JsonParse => "ls_json_parse",
             Self::ClosureRuntime => "ls_native_retain",
         }
     }
@@ -133,7 +142,7 @@ impl Helper {
             Self::Multiply => &[Self::ToInt32, Self::FromU32],
             Self::StringIndex => &[Self::CodeUnitAt, Self::ClosureRuntime],
             Self::CharAt => &[Self::ClosureRuntime],
-            Self::Strings => &[Self::StringEqual, Self::ClosureRuntime],
+            Self::Strings => &[Self::StringEqual, Self::ClosureRuntime, Self::Numbers],
             Self::Dynamic => &[Self::Strings, Self::ClosureRuntime],
             Self::Products => &[Self::Dynamic],
             Self::Arrays => &[Self::Products],
@@ -142,7 +151,9 @@ impl Helper {
             Self::Json => &[Self::Records],
             Self::Exceptions => &[Self::Records, Self::Products],
             Self::Binary => &[Self::ClosureRuntime, Self::FromU32],
-            Self::Unicode => &[Self::Strings],
+            Self::Unicode => &[Self::Strings, Self::TextUtilities],
+            Self::Numbers => &[Self::TextUtilities],
+            Self::JsonParse => &[Self::Arrays, Self::Exceptions, Self::Numbers],
             Self::Regex => &[Self::Unicode, Self::Exceptions],
             _ => &[],
         }
@@ -160,6 +171,9 @@ impl Helper {
             Self::Json => include_str!("runtime/json.c"),
             Self::Exceptions => include_str!("runtime/exceptions.c"),
             Self::Binary => super::native::BINARY_RUNTIME,
+            Self::TextUtilities => include_str!("runtime/text-utils.c"),
+            Self::Numbers => concat!(include_str!("runtime/number-library.c"), include_str!("runtime/decimal_parse.c")),
+            Self::JsonParse => include_str!("runtime/json_parse.c"),
             Self::Unicode => concat!(include_str!("runtime/unicode-library.c"), include_str!("runtime/unicode.c")),
             Self::Regex => concat!(include_str!("runtime/regex-library.c"), include_str!("runtime/regex.c")),
             Self::FromU32 => {
@@ -237,11 +251,11 @@ impl Helper {
 
 /// Only target recipe support, never another semantic dependency graph.
 #[derive(Debug, Clone, Copy, Default)]
-pub(super) struct Helpers(u32);
+pub(super) struct Helpers(u64);
 
 impl Helpers {
     pub(super) fn require(&mut self, helper: Helper) {
-        let bit = 1u32 << helper as u8;
+        let bit = 1u64 << helper as u8;
         if self.0 & bit != 0 {
             return;
         }
@@ -252,7 +266,7 @@ impl Helpers {
     }
 
     pub(super) fn contains(self, helper: Helper) -> bool {
-        self.0 & (1u32 << helper as u8) != 0
+        self.0 & (1u64 << helper as u8) != 0
     }
 
     pub(super) fn iter(self) -> impl Iterator<Item = Helper> {

@@ -1,0 +1,905 @@
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+warning: unused import: `with_analyzed_modules`
+  --> src/check.rs:38:26
+   |
+38 | pub(crate) use modules::{with_analyzed_modules, with_analyzed_modules_with_contract};
+   |                          ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `AdmittedModuleCheckError`
+  --> src/check.rs:39:50
+   |
+39 | pub(crate) use modules::{analyze_modules_cached, AdmittedModuleCheckError, ElaborationCache};
+   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `cycle_entries_admitted`, `lazy_roots_admitted`, and `lazy_roots_from_orders_admitted`
+   --> src/module.rs:156:24
+    |
+156 | pub(crate) use graph::{cycle_entries_admitted, fresh_orders_admitted, lazy_roots_admitted,
+    |                        ^^^^^^^^^^^^^^^^^^^^^^                         ^^^^^^^^^^^^^^^^^^^
+157 |     lazy_roots_from_orders_admitted, static_cycles_admitted};
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/check/modules.rs:593:21
+    |
+593 |                 let mut ty = analyzer.resolve_value_type(decl.ty, "module binding")?;
+    |                     ----^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `span`
+    --> src/check.rs:5387:63
+     |
+5387 |                 kind: ExprKind::ArrowFunction { params, body, span },
+     |                                                               ^^^^ help: try ignoring the field: `span: _`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+    --> src/program/from_source.rs:4424:13
+     |
+4424 |             _ => return self.unsupported(statement.span(), "statement conversion"),
+     |             ^ no value can reach this
+     |
+note: multiple earlier patterns match some of the same values
+    --> src/program/from_source.rs:4424:13
+     |
+4146 | /             Stmt::ArrayDestructure {
+4147 | |                 bindings, value, ..
+4148 | |             } => self.array_destructure(unit, region, bindings, value)?,
+     | |_____________- matches some of the same values
+4149 | /             Stmt::RecordDestructure {
+4150 | |                 bindings,
+4151 | |                 rest,
+4152 | |                 value,
+4153 | |                 span,
+4154 | |                 ..
+4155 | |             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
+     | |_____________- matches some of the same values
+4156 |               Stmt::VarDecl(declaration, ..) => {
+     |               ------------------------------ matches some of the same values
+...
+4193 |               Stmt::Expr(expr, ..) => {
+     |               -------------------- matches some of the same values
+...
+4424 |               _ => return self.unsupported(statement.span(), "statement conversion"),
+     |               ^ ...and 15 other patterns collectively make this unreachable
+     = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `program`
+   --> src/program/javascript_public_structs.rs:714:13
+    |
+714 |         let program = self.program;
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program`
+
+warning: unreachable pattern
+   --> src/program/native_plan.rs:931:13
+    |
+931 |             _ => {
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> src/program/native_plan.rs:931:13
+    |
+706 |             Place::Cell(cell) => PlacePlan {
+    |             ----------------- matches some of the same values
+...
+712 |             Place::Value(value) => PlacePlan {
+    |             ------------------- matches some of the same values
+...
+816 |             Place::Index { receiver, key } => {
+    |             ------------------------------ matches some of the same values
+...
+842 |             Place::Member { .. } => {
+    |             -------------------- matches some of the same values
+...
+931 |             _ => {
+    |             ^ ...and 2 other patterns collectively make this unreachable
+
+warning: variable does not need to be mutable
+  --> src/program/search_independent.rs:22:9
+   |
+22 |         mut observe: impl FnMut(SearchObservation<'_>),
+   |         ----^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/rules/dirty.rs:63:17
+   |
+63 |             let mut run = || {
+   |                 ----^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/verify.rs:559:17
+    |
+559 |             let mut name_work = 1;
+    |                 ----^^^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: method `with_items` is never used
+  --> src/ast.rs:75:19
+   |
+66 | impl<'ast, 'src> Program<'ast, 'src> {
+   | ------------------------------------ method in this implementation
+...
+75 |     pub(crate) fn with_items(self, nodes: &SourceNodes, items: &'ast [Item<'ast, 'src>]) -> Self {
+   |                   ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `continuing` is never used
+   --> src/ast.rs:656:19
+    |
+655 | impl SourceNodes {
+    | ---------------- associated function in this implementation
+656 |     pub(crate) fn continuing(source: &SourceIdentity) -> Self {
+    |                   ^^^^^^^^^^
+
+warning: multiple methods are never used
+    --> src/check.rs:1735:19
+     |
+1641 | impl<'ast, 'src> CheckedModule<'ast, 'src> {
+     | ------------------------------------------ methods in this implementation
+...
+1735 |     pub(crate) fn dynamic_operation(&self, id: SourceNodeId) -> Option<BuiltinCall> {
+     |                   ^^^^^^^^^^^^^^^^^
+...
+1739 |     pub(crate) fn resolved_operator(&self, node: SourceNodeId) -> Option<ResolvedOperator> {
+     |                   ^^^^^^^^^^^^^^^^^
+...
+1743 |     pub(crate) fn resolved_intrinsic(
+     |                   ^^^^^^^^^^^^^^^^^^
+...
+1754 |     pub(crate) fn symbol_is_reassigned(&self, symbol: SymbolId) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^^
+...
+1758 |     pub(crate) fn symbol_is_observable_before_initialization(&self, symbol: SymbolId) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1767 |     pub(crate) fn type_check_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+     |                   ^^^^^^^^^^^^^^^
+...
+1771 |     pub(crate) fn optional_present_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^
+...
+1839 |     pub(crate) fn base_class(&self, class: NominalId) -> Option<NominalId> {
+     |                   ^^^^^^^^^^
+...
+1843 |     pub(crate) fn base_constructor(
+     |                   ^^^^^^^^^^^^^^^^
+...
+1862 |     pub(crate) fn dynamic_import_module(&self, node: SourceNodeId) -> Option<u32> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^
+...
+1866 |     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `base_constructor` and `dynamic_export_used` are never used
+    --> src/check.rs:2153:19
+     |
+1871 | impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
+     | ------------------------------------------------------ methods in this implementation
+...
+2153 |     pub(crate) fn base_constructor(
+     |                   ^^^^^^^^^^^^^^^^
+...
+2186 |     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `with_analyzed_source` is never used
+    --> src/check.rs:2212:15
+     |
+2212 | pub(crate) fn with_analyzed_source<'ast, 'src, R>(
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `expected_array_element` is never used
+     --> src/check.rs:10052:4
+      |
+10052 | fn expected_array_element<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Type<'src>> {
+      |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `crosses_by_conversion` is never used
+     --> src/check.rs:10814:4
+      |
+10814 | fn crosses_by_conversion(ty: &Type<'_>) -> bool {
+      |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `equality_comparable` is never used
+     --> src/check.rs:11014:4
+      |
+11014 | fn equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
+      |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `equality_comparable_plain` is never used
+   --> src/check/binary_types.rs:427:15
+    |
+427 | pub(super) fn equality_comparable_plain(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `with_analyzed_modules` is never used
+   --> src/check/modules.rs:168:15
+    |
+168 | pub(crate) fn with_analyzed_modules<'ast, 'src, S, R>(
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: variant `Default` is never constructed
+  --> src/check/type_payload.rs:12:5
+   |
+10 | pub(crate) enum Payload<'a, 'src> {
+   |                 ------- variant in this enum
+11 |     Type(&'a Type<'src>),
+12 |     Default(&'a DefaultValue<'src>),
+   |     ^^^^^^^
+   |
+   = note: `Payload` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mode`, `expected`, and `actual` are never read
+  --> src/check/type_relation.rs:27:9
+   |
+26 |     Visit {
+   |     ----- fields in this variant
+27 |         mode: RelationMode,
+   |         ^^^^
+28 |         expected: &'a Type<'src>,
+   |         ^^^^^^^^
+29 |         actual: &'a Type<'src>,
+   |         ^^^^^^
+   |
+   = note: `RelationEvent` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `expression`, `expression_in`, and `single` are never used
+   --> src/host_modules.rs:201:12
+    |
+160 | impl HostDelivery {
+    | ----------------- methods in this implementation
+...
+201 |     pub fn expression(&self, strict: bool) -> String {
+    |            ^^^^^^^^^^
+...
+205 |     pub(crate) fn expression_in(
+    |                   ^^^^^^^^^^^^^
+...
+352 |     pub fn single(&self, strict: bool) -> Option<String> {
+    |            ^^^^^^
+
+warning: method `insert_statement` is never used
+    --> src/js/mod.rs:1291:19
+     |
+1200 | impl Module {
+     | ----------- method in this implementation
+...
+1291 |     pub(crate) fn insert_statement(
+     |                   ^^^^^^^^^^^^^^^^
+
+warning: method `render_admitted` is never used
+   --> src/js/extract.rs:236:19
+    |
+ 72 | impl<'a> Output<'a> {
+    | ------------------- method in this implementation
+...
+236 |     pub(crate) fn render_admitted<Owner: Eq>(
+    |                   ^^^^^^^^^^^^^^^
+
+warning: method `prepare_output_admitted` is never used
+   --> src/js/extract.rs:513:19
+    |
+467 | impl Module {
+    | ----------- method in this implementation
+...
+513 |     pub(crate) fn prepare_output_admitted<'a>(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `encode_tables` is never used
+    --> src/js/tables.rs:1359:19
+     |
+1271 | impl Module {
+     | ----------- method in this implementation
+...
+1359 |     pub(crate) fn encode_tables(
+     |                   ^^^^^^^^^^^^^
+
+warning: method `progress` is never used
+   --> src/js/rules.rs:134:8
+    |
+ 86 | impl Rule {
+    | --------- method in this implementation
+...
+134 |     fn progress(self) -> Progress {
+    |        ^^^^^^^^
+
+warning: enum `Progress` is never used
+   --> src/js/rules.rs:177:6
+    |
+177 | enum Progress {
+    |      ^^^^^^^^
+
+warning: method `measured` is never used
+   --> src/js/rules.rs:191:8
+    |
+190 | impl Progress {
+    | ------------- method in this implementation
+191 |     fn measured(self) -> bool {
+    |        ^^^^^^^^
+
+warning: method `compress_statements` is never used
+  --> src/js/statements.rs:53:19
+   |
+49 | impl Module {
+   | ----------- method in this implementation
+...
+53 |     pub(crate) fn compress_statements(
+   |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: function `verify_edition` is never used
+  --> src/js/verify.rs:23:15
+   |
+23 | pub(super) fn verify_edition(
+   |               ^^^^^^^^^^^^^^
+
+warning: function `literal` is never used
+ --> src/js_string.rs:7:15
+  |
+7 | pub(crate) fn literal(value: &StringValue, quote: char) -> String {
+  |               ^^^^^^^
+
+warning: function `static_evaluation_order` is never used
+  --> src/module.rs:36:15
+   |
+36 | pub(crate) fn static_evaluation_order<I: IntoIterator<Item = usize>>(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `SourceBufferCharge` is never constructed
+   --> src/module.rs:283:19
+    |
+283 | pub(crate) struct SourceBufferCharge(RetainedCharge<()>);
+    |                   ^^^^^^^^^^^^^^^^^^
+
+warning: methods `bytes` and `release` are never used
+   --> src/module.rs:286:19
+    |
+285 | impl SourceBufferCharge {
+    | ----------------------- methods in this implementation
+286 |     pub(crate) fn bytes(&self) -> u64 {
+    |                   ^^^^^
+...
+290 |     pub(crate) fn release(self, ledger: &mut BudgetLedger) -> Result<(), (Self, AllocationError)> {
+    |                   ^^^^^^^
+
+warning: function `discover_modules_configured_admitted` is never used
+   --> src/module.rs:324:15
+    |
+324 | pub(crate) fn discover_modules_configured_admitted(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `BudgetSession` is never used
+  --> src/output_budget.rs:63:17
+   |
+63 | pub(crate) type BudgetSession<'a> = AllocationBudget<'a>;
+   |                 ^^^^^^^^^^^^^
+
+warning: struct `AdmittedSourcesError` is never constructed
+  --> src/parser_admission.rs:66:19
+   |
+66 | pub(crate) struct AdmittedSourcesError {
+   |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `parse_many` and `allocated_bytes` are never used
+   --> src/parser_admission.rs:139:19
+    |
+109 | impl<'ledger> AdmittedArena<'ledger> {
+    | ------------------------------------ methods in this implementation
+...
+139 |     pub(crate) fn parse_many<'arena, 'src>(
+    |                   ^^^^^^^^^^
+...
+177 |     pub(crate) fn allocated_bytes(&self) -> usize {
+    |                   ^^^^^^^^^^^^^^^
+
+warning: method `extend` is never used
+   --> src/parser_admission.rs:418:19
+    |
+376 | impl<'arena, 'admission, T> ArenaVec<'arena, 'admission, T> {
+    | ----------------------------------------------------------- method in this implementation
+...
+418 |     pub(super) fn extend(
+    |                   ^^^^^^
+
+warning: method `matches` is never used
+   --> src/primitive.rs:400:12
+    |
+366 | impl IntrinsicCallContract {
+    | -------------------------- method in this implementation
+...
+400 |     pub fn matches(&self, ty: &crate::check::Type<'_>) -> bool {
+    |            ^^^^^^^
+
+warning: field `identity` is never read
+   --> src/program/aggregates.rs:109:9
+    |
+105 | pub(super) struct AllocationFacts {
+    |                   --------------- field in this struct
+...
+109 |     pub identity: AllocationId,
+    |         ^^^^^^^^
+    |
+    = note: `AllocationFacts` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: associated function `build` is never used
+   --> src/program/aggregates.rs:190:19
+    |
+135 | impl ProgramAggregates {
+    | ---------------------- associated function in this implementation
+...
+190 |     pub(super) fn build(program: &Program<'_>, effects: &ProgramEffects) -> Self {
+    |                   ^^^^^
+
+warning: method `valid_for` is never used
+  --> src/program/callable_inputs.rs:84:19
+   |
+72 | impl Dependencies {
+   | ----------------- method in this implementation
+...
+84 |     pub(super) fn valid_for<A: Admission>(
+   |                   ^^^^^^^^^
+
+warning: associated functions `for_cell`, `for_producer`, and `for_body` are never used
+   --> src/program/callable_inputs.rs:182:19
+    |
+159 | impl CallableInputs {
+    | ------------------- associated functions in this implementation
+...
+182 |     pub(super) fn for_cell<A: Admission>(
+    |                   ^^^^^^^^
+...
+207 |     pub(super) fn for_producer<A: Admission>(
+    |                   ^^^^^^^^^^^^
+...
+237 |     pub(super) fn for_body<A: Admission>(
+    |                   ^^^^^^^^
+
+warning: function `coherent` is never used
+   --> src/program/callable_inputs.rs:574:4
+    |
+574 | fn coherent<A: Admission>(
+    |    ^^^^^^^^
+
+warning: field `cells` is never read
+  --> src/program/classes.rs:47:5
+   |
+44 | pub(crate) struct ProgramClasses {
+   |                   -------------- field in this struct
+...
+47 |     cells: Vec<Class>,
+   |     ^^^^^
+   |
+   = note: `ProgramClasses` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `cell` is never used
+  --> src/program/classes.rs:57:19
+   |
+50 | impl ProgramClasses {
+   | ------------------- method in this implementation
+...
+57 |     pub(crate) fn cell(&self, cell: CellId) -> Class {
+   |                   ^^^^
+
+warning: function `arguments_free` is never used
+  --> src/program/defaults.rs:84:15
+   |
+84 | pub(super) fn arguments_free(program: &Program<'_>, body: UnitId) -> bool {
+   |               ^^^^^^^^^^^^^^
+
+warning: function `arguments_free_in` is never used
+   --> src/program/defaults.rs:119:15
+    |
+119 | pub(super) fn arguments_free_in(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `plan` is never used
+   --> src/program/defaults.rs:200:15
+    |
+200 | pub(super) fn plan(program: &Program<'_>, graph: &CallGraph) -> Plan {
+    |               ^^^^
+
+warning: fields `steps`, `contexts`, `peak_bytes`, and `retained_bytes` are never read
+   --> src/program/demand.rs:142:9
+    |
+141 | pub(super) struct DemandWork {
+    |                   ---------- fields in this struct
+142 |     pub steps: u64,
+    |         ^^^^^
+143 |     pub contexts: usize,
+    |         ^^^^^^^^
+144 |     pub peak_bytes: u64,
+    |         ^^^^^^^^^^
+145 |     pub retained_bytes: u64,
+    |         ^^^^^^^^^^^^^^
+    |
+    = note: `DemandWork` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `needs_production`, `call_envelope`, `needs_shared_string`, and `work` are never used
+   --> src/program/demand.rs:642:19
+    |
+330 | impl<'program, 'src> DemandPlan<'program, 'src> {
+    | ----------------------------------------------- methods in this implementation
+...
+642 |     pub(super) fn needs_production(&self, id: ContextId, op: OpId) -> bool {
+    |                   ^^^^^^^^^^^^^^^^
+...
+853 |     pub(super) fn call_envelope(&self, context: ContextId, operation: OpId) -> Option<OpId> {
+    |                   ^^^^^^^^^^^^^
+...
+905 |     pub(super) fn needs_shared_string(&self, id: ContextId, family: usize) -> bool {
+    |                   ^^^^^^^^^^^^^^^^^^^
+...
+949 |     pub(super) fn work(&self) -> DemandWork {
+    |                   ^^^^
+
+warning: associated function `bounded` is never used
+   --> src/program/facts.rs:890:19
+    |
+883 | impl<'ledger> Work<'ledger> {
+    | --------------------------- associated function in this implementation
+...
+890 |     pub(super) fn bounded(quota: u64, result_limit: u64) -> Self {
+    |                   ^^^^^^^
+
+warning: struct `SourceRecipes` is never constructed
+  --> src/program/facts_domains.rs:41:31
+   |
+41 | pub(in crate::program) struct SourceRecipes;
+   |                               ^^^^^^^^^^^^^
+
+warning: field `tables` is never read
+  --> src/program/facts_domains.rs:92:5
+   |
+91 | pub(in crate::program) struct Dependencies {
+   |                               ------------ field in this struct
+92 |     tables: RevisionId,
+   |     ^^^^^^
+   |
+   = note: `Dependencies` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `valid_for` is never used
+   --> src/program/facts_domains.rs:107:31
+    |
+ 97 | impl Dependencies {
+    | ----------------- method in this implementation
+...
+107 |     pub(in crate::program) fn valid_for<A: Admission>(
+    |                               ^^^^^^^^^
+
+warning: function `from_checked_source_admitted` is never used
+   --> src/program/from_source.rs:198:15
+    |
+198 | pub(crate) fn from_checked_source_admitted<'ast, 'src>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `from_checked_modules_admitted` is never used
+   --> src/program/from_source.rs:232:15
+    |
+232 | pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `name` is never read
+   --> src/program/from_source.rs:894:5
+    |
+890 | struct ClassMethod<'src> {
+    |        ----------- field in this struct
+...
+894 |     name: Option<&'src str>,
+    |     ^^^^
+    |
+    = note: `ClassMethod` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: method `retained_bytes` is never used
+  --> src/program/function_layout.rs:67:19
+   |
+41 | impl FunctionLayout {
+   | ------------------- method in this implementation
+...
+67 |     pub(super) fn retained_bytes(&self) -> u64 {
+   |                   ^^^^^^^^^^^^^^
+
+warning: function `analyze` is never used
+  --> src/program/function_layout.rs:76:15
+   |
+76 | pub(super) fn analyze(
+   |               ^^^^^^^
+
+warning: method `valid_for` is never used
+  --> src/program/helper_family.rs:64:19
+   |
+54 | impl HelperDependencies {
+   | ----------------------- method in this implementation
+...
+64 |     pub(super) fn valid_for(&self, program: &Program<'_>, uses: &UseIndex) -> bool {
+   |                   ^^^^^^^^^
+
+warning: methods `environments`, `captures`, `body_effects`, and `retained_bytes` are never used
+   --> src/program/helper_family.rs:141:19
+    |
+122 | impl HelperFamily {
+    | ----------------- methods in this implementation
+...
+141 |     pub(super) fn environments(&self) -> &[HelperEnvironment] {
+    |                   ^^^^^^^^^^^^
+...
+144 |     pub(super) fn captures(&self) -> &[CellId] {
+    |                   ^^^^^^^^
+...
+150 |     pub(super) fn body_effects(&self) -> EvaluationBehavior {
+    |                   ^^^^^^^^^^^^
+...
+172 |     pub(super) fn retained_bytes(&self) -> u64 {
+    |                   ^^^^^^^^^^^^^^
+
+warning: method `retained_bytes` is never used
+   --> src/program/implementation_identity.rs:315:19
+    |
+ 68 | impl ImplementationIdentity {
+    | --------------------------- method in this implementation
+...
+315 |     pub(super) fn retained_bytes(&self) -> u64 {
+    |                   ^^^^^^^^^^^^^^
+
+warning: method `retained_bytes` is never used
+   --> src/program/shared_implementation_identity.rs:200:31
+    |
+ 24 | impl SharedImplementationIdentity {
+    | --------------------------------- method in this implementation
+...
+200 |     pub(in crate::program) fn retained_bytes(&self) -> u64 {
+    |                               ^^^^^^^^^^^^^^
+
+warning: associated items `structural` and `schedule` are never used
+   --> src/program/initialization.rs:364:19
+    |
+361 | impl ProgramInitialization {
+    | -------------------------- associated items in this implementation
+...
+364 |     pub(super) fn structural(program: &Program<'_>, graph: &CallGraph) -> Self {
+    |                   ^^^^^^^^^^
+...
+543 |     pub(super) fn schedule(
+    |                   ^^^^^^^^
+
+warning: function `lower_with_implementations` is never used
+   --> src/program/javascript.rs:358:15
+    |
+358 | pub(super) fn lower_with_implementations(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `lower_admitted` is never used
+   --> src/program/javascript.rs:379:15
+    |
+379 | pub(super) fn lower_admitted(
+    |               ^^^^^^^^^^^^^^
+
+warning: function `initialization_order` is never used
+ --> src/program/module_contract.rs:7:15
+  |
+7 | pub(super) fn initialization_order(
+  |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `build` is never used
+    --> src/program/native_plan.rs:1188:19
+     |
+1138 | impl<'program, 'src> NativePlan<'program, 'src> {
+     | ----------------------------------------------- associated function in this implementation
+...
+1188 |     pub(super) fn build(
+     |                   ^^^^^
+
+warning: method `valid_for` is never used
+   --> src/program/product_family.rs:128:19
+    |
+112 | impl ProductDependencies {
+    | ------------------------ method in this implementation
+...
+128 |     pub(super) fn valid_for(&self, program: &Program<'_>, uses: &UseIndex) -> bool {
+    |                   ^^^^^^^^^
+
+warning: method `access` is never used
+   --> src/program/product_family.rs:182:19
+    |
+162 | impl ProductFamily {
+    | ------------------ method in this implementation
+...
+182 |     pub(super) fn access(&self, operation: OpRef) -> Option<&ProductAccess> {
+    |                   ^^^^^^
+
+warning: function `analyze` is never used
+   --> src/program/product_family.rs:394:15
+    |
+394 | pub(super) fn analyze(
+    |               ^^^^^^^
+
+warning: function `program_retained_bytes` is never used
+   --> src/program/publication.rs:596:15
+    |
+596 | pub(crate) fn program_retained_bytes(
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `with_implementations` and `with_semantic` are never used
+    --> src/program/publication.rs:1951:19
+     |
+1479 | impl<'src> Compilation<'src> {
+     | ---------------------------- methods in this implementation
+...
+1951 |     pub(super) fn with_implementations<R>(
+     |                   ^^^^^^^^^^^^^^^^^^^^
+...
+3140 |     pub(super) fn with_semantic<R>(
+     |                   ^^^^^^^^^^^^^
+
+warning: function `share_program` is never used
+    --> src/program/publication.rs:3599:4
+     |
+3599 | fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
+     |    ^^^^^^^^^^^^^
+
+warning: methods `reserve` and `release` are never used
+    --> src/program/publication.rs:3697:8
+     |
+3689 | impl<'a> Workspace<'a> {
+     | ---------------------- methods in this implementation
+...
+3697 |     fn reserve(&mut self, bytes: u64) -> Result<(), PublicationError> {
+     |        ^^^^^^^
+...
+3706 |     fn release(&mut self, bytes: u64) -> Result<(), PublicationError> {
+     |        ^^^^^^^
+
+warning: field `bytes` is never read
+    --> src/program/publication.rs:3724:5
+     |
+3723 | struct PatchPlan {
+     |        --------- field in this struct
+3724 |     bytes: u64,
+     |     ^^^^^
+
+warning: method `valid_for` is never used
+  --> src/program/record_family.rs:62:19
+   |
+59 | impl FamilyDependencies {
+   | ----------------------- method in this implementation
+...
+62 |     pub(super) fn valid_for(&self, program: &Program<'_>, uses: &UseIndex) -> bool {
+   |                   ^^^^^^^^^
+
+warning: fields `activation` and `captures` are never read
+  --> src/program/record_family.rs:92:5
+   |
+88 | pub(super) struct RecordFamily {
+   |                   ------------ fields in this struct
+...
+92 |     activation: Activation,
+   |     ^^^^^^^^^^
+...
+96 |     captures: Vec<UnitId>,
+   |     ^^^^^^^^
+   |
+   = note: `RecordFamily` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: methods `activation` and `captures` are never used
+   --> src/program/record_family.rs:110:19
+    |
+100 | impl RecordFamily {
+    | ----------------- methods in this implementation
+...
+110 |     pub(super) fn activation(&self) -> Activation {
+    |                   ^^^^^^^^^^
+...
+122 |     pub(super) fn captures(&self) -> &[UnitId] {
+    |                   ^^^^^^^^
+
+warning: function `optimize` is never used
+   --> src/program/rules/mod.rs:276:15
+    |
+276 | pub(crate) fn optimize<'src>(
+    |               ^^^^^^^^
+
+warning: field `0` is never read
+  --> src/program/rules/const_data.rs:52:14
+   |
+52 |     Function(UnitId),
+   |     -------- ^^^^^^
+   |     |
+   |     field in this variant
+   |
+   = note: `Data` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+52 -     Function(UnitId),
+52 +     Function(()),
+   |
+
+warning: field `needs_facts` is never read
+  --> src/program/search_opportunities.rs:70:5
+   |
+66 | pub(super) struct Inventory {
+   |                   --------- field in this struct
+...
+70 |     needs_facts: bool,
+   |     ^^^^^^^^^^^
+   |
+   = note: `Inventory` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `needs_facts` is never used
+   --> src/program/search_opportunities.rs:257:19
+    |
+ 74 | impl Inventory {
+    | -------------- method in this implementation
+...
+257 |     pub(super) fn needs_facts(&self) -> bool {
+    |                   ^^^^^^^^^^^
+
+warning: method `valid_for` is never used
+  --> src/program/string_family.rs:40:19
+   |
+39 | impl FamilyDependencies {
+   | ----------------------- method in this implementation
+40 |     pub(super) fn valid_for(&self, program: &Program<'_>, _uses: &UseIndex) -> bool {
+   |                   ^^^^^^^^^
+
+warning: methods `operations` and `retained_bytes` are never used
+  --> src/program/string_family.rs:79:19
+   |
+70 | impl StringFamily {
+   | ----------------- methods in this implementation
+...
+79 |     pub(super) fn operations(&self) -> &[OpId] {
+   |                   ^^^^^^^^^^
+...
+99 |     pub(super) fn retained_bytes(&self) -> u64 {
+   |                   ^^^^^^^^^^^^^^
+
+warning: method `prepare_replacements` is never used
+   --> src/program/uses_update.rs:200:31
+    |
+125 | impl UseIndex {
+    | ------------- method in this implementation
+...
+200 |     pub(in crate::program) fn prepare_replacements(
+    |                               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `plan` is never used
+   --> src/program/value_placement.rs:172:15
+    |
+172 | pub(super) fn plan(
+    |               ^^^^
+
+warning: function `verify_replacements` is never used
+   --> src/program/verify.rs:261:15
+    |
+261 | pub(super) fn verify_replacements(
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: method `invalidate` is never used
+   --> src/program/views.rs:160:19
+    |
+152 | impl ProgramViews {
+    | ----------------- method in this implementation
+...
+160 |     pub(super) fn invalidate(&mut self) {
+    |                   ^^^^^^^^^^
+
+warning: method `aggregates` is never used
+   --> src/program/views.rs:225:19
+    |
+224 | impl<'src> Program<'src> {
+    | ------------------------ method in this implementation
+225 |     pub(crate) fn aggregates(&self, seal: Seal) -> Arc<ProgramAggregates> {
+    |                   ^^^^^^^^^^
+
+warning: `lilscript` (lib) generated 95 warnings (run `cargo fix --lib -p lilscript` to apply 9 suggestions)
+    Finished `release` profile [optimized] target(s) in 10.93s

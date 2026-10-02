@@ -1,0 +1,5 @@
+error: expected expression
+ --> /home/azureuser/lilscript/tests/native/json.lil:4:1
+  |
+ 4 | float number(string text) { return JS.assume(JSON.parse(text)); }
+  | ^^^^^

@@ -209,13 +209,18 @@ The portable static record operations are:
 - `Object.assign(target, source)` mutates and returns `target`; both records
   must have the exact same invariant `Record<T>` type.
 
-`JSON.stringify(value)` returns `string` for `int`, enum, `string`, `bool`,
+`JSON.stringify(value)` returns `string` for `int`, `float`, enum, `string`, `bool`,
 `null`, nullable forms of those scalars, and homogeneous arrays or records of
-those scalars. Floats are currently rejected: the native runtime does not yet
-implement ECMAScript's shortest binary64-to-decimal algorithm, so accepting
-them would make output target-dependent. `JSON.parse(string)` returns
-`JsValue` through the JavaScript host API; native compilation rejects it
-instead of substituting a different dynamic representation.
+those scalars. Native uses ECMAScript shortest binary64 decimal spelling;
+nonfinite numbers stringify as `null`, and negative zero as `0`.
+`JSON.parse(string)` returns `JsValue` on either target. Native stores parsed
+arrays, ordered records and scalars in its owned tagged representation and
+throws a catchable syntax error for invalid JSON. Nested parsing uses an
+explicit heap stack. Escapes preserve UTF-16 units, duplicate object keys
+replace the prior value, and decimal rounding does not depend on locale.
+`JS.assume` can expose a known typed representation with its existing source
+precondition; it does not validate an arbitrary schema. This portable transport
+does not implement the JavaScript host's object/prototype APIs.
 
 `Regex` uses ECMAScript regular-expression semantics:
 

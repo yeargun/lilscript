@@ -10675,7 +10675,7 @@ fn json_stringify_type_supported(ty: &Type<'_>) -> bool {
     let scalar = |ty: &Type<'_>| {
         matches!(
             ty,
-            Type::Int | Type::Enum(_) | Type::String | Type::Bool | Type::Null
+            Type::Int | Type::Float | Type::Enum(_) | Type::String | Type::Bool | Type::Null
         )
     };
     scalar(ty)
@@ -11865,11 +11865,7 @@ mod tests {
             "{mismatch}"
         );
 
-        let float = check("float value=1.5;string json=JSON.stringify(value);").unwrap_err();
-        assert!(
-            float.message.contains("does not support `float` portably"),
-            "{float}"
-        );
+        check("float value=1.5;string json=JSON.stringify(value);").unwrap();
     }
 
     #[test]

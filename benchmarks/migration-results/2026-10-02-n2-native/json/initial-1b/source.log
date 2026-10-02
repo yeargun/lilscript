@@ -1,0 +1,5 @@
+error: type `int[]?` has no member `push`
+ --> /home/azureuser/lilscript/tests/native/json.lil:28:5
+  |
+28 |     nested["a"].push(5); print(JSON.stringify(nested["a"])); print(nested["b"].length);
+  |     ^^^^^^^^^^^^^^^^

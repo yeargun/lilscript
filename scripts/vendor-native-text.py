@@ -19,6 +19,39 @@ for name, digest in manifest['files'].items():
 
 def source(name):
     text = (vendor / name).read_text()
+    if name == 'dtoa.c':
+        # At a normal power of two the lower rounding interval is half the
+        # upper one. The nearest decimal at a candidate precision can miss
+        # the lower interval while its successor still rounds to the input.
+        # Upstream only tries the nearest decimal and can print an extra
+        # digit. Retain upstream byte identity and make the correction here.
+        # Strip trailing zeros only after a candidate has passed. Stripping
+        # first skips an adjacent candidate at the original precision.
+        zeros = '''            /* remove useless trailing zero digits */
+            while ((mant % radix) == 0) {
+                mant /= radix;
+                P--;
+            }
+'''
+        assert text.count(zeros) == 1
+        text = text.replace(zeros, '')
+        marker = '            prec_found:\n'
+        assert text.count(marker) == 1
+        text = text.replace(marker, marker + zeros)
+        marker = '            if (m1 == m && e1 == e) {\n'
+        assert text.count(marker) == 1
+        text = text.replace(marker, '''            /* LilScript: test the asymmetric power-of-two interval. */
+            if (radix == 10 && m == ((uint64_t)1 << 52) && e > -1021 &&
+                !(m1 == m && e1 == e)) {
+                int next_e;
+                uint64_t next_m;
+                mpb_set_u64(tmp1, mant + 1);
+                next_m = mul_pow_round_to_d(&next_e, tmp1, radix1, radix_shift, E - P, JS_RNDN);
+                if (next_m == m && next_e == e) {
+                    mant++; m1 = next_m; e1 = next_e;
+                }
+            }
+''' + marker)
     if name == 'libunicode.c':
         text = text.replace('uint8_t const lre_ctype_bits[256] =',
                             'static uint8_t const lre_ctype_bits[256] =')
@@ -28,7 +61,7 @@ def source(name):
         text = re.sub(r'\bchar_range_s\b', 'ls_regex_char_range_s', text)
     if name.endswith('.h') and name not in ('libregexp-opcode.h', 'libunicode-table.h'):
         # Only column-zero function declarations have these return prefixes.
-        text = re.sub(r'^(?=(?:void|char|int|uint8_t|const char)\b[^;\n]*\()',
+        text = re.sub(r'^(?=(?:void|char|int|uint8_t|const char|double|size_t)\b[^;\n]*\()',
                       'static LS_NATIVE_UNUSED ', text, flags=re.M)
         text = text.replace('extern uint8_t const lre_ctype_bits[256];',
                             'static uint8_t const lre_ctype_bits[256];')
@@ -53,5 +86,7 @@ def write(name, files):
     body += f'#line 1 "lilscript/{name}"\n'
     (root / 'src/program/runtime' / name).write_text(body)
 
-write('unicode-library.c', ['cutils.h', 'libunicode.h', 'cutils.c', 'libunicode.c'])
+write('text-utils.c', ['cutils.h', 'cutils.c'])
+write('number-library.c', ['dtoa.h', 'dtoa.c'])
+write('unicode-library.c', ['libunicode.h', 'libunicode.c'])
 write('regex-library.c', ['libregexp.h', 'libregexp.c'])

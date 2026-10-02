@@ -86,92 +86,13 @@ static LS_NATIVE_UNUSED inline ls_string ls_int_to_radix(int32_t value, int32_t 
 static LS_NATIVE_UNUSED inline ls_string ls_int_to_string(int32_t value) {
     return ls_int_to_radix(value, 10);
 }
-/* The k significant digits (no trailing zeros) and exponent n of the
-   shortest decimal 0.d1...dk x 10^n that reads back as `value` (> 0,
-   finite). printf rounds correctly, so each precision's candidate is the
-   nearest decimal of that length; below a power of two the rounding
-   interval is narrower, so the next decimal up may be the one that reads
-   back when the nearest does not. */
-static LS_NATIVE_UNUSED inline void ls_shortest_decimal(double value, char *digits, int *count, int *exponent) {
-    uint64_t bits;
-    memcpy(&bits, &value, sizeof bits);
-    bool asymmetric = (bits & UINT64_C(0x000fffffffffffff)) == 0 && (bits >> 52) > 1;
-    char text[40];
-    for (int precision = 0; precision <= 16; precision++) {
-        snprintf(text, sizeof text, "%.*e", precision, value);
-        bool found = strtod(text, NULL) == value;
-        if (!found && asymmetric) {
-            char *mark = strchr(text, 'e');
-            char *last = mark - 1;
-            while (last >= text && (*last == '.' || *last == '9')) {
-                if (*last == '9') *last = '0';
-                last--;
-            }
-            if (last >= text) {
-                (*last)++;
-            } else {
-                /* 9.99e+N carried to 10.0e+N: respell it 1.00e+(N+1). */
-                int power = atoi(mark + 1) + 1;
-                text[0] = '1';
-                snprintf(mark, sizeof text - (size_t)(mark - text), "e%+d", power);
-            }
-            found = strtod(text, NULL) == value;
-        }
-        if (!found) continue;
-        int length = 0;
-        char *cursor = text;
-        for (; *cursor && *cursor != 'e'; cursor++) {
-            if (*cursor >= '0' && *cursor <= '9') digits[length++] = *cursor;
-        }
-        while (length > 1 && digits[length - 1] == '0') length--;
-        *count = length;
-        *exponent = atoi(cursor + 1) + 1;
-        return;
-    }
-    ls_string_failure("LilScript native number formatting failed");
-}
+/* The pinned ECMAScript conversion uses integer arithmetic and fixed scratch
+   storage. It does not depend on the provider's LC_NUMERIC setting, printf's
+   rounding decisions, or a repeated decimal roundtrip search. */
 static LS_NATIVE_UNUSED inline ls_string ls_number_to_string(double value) {
-    if (value != value) return ls_string_ascii("NaN", 3);
-    if (value == 0) return ls_string_ascii("0", 1);
-    char text[64];
-    size_t length = 0;
-    if (value < 0) {
-        text[length++] = '-';
-        value = -value;
-    }
-    if (isinf(value)) {
-        memcpy(text + length, "Infinity", 8);
-        return ls_string_ascii(text, length + 8);
-    }
-    char digits[24];
-    int k = 0, n = 0;
-    ls_shortest_decimal(value, digits, &k, &n);
-    if (k <= n && n <= 21) {
-        memcpy(text + length, digits, (size_t)k);
-        length += (size_t)k;
-        for (int index = k; index < n; index++) text[length++] = '0';
-    } else if (0 < n && n <= 21) {
-        memcpy(text + length, digits, (size_t)n);
-        length += (size_t)n;
-        text[length++] = '.';
-        memcpy(text + length, digits + n, (size_t)(k - n));
-        length += (size_t)(k - n);
-    } else if (-6 < n && n <= 0) {
-        text[length++] = '0';
-        text[length++] = '.';
-        for (int index = 0; index < -n; index++) text[length++] = '0';
-        memcpy(text + length, digits, (size_t)k);
-        length += (size_t)k;
-    } else {
-        text[length++] = digits[0];
-        if (k > 1) {
-            text[length++] = '.';
-            memcpy(text + length, digits + 1, (size_t)(k - 1));
-            length += (size_t)(k - 1);
-        }
-        length += (size_t)snprintf(text + length, sizeof text - length, "e%c%d", n - 1 < 0 ? '-' : '+', n - 1 < 0 ? 1 - n : n - 1);
-    }
-    return ls_string_ascii(text, length);
+    char text[32]; JSDTOATempMem scratch;
+    int length=js_dtoa(text,value,10,0,JS_DTOA_FORMAT_FREE,&scratch);
+    return ls_string_ascii(text,(size_t)length);
 }
 static LS_NATIVE_UNUSED inline void ls_write_string(ls_string value) {
     for (size_t index = 0; index < value.length; index++) {

@@ -33,6 +33,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let r = receiver.index();
         let destination = Destination::Value(result);
         match builtin {
+            BuiltinCall::JsonParse => {
+                self.assignment_start(unit, destination, true)?;
+                self.write(format_args!("ls_json_parse(ls_v{r})"))?;
+                self.assignment_end(unit, destination)
+            }
             BuiltinCall::ObjectHasOwn => {
                 self.assignment_start(unit, destination, false)?;
                 self.write(format_args!("ls_record_has(ls_v{r},ls_v{})", argument(1).index()))?;

@@ -1628,8 +1628,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         },
                     },
                     CallTarget::Builtin(builtin @ (BuiltinCall::ObjectKeys | BuiltinCall::ObjectValues
-                        | BuiltinCall::ObjectHasOwn | BuiltinCall::ObjectAssign | BuiltinCall::JsonStringify)) => {
-                        plan.helpers.require(if builtin == BuiltinCall::JsonStringify { Helper::Json } else { Helper::Records });
+                        | BuiltinCall::ObjectHasOwn | BuiltinCall::ObjectAssign | BuiltinCall::JsonStringify | BuiltinCall::JsonParse)) => {
+                        plan.helpers.require(match builtin { BuiltinCall::JsonStringify => Helper::Json, BuiltinCall::JsonParse => Helper::JsonParse, _ => Helper::Records });
                         PreparedTarget::RecordBuiltin(builtin)
                     }
                     CallTarget::Builtin(BuiltinCall::Print) => PreparedTarget::Print,
@@ -3052,6 +3052,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             BuiltinCall::ObjectHasOwn => arguments.len() == 2 && argument(0) == record
                                 && argument(1) == Some(Stored(Text)) && result == Some(Stored(Bool)),
                             BuiltinCall::ObjectAssign => arguments.len() == 2 && argument(0) == record && argument(1) == record && result == record,
+                            BuiltinCall::JsonParse => arguments.len() == 1 && argument(0) == Some(Stored(Text))
+                                && result == Some(Stored(NativeType::Dynamic(Tagged::ANY))),
                             BuiltinCall::JsonStringify => arguments.len() == 1 && result == Some(Stored(Text))
                                 && matches!(argument(0), Some(Stored(I32 | F64 | Bool | Text | NativeType::Dynamic(_) | NativeType::Array(_) | NativeType::Shape | NativeType::Record))),
                             _ => false,

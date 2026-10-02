@@ -183,3 +183,54 @@ constructor meaning and retains invalid Unicode constructors so they still throw
 at runtime. The new fixture independently checks both outcomes. Updated Rust
 expectations remain for the consolidated N2 Rust batch. N2 still owns its
 remaining data, suspension, host ABI and performance/cross-target commitments.
+
+## JSON and binary64 decimal conversion
+
+Algorithm77, pin `n2-json-4`, adds strict owned JSON parsing into the existing
+tagged arrays/records/scalars, float JSON output and locale-independent shortest
+binary64 printing. JSON parsing uses a heap-backed frame stack, preserves UTF-16
+escapes, duplicate-key ordering, signed zero and overflow/underflow, and releases
+partial values on catchable syntax failures. Typed views retain the existing
+`JS.assume` precondition; this does not add arbitrary schema validation or host
+prototype operations. The Unicode/regex/numeric recipes now share one private
+C utility amalgamation; Unicode tables remain conditional.
+
+The [five-fixture batch](json/final-qualification.json) passes **41** focused
+source/build/run steps under GCC, Clang 18 and ASan/UBSan, including the standalone
+ownership runtime. Fixtures cover JSON, existing data, arrays, text and ownership.
+The JSON fixture matches independently computed ECMAScript output and emitted
+JavaScript, handles nesting depth 10,000, checks malformed input cleanup, and
+finishes with zero owned objects. No full library/case matrix was rerun.
+
+The numeric oracle compares **248,109** observations: every binary exponent's
+transition values and 100,000 random bit patterns for formatting, 100,000 random
+decimal tokens for parsing, and **39,918** exact rounding midpoints and adjacent
+decimal tokens constructed independently with Python Decimal. Native GCC and
+Clang ASan/UBSan match Node 24.20.0 byte for byte; the sanitizer executable also
+matches under the independently generated `de_DE.UTF-8` comma-decimal locale.
+The stream is **4,908,206 bytes**, SHA-256
+`9ee3ef5c6e51f09165a30612129c607e240fc2f8a399faebe8dd956bfbc122fb`.
+
+The new oracles exposed the pinned parser's intentional 38-digit truncation and
+its formatter's failure to consider an adjacent decimal in a power of two's
+asymmetric rounding interval. The parser adapter compares a sticky discarded
+suffix against the exact next binary64 midpoint using bounded integer scratch.
+The amalgamation corrects the printer's adjacent-candidate search and defers
+trailing-zero removal until after validation. Vendor originals stay unchanged.
+An initial adapter carry-normalization bug was caught by the same boundary
+oracle and corrected; [mismatch counts](json/numeric-corrections.json) retain the
+progression instead of presenting the initial results as passes.
+
+Reproduction uses `tests/native/qualify-ownership.mjs` for each fixture. Generate
+numeric input with `python3 tests/native/json-midpoints.py`; pipe it to
+`json-numbers.oracle.mjs` under Node and to `json-numbers.c` compiled beside the
+generated JSON fixture's `ownership.c`/header and host provider. The retained
+[driver](json/qualification-driver.py) records the pinned local paths, GCC/locale
+commands, affected fixtures and JavaScript parity check. The numeric sanitizer
+build uses Clang 18, `-std=c11 -O2 -Wall -Wextra -Werror`,
+`-DLS_NATIVE_QUALIFICATION -g -fsanitize=address,undefined
+-fno-omit-frame-pointer`, the generated fixture include directory, and `-lm`.
+ASan leak detection and UBSan halt-on-error are enabled. Compiler/fixture hashes
+and build/failure logs are retained. Updated Rust expectations await N2's
+consolidated Rust check. N2 remains active; no native speed or executable-size
+win is claimed for this semantic batch.

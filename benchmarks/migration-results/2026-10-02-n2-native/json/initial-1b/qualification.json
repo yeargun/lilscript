@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-json-1/lilscript",
+    "sha256": "58266349986eb9e8b6f8ca49d8278a35cba693084a168857862b15195f125221"
+  },
+  "fixtures": [
+    {
+      "path": "tests/native/runtime-ownership.c",
+      "sha256": "c6c4efd6fa5e611d8f8c77c8d74337ee3af7c710291e4db93b4c99d0cc0c6dae"
+    },
+    {
+      "path": "tests/native/json.lil",
+      "sha256": "a7e5551ba2a64d625d1e1080d825f03cecc3c45b808b72f77d16be47e735940b"
+    },
+    {
+      "path": "tests/native/json.host.c",
+      "sha256": "eece0c784c33b16f9a6318c6d4685f527aa312698e0aebb85c3d9a76c63df84f"
+    },
+    {
+      "path": "tests/native/json.toml",
+      "sha256": "3b8ae9899f82fb138d0cdfd5c4a35f9265b9bbc753caac7a12027d8eb6ed5450"
+    },
+    {
+      "path": "tests/native/json.out",
+      "sha256": "bbf0139d13b9a46a24d307f10858455dc4b25aa5509271a8e5ca2b5c550466c3"
+    }
+  ],
+  "rows": [
+    {
+      "name": "source",
+      "command": "/home/azureuser/lilscript-work/bin/n2-json-1/lilscript",
+      "args": [
+        "tests/native/json.lil",
+        "--config",
+        "tests/native/json.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-json-1b/ownership.c"
+      ],
+      "exit": 1,
+      "signal": null,
+      "elapsed_ms": 7.506435,
+      "passed": false
+    }
+  ]
+}
