@@ -5,6 +5,7 @@ import {readFileSync,writeFileSync,mkdirSync,copyFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {createHash} from 'node:crypto';
 const compiler=resolve(process.argv[2]),work=resolve(process.argv[3]);
+const fixture=process.argv.find(arg=>arg.startsWith('--fixture='))?.slice('--fixture='.length)||'tests/native/ownership';
 mkdirSync(work,{recursive:true});
 const hash=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
 const rows=[];
@@ -21,13 +22,13 @@ for(const [name,cc,extra] of (process.argv.includes("--generated-only")?[]:compi
  if(run(`runtime-${name}-build`,cc,['-std=c11','-O2','-Wall','-Wextra','-Werror',...extra,'tests/native/runtime-ownership.c','-lm','-o',out]))run(`runtime-${name}-run`,out,[],'runtime ownership: passed\n');
 }
 const c=join(work,'ownership.c');
-if(run('source',compiler,['tests/native/ownership.lil','--config','tests/native/ownership.toml','--target','c','-o',c])) {
- const expected=readFileSync('tests/native/ownership.out','utf8');
- const host=join(work,'host.c');copyFileSync('tests/native/ownership.host.c',host);
+if(run('source',compiler,[`${fixture}.lil`,'--config',`${fixture}.toml`,'--target','c','-o',c])) {
+ const expected=readFileSync(`${fixture}.out`,'utf8');
+ const host=join(work,'host.c');copyFileSync(`${fixture}.host.c`,host);
  for(const [name,cc,extra] of compilers) {
   const out=join(work,`ownership-${name}`);
   if(run(`ownership-${name}-build`,cc,['-std=c11','-O2','-Wall','-Wextra','-Werror','-DLS_NATIVE_QUALIFICATION',...extra,c,host,'-lm','-o',out]))run(`ownership-${name}-run`,out,[],expected);
  }
 }
-writeFileSync(join(work,'qualification.json'),JSON.stringify({schema:1,compiler:{path:compiler,sha256:hash(compiler)},fixtures:['tests/native/runtime-ownership.c','tests/native/ownership.lil','tests/native/ownership.host.c','tests/native/ownership.toml','tests/native/ownership.out'].map(path=>({path,sha256:hash(path)})),rows},null,2)+'\n');
+writeFileSync(join(work,'qualification.json'),JSON.stringify({schema:1,compiler:{path:compiler,sha256:hash(compiler)},fixtures:['tests/native/runtime-ownership.c',`${fixture}.lil`,`${fixture}.host.c`,`${fixture}.toml`,`${fixture}.out`].map(path=>({path,sha256:hash(path)})),rows},null,2)+'\n');
 if(rows.some(row=>!row.passed))process.exitCode=1;

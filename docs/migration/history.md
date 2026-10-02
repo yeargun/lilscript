@@ -1856,3 +1856,15 @@ cells. The self-recursive closure ledger entry is removed. Initial Rust and
 strict-C build failures and their fixes are retained. No full library suite,
 compression comparison or native-speed qualification was run. N2 remains the
 sole active milestone; portable data operations follow.
+
+
+## 2026-10-02 — N2 portable records and shape storage
+
+N2 remains the sole active milestone. Native now lowers portable records,
+Object keys/values/hasOwn/assign, checked JSON stringify, scalar array join,
+and declared shape storage/spreads/optional writes/intersections/tag tests.
+The shared traced owner preserves identity and releases managed payloads.
+GCC, Clang 18 and ASan/UBSan match the independent ECMAScript oracle; six
+selected maintained formation/production C cells pass. No broad suite rerun
+or performance win is claimed. Generic/tagged products are the next batch.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#portable-records-and-shapes).

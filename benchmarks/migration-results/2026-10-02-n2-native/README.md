@@ -47,6 +47,29 @@ No broad Rust/library suite was rerun; changed Rust test expectations will be
 compiled in the consolidated N2 test batch. No executable-speed or compression
 win is claimed from this ownership gate.
 
-Generic/tagged product layouts, portable records/data, exceptions/suspension,
+Generic/tagged product layouts, remaining portable data, exceptions/suspension,
 Unicode/regex, native library/host interfaces, cross profiles and full native
 performance/corpus qualification remain within N2.
+
+## Portable records and shapes
+
+`data/qualification.json` records the next coherent batch, compiled with pin
+`/home/azureuser/lilscript-work/bin/n2-data-2/lilscript`. All seven generated-source,
+GCC, Clang 18 and ASan/UBSan steps pass under strict C11 warning-as-error flags.
+The maintained `tests/native/data.oracle.mjs` independently computes ECMAScript
+output; `data/oracle.json` records its identity alongside the LilScript fixture.
+Every native run must also finish with zero live objects after explicit collection.
+
+This batch implements string-keyed records using the traced hash table, numeric
+own-key ordering, Object keys/values/hasOwn/assign, checked scalar/array/record JSON
+stringification and scalar array join through one UTF-16 builder. Declared shapes
+share record ownership while preserving schema-selected fields, spread snapshots,
+optional-key writes, intersections and discriminant tests. `__proto__` is an ordinary
+own record key; replacement preserves insertion order. Tests include UTF-16 lone
+surrogates, control escaping, boundary integer keys, aliases and recursive shapes.
+
+The focused maintained runner passes six formation-only/production C cells.
+Only those three verified case IDs were removed from the multi-case native mask.
+No library suite or fleet benchmark ran. Updated Rust capability expectations
+remain for the consolidated N2 Rust batch. Generic/product payloads and typed JSON
+parsing remain open; this is implementation evidence for a batch, not N2 closure.

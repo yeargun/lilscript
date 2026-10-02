@@ -44,11 +44,13 @@ pub(super) enum Helper {
     ClosureRuntime,
     Dynamic,
     Collections,
+    Records,
+    Json,
     Binary,
 }
 
 impl Helper {
-    pub(super) const ALL: [Self; 23] = [
+    pub(super) const ALL: [Self; 25] = [
         Self::FromU32,
         Self::ToInt32,
         Self::RoundBinary64,
@@ -71,6 +73,8 @@ impl Helper {
         Self::Strings,
         Self::Dynamic,
         Self::Collections,
+        Self::Records,
+        Self::Json,
         Self::Binary,
     ];
 
@@ -97,6 +101,8 @@ impl Helper {
             Self::Strings => "ls_string_concat",
             Self::Dynamic => "ls_value_equal",
             Self::Collections => "ls_map_new",
+            Self::Records => "ls_record_get",
+            Self::Json => "ls_json_scalar",
             Self::Binary => "ls_buffer_new",
             Self::ClosureRuntime => "ls_native_retain",
         }
@@ -115,6 +121,8 @@ impl Helper {
             Self::Strings => &[Self::StringEqual, Self::ClosureRuntime],
             Self::Dynamic => &[Self::Strings, Self::ClosureRuntime],
             Self::Collections => &[Self::Dynamic],
+            Self::Records => &[Self::Collections],
+            Self::Json => &[Self::Records],
             Self::Binary => &[Self::ClosureRuntime, Self::FromU32],
             _ => &[],
         }
@@ -126,6 +134,8 @@ impl Helper {
             Self::Strings => super::native_string_runtime::STRINGS,
             Self::Dynamic => super::native::DYNAMIC_RUNTIME,
             Self::Collections => super::native::COLLECTIONS_RUNTIME,
+            Self::Records => include_str!("runtime/records.c"),
+            Self::Json => include_str!("runtime/json.c"),
             Self::Binary => super::native::BINARY_RUNTIME,
             Self::FromU32 => {
                 include_str!("runtime/from_u32.c")

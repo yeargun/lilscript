@@ -13,7 +13,6 @@ pub struct Capability {
     pub boundary: &'static str,
     pub remaining_owner: Option<&'static str>,
 }
-pub const RECORDS: &str = "native records are not implemented yet (N2)";
 pub const REGEX: &str = "native regular expressions are not implemented yet (N2)";
 pub const ASYNC: &str = "native tasks and async functions are not implemented yet (N2)";
 pub const GENERATORS: &str = "native generators are not implemented yet (N2)";
@@ -26,7 +25,7 @@ pub const CAPABILITIES: &[Capability] = &[
     Capability { id: "functions", status: Status::Partial, boundary: "direct and indirect calls, captures, generic tagged values, defaults and references; absent-value transport and mutable-reference callable payloads remain", remaining_owner: Some("N2") },
     Capability { id: "value-structs", status: Status::Partial, boundary: "acyclic nongeneric products with managed fields; generic layouts and tagged product boxing remain", remaining_owner: Some("N2") },
     Capability { id: "collections", status: Status::Partial, boundary: "arrays, class objects, maps, sets, symbols, buffers and typed arrays; recipe checking determines supported element/call combinations", remaining_owner: Some("N2") },
-    Capability { id: "records-and-shapes", status: Status::Pending, boundary: "portable records, Object keys/values/assign, typed JSON, declared shapes and native immutable graph storage", remaining_owner: Some("N2") },
+    Capability { id: "records-and-shapes", status: Status::Partial, boundary: "traced string-keyed records, Object keys/values/hasOwn/assign, checked JSON stringify, declared shape storage/spreads/optional fields/tag tests; product payloads, typed parsing and immutable graph qualification remain", remaining_owner: Some("N2") },
     Capability { id: "exceptions", status: Status::Pending, boundary: "status propagation through calls, try/catch/finally and throw", remaining_owner: Some("N2") },
     Capability { id: "suspension", status: Status::Pending, boundary: "generator and async state machines, task ownership and microtask queue", remaining_owner: Some("N2") },
     Capability { id: "regex", status: Status::Pending, boundary: "ECMAScript regular expressions using a pinned runtime", remaining_owner: Some("N2") },

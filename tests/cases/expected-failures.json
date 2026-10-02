@@ -46,12 +46,9 @@
       "case": [
         "cases/differential_pinned_regressions",
         "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_captured_rebind",
-        "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write",
         "cases/regressions/compiler-snapshot_of_a_top_level_record_field_survives_a_captured_rebind",
         "cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback",
         "cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback-computed",
-        "cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys",
-        "cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order",
         "cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes",
         "cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding"
       ],

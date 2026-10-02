@@ -1,0 +1,60 @@
+extern void assertNativeCount(int expected);
+extern void collectNative();
+void records() {
+    Record<string> words = record{"10":"ten", "2":"two", b:"bee".repeat(2), a:"aye", "01":"one", "4294967295":"last", "4294967294":"index", "__proto__":"own", "":"empty"};
+    print(JSON.stringify(words));
+    words.b = "B".repeat(3);
+    words["3"] = "three";
+    Record<string> other = record{a:"A", c:"C", "0":"zero"};
+    print(Object.assign(words, other) == words);
+    print(Object.keys(words).join("|"));
+    print(Object.values(words).join("|"));
+    print(Object.hasOwn(words,"__proto__"));
+    print(Object.hasOwn(words,"toString"));
+    print(words.missing);
+    print(words["__proto__"] ?? "missing");
+    print(Object.assign(words,words) == words);
+    Record<int[]> arrays = record{a:[1,2]};
+    int[] first = arrays.a ?? [];
+    first.push(3);
+    print(Object.values(arrays)[0].length);
+    arrays.a = [7];
+    print(first.length);
+    Record<Record<int>> nested = record{child:record{answer:42}};
+    Record<int> child = nested.child ?? record{};
+    print(child.answer ?? 0);
+}
+void json() {
+    string[] values = ["a\n\t\b\f\r\\\"", "\u0001\ud800X\udfff", "\ud83d\ude00", "\u2028\u2029"];
+    print(JSON.stringify(values));
+    print(JSON.stringify([-2147483648,0,2147483647]));
+    print(JSON.stringify([true,false]));
+    print(JSON.stringify("quoted"));
+    print(JSON.stringify(null));
+    Record<int> empty = record{};
+    print(JSON.stringify(empty));
+    Record<string> duplicates = record{a:"first",b:"middle"};
+    duplicates.a = "last";
+    print(JSON.stringify(duplicates));
+}
+shape Left { data int x; }
+shape Right { data string label; }
+shape Node { data int value; data Node? next; }
+shape Token { tag string kind="text"; data string text; data int? end; }
+shape End { tag string kind="end"; data int line; }
+int readToken(Token | End value) { if (value is Token) { return value.text.length; } return value.line; }
+void shapes() {
+    Left left = Left{x:3}; Right right = Right{label:"abc".repeat(2)};
+    Left & Right both = {...left,...right};
+    print(both.x + both.label.length);
+    both.x = 7; print(left.x); print(both.x);
+    Node node=Node{value:9}; node.next=node;
+    print((node.next ?? node).value);
+    Token token=Token{text:"hello"}; token.end=8;
+    Token copy=Token{...token,text:"hi"}; token.end=null;
+    print(copy.end); print(token.end);
+    print(readToken(token)); print(readToken(End{line:42}));
+}
+records(); json(); shapes();
+collectNative(); assertNativeCount(0);
+print("data done");

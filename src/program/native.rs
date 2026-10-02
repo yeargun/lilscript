@@ -4,7 +4,7 @@
 
 use super::native_memory;
 use super::native_plan::{
-    NativePlan, NativeType, PlaceRecipe, PreparedTarget, Tagged, ValueStorage,
+    NativePlan, NativeType, PlaceRecipe, PreparedTarget, RecordKey, Tagged, ValueStorage,
 };
 use super::native_runtime::{self, Helper};
 #[path = "native_arrays.rs"]
@@ -15,6 +15,8 @@ mod binary;
 mod classes;
 #[path = "native_collections.rs"]
 mod collections;
+#[path = "native_records.rs"]
+mod records;
 #[path = "native_dynamic.rs"]
 mod dynamic;
 #[path = "native_enums.rs"]
@@ -806,7 +808,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
             }
             OperationKind::Store(place) => {
-                if let PlaceRecipe::IndexedUnion {
+                if let PlaceRecipe::Record { receiver, key, omit_absent } = self.plan.units[id.index()].places[place.index()].recipe {
+                    self.write(format_args!("ls_shape_set(ls_v{},", receiver.index()))?;
+                    self.record_key(key)?;
+                    self.text(",")?;
+                    self.converted(id, args[0], NativeType::Dynamic(Tagged::ANY))?;
+                    self.write(format_args!(",{omit_absent});\n"))?;
+                } else if let PlaceRecipe::IndexedUnion {
                     receiver,
                     index: Some(index),
                     array,
@@ -868,6 +876,19 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     self.copy_value(id, Destination::Value(result), args[0])?;
                 }
             }
+            OperationKind::Allocate { kind: AllocationKind::Record(keys), .. } => {
+                let result = result.unwrap();
+                self.assignment_start(id, Destination::Value(result), true)?;
+                self.text("ls_record_new()")?;
+                self.assignment_end(id, Destination::Value(result))?;
+                for (&key, &value) in keys.iter().zip(args) {
+                    self.write(format_args!("ls_record_set(ls_v{},", result.index()))?;
+                    self.record_key(RecordKey::Literal(key))?;
+                    self.text(",")?;
+                    self.converted(id, value, NativeType::Dynamic(Tagged::ANY))?;
+                    self.text(");\n")?;
+                }
+            }
             OperationKind::Allocate {
                 kind: kind @ (AllocationKind::Array | AllocationKind::SpreadArray(_)),
                 ..
@@ -924,6 +945,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     result.unwrap().index(),
                     args[0].index()
                 ))?;
+            }
+            OperationKind::Allocate { kind: AllocationKind::Instance { keys, .. } | AllocationKind::Object(keys), .. }
+                if self.plan.units[id.index()].values[result.unwrap().index()] == ValueStorage::Value(NativeType::Shape) => {
+                self.allocate_shape(id, result.unwrap(), keys, args)?;
             }
             OperationKind::Allocate {
                 kind: AllocationKind::Instance { .. },
@@ -1060,6 +1085,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
             OperationKind::ClosedClassTest(identity) => {
                 let class = self.plan.program.class_index(*identity).expect("checked closed class identity");
                 self.class_type_test(id, result.unwrap(), args[0], class)?;
+            }
+            OperationKind::TypeTest(target) if super::schema::is_shape(self.plan.program, &self.plan.program.types[target.index()]) => {
+                self.shape_test(id, result.unwrap(), args[0], *target)?;
             }
             OperationKind::TypeTest(target) => {
                 if let crate::check::Type::Class(declaration) =
@@ -1231,6 +1259,12 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
                 PlaceRecipe::Value(value) => {
                     self.write(format_args!("ls_v{}", value.index()))?;
+                    break;
+                }
+                PlaceRecipe::Record { receiver, key, .. } => {
+                    self.write(format_args!("ls_record_get(ls_v{},", receiver.index()))?;
+                    self.record_key(key)?;
+                    self.text(")")?;
                     break;
                 }
                 PlaceRecipe::Member {
@@ -1444,6 +1478,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let data = self.plan.program.unit(unit).unwrap();
         let args = data.arguments(data.calls[call.index()].arguments).unwrap();
         let target = self.plan.units[unit.index()].calls[call.index()];
+        if let PreparedTarget::RecordBuiltin(builtin) = target {
+            return self.record_builtin(unit, call, result.unwrap(), builtin);
+        }
         if let PreparedTarget::Assume = target {
             let CallArgument::Value(value) = args[0] else {
                 unreachable!("native checked views take a value")
@@ -1666,6 +1703,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 true
             }
             PreparedTarget::Print
+            | PreparedTarget::RecordBuiltin(_)
             | PreparedTarget::Assume
             | PreparedTarget::ArrayMethod { .. }
             | PreparedTarget::ScalarMethod { .. }

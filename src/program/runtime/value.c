@@ -68,3 +68,18 @@ static LS_NATIVE_UNUSED inline void ls_print_value(ls_value value) {
         abort();
     }
 }
+
+/* Array.join accepts checked scalar members. Absence contributes an empty
+   element; numeric and boolean conversion is shared with ordinary strings. */
+static LS_NATIVE_UNUSED inline void ls_string_builder_value(ls_string_builder *out, ls_value value) {
+    switch(value.tag) {
+    case LS_NULL: break;
+    case LS_STRING: ls_string_builder_text(out,value.as.s); break;
+    case LS_BOOL: ls_string_builder_ascii(out,value.as.b ? "true" : "false"); break;
+    case LS_INT: case LS_FLOAT: {
+        ls_string text=ls_number_to_string(ls_value_to_number(value));
+        ls_string_builder_text(out,text); ls_string_release(text); break;
+    }
+    default: ls_value_mismatch();
+    }
+}

@@ -1,0 +1,368 @@
+{
+ "schema": 1,
+ "kind": "lilscript-case-runner",
+ "started": "2026-10-02T03:31:04.483Z",
+ "completed": "2026-10-02T03:31:06.431Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "807e9fa343538cf1623e5d850bd29e27f5fc05c3",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/n2-data-2/lilscript",
+  "path": "/tmp/lilscript-n2-data-cases/bin/lilscript-8667ab597fd7885e",
+  "sha256": "8667ab597fd7885edbd49ef14be7eaeaae869ce2650f0b39a917fb09f4544273",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": null,
+ "node": {
+  "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+  "version": "v20.19.0"
+ },
+ "cc": {
+  "path": "/usr/bin/cc",
+  "flagsOwner": "compiler NativeToolchain; per-artifact nativeToolchainReceipt",
+  "defaultFlags": [
+   "-O2"
+  ],
+  "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+ },
+ "scrubbedEnvironment": [],
+ "tactics": {
+  "source": "--print-policy",
+  "ids": [
+   "dead-code-elimination",
+   "constant-folding",
+   "inlining",
+   "loop-unrolling",
+   "scalar-replacement",
+   "call-specialization",
+   "helper-sharing",
+   "target-compaction",
+   "statement-spellings",
+   "declaration-order",
+   "receiver-aliases",
+   "identifier-mangling",
+   "property-mangling",
+   "string-pooling",
+   "string-array-packing",
+   "startup-reconstruction",
+   "recurring-reconstruction",
+   "naming-search",
+   "naming-compaction",
+   "representation-joints",
+   "naming-alphabet"
+  ]
+ },
+ "ledger": {
+  "path": "tests/cases/expected-failures.json",
+  "sha256": "dce9fccb32a588598be1f515c3f52a6983c17193c5870384eadc6c753b75413c",
+  "entries": 7
+ },
+ "masks": [
+  {
+   "id": "host-prelude",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "a .host.js prelude defines externs in a JavaScript realm",
+   "lifts": null
+  },
+  {
+   "id": "module-probe",
+   "targets": [
+    "module",
+    "cjs"
+   ],
+   "why": "a .module-probe.mjs reads the library export surface",
+   "lifts": null
+  },
+  {
+   "id": "JsValue",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: JsValue is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "import extern",
+   "targets": [
+    "module"
+   ],
+   "why": "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports",
+   "lifts": null
+  },
+  {
+   "id": "extern",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "this corpus fixture needs a C provider/host-equivalent boundary; configured native function providers are supported",
+   "lifts": "N2 (M11.3 provider-backed corpus qualification)"
+  },
+  {
+   "id": "export",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "the entry's exports are a module ABI; C has none yet",
+   "lifts": "M11.8 (a C library ABI)"
+  },
+  {
+   "id": "JS namespace",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: C rejects the JS.* operations",
+   "lifts": null
+  },
+  {
+   "id": "async",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects async functions and tasks",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "exceptions",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects exceptions",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "Regex",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects Regex",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "generator",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects generators",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "object literal",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: object {} is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "JSON.parse",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: JSON.parse returns JsValue",
+   "lifts": null
+  }
+ ],
+ "lanes": [
+  {
+   "id": "formation-only/raw/c",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "a70e2a9c6b2c1f3e97d433b3814a4a1fa81c653279000f51f1e45f156fa155fe",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/raw/c",
+   "mode": "production",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n",
+   "policyFingerprint": "2929a1aea29c0a95758990466f15bc66d53c070e1c9c4e875c02b9fdfbc081e4",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  }
+ ],
+ "cases": [
+  {
+   "id": "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write",
+   "digest": "0068250b8d09ed8b138176ca8ef09aee9641fa45dbdf7b9cf387f48870229d5d",
+   "features": []
+  },
+  {
+   "id": "cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys",
+   "digest": "6e3412cf558d58e708fe1d89b7358d6da3cf57289cb37b4bc36951c0c5c8b6a1",
+   "features": []
+  },
+  {
+   "id": "cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order",
+   "digest": "13150922adaca52e9833fa109496c4c02108e305992a70cb2bfee7cee91fc762",
+   "features": []
+  }
+ ],
+ "summary": {
+  "formation-only/raw/c": {
+   "cases": 3,
+   "pass": 3,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 152453
+  },
+  "production/raw/c": {
+   "cases": 3,
+   "pass": 3,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 152324
+  }
+ },
+ "unexpected": 0,
+ "staleLedgerEntries": [
+  {
+   "index": 6,
+   "case": [
+    "cases/differential_pinned_regressions",
+    "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_captured_rebind",
+    "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write",
+    "cases/regressions/compiler-snapshot_of_a_top_level_record_field_survives_a_captured_rebind",
+    "cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback",
+    "cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback-computed",
+    "cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys",
+    "cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order",
+    "cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes",
+    "cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding"
+   ],
+   "owner": "M11.4",
+   "passing": [
+    "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write formation-only/raw/c",
+    "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write production/raw/c",
+    "cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys formation-only/raw/c",
+    "cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys production/raw/c",
+    "cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order formation-only/raw/c",
+    "cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order production/raw/c"
+   ]
+  }
+ ],
+ "narrowableLedgerEntries": [],
+ "unknownLedgerCases": [],
+ "results": [
+  {
+   "case": "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write",
+   "lane": "formation-only/raw/c",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_c/cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write.c",
+    "bytes": 52263,
+    "sha256": "51ae832a29045897b76b8d2b5e228ffbfa01d57c0a519c075ae2d71f68cb735c"
+   },
+   "nativeToolchainReceipt": "lanes/formation-only_raw_c/cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write",
+   "lane": "production/raw/c",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/production_raw_c/cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write.c",
+    "bytes": 52068,
+    "sha256": "f41bffd33798b206a4dd9cfe88d39c6378272a5e0eb5756f0d5312b1d1492f2a"
+   },
+   "nativeToolchainReceipt": "lanes/production_raw_c/cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys",
+   "lane": "formation-only/raw/c",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_c/cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys.c",
+    "bytes": 48800,
+    "sha256": "dc26d5878a95ff5624f55b706ad13b62854cce98044b622d62e8133266765654"
+   },
+   "nativeToolchainReceipt": "lanes/formation-only_raw_c/cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys",
+   "lane": "production/raw/c",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/production_raw_c/cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys.c",
+    "bytes": 48833,
+    "sha256": "28761ff34a0b4d4882221702185279c91337cc8f0ae9589993710fbe79079832"
+   },
+   "nativeToolchainReceipt": "lanes/production_raw_c/cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order",
+   "lane": "formation-only/raw/c",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_c/cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order.c",
+    "bytes": 51390,
+    "sha256": "a5eb3803ffb2717c7e72ed9ea34a833f1bbe078c5be7670961411a7f34b33038"
+   },
+   "nativeToolchainReceipt": "lanes/formation-only_raw_c/cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order",
+   "lane": "production/raw/c",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/production_raw_c/cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order.c",
+    "bytes": 51423,
+    "sha256": "70895c756db920cf2b14d2b34ed3044684de80d3c4752d6faaac9881244ac626"
+   },
+   "nativeToolchainReceipt": "lanes/production_raw_c/cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order.exe.native.json",
+   "state": "pass"
+  }
+ ]
+}

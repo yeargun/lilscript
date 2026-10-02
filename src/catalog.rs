@@ -566,7 +566,6 @@ pub(crate) fn native_type_capability(ty: &crate::check::Type<'_>) -> Option<&'st
     use crate::check::Type;
     match ty {
         Type::Dynamic | Type::Unknown => Some("JsValue and unknown require a JavaScript target"),
-        Type::Record(_) => Some(crate::native_capabilities::RECORDS),
         Type::Regex => Some(crate::native_capabilities::REGEX),
         Type::Task(_) => Some(crate::native_capabilities::ASYNC),
         Type::Generator(_) => Some(crate::native_capabilities::GENERATORS),

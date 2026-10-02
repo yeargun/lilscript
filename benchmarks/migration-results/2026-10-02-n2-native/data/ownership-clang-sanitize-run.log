@@ -1,0 +1,28 @@
+{"2":"two","10":"ten","4294967294":"index","b":"beebee","a":"aye","01":"one","4294967295":"last","__proto__":"own","":"empty"}
+true
+0|2|3|10|4294967294|b|a|01|4294967295|__proto__||c
+zero|two|three|ten|index|BBB|A|one|last|own|empty|C
+true
+false
+null
+own
+true
+3
+3
+42
+["a\n\t\b\f\r\\\"","\u0001\ud800X\udfff","😀","  "]
+[-2147483648,0,2147483647]
+[true,false]
+"quoted"
+null
+{}
+{"a":"last","b":"middle"}
+9
+3
+7
+9
+8
+null
+5
+42
+data done

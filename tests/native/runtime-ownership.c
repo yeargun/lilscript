@@ -7,6 +7,7 @@
 #include "../../src/program/runtime/from_u32.c"
 #include "../../src/program/runtime/string_equal.c"
 #include "../../src/program/runtime/strings.c"
+#include "../../src/program/runtime/string_builder.c"
 #include "../../src/program/runtime/value.h"
 #include "../../src/program/runtime/value.c"
 #include "../../src/program/runtime/collections.c"

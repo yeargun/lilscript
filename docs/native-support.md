@@ -17,7 +17,7 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 | Functions | Direct/indirect calls, closures/captures, supported generic tagged values, defaults and references | Absent-value transport and mutable-reference callable payloads: N2 |
 | Value structs | Acyclic nongeneric products with managed fields, copied by value | Instantiated generic layouts and boxed nullable/union products: N2 |
 | Collections and classes | Arrays, class objects, maps, sets, symbols, buffers and typed arrays; supported element and call recipes are checked | Remaining recipes and comparisons: N2 |
-| Records, shapes and static data | Shared facts can optimize products; native portable record/shape storage is incomplete | Records, Object keys/values/assign, typed JSON, shapes, immutable graph storage: N2 |
+| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, checked JSON stringify, shape fields/spreads/optional writes/tag narrowing, scalar array join | Product payloads, typed parsing and immutable graph qualification: N2 |
 | Exceptions | Source-qualified refusal | Status propagation, catch/finally, throwing calls: N2 |
 | Generators, async/tasks | Source-qualified refusal | Region state machines and microtask queue: N2 |
 | Regular expressions | Source-qualified refusal | Pinned ECMAScript-compatible engine: N2 |

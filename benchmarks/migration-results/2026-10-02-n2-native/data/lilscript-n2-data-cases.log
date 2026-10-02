@@ -1,0 +1,12 @@
+compiler /home/azureuser/lilscript-work/bin/n2-data-2/lilscript sha256 8667ab597fd7885e (lilscript 0.1.0)
+3 cases x 2 lanes; ledger tests/cases/expected-failures.json (7 entries)
+
+lane                   pass  fail  ledgered  masked  artifact bytes  objective total
+formation-only/raw/c      3     0         0       0          152453                -
+production/raw/c          3     0         0       0          152324                -
+
+LEDGER ENTRIES THAT NOW PASS (remove them):
+  #6 cases/differential_pinned_regressions, cases/regressions/compiler-snapshot_of_a_record_field_survives_a_captured_rebind, cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write, cases/regressions/compiler-snapshot_of_a_top_level_record_field_survives_a_captured_rebind, cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback, cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback-computed, cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys, cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order, cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes, cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding (M11.4): passes on all 6 covered lanes
+
+OK: no failure outside the ledger
+report: /tmp/lilscript-n2-data-cases.json

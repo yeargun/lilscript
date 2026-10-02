@@ -35,6 +35,8 @@ pub(super) enum NativeType {
     /// Builtin reference-counted objects, held as `ls_native_object *`: an
     /// insertion-ordered `Map` or `Set` of tagged keys, and a `Symbol`.
     Map,
+    Record,
+    Shape,
     Set,
     Symbol,
     /// An `ArrayBuffer` or `SharedArrayBuffer` (one thread: the same thing).
@@ -76,6 +78,7 @@ impl fmt::Display for NativeType {
             Self::Array(index) => write!(f, "ls_array{index} *"),
             Self::Dynamic(_) => f.write_str("ls_value"),
             Self::Object(_)
+            | Self::Shape | Self::Record
             | Self::Map
             | Self::Set
             | Self::Symbol
@@ -96,7 +99,8 @@ impl NativeType {
                 | Self::Callable(_)
                 | Self::Array(_)
                 | Self::Object(_)
-                | Self::Map
+                | Self::Shape | Self::Record
+            | Self::Map
                 | Self::Set
                 | Self::Symbol
                 | Self::Buffer
@@ -112,6 +116,7 @@ impl NativeType {
             Self::Callable(_) => Some(format!("ls_native_retain({value}.environment);\n")),
             Self::Array(_)
             | Self::Object(_)
+            | Self::Shape | Self::Record
             | Self::Map
             | Self::Set
             | Self::Symbol
@@ -131,6 +136,7 @@ impl NativeType {
             Self::Callable(_) => Some(format!("ls_native_release({value}.environment);\n")),
             Self::Array(_)
             | Self::Object(_)
+            | Self::Shape | Self::Record
             | Self::Map
             | Self::Set
             | Self::Symbol
@@ -150,6 +156,7 @@ impl NativeType {
             Self::Callable(signature) => Some(format!("ls_callable{signature}")),
             Self::Array(index) => Some(format!("ls_array{index}")),
             Self::Object(_)
+            | Self::Shape | Self::Record
             | Self::Map
             | Self::Set
             | Self::Symbol
@@ -164,7 +171,8 @@ impl NativeType {
             Self::String => Some(format!("visit({value}.owner, context);\n")),
             Self::Struct(index) => Some(format!("ls_t{index}_trace({value}, visit, context);\n")),
             Self::Callable(_) => Some(format!("visit({value}.environment, context);\n")),
-            Self::Array(_) | Self::Object(_) | Self::Map | Self::Set | Self::Symbol | Self::Buffer | Self::Typed(_) => Some(format!("visit({value}, context);\n")),
+            Self::Array(_) | Self::Object(_) | Self::Shape | Self::Record
+            | Self::Map | Self::Set | Self::Symbol | Self::Buffer | Self::Typed(_) => Some(format!("visit({value}, context);\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => Some(format!("ls_value_trace({value}, visit, context);\n")),
             _ => None,
         }
@@ -175,6 +183,7 @@ impl NativeType {
             Self::Callable(_) | Self::String | Self::Struct(_) => " = {0}",
             Self::Array(_)
             | Self::Object(_)
+            | Self::Shape | Self::Record
             | Self::Map
             | Self::Set
             | Self::Symbol
@@ -226,6 +235,7 @@ pub(super) enum PreparedTarget {
     },
     Print,
     MathImul,
+    RecordBuiltin(BuiltinCall),
     CharCodeAt {
         receiver: ValueId,
     },
@@ -275,6 +285,11 @@ pub(super) enum PreparedTarget {
 pub(super) enum PlaceRecipe {
     Cell(CellId),
     Value(ValueId),
+    Record {
+        receiver: ValueId,
+        key: RecordKey,
+        omit_absent: bool,
+    },
     Field {
         base: PlaceId,
         slot: usize,
@@ -312,6 +327,12 @@ pub(super) enum PlaceRecipe {
         index: ValueId,
         array: usize,
     },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) enum RecordKey {
+    Literal(StringId),
+    Value(ValueId),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -459,6 +480,8 @@ pub(super) fn native_type<'program, 'src>(
             NativeType::Array(intern_array(tables, element, budget)?)
         }
         // A host (extern) class instance is a JavaScript object.
+        ty @ (Type::Class(_) | Type::ClassInstance { .. } | Type::Intersection(_))
+            if super::schema::is_shape(program, ty) => NativeType::Shape,
         Type::Class(declaration) | Type::ClassInstance { declaration, .. } => {
             work(budget, 1)?;
             match program
@@ -470,6 +493,10 @@ pub(super) fn native_type<'program, 'src>(
             }
         }
         // Keys and values live in tagged entries.
+        Type::Record(value) => {
+            if dynamic_member(program, value, tables, budget)?.is_none() { return Ok(None); }
+            NativeType::Record
+        }
         Type::Map(key, value) => {
             if dynamic_member(program, key, tables, budget)?.is_none()
                 || dynamic_member(program, value, tables, budget)?.is_none()
@@ -683,6 +710,22 @@ fn plan_places(
                 writable: false,
             },
             Place::Index { receiver, .. } | Place::Member { receiver, .. }
+                if values[receiver.index()] == ValueStorage::Value(NativeType::Record) =>
+            {
+                let key = match *place {
+                    Place::Member { key, .. } => RecordKey::Literal(key),
+                    Place::Index { key, .. } if values[key.index()] == ValueStorage::Value(NativeType::String) => RecordKey::Value(key),
+                    _ => return Err(error("native record key representation")),
+                };
+                helpers.require(Helper::Records);
+                PlacePlan {
+                    recipe: PlaceRecipe::Record { receiver, key, omit_absent: false },
+                    storage: ValueStorage::Value(NativeType::Dynamic(Tagged::ANY)),
+                    root_cell: None,
+                    writable: true,
+                }
+            }
+            Place::Index { receiver, .. } | Place::Member { receiver, .. }
                 if matches!(
                     values[receiver.index()],
                     ValueStorage::Value(NativeType::Dynamic(_))
@@ -785,6 +828,20 @@ fn plan_places(
             }
             Place::Member { .. } => {
                 return Err(error("native host member place"));
+            }
+            Place::ClassField { receiver, field }
+                if values[receiver.index()] == ValueStorage::Value(NativeType::Shape) => {
+                let Some((key, _)) = program.class_field(field) else { return Err(error("native shape field")); };
+                let declared = super::schema::place_type(program, unit, PlaceId::from_index(index).unwrap(), budget)?
+                    .ok_or_else(|| error("native shape field schema"))?;
+                let omit_absent = native_optional_key(&declared);
+                helpers.require(Helper::Records);
+                PlacePlan {
+                    recipe: PlaceRecipe::Record { receiver, key: RecordKey::Literal(key), omit_absent },
+                    storage: ValueStorage::Value(NativeType::Dynamic(Tagged::ANY)),
+                    root_cell: None,
+                    writable: true,
+                }
             }
             Place::ClassField { receiver, field } => {
                 let ValueStorage::Value(NativeType::Object(_)) = values[receiver.index()] else {
@@ -1171,7 +1228,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         for class in program.classes.iter() {
             work(budget, class.fields.len() + 1)?;
             let mut fields = budget.vector(Scratch, class.fields.len())?;
-            if !class.external {
+            if !class.external && !class.shape {
                 for &(_, ty) in &class.fields {
                     fields.push(match classes[ty.index()] {
                         TypeClass::Value(ty) => ty,
@@ -1474,6 +1531,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 &mut plan.helpers,
                 budget,
             )?;
+            for place in &places {
+                if let PlaceRecipe::Record { key: RecordKey::Literal(key), .. } = place.recipe {
+                    plan.strings[key.index()] = true;
+                }
+            }
+
             let mut calls = budget
                 .vector(Scratch, data.calls.len())
                 .map_err(NativeError::Allocation)?;
@@ -1527,6 +1590,11 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             _ => return Err(error("native host reference call")),
                         },
                     },
+                    CallTarget::Builtin(builtin @ (BuiltinCall::ObjectKeys | BuiltinCall::ObjectValues
+                        | BuiltinCall::ObjectHasOwn | BuiltinCall::ObjectAssign | BuiltinCall::JsonStringify)) => {
+                        plan.helpers.require(if builtin == BuiltinCall::JsonStringify { Helper::Json } else { Helper::Records });
+                        PreparedTarget::RecordBuiltin(builtin)
+                    }
                     CallTarget::Builtin(BuiltinCall::Print) => PreparedTarget::Print,
                     CallTarget::Builtin(BuiltinCall::JsAssume) => PreparedTarget::Assume,
                     CallTarget::Intrinsic {
@@ -1715,6 +1783,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         match intrinsic {
                             Intrinsic::ArrayPush => PreparedTarget::ArrayPush { receiver, array },
                             Intrinsic::ArrayPop => PreparedTarget::ArrayPop { receiver, array },
+                            Intrinsic::ArrayJoin => {
+                                plan.helpers.require(Helper::Dynamic);
+                                PreparedTarget::ArrayMethod { receiver, array, method: intrinsic }
+                            }
                             Intrinsic::ArrayForEach
                             | Intrinsic::ArrayMap
                             | Intrinsic::ArrayFilter
@@ -1997,6 +2069,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Array(_)
                     | NativeType::Object(_)
                     | NativeType::Callable(_)
+                    | NativeType::Shape | NativeType::Record
                     | NativeType::Map
                     | NativeType::Set
                     | NativeType::Symbol
@@ -2180,7 +2253,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 class,
                 TypeClass::Value(
                     NativeType::Object(_)
-                        | NativeType::Map
+                        | NativeType::Shape | NativeType::Record
+                    | NativeType::Map
                         | NativeType::Set
                         | NativeType::Symbol
                         | NativeType::Buffer
@@ -2324,6 +2398,18 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 expect(operands.len() == 1 && result == Some(Stored(Bool)) && matches!(operand(0),
                     Stored(NativeType::Object(_) | NativeType::Dynamic(_))), "native closed class test")
             }
+            OperationKind::TypeTest(target) if super::schema::is_shape(self.program, &self.program.types[target.index()]) => {
+                let ty = &self.program.types[target.index()];
+                let (Type::Class(declaration) | Type::ClassInstance { declaration, .. }) = ty else { return Err(error("native shape test schema")); };
+                let definition = self.program.class(declaration.identity).unwrap();
+                let (slot, tag) = definition.discriminant.ok_or_else(|| error("native shape test tag"))?;
+                self.strings[definition.fields[slot as usize].0.index()] = true;
+                if let Constant::String(id) = tag { self.strings[id.index()] = true; }
+                if let Constant::Integer(_) = tag { self.helpers.require(Helper::FromU32); }
+                self.helpers.require(Helper::Records);
+                expect(operands.len() == 1 && result == Some(Stored(Bool))
+                    && self.compatible(Stored(NativeType::Dynamic(Tagged::ANY)), operand(0)), "native shape test")
+            }
             OperationKind::TypeTest(target) => {
                 if let Type::Class(declaration) = &self.program.types[target.index()] {
                     let class = self
@@ -2425,6 +2511,22 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         "native struct field value",
                     )?;
                 }
+                Ok(())
+            }
+            OperationKind::Allocate { kind: AllocationKind::Record(keys), .. } => {
+                expect(result == Some(Stored(NativeType::Record)) && keys.len() == operands.len()
+                    && operands.iter().all(|&arg| self.compatible(Stored(NativeType::Dynamic(Tagged::ANY)), value(arg))),
+                    "native record construction")?;
+                for key in keys { self.strings[key.index()] = true; }
+                self.helpers.require(Helper::Records);
+                Ok(())
+            }
+            OperationKind::Allocate { kind: AllocationKind::Instance { keys, .. } | AllocationKind::Object(keys), .. }
+                if result == Some(Stored(NativeType::Shape)) => {
+                expect(keys.len() == operands.len() && operands.iter().all(|&arg|
+                    self.compatible(Stored(NativeType::Dynamic(Tagged::ANY)), value(arg))), "native shape construction")?;
+                for key in keys { self.strings[key.index()] = true; }
+                self.helpers.require(Helper::Records);
                 Ok(())
             }
             OperationKind::Allocate {
@@ -2629,7 +2731,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             || (matches!(
                                 operand(0),
                                 Stored(
-                                    NativeType::Map
+                                    NativeType::Shape | NativeType::Record | NativeType::Map
                                         | NativeType::Set
                                         | NativeType::Symbol
                                         | NativeType::Buffer
@@ -2849,6 +2951,22 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             "native callable result representation",
                         )
                     }
+                    PreparedTarget::RecordBuiltin(builtin) => {
+                        let record = Some(Stored(NativeType::Record));
+                        let valid = match builtin {
+                            BuiltinCall::ObjectKeys => arguments.len() == 1 && argument(0) == record
+                                && matches!(result, Some(Stored(NativeType::Array(array))) if self.arrays[array] == Text),
+                            BuiltinCall::ObjectValues => arguments.len() == 1 && argument(0) == record
+                                && matches!(result, Some(Stored(NativeType::Array(array))) if self.compatible(Stored(self.arrays[array]), Stored(NativeType::Dynamic(Tagged::ANY)))),
+                            BuiltinCall::ObjectHasOwn => arguments.len() == 2 && argument(0) == record
+                                && argument(1) == Some(Stored(Text)) && result == Some(Stored(Bool)),
+                            BuiltinCall::ObjectAssign => arguments.len() == 2 && argument(0) == record && argument(1) == record && result == record,
+                            BuiltinCall::JsonStringify => arguments.len() == 1 && result == Some(Stored(Text))
+                                && matches!(argument(0), Some(Stored(I32 | F64 | Bool | Text | NativeType::Dynamic(_) | NativeType::Array(_) | NativeType::Shape | NativeType::Record))),
+                            _ => false,
+                        };
+                        expect(valid, "native record builtin representation")
+                    }
                     PreparedTarget::Print => {
                         expect(
                             arguments.len() == 1
@@ -3037,6 +3155,11 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         };
                         let int = |position: usize| argument(position) == Some(Stored(I32));
                         let admitted = match method {
+                            Intrinsic::ArrayJoin => {
+                                arguments.len() <= 1 && (arguments.is_empty() || argument(0) == Some(Stored(Text)))
+                                    && matches!(self.arrays[kind], I32 | F64 | Bool | Text | NativeType::Dynamic(_))
+                                    && result == Some(Stored(Text))
+                            }
                             Intrinsic::ArrayForEach => {
                                 arguments.len() == 1
                                     && callback(0, &[item]).is_some()
@@ -3395,3 +3518,8 @@ mod tests;
 #[cfg(test)]
 #[path = "native_closure_plan_tests.rs"]
 mod closure_tests;
+
+pub(super) fn native_optional_key(ty: &Type<'_>) -> bool {
+    matches!(ty, Type::Nullable(inner) if inner.boundary == crate::check::AbsencePin::Auto)
+        || matches!(ty, Type::Null)
+}

@@ -263,6 +263,21 @@ return false;\n}}\n"
         let result_value = result.unwrap();
         let destination = Destination::Value(result_value);
         match method {
+            Intrinsic::ArrayJoin => {
+                let (prefix, suffix) = Self::conversion(e, NativeType::Dynamic(Tagged::ANY));
+                self.text("{\nls_string_builder ls_join = {0};\n")?;
+                self.write(format_args!("for (size_t ls_k = 0; ls_k < ls_v{r}->length; ++ls_k) {{\nif (ls_k) "))?;
+                if let Some(separator) = value(0) {
+                    self.write(format_args!("ls_string_builder_text(&ls_join,ls_v{});\n", separator.index()))?;
+                } else {
+                    self.text("ls_string_builder_unit(&ls_join,',');\n")?;
+                }
+                self.write(format_args!("ls_string_builder_value(&ls_join,{prefix}ls_v{r}->items[ls_k]{suffix});\n}}\n"))?;
+                self.assignment_start(unit, destination, true)?;
+                self.text("ls_string_builder_finish(&ls_join)")?;
+                self.assignment_end(unit, destination)?;
+                self.text("}\n")
+            }
             Intrinsic::ArrayForEach => {
                 self.text(&head)?;
                 self.text("if (ls_k >= ls_src->length) continue;\n")?;

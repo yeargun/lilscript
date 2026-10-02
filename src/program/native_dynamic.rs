@@ -48,7 +48,7 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
             (F64, Dynamic(_)) => ("ls_value_float(".into(), ")"),
             (Bool, Dynamic(_)) => ("ls_value_bool(".into(), ")"),
             (String, Dynamic(_)) => ("ls_value_string(".into(), ")"),
-            (Object(_) | Map | Set | Buffer | Typed(_), Dynamic(_)) => {
+            (Object(_) | Shape | Record | Map | Set | Buffer | Typed(_), Dynamic(_)) => {
                 ("ls_value_object(".into(), ")")
             }
             (Symbol, Dynamic(_)) => ("ls_value_symbol(".into(), ")"),
@@ -58,7 +58,7 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
             (Dynamic(_), F64) => ("ls_value_to_number(".into(), ")"),
             (Dynamic(_), Bool) => ("ls_value_to_bool(".into(), ")"),
             (Dynamic(_), String) => ("ls_value_to_string(".into(), ")"),
-            (Dynamic(_), Object(_) | Map | Set | Buffer | Typed(_)) => {
+            (Dynamic(_), Object(_) | Shape | Record | Map | Set | Buffer | Typed(_)) => {
                 ("ls_value_to_object(".into(), ")")
             }
             (Dynamic(_), Symbol) => ("ls_value_to_symbol(".into(), ")"),

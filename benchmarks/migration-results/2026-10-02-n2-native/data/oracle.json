@@ -1,0 +1,28 @@
+{
+  "oracle": [
+    "node",
+    "tests/native/data.oracle.mjs"
+  ],
+  "fixtures": [
+    {
+      "path": "tests/native/data.lil",
+      "sha256": "a342d345a71e30e4225564f178cad52706bb770d21d3a1aaac09c74533f71415"
+    },
+    {
+      "path": "tests/native/data.toml",
+      "sha256": "687108cd7f98cc7365cf25f983f2ddc1cd679d790b83865ef83b816ea0acf53e"
+    },
+    {
+      "path": "tests/native/data.host.c",
+      "sha256": "ca482ec6cc77618495e8d55fe1c9a2672afb759439068a7ad0d8cc308edf8199"
+    },
+    {
+      "path": "tests/native/data.oracle.mjs",
+      "sha256": "72d14a721a87f9a27a74048d44b8ef8400beceef4e1b49b992751c066b004046"
+    },
+    {
+      "path": "tests/native/data.out",
+      "sha256": "1b2d1459f0b9347e6db337b8c3729305da9694e9b8a02f7d80a1bdbccc7faa17"
+    }
+  ]
+}

@@ -36,7 +36,7 @@ static LS_NATIVE_UNUSED void ls_object_clear(ls_native_object **slot) { ls_nativ
             let mut class = Some(root);
             while let Some(current) = class {
                 self.budget.work(WorkKind::Render, 1)?;
-                if emitted[current] || program.classes[current].external {
+                if emitted[current] || program.classes[current].external || program.classes[current].shape {
                     break;
                 }
                 chain.push(current);
@@ -100,7 +100,7 @@ static LS_NATIVE_UNUSED void ls_object_clear(ls_native_object **slot) { ls_nativ
             }
             self.write(format_args!("static LS_NATIVE_UNUSED bool ls_is_class{target}(ls_native_object *value) {{ return value && (false"))?;
             for actual in 0..program.classes.len() {
-                if program.classes[actual].external {
+                if program.classes[actual].external || program.classes[actual].shape {
                     continue;
                 }
                 let mut ancestor = Some(actual);

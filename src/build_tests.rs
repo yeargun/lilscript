@@ -3107,10 +3107,6 @@ fn s4_native_capabilities_are_reported_before_lowering_with_source_spans() {
     for (source, part) in [
         ("int prefix=1;JsValue value=3;print(value);", "JsValue"),
         (
-            "int prefix=1;Record<int> value=record{x:3};print(value.x??0);",
-            "native records",
-        ),
-        (
             "int prefix=1;try{print(prefix);}finally{print(2);}",
             "native exceptions",
         ),
@@ -3667,7 +3663,7 @@ fn s4_shapes_join_views_and_keep_recursive_data_checks() {
 }
 
 #[test]
-fn s4_shapes_refuse_invalid_construction_and_native_storage_at_check_time() {
+fn s4_shapes_refuse_invalid_construction_and_admit_native_storage() {
     for (source,fragment) in [
         ("shape A{data int x;}A a=A{};","must provide"),
         ("shape A{data int x;}A a=A{wrong:1};","no field"),
@@ -3680,8 +3676,8 @@ fn s4_shapes_refuse_invalid_construction_and_native_storage_at_check_time() {
         let error=compile_source(source,&config(""),ServiceOptions::default()).unwrap_err();
         assert_eq!(error.phase,"check","{error:?}");assert!(error.message.contains(fragment),"{error:?}");
     }
-    let error=compile_source("shape A{data int x;}A a=A{x:1};print(a.x);",&config(""),ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap_err();
-    assert_eq!(error.phase,"check");assert!(error.message.contains("native shape storage"),"{error:?}");
+    let compiled=compile_source("shape A{data int x;}A a=A{x:1};print(a.x);",&config(""),ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap();
+    assert!(compiled.native_c().is_some());
 }
 
 #[test]

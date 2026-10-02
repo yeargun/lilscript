@@ -1,0 +1,27 @@
+// Independent ECMAScript oracle for the portable record/JSON contract.
+const print = console.log;
+const record = entries => Object.assign(Object.create(null), Object.fromEntries(entries));
+const words = record([['10','ten'],['2','two'],['b','bee'.repeat(2)],['a','aye'],['01','one'],['4294967295','last'],['4294967294','index'],['__proto__','own'],['','empty']]);
+print(JSON.stringify(words));
+words.b = 'B'.repeat(3); words['3'] = 'three';
+const other = record([['a','A'],['c','C'],['0','zero']]);
+print(Object.assign(words,other) === words);
+print(Object.keys(words).join('|')); print(Object.values(words).join('|'));
+print(Object.hasOwn(words,'__proto__')); print(Object.hasOwn(words,'toString'));
+print(words.missing ?? null); print(words.__proto__ ?? 'missing');
+print(Object.assign(words,words) === words);
+const arrays = record([['a',[1,2]]]); const first = arrays.a ?? []; first.push(3);
+print(Object.values(arrays)[0].length); arrays.a = [7]; print(first.length);
+const nested = record([['child',record([['answer',42]])]]); print((nested.child ?? record([])).answer ?? 0);
+print(JSON.stringify(['a\n\t\b\f\r\\"','\u0001\ud800X\udfff','\ud83d\ude00','\u2028\u2029']));
+print(JSON.stringify([-2147483648,0,2147483647])); print(JSON.stringify([true,false]));
+print(JSON.stringify('quoted')); print(JSON.stringify(null)); print(JSON.stringify(record([])));
+print(JSON.stringify(record([['a','first'],['b','middle'],['a','last']])));
+const left = {x:3}, right = {label:'abc'.repeat(2)}, both={...left,...right};
+print(both.x+both.label.length); both.x=7; print(left.x); print(both.x);
+const node={value:9}; node.next=node; print((node.next??node).value);
+const token={kind:'text',text:'hello',end:8}; const copy={...token,text:'hi'}; delete token.end;
+print(copy.end); print(token.end??null);
+const readToken=value=>value.kind==='text'?value.text.length:value.line;
+print(readToken(token)); print(readToken({kind:'end',line:42}));
+print('data done');

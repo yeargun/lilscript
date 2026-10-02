@@ -85,9 +85,6 @@ pub(crate) fn native(
         if let Some(base) = &definition.base {
             check_type(view, base, definition.span, budget)?;
         }
-        if definition.shape {
-            return Err(AdmittedCheckError::new(definition.span, "native shape storage is not implemented yet (N2)"));
-        }
         for field in definition.fields.values() {
             check_type(view, &field.ty, field.span, budget)?;
         }
