@@ -1,0 +1,57 @@
+extern void assertNativeCount(int expected);
+extern void collectNative();
+extern void assertMaxNativeCount(int maximum);
+struct Batch<T> { T[] items; }
+struct Point { int x; }
+struct Payload { string text; int[] items; }
+T identity<T>(T value) { return value; }
+T[] append<T>(T[] items,T value) { items.push(value); return items; }
+T[] create<T>(T a,T b) { return [a,b]; }
+T peek<T>(T[] items,int index) { return items[index]; }
+void replace<T>(T[] items,int index,T value) { items[index]=value; }
+T[] mapped<T>(T[] items) { return items.map((T value)=>identity(value)); }
+T[] reverse<T>(T[] items) { return items.reverse(); }
+class List<T> {
+    T[] items;
+    init(T[] items) { this.items=items; }
+    T first() { return this.items[0]; }
+    void set(T value) { this.items[0]=value; }
+}
+bool bounded<T>(T value) { assertMaxNativeCount(64); return true; }
+bool checkAll<T>(T[] values) { return values.every((T value)=>bounded(value)); }
+void arrays() {
+    int[] numbers=[1,2]; int[] alias=append(numbers,3);
+    print(alias==numbers); replace(alias,0,7); print(peek(numbers,0));
+    List<int> list=new List(numbers); list.set(9); print(numbers.join("|")); print(list.first());
+    Batch<int> batch=Batch{numbers}; batch.items.push(4); print(numbers.length);
+    int[] made=create(5,6); made.push(7); replace(made,1,8); print(made.join("|"));
+    int[] mappedValues=mapped(numbers); print(mappedValues.join("|"));
+    mappedValues[0]=11; print(numbers[0]); print(reverse(mappedValues)==mappedValues);
+    print(mappedValues.join("|")); print(mappedValues.includes(11)); print(mappedValues.indexOf(3));
+    mappedValues.copyWithin(1,0,2); print(mappedValues.join("|"));
+    int[] removed=mappedValues.splice(1,2); print(removed.join("|")); print(mappedValues.join("|"));
+    int[] joined=mappedValues.concat([12]); print(joined.join("|")); print(joined.slice(1).join("|"));
+    string[] words=create("one".repeat(2),"two".repeat(2)); words.fill("filled".repeat(2));
+    print(words.pop()); print(words[0]);
+    int[][] matrix=create(numbers,made); replace(matrix,1,numbers); matrix[1].push(10);
+    print(numbers.length); print(matrix[0]==matrix[1]);
+    Payload[] payloads=[Payload{"left".repeat(2),[1]},Payload{"right".repeat(2),[2]}];
+    Batch<Payload> products=Batch{payloads}; products.items[0].text="inside";
+    print(payloads[0].text);
+    Payload[] copies=mapped(payloads); copies[0].text="copy";
+    print(payloads[0].text); print(copies[0].text);
+    Payload result=copies.reduce((Payload acc,Payload value)=>{acc.text+=value.text;acc.items.push(3);return acc;},Payload{"start",[]});
+    print(result.text); print(result.items.length);
+    int[] source=[5,6,7];
+    int[] sparse=source.map((int value)=>{source.pop();return value;});
+    print(JSON.stringify(sparse)); print(sparse.get(2)==null);
+    print(sparse.indexOf(0)); print(sparse.includes(0));
+    int visits=0; sparse.forEach((int value)=>{visits+=1;}); print(visits);
+}
+void stress() {
+    Point[] points=[]; for(int i=0;i<1000;i++){points.push(Point{i});}
+    print(checkAll(points));
+    Point[] other=mapped(points); print(other[999].x);
+}
+arrays(); collectNative(); assertNativeCount(0);
+stress(); collectNative(); assertNativeCount(0); print("arrays done");

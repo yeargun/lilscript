@@ -44,6 +44,7 @@ pub(super) enum Helper {
     ClosureRuntime,
     Dynamic,
     Products,
+    Arrays,
     Collections,
     Records,
     Json,
@@ -51,7 +52,7 @@ pub(super) enum Helper {
 }
 
 impl Helper {
-    pub(super) const ALL: [Self; 26] = [
+    pub(super) const ALL: [Self; 27] = [
         Self::FromU32,
         Self::ToInt32,
         Self::RoundBinary64,
@@ -74,6 +75,7 @@ impl Helper {
         Self::Strings,
         Self::Dynamic,
         Self::Products,
+        Self::Arrays,
         Self::Collections,
         Self::Records,
         Self::Json,
@@ -103,6 +105,7 @@ impl Helper {
             Self::Strings => "ls_string_concat",
             Self::Dynamic => "ls_value_equal",
             Self::Products => "ls_native_temporaries_clear",
+            Self::Arrays => "ls_array_new",
             Self::Collections => "ls_map_new",
             Self::Records => "ls_record_get",
             Self::Json => "ls_json_scalar",
@@ -124,6 +127,7 @@ impl Helper {
             Self::Strings => &[Self::StringEqual, Self::ClosureRuntime],
             Self::Dynamic => &[Self::Strings, Self::ClosureRuntime],
             Self::Products => &[Self::Dynamic],
+            Self::Arrays => &[Self::Products],
             Self::Collections => &[Self::Dynamic],
             Self::Records => &[Self::Collections],
             Self::Json => &[Self::Records],
@@ -138,6 +142,7 @@ impl Helper {
             Self::Strings => super::native_string_runtime::STRINGS,
             Self::Dynamic => super::native::DYNAMIC_RUNTIME,
             Self::Products => include_str!("runtime/temporaries.c"),
+            Self::Arrays => include_str!("runtime/arrays.c"),
             Self::Collections => super::native::COLLECTIONS_RUNTIME,
             Self::Records => include_str!("runtime/records.c"),
             Self::Json => include_str!("runtime/json.c"),

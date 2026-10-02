@@ -9,6 +9,8 @@ use super::native_plan::{
 use super::native_runtime::{self, Helper};
 #[path = "native_arrays.rs"]
 mod arrays;
+#[path = "native_array_types.rs"]
+mod array_types;
 #[path = "native_binary.rs"]
 mod binary;
 #[path = "native_classes.rs"]
@@ -799,9 +801,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     ) {
                         self.assignment_start(id, destination, false)?;
                         self.write(format_args!(
-                            "ls_array{array}_optional(ls_v{},ls_v{}{})",
-                            receiver.index(), index.index(),
-                            if matches!(from, NativeType::Struct(_)) { ",&ls_temps" } else { "" }
+                            "ls_array{array}_optional(ls_v{},ls_v{},&ls_temps)",
+                            receiver.index(), index.index()
                         ))?;
                         return self.assignment_end(id, destination);
                     }
@@ -921,7 +922,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                         };
                         let (prefix, suffix) =
                             Self::conversion(self.plan.arrays[source], self.plan.arrays[array]);
-                        self.write(format_args!("for(size_t ls_i=0;ls_i<ls_v{}->length;ls_i++) ls_array{array}_push(ls_v{},{prefix}ls_v{}->items[ls_i]{suffix});\n",value.index(),result.index(),value.index()))?;
+                        self.write(format_args!("for(size_t ls_i=0;ls_i<ls_v{}->length;ls_i++) {{ ls_array{array}_push(ls_v{},{prefix}ls_array{source}_get(ls_v{},(int32_t)ls_i,&ls_temps){suffix}); ls_native_temporaries_clear(&ls_temps); }}\n",value.index(),result.index(),value.index()))?;
                     } else {
                         self.write(format_args!("ls_array{array}_push(ls_v{},", result.index()))?;
                         self.converted(id, value, self.plan.arrays[array])?;
@@ -1300,7 +1301,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     let r = receiver.index();
                     match index {
                         Some(index) => self.write(format_args!(
-                            "(ls_v{r}.tag == LS_ARRAY ? ls_array{array}_get((ls_array{array} *)ls_v{r}.as.o,ls_v{i}) : ls_typed_get_{}(ls_v{r}.as.o,ls_v{i}))",
+                            "(ls_v{r}.tag == LS_ARRAY ? ls_array{array}_get((ls_array{array} *)ls_v{r}.as.o,ls_v{i},&ls_temps) : ls_typed_get_{}(ls_v{r}.as.o,ls_v{i}))",
                             binary::kind_name(kind),
                             i = index.index()
                         ))?,
@@ -1333,7 +1334,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     array,
                 } => {
                     self.write(format_args!(
-                        "ls_array{array}_get(ls_v{},ls_v{})",
+                        "ls_array{array}_get(ls_v{},ls_v{},&ls_temps)",
                         receiver.index(),
                         index.index()
                     ))?;

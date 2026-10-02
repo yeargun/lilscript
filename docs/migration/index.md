@@ -55,7 +55,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [ ] | [V1](plan.md#v1) Qualification | Maintained/held-out size and runtime gaps, independently per objective |
 | [ ] | [V2](plan.md#v2) Release | Reproducible packages, sites and current receipts |
 | [x] | [N1](plan.md#n1) Native integration | Shared optimized input, initialization proofs, toolchain/configuration owner and source-qualified capabilities complete |
-| [~] | [N2](plan.md#n2) Native completion | Ownership, record/shape and tagged/generic product recipes implemented; polymorphic arrays, remaining data/control/host ABI and performance qualification |
+| [~] | [N2](plan.md#n2) Native completion | Ownership, records/shapes, tagged/generic products and polymorphic arrays implemented; remaining data/control/host ABI and performance qualification |
 
 ## Working rules
 

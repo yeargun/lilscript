@@ -62,7 +62,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 let ty = self.plan.value_type(self.plan.units[unit.index()].values[receiver.index()]);
                 if let NativeType::Array(array) = ty {
                     let (prefix, suffix) = Self::conversion(self.plan.arrays[array], NativeType::Dynamic(Tagged::ANY));
-                    self.write(format_args!("{{\nls_string_builder ls_json = {{0}};\nls_string_builder_unit(&ls_json,'[');\nfor (size_t ls_i = 0; ls_i < ls_v{r}->length; ++ls_i) {{\nif (ls_i) ls_string_builder_unit(&ls_json,',');\nls_json_value(&ls_json,{prefix}ls_v{r}->items[ls_i]{suffix});\n}}\nls_string_builder_unit(&ls_json,']');\n"))?;
+                    self.write(format_args!("{{\nls_string_builder ls_json = {{0}};\nls_string_builder_unit(&ls_json,'[');\nfor (size_t ls_i = 0; ls_i < ls_v{r}->length; ++ls_i) {{\nif (ls_i) ls_string_builder_unit(&ls_json,',');\nif(!ls_array_has(ls_v{r},ls_i)) ls_string_builder_ascii(&ls_json,\"null\"); else ls_json_value(&ls_json,{prefix}ls_array{array}_get(ls_v{r},(int32_t)ls_i,&ls_temps){suffix});\n}}\nls_string_builder_unit(&ls_json,']');\n"))?;
                     self.assignment_start(unit, destination, true)?;
                     self.text("ls_string_builder_finish(&ls_json)")?;
                     self.assignment_end(unit, destination)?;

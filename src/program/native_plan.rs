@@ -1221,6 +1221,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             mut signatures,
         } = tables;
         let struct_order = struct_layouts(program, &classes, budget)?;
+        for element in &arrays {
+            if let NativeType::Callable(signature) = *element { signatures::require(&mut signatures, signature, budget)?; }
+        }
         for field in program.fields.iter() {
             work(budget, 1)?;
             if let TypeClass::Function(signature) = classes[field.ty.index()] {
@@ -1386,6 +1389,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 .ok_or(AllocationError::Capacity)?,
         )?;
         let mut helpers = Helpers::default();
+        if !arrays.is_empty() { helpers.require(Helper::Arrays); }
         if signatures.iter().any(|signature| signature.needed)
             || cells.iter().any(|cell| cell.captured)
             || classes
@@ -2084,6 +2088,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         };
         compatible(expected, actual)
             || match (expected, actual) {
+                (ValueStorage::Value(NativeType::Array(expected)), ValueStorage::Value(NativeType::Array(actual))) =>
+                    self.compatible(ValueStorage::Value(self.arrays[expected]), ValueStorage::Value(self.arrays[actual])),
                 // A callable crosses only at its one physical signature.
                 (
                     ValueStorage::Value(NativeType::Dynamic(expected)),
@@ -2130,7 +2136,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
     pub(super) fn callable_view(&self, from: NativeType, to: NativeType) -> bool {
         let (NativeType::Callable(from), NativeType::Callable(to)) = (from, to) else { return false; };
         let (from, to) = (&self.signatures[from], &self.signatures[to]);
-        let same_slot = |a, b| a == b || matches!((a, b), (NativeType::Object(_), NativeType::Object(_)));
+        let same_slot = |a, b| a == b || matches!((a, b), (NativeType::Object(_), NativeType::Object(_)) | (NativeType::Array(_), NativeType::Array(_)));
         from.parameters.len() == to.parameters.len()
             && same_slot(from.result, to.result)
             && from.parameters.iter().zip(&to.parameters).all(|(&a, &b)| same_slot(a, b))
@@ -2734,6 +2740,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         && ((numeric(operand(0)) && numeric(operand(1)))
                             || (operand(0) == Stored(Bool) && operand(1) == Stored(Bool))
                             // References compare by identity.
+                            || (matches!(operand(0), Stored(NativeType::Array(_)))
+                                && matches!(operand(1), Stored(NativeType::Array(_))))
                             || (matches!(operand(0), Stored(NativeType::Object(_)))
                                 && matches!(operand(1), Stored(NativeType::Object(_))))
                             || (matches!(
@@ -3179,30 +3187,29 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                 arguments.len() == 1
                                     && match (callback(0, &[item]), result) {
                                         (Some(mapped), Some(Stored(NativeType::Array(out)))) => {
-                                            self.arrays[out] == mapped
+                                            self.compatible(Stored(self.arrays[out]), Stored(mapped))
                                         }
                                         _ => false,
                                     }
                             }
                             Intrinsic::ArrayFilter => {
                                 arguments.len() == 1
-                                    && callback(0, &[item]) == Some(Bool)
+                                    && callback(0, &[item]).is_some_and(|produced| self.compatible(Stored(Bool),Stored(produced)))
                                     && result == Some(array)
                             }
                             Intrinsic::ArraySome | Intrinsic::ArrayEvery => {
                                 arguments.len() == 1
-                                    && callback(0, &[item]) == Some(Bool)
+                                    && callback(0, &[item]).is_some_and(|produced| self.compatible(Stored(Bool),Stored(produced)))
                                     && result == Some(Stored(Bool))
                             }
                             Intrinsic::ArrayFindIndex => {
                                 arguments.len() == 1
-                                    && callback(0, &[item]) == Some(Bool)
+                                    && callback(0, &[item]).is_some_and(|produced| self.compatible(Stored(Bool),Stored(produced)))
                                     && result == Some(Stored(I32))
                             }
                             Intrinsic::ArrayReduce => match (argument(1), result) {
                                 (Some(initial), Some(Stored(accumulator))) => {
                                     arguments.len() == 2
-                                        && !accumulator.managed()
                                         && accumulator != Void
                                         && self.compatible(Stored(accumulator), initial)
                                         && callback(0, &[Stored(accumulator), item]).is_some_and(
@@ -3226,7 +3233,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             }
                             Intrinsic::ArrayConcat => {
                                 arguments.len() == 1
-                                    && argument(0) == Some(array)
+                                    && argument(0).is_some_and(|value| self.compatible(array,value))
                                     && result == Some(array)
                             }
                             Intrinsic::ArrayReverse => {

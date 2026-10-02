@@ -207,3 +207,8 @@ JavaScript target currently reports `value-struct primitive argument ABI adaptat
 The separate `product-places.lil` fixture does compile to JavaScript and agrees with
 native reallocation/replacement and nested copy semantics. Do not label the full
 products fixture as a JavaScript/native parity pass before closing this refusal.
+
+**V1** also owns the JavaScript generic class-field transport refusal in
+`tests/native/arrays.lil` (`List<T>` initialization reports "erased product
+escapes a closed typed interface"). Native array qualification uses the separate
+ECMAScript oracle; it does not count this full source as JavaScript parity.

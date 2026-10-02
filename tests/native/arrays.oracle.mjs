@@ -1,0 +1,28 @@
+// Independent ECMAScript array oracle; products copy fields while arrays alias.
+const print=console.log;
+const clone=value=>typeof value==='object'&&value!==null&&!Array.isArray(value)?{...value}:value;
+const append=(items,value)=>(items.push(clone(value)),items);
+const create=(a,b)=>[clone(a),clone(b)];
+const replace=(items,index,value)=>{items[index]=clone(value)};
+const mapped=items=>items.map(clone);
+const numbers=[1,2],alias=append(numbers,3);print(alias===numbers);replace(alias,0,7);print(numbers[0]);
+class List{constructor(items){this.items=items}first(){return clone(this.items[0])}set(value){this.items[0]=clone(value)}}
+const list=new List(numbers);list.set(9);print(numbers.join('|'));print(list.first());
+const batch={items:numbers};batch.items.push(4);print(numbers.length);
+const made=create(5,6);made.push(7);replace(made,1,8);print(made.join('|'));
+const mappedValues=mapped(numbers);print(mappedValues.join('|'));mappedValues[0]=11;print(numbers[0]);
+print(mappedValues.reverse()===mappedValues);print(mappedValues.join('|'));print(mappedValues.includes(11));print(mappedValues.indexOf(3));
+mappedValues.copyWithin(1,0,2);print(mappedValues.join('|'));
+const removed=mappedValues.splice(1,2);print(removed.join('|'));print(mappedValues.join('|'));
+const joined=mappedValues.concat([12]);print(joined.join('|'));print(joined.slice(1).join('|'));
+const words=create('one'.repeat(2),'two'.repeat(2));words.fill('filled'.repeat(2));print(words.pop());print(words[0]);
+const matrix=create(numbers,made);replace(matrix,1,numbers);matrix[1].push(10);print(numbers.length);print(matrix[0]===matrix[1]);
+const payloads=[{text:'left'.repeat(2),items:[1]},{text:'right'.repeat(2),items:[2]}];
+const products={items:payloads};products.items[0].text='inside';print(payloads[0].text);
+const copies=mapped(payloads);copies[0].text='copy';print(payloads[0].text);print(copies[0].text);
+const result=copies.reduce((input,value)=>{const acc=clone(input);acc.text+=value.text;acc.items.push(3);return acc},{text:'start',items:[]});
+print(result.text);print(result.items.length);
+const source=[5,6,7],sparse=source.map(value=>(source.pop(),value));print(JSON.stringify(sparse));print((sparse[2]??null)===null);
+print(sparse.indexOf(0));print(sparse.includes(0));let visits=0;sparse.forEach(()=>visits++);print(visits);
+const points=Array.from({length:1000},(_,x)=>({x}));print(points.every(()=>true));print(mapped(points)[999].x);
+print('arrays done');

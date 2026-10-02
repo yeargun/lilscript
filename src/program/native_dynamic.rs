@@ -44,7 +44,7 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
             return none();
         }
         match (from, to) {
-            (Dynamic(_), Dynamic(_)) | (Object(_), Object(_)) => none(),
+            (Dynamic(_), Dynamic(_)) | (Object(_), Object(_)) | (Array(_), Array(_)) => none(),
             (I32, Dynamic(_)) => ("ls_value_int(".into(), ")"),
             (F64, Dynamic(_)) => ("ls_value_float(".into(), ")"),
             (Bool, Dynamic(_)) => ("ls_value_bool(".into(), ")"),

@@ -1881,3 +1881,15 @@ GCC, Clang and ASan/UBSan; bounded-loop allocation counts and product cycles pas
 Polymorphic arrays and the remaining N2 contracts stay active. A JavaScript
 Object.values/product-argument refusal is explicitly assigned to V1.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#tagged-and-generic-products).
+
+
+## 2026-10-02 — N2 polymorphic arrays
+
+Concrete and generic array views now share one typed storage buffer and identity.
+Callback emission owns the current element and managed results across mutation,
+clears per-iteration tagged product temporaries, and preserves sparse presence.
+The shared optional array read retains absence before integer coercion. Five
+affected fixtures pass GCC, Clang and ASan/UBSan, including bounded allocation
+and zero-live-object assertions. No broad suite or performance claim. N2 remains
+active; V1 owns the separately recorded JavaScript generic-class-field refusal.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#polymorphic-arrays).

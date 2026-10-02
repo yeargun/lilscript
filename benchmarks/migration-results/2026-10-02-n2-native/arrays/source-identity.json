@@ -1,0 +1,11 @@
+{
+  "tests/native/arrays.lil": "64c5e71dcc49b23b0b1b795f428c142b7794322bce38037086411c529c540750",
+  "tests/native/arrays.host.c": "eece0c784c33b16f9a6318c6d4685f527aa312698e0aebb85c3d9a76c63df84f",
+  "tests/native/arrays.toml": "ee863918e82105d819ab7812b4c63b39dfb1eafe2d6cc1c7d6482f57a5ecc34f",
+  "tests/native/arrays.oracle.mjs": "86f6d203bdcef72c194c17f3fde6422c7c15393f360b5b57c5e5b60213915dc5",
+  "tests/native/arrays.out": "b2733611c5b6febc840b7fe700c3776e560cb1812add8e6ef2212b90af38b8b4",
+  "src/program/runtime/arrays.c": "3dbf812af24a122e72b4bd0e3f01a834194a85af0c0c470ab06e6bb25673a248",
+  "src/program/native_array_types.rs": "de86b57d2dd8b53268a2ae3a508323d9ef148a8dedd269ddfafaab79c755a5af",
+  "src/program/native_arrays.rs": "11eba990daef13162b5f6af8e815a23075e0ff0bb1b4a75dd300ee12d67bc798",
+  "src/program/from_source.rs": "c2b4c15c29cdf1226dd7176113136924eebdee6e2bfe078493ad91b5d14c9f7f"
+}

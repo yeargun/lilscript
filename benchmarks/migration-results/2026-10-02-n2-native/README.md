@@ -97,3 +97,22 @@ snapshots and statement-scoped temporary owners, with explicit call/adaptor
 ownership conversion. Generic fields use the checked tagged ABI. Polymorphic
 array fields/calls and hot specialization remain N2 work, along with the existing
 control/runtime/interface/performance commitments. No broad library suite ran.
+
+## Polymorphic arrays
+
+Pin `n2-arrays-3` completes shared-identity typed/generic array storage, generic
+array fields, owned callback arguments/results/accumulators, and sparse copies.
+The independent `tests/native/arrays.oracle.mjs` covers aliases across generic
+functions/classes/products, nested arrays, mutation, managed reductions, sparse
+map results and bounded per-iteration product boxing. The shared checked-read
+lowering now keeps the optional representation at the load: coercing a sparse
+integer read first lost absence on native. The prior JavaScript output preserves
+absence; this corrects native parity rather than changing the source contract.
+
+The [five-fixture batch](arrays) passes all 35 source/build/run cells (GCC,
+Clang 18, and Clang ASan/UBSan) across arrays, products, product-places, data and
+ownership. Live-object assertions return to zero; 1,000 product elements stay
+below the temporary-allocation bound. Initial mismatch receipts and all build
+logs are retained. No broad suite or performance comparison was run. The full
+arrays source has a separate generic-class-field JavaScript formation refusal,
+owned by V1; the independent oracle is not represented as full source parity.

@@ -15,9 +15,9 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 | Scalars and control flow | Wrapping int32, strict binary64, bool, UTF-16, null, scalar unions, structured branches/loops | Further runtime qualification: N2 |
 | Semantic optimization | Shared folding, liveness, calls/inlining, aggregate scalar replacement, and proven final-use ownership transfer; the requested tactic vetoes apply in native and `all` builds | Performance corpus: N2 |
 | Functions | Direct/indirect calls, closures/captures, supported generic tagged values, defaults and references | Absent-value transport and mutable-reference callable payloads: N2 |
-| Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Polymorphic array fields and native specialization: N2 |
-| Collections and classes | Arrays, class objects, maps, sets, symbols, buffers and typed arrays; supported element and call recipes are checked | Remaining recipes and comparisons: N2 |
-| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, checked JSON stringify, shape fields/spreads/optional writes/tag narrowing, scalar array join | Typed parsing, polymorphic collection transport and immutable graph qualification: N2 |
+| Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Native specialization and remaining callable transport: N2 |
+| Collections and classes | Shared-identity concrete/generic arrays, owned callbacks and sparse copies; class objects, maps, sets, symbols, buffers and typed arrays | Remaining recipes and comparisons: N2 |
+| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, checked JSON stringify, shape fields/spreads/optional writes/tag narrowing, scalar array join | Typed parsing and immutable graph qualification: N2 |
 | Exceptions | Source-qualified refusal | Status propagation, catch/finally, throwing calls: N2 |
 | Generators, async/tasks | Source-qualified refusal | Region state machines and microtask queue: N2 |
 | Regular expressions | Source-qualified refusal | Pinned ECMAScript-compatible engine: N2 |
@@ -49,3 +49,11 @@ by a configured C provider even though an ordinary `.host.js` fixture cannot.
 N1 inventories those exclusions; N2 must implement/qualify portable cases and
 keep explicitly JavaScript-bound cases visible. Qualification never treats a
 masked or refused case as a pass.
+
+Concrete and generic array views share one traced identity and mutable buffer.
+A storage descriptor preserves typed elements on the direct path and uses checked
+tagged conversion at a representation boundary; it does not copy the array.
+Sparse callback results keep a separate presence bitmap, allocated only when
+needed. Callbacks retain the current element across source mutation and release
+per-iteration conversion temporaries; managed reduce accumulators own their
+current value. These are semantic guarantees, not measured performance wins.

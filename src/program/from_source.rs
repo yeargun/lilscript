@@ -5973,21 +5973,17 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             .semantics
             .expression_type(array.id)
             .expect("checked array");
-        let (element, length_operation) = match receiver_type {
-            Type::Array(element) => (
-                element.as_ref().clone(),
-                crate::primitive::Intrinsic::ArrayLength,
-            ),
+        let length_operation = match receiver_type {
+            Type::Array(_) => crate::primitive::Intrinsic::ArrayLength,
             ty => {
                 let kind =
                     crate::typed_array::TypedArrayKind::from_type(ty).ok_or(Unsupported {
                         span,
                         feature: "checked indexing requires an array",
                     })?;
-                (kind.index_value_type(), kind.length_intrinsic())
+                kind.length_intrinsic()
             }
         };
-        let element = self.ty(&element)?;
         let length = self.value(
             unit,
             region,
@@ -6036,7 +6032,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             yes,
             OperationKind::Load(place),
             &[],
-            element,
+            // A valid index can still designate a hole after a callback
+            // mutates an array. Keep the optional result at the load itself;
+            // coercing through the non-null element would turn absence into
+            // an integer zero on native (or lose the product presence bit).
+            ty,
             None,
             span,
         )?;
