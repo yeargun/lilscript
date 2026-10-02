@@ -1,3 +1,5 @@
+
+#define LS_NATIVE_DYNAMIC 1
 /* Shared native value layout and ownership operations for C and host headers. */
 typedef struct ls_value {
     uint8_t tag;

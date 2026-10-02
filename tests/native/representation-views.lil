@@ -1,0 +1,62 @@
+// Invalid assumptions intentionally test native memory safety, not ECMAScript
+// parity for a program that violates its source representation preconditions.
+extern void assertNativeCount(int expected);
+extern void assertMaxNativeCount(int maximum);
+extern void collectNative();
+class Base { int value; init(int value) {this.value=value;} }
+class Derived extends Base { string extra; init(int value) {super(value);this.extra="derived";} }
+struct Product { string text; }
+int entered=0;
+void consumeDerived(Derived value) {entered+=1;print(value.extra);}
+void consume(Base value) {entered+=1;print(value.value);}
+Base relay(Base value) {return value;}
+Base choose(Base? value,Base fallback) {return value??fallback;}
+void expectFailure(int test,func()->void action) {
+    try {action();print("missing failure");}
+    catch(auto error) {
+        Record<string> description=JS.assume(error);
+        print(test);print(description["name"]??"missing name");
+    }
+}
+void run() {
+    Base valid=new Derived(12); Base viewed=JS.assume(valid);print(viewed.value);
+    Derived child=JS.assume(valid);print(child.extra);
+    Record<string> object=record{name:"object"};
+    expectFailure(1,()=>{Base invalid=JS.assume(object);consume(invalid);});
+    expectFailure(2,()=>{Base invalid=JS.assume(JSON.parse("null"));consume(invalid);});
+    expectFailure(3,()=>{Base base=new Base(1);Derived invalid=JS.assume(base);print(invalid.extra);});
+    expectFailure(4,()=>{Regex invalid=JS.assume(object);print(invalid.test("x"));});
+    expectFailure(5,()=>{ArrayBuffer invalid=JS.assume(object);print(invalid.byteLength);});
+    expectFailure(6,()=>{Uint8Array invalid=JS.assume(object);print(invalid[0]);});
+    expectFailure(7,()=>{Uint8Array bytes=new Uint8Array(2);Float64Array invalid=JS.assume(bytes);print(invalid[0]);});
+    expectFailure(8,()=>{Map<string,int> invalid=JS.assume(object);print(invalid.size);});
+    expectFailure(9,()=>{Record<int> invalid=JS.assume(valid);print(invalid["value"]??0);});
+    expectFailure(10,()=>{Base[] values=JS.assume(JSON.parse("[{}]"));values.forEach(consume);});
+    expectFailure(11,()=>{Base[] values=JS.assume(JSON.parse("[{}]"));values.map((Base item)=>{entered+=1;return item.value;});});
+    expectFailure(12,()=>{Base[] values=JS.assume(JSON.parse("[{}]"));values.reduce((Base result,Base item)=>{entered+=1;return item;},valid);});
+    expectFailure(13,()=>{Base[] values=JS.assume(JSON.parse("[{}]"));values.findIndex((Base item)=>{entered+=1;return item.value==0;});});
+    expectFailure(14,()=>{func(JsValue)->void callback=JS.assume(consume);callback(JSON.parse("{}"));});
+    expectFailure(15,()=>{func(JsValue)->Base callback=JS.assume(relay);consume(callback(JSON.parse("{}")));});
+    expectFailure(16,()=>{func()->Base callback=JS.assume(()=>JSON.parse("{}"));consume(callback());});
+    expectFailure(17,()=>{int[]|Uint8Array value=JS.assume(12);print(value.length);});
+    expectFailure(18,()=>{int[]|Uint8Array value=JS.assume(object);print(value[0]);});
+    expectFailure(19,()=>{int[]|Uint8Array value=JS.assume(object);value[0]=1;});
+    expectFailure(20,()=>{Product invalid=JS.assume(object);print(invalid.text);});
+    expectFailure(21,()=>{func()->void invalid=JS.assume(object);invalid();});
+    expectFailure(22,()=>{int[] invalid=JS.assume(JSON.parse("null"));print(invalid[0]);});
+    expectFailure(23,()=>{func(Base?,Base)->Base callback=choose;Base? invalid=JS.assume(object);consume(callback(invalid,valid));});
+    expectFailure(24,()=>{func(Base)->void callback=JS.assume(consumeDerived);callback(new Base(1));});
+    expectFailure(25,()=>{func(Base)->Derived callback=JS.assume(relay);Derived invalid=callback(new Base(1));print(invalid.extra);});
+    print(entered);
+    for(int i=0;i<200;i++) {
+        try {Base[] values=JS.assume(JSON.parse("[{}]"));values.forEach(consume);}
+        catch(auto error) {assertMaxNativeCount(128);}
+    }
+    print(entered);
+    func(Base)->void validCallback=JS.assume(consumeDerived);validCallback(child);
+    func(Base)->Derived validReturn=JS.assume(relay);print(validReturn(child).extra);
+    Uint8Array bytes=new Uint8Array(4);bytes[1]=255;
+    Uint8Array same=JS.assume(bytes);print(same[1]);
+    print(same.subarray(1,3)[0]);print(same.slice(1,2)[0]);
+}
+run();collectNative();assertNativeCount(0);print("representation safety passed");

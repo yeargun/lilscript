@@ -47,12 +47,14 @@ static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_new(size_t capacity) {{ return 
 static LS_NATIVE_UNUSED void ls_array{s}_hole(ls_array{s} *array) {{ ls_array_hole(array); }}
 static LS_NATIVE_UNUSED {e} ls_array{s}_absent(void) {{ {absent} }}
 static LS_NATIVE_UNUSED {e} ls_array{s}_get(ls_array{s} *array, int32_t index, ls_native_temporary **temps) {{
+if(!array) {{ls_value_mismatch();return ({e}){{0}};}}
 if(index<0 || (size_t)index>=array->length) {{ ls_native_undefined_element(); return ({e}){{0}}; }}
 if(!ls_array_has(array,(size_t)index)) return ls_array{s}_absent();
 if(array->ops==&ls_array{s}_ops) return (({e} *)array->items)[index];
 return {unbox}ls_array_read(array,(size_t)index,temps){unbox_end};
 }}
 static LS_NATIVE_UNUSED ls_value ls_array{s}_optional(ls_array{s} *array, int32_t index, ls_native_temporary **temps) {{
+if(!array) {{ls_value_mismatch();return (ls_value){{0}};}}
 if(index<0 || (size_t)index>=array->length) return (ls_value){{0}};
 return ls_array_read(array,(size_t)index,temps);
 }}

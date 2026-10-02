@@ -364,6 +364,7 @@ pub(super) struct UnitPlan {
     pub(super) has_environment: bool,
     pub(super) named_adapter_needed: bool,
     pub(super) may_throw: bool,
+    pub(super) conversion_checks: Vec<bool>,
     pub(super) catch_bindings: Vec<(RegionId,CellId)>,
 }
 
@@ -1154,8 +1155,24 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             |effects, budget| {
                 for (index, target) in self.units.iter_mut().enumerate() {
                     work(budget, 1)?;
-                    target.may_throw=effects.summary(UnitId::from_index(index).unwrap()).is_none_or(|summary|summary.effects.may_throw);
+                    target.may_throw=target.conversion_checks.iter().any(|&checked|checked) || effects.summary(UnitId::from_index(index).unwrap()).is_none_or(|summary|summary.effects.may_throw);
                 }
+                // Physical checks add native failures to the common call graph;
+                // propagate only this target fact, never build another graph.
+                let mut pending=Vec::new();
+                for (index,target) in self.units.iter().enumerate() {
+                    if target.may_throw {budget.push(Scratch,&mut pending,UnitId::from_index(index).unwrap())?;}
+                }
+                while let Some(callee)=pending.pop() {
+                    for edge in effects.graph().callers_of(callee) {
+                        work(budget,1)?;
+                        if !self.units[edge.caller.index()].may_throw {
+                            self.units[edge.caller.index()].may_throw=true;
+                            budget.push(Scratch,&mut pending,edge.caller)?;
+                        }
+                    }
+                }
+                release(pending,budget)?;
                 for (index, target) in self.cells.iter_mut().enumerate() {
                     work(budget, 1)?;
                     if !target.global { continue; }
@@ -1887,7 +1904,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     budget.push(Scratch,&mut catch_bindings,(region,cell))?;
                 }
             }
-            let unit_plan = UnitPlan {
+            let mut unit_plan = UnitPlan {
                 values,
                 calls,
                 places,
@@ -1895,6 +1912,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 has_environment,
                 named_adapter_needed: false,
                 may_throw: true,
+                conversion_checks: budget.filled(Scratch,data.operations.len(),false)?,
                 catch_bindings,
             };
             let parents = budget
@@ -1913,7 +1931,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 let at = OpId::from_index(index).unwrap();
                 let operands = data.operands(operation.operands).unwrap();
                 work(budget, operands.len())?;
-                plan.operation_conversions(data,&unit_plan,operation,operands,budget)?;
+                unit_plan.conversion_checks[index]=plan.operation_conversions(data,&unit_plan,operation,operands,budget)?;
                 plan.check_operation(
                     unit,
                     data,
@@ -2177,10 +2195,15 @@ impl<'program, 'src> NativePlan<'program, 'src> {
     pub(super) fn callable_view(&self, from: NativeType, to: NativeType) -> bool {
         let (NativeType::Callable(from), NativeType::Callable(to)) = (from, to) else { return false; };
         let (from, to) = (&self.signatures[from], &self.signatures[to]);
-        let same_slot = |a, b| a == b || matches!((a, b), (NativeType::Object(_), NativeType::Object(_)) | (NativeType::Array(_), NativeType::Array(_)));
+        let view = |actual, expected| actual == expected || match (actual,expected) {
+            (NativeType::Object(a),NativeType::Object(b))=>self.class_extends(a,b),
+            (NativeType::Array(_),NativeType::Array(_))=>true,
+            _=>false,
+        };
         from.parameters.len() == to.parameters.len()
-            && same_slot(from.result, to.result)
-            && from.parameters.iter().zip(&to.parameters).all(|(&a, &b)| same_slot(a, b))
+            && view(from.result,to.result)
+            && from.parameters.iter().zip(&to.parameters).zip(&from.source.params).all(|((&inner,&outer),parameter)|
+                if parameter.passing==crate::primitive::ParameterPassing::Value {view(outer,inner)} else {inner==outer})
             && from.source.params.iter().zip(&to.source.params).all(|(a, b)|
                 a.passing == b.passing && a.optional == b.optional && a.rest == b.rest && a.receiver == b.receiver)
     }
@@ -2195,20 +2218,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         expected: ValueStorage,
         actual: ValueStorage,
     ) -> Option<(usize, usize)> {
-        self.signature_adaptation(expected, actual, false)
-    }
-    pub(super) fn checked_callable_adapter(
-        &self,
-        expected: ValueStorage,
-        actual: ValueStorage,
-    ) -> Option<(usize, usize)> {
-        self.signature_adaptation(expected, actual, true)
+        self.signature_adaptation(expected, actual)
     }
     fn signature_adaptation(
         &self,
         expected: ValueStorage,
         actual: ValueStorage,
-        checked_view: bool,
     ) -> Option<(usize, usize)> {
         let target = match expected {
             ValueStorage::Value(NativeType::Callable(target))
@@ -2231,10 +2246,6 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             return None;
         }
         let (from, to) = (&self.signatures[source], &self.signatures[target]);
-        if checked_view && !from.source.params.iter().zip(&to.source.params).all(|(a,b)|
-            a.passing == b.passing && a.optional == b.optional && a.rest == b.rest && a.receiver == b.receiver) {
-            return None;
-        }
         let by_value = |signature: &NativeSignature<'_, '_>| {
             signature
                 .source
@@ -2251,12 +2262,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 .zip(&to.parameters)
                 .all(|(&inner, &outer)| {
                     (self.compatible(ValueStorage::Value(inner), ValueStorage::Value(outer))
-                            || checked_view && matches!((inner, outer), (NativeType::Object(_), NativeType::Object(_))))
+                            || matches!((inner, outer), (NativeType::Object(_), NativeType::Object(_))))
                 })
-            && self.compatible(
+            && (self.compatible(
                 ValueStorage::Value(to.result),
                 ValueStorage::Value(from.result),
-            ))
+            ) || matches!((from.result,to.result),(NativeType::Object(_),NativeType::Object(_)))))
         .then_some((source, target))
     }
     fn admit_adapter(
@@ -2912,19 +2923,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 )?;
                 match plan.calls[call.index()] {
                     PreparedTarget::Assume => {
-                        let valid = arguments.len() == 1 && match (result, argument(0)) {
-                            (Some(Stored(expected)), Some(actual)) => {
-                                let direct = self.compatible(Stored(expected), actual)
-                                    || self.callable_view(self.value_type(actual), expected)
-                                    || matches!((expected, actual),
-                                        (NativeType::Object(_), Stored(NativeType::Object(_))));
-                                if direct { true } else if let Some((from,to)) = self.checked_callable_adapter(Stored(expected),actual) {
-                                    self.register_adapter(from,to,budget)?;
-                                    true
-                                } else { false }
-                            }
-                            _ => false,
-                        };
+                        let valid=arguments.len()==1 && matches!(result,Some(Stored(ty)) if ty!=Void)
+                            && argument(0).is_some_and(|source|self.value_type(source)!=Void);
                         expect(valid, "native checked view representation")
                     },
                     PreparedTarget::Function(function) => {

@@ -72,7 +72,7 @@ int main(void) {
     assert(ls_map_size(alias)==2);
     ls_native_release(alias); assert_empty();
     /* Typed views retain a sliced buffer after the original owner is gone. */
-    ls_native_object *buffer=ls_buffer_new(16), *view=ls_typed_view(buffer,0,4);
+    ls_native_object *buffer=ls_buffer_new(16), *view=ls_typed_view(buffer,0,4,4);
     ls_native_release(buffer); ls_native_collect_cycles();
     assert(ls_native_live_objects==2);
     ls_typed_set_int32(view,2,42); assert(ls_typed_get_int32(view,2)==42);

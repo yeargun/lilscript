@@ -17,6 +17,10 @@ typedef struct ls_native_array {
     /* Null for a dense array. Sparse map results allocate presence lazily. */
     uint8_t *present;
 } ls_native_array;
+static LS_NATIVE_UNUSED inline int32_t ls_array_length(ls_native_array *array) {
+    if(!array) {ls_value_mismatch();return 0;}
+    return (int32_t)array->length;
+}
 static LS_NATIVE_UNUSED void ls_native_undefined_element(void) {
     ls_native_raise_error("RangeError","LilScript native array index out of range");
 }

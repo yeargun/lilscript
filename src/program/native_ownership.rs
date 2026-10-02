@@ -393,6 +393,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.write(format_args!("{ty} ls_return = "))?;
             self.converted(unit, value.expect("native nonvoid return"), ty)?;
             self.text(";\n")?;
+            if self.plan.conversion_can_raise(self.plan.value_type(self.plan.units[unit.index()].values[value.unwrap().index()]),ty) {self.check_exception(unit)?;}
             if let Some(retain) = ty.retain("ls_return") {
                 self.text(&retain)?;
             }

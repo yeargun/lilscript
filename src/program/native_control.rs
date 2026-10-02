@@ -39,6 +39,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
     }
     pub(super) fn operation_can_raise(&self,unit:UnitId,op:OpId)->bool {
         let data=self.plan.program.unit(unit).unwrap();
+        if self.plan.units[unit.index()].conversion_checks[op.index()] {return true;}
         match data.operations[op.index()].kind {
             OperationKind::Call(call)=>match self.plan.units[unit.index()].calls[call.index()] {
                 PreparedTarget::Function(body)=>self.plan.units[body.index()].may_throw,
@@ -55,6 +56,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
     pub(super) fn check_exception(&mut self,unit:UnitId)->Result<(),NativeError> {
         let data=self.plan.program.unit(unit).unwrap();
         let region=data.operations[self.operation.expect("scheduled throwing operation").index()].region;
+        self.check_exception_region(region)
+    }
+    pub(super) fn check_exception_region(&mut self,region:RegionId)->Result<(),NativeError> {
         self.exception_regions[region.index()]=true;
         self.write(format_args!("if (ls_native_raised) goto ls_throw_region{};\n",region.index()))
     }
@@ -113,6 +117,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
             } else {
                 self.text("ls_pending_return=")?;self.converted(unit,value.unwrap(),ty)?;self.text(";\n")?;
             }
+        }
+        if let Some(value)=value {
+            if self.plan.conversion_can_raise(self.plan.value_type(self.plan.units[unit.index()].values[value.index()]),ty) {self.check_exception(unit)?;}
         }
         self.complete(unit,Completion::Return)
     }

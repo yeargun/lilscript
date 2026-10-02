@@ -1,9 +1,13 @@
 typedef struct { ls_native_object owner; size_t length; uint8_t *bytes; } ls_buffer;
-typedef struct { ls_native_object owner; ls_native_object *buffer; size_t offset; size_t length; } ls_typed;
+typedef struct { ls_native_object owner; ls_native_object *buffer; size_t offset; size_t length; size_t element_size; } ls_typed;
 static LS_NATIVE_UNUSED inline void ls_binary_failure(const char *message) {
     ls_native_raise_error("RangeError",message);
 }
 static LS_NATIVE_UNUSED inline void ls_buffer_destroy(ls_native_object *owner) { free(((ls_buffer *)owner)->bytes); }
+#ifdef LS_NATIVE_DYNAMIC
+static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_buffer(ls_value value) { return ls_value_checked_object(value,ls_buffer_destroy); }
+#endif
+
 static LS_NATIVE_UNUSED inline ls_native_object *ls_buffer_new(int32_t length) {
     if (length < 0) { ls_binary_failure("LilScript native buffer length is negative"); return NULL; }
     ls_buffer *buffer = ls_native_allocate(sizeof *buffer, ls_buffer_destroy, NULL);
@@ -26,42 +30,60 @@ static LS_NATIVE_UNUSED inline ls_native_object *ls_buffer_slice(ls_native_objec
     return result;
 }
 static LS_NATIVE_UNUSED inline void ls_typed_destroy(ls_native_object *owner) { ls_native_release(((ls_typed *)owner)->buffer); }
+#ifdef LS_NATIVE_DYNAMIC
+static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_typed(size_t size,ls_value value) {
+    ls_native_object *owner=ls_value_checked_object(value,ls_typed_destroy);
+    if(owner && ((ls_typed *)owner)->element_size!=size) {ls_value_mismatch();return NULL;}
+    return owner;
+}
+#endif
+static LS_NATIVE_UNUSED inline bool ls_typed_valid(ls_native_object *owner,size_t size) {
+    if(!owner || owner->destroy!=ls_typed_destroy || ((ls_typed *)owner)->element_size!=size) {ls_native_raise_error("TypeError","LilScript native typed array has an unexpected representation");return false;}
+    return true;
+}
 static LS_NATIVE_UNUSED inline void ls_typed_trace(ls_native_object *owner, ls_native_visit visit, void *context) { visit(((ls_typed *)owner)->buffer, context); }
-static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_view(ls_native_object *buffer, size_t offset, size_t length) {
+static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_view(ls_native_object *buffer, size_t offset, size_t length, size_t size) {
     ls_typed *view = ls_native_allocate(sizeof *view, ls_typed_destroy, ls_typed_trace);
     ls_native_retain(buffer);
     view->buffer = buffer;
     view->offset = offset;
     view->length = length;
+    view->element_size = size;
     return &view->owner;
 }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_new(int32_t length, size_t size) {
     if (length < 0) { ls_binary_failure("LilScript native typed array length is negative"); return NULL; }
     if ((size_t)length > (size_t)INT32_MAX / size) ls_native_resource_failure();
     ls_native_object *buffer = ls_buffer_new((int32_t)((size_t)length * size));
-    ls_native_object *view = ls_typed_view(buffer, 0, (size_t)length);
+    ls_native_object *view = ls_typed_view(buffer, 0, (size_t)length, size);
     ls_native_release(buffer);
     return view;
 }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_over(ls_native_object *buffer, size_t size) {
     size_t length = ((ls_buffer *)buffer)->length;
     if (length % size) { ls_binary_failure("LilScript native buffer length is not a multiple of the element size"); return NULL; }
-    return ls_typed_view(buffer, 0, length / size);
+    return ls_typed_view(buffer, 0, length / size, size);
 }
-static LS_NATIVE_UNUSED inline int32_t ls_typed_length(ls_native_object *owner) { return (int32_t)((ls_typed *)owner)->length; }
+static LS_NATIVE_UNUSED inline int32_t ls_typed_length(ls_native_object *owner) { if(!owner || owner->destroy!=ls_typed_destroy) {ls_native_raise_error("TypeError","LilScript native typed array has an unexpected representation");return 0;} return (int32_t)((ls_typed *)owner)->length; }
 static LS_NATIVE_UNUSED inline int32_t ls_typed_byte_offset(ls_native_object *owner) { return (int32_t)((ls_typed *)owner)->offset; }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_buffer(ls_native_object *owner) { return ((ls_typed *)owner)->buffer; }
 static LS_NATIVE_UNUSED inline uint8_t *ls_typed_at(ls_native_object *owner, int32_t index, size_t size) {
+    if(!ls_typed_valid(owner,size)) return NULL;
     ls_typed *view = (ls_typed *)owner;
     if (index < 0 || (size_t)index >= view->length) return NULL;
-    return ((ls_buffer *)view->buffer)->bytes + view->offset + (size_t)index * size;
+    ls_buffer *buffer=(ls_buffer *)view->buffer;
+    size_t offset=view->offset+(size_t)index*size;
+    if(offset>buffer->length || size>buffer->length-offset) {ls_native_raise_error("TypeError","LilScript native typed array has an unexpected representation");return NULL;}
+    return buffer->bytes + offset;
 }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_subarray(ls_native_object *owner, int32_t start, int32_t end, size_t size) {
+    if(!ls_typed_valid(owner,size)) return NULL;
     ls_typed *view = (ls_typed *)owner;
     size_t from = ls_binary_relative(start, view->length), to = ls_binary_relative(end, view->length);
-    return ls_typed_view(view->buffer, view->offset + from * size, to > from ? to - from : 0);
+    return ls_typed_view(view->buffer, view->offset + from * size, to > from ? to - from : 0, size);
 }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_slice(ls_native_object *owner, int32_t start, int32_t end, size_t size) {
+    if(!ls_typed_valid(owner,size)) return NULL;
     ls_typed *view = (ls_typed *)owner;
     size_t from = ls_binary_relative(start, view->length), to = ls_binary_relative(end, view->length);
     size_t length = to > from ? to - from : 0;

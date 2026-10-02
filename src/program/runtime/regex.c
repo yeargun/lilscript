@@ -40,6 +40,8 @@ static LS_NATIVE_UNUSED void ls_regex_destroy(ls_native_object *owner) {
     ls_regex *regex=(ls_regex *)owner;
     free(regex->bytecode); ls_string_release(regex->source); ls_string_release(regex->flags);
 }
+static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_regex(ls_value value) { return ls_value_checked_object(value,ls_regex_destroy); }
+
 static LS_NATIVE_UNUSED void ls_regex_trace(ls_native_object *owner, ls_native_visit visit, void *context) {
     ls_regex *regex=(ls_regex *)owner;
     visit(regex->source.owner,context); visit(regex->flags.owner,context);

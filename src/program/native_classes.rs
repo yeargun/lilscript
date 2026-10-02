@@ -7,6 +7,14 @@
 use super::*;
 
 impl Emitter<'_, '_, '_, '_, '_> {
+    pub(super) fn object_view_declarations(&mut self)->Result<(),NativeError> {
+        for class in 0..self.plan.class_tests.len() {
+            if self.plan.class_view_needed(class) {
+                self.write(format_args!("static LS_NATIVE_UNUSED ls_native_object *ls_object_view{class}(ls_native_object *value);\nstatic LS_NATIVE_UNUSED ls_native_object *ls_value_to_object{class}(ls_value value);\n"))?;
+            }
+        }
+        Ok(())
+    }
     fn base_class(&self, class: usize) -> Option<usize> {
         let program = self.plan.program;
         program.classes[class]
@@ -116,6 +124,7 @@ static LS_NATIVE_UNUSED void ls_object_clear(ls_native_object **slot) { ls_nativ
                 }
             }
             self.text("); }\n")?;
+            if self.plan.class_view_needed(target) {self.write(format_args!("static LS_NATIVE_UNUSED ls_native_object *ls_object_view{target}(ls_native_object *value) {{ if(!ls_is_class{target}(value)) {{ls_value_mismatch();return NULL;}} return value; }}\nstatic LS_NATIVE_UNUSED ls_native_object *ls_value_to_object{target}(ls_value value) {{ if(value.tag!=LS_OBJECT) {{ls_value_mismatch();return NULL;}} return ls_object_view{target}(value.as.o); }}\n"))?;}
         }
         Ok(())
     }

@@ -18,6 +18,8 @@ static LS_NATIVE_UNUSED inline void ls_map_destroy(ls_native_object *owner) {
     free(map->entries);
     free(map->index);
 }
+static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_map(ls_value value) { return ls_value_checked_object(value,ls_map_destroy); }
+
 static LS_NATIVE_UNUSED inline void ls_map_trace(ls_native_object *owner, ls_native_visit visit, void *context) {
     ls_map *map = (ls_map *)owner;
     for (size_t i = 0; i < map->used; ++i) if (map->entries[i].live) {

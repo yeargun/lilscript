@@ -3,6 +3,19 @@
 use super::*;
 
 impl NativePlan<'_, '_> {
+    pub(in crate::program) fn class_view_needed(&self,class:usize)->bool {
+        self.conversions.iter().any(|&(from,to)|to==NativeType::Object(class) && matches!(from,NativeType::Object(_)|NativeType::Dynamic(_)))
+    }
+    pub(in crate::program) fn conversion_can_raise(&self,from:NativeType,to:NativeType)->bool {
+        from!=to && match (from,to) {
+            (NativeType::Dynamic(_),NativeType::Dynamic(_)|NativeType::Void)=>false,
+            (NativeType::Dynamic(_),_)=>true,
+            (NativeType::Callable(_),NativeType::Callable(_))=>!self.callable_view(from,to),
+            (NativeType::Object(a),NativeType::Object(b))=>!self.class_extends(a,b),
+            _=>false,
+        }
+    }
+
     pub(super) fn demand_conversion(&mut self, from: NativeType, to: NativeType, budget: &mut AllocationBudget<'_>) -> Result<(), NativeError> {
         let mut pending = Vec::new();
         budget.push(Scratch, &mut pending, (from, to, false))?;
@@ -21,6 +34,9 @@ impl NativePlan<'_, '_> {
             work(budget, self.conversions.len())?;
             if self.conversions.contains(&(from,to)) { continue; }
             budget.push(Scratch, &mut self.conversions, (from,to))?;
+            if let NativeType::Object(class)=to {
+                if matches!(from,NativeType::Object(_)|NativeType::Dynamic(_)) {self.class_tests[class]=true;self.helpers.require(Helper::Dynamic);}
+            }
             match (from,to) {
                 (NativeType::Array(a),NativeType::Array(b)) => {
                     // Views retain one mutable array. Its descriptor also needs
@@ -82,7 +98,7 @@ impl NativePlan<'_, '_> {
         Ok(())
     }
 
-    pub(super) fn operation_conversions(&mut self,data:&UnitData,plan:&UnitPlan,operation:&Operation,operands:&[ValueId],budget:&mut AllocationBudget<'_>) -> Result<(),NativeError> {
+    pub(super) fn operation_conversions(&mut self,data:&UnitData,plan:&UnitPlan,operation:&Operation,operands:&[ValueId],budget:&mut AllocationBudget<'_>) -> Result<bool,NativeError> {
         let value=|v:ValueId|self.value_type(plan.values[v.index()]);
         let result=operation.result.map(value);
         let tagged=NativeType::Dynamic(Tagged::ANY);
@@ -118,7 +134,11 @@ impl NativePlan<'_, '_> {
                     for (argument,&ty) in args.iter().zip(&self.signatures[s].parameters) { if let CallArgument::Value(v)=argument { add(value(*v),ty)?; } }
                     if let Some(to)=result { add(self.signatures[s].result,to)?; }
                 } else { match target {
-                    PreparedTarget::Assume=>if let (Some(CallArgument::Value(v)),Some(to))=(args.first(),result) { add(value(*v),to)?; },
+                    PreparedTarget::Assume=>if let (Some(CallArgument::Value(v)),Some(to))=(args.first(),result) {
+                        let from=value(*v);
+                        if self.compatible(ValueStorage::Value(to),plan.values[v.index()]) || matches!((from,to),(NativeType::Callable(_),NativeType::Callable(_))|(NativeType::Object(_),NativeType::Object(_))) {add(from,to)?;}
+                        else {add(from,tagged)?;add(tagged,to)?;}
+                    },
                     PreparedTarget::ArrayPush {array,..}=>for argument in args { if let CallArgument::Value(v)=argument { add(value(*v),self.arrays[array])?; } },
                     PreparedTarget::ArrayPop {array,..}=>if let Some(to)=result { add(self.arrays[array],to)?; },
                     PreparedTarget::CollectionMethod {..}|PreparedTarget::RecordBuiltin(_)=>{
@@ -150,7 +170,9 @@ impl NativePlan<'_, '_> {
             },
             _=>{}
         }
+        let checked=pairs.iter().any(|&(from,to)|self.conversion_can_raise(from,to));
         for &(from,to) in &pairs { self.demand_conversion(from,to,budget)?; }
-        release(pairs,budget)
+        release(pairs,budget)?;
+        Ok(checked)
     }
 }

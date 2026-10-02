@@ -1,4 +1,6 @@
 static LS_NATIVE_UNUSED inline void ls_record_destroy(ls_native_object *owner) { ls_map_destroy(owner); }
+static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_record(ls_value value) { return ls_value_checked_object(value,ls_record_destroy); }
+
 static LS_NATIVE_UNUSED inline ls_native_object *ls_record_new(void) {
     return ls_native_allocate(sizeof(ls_map),ls_record_destroy,ls_map_trace);
 }

@@ -294,3 +294,36 @@ qualification uses the independent ECMAScript oracle; it is not claimed as
 full emitted-JavaScript parity. N2's remaining static data, safe representation
 failures, suspension, native interfaces and performance/cross-target work remain
 open.
+
+## Checked representation failures
+
+Algorithm80, pin `n2-views-4`, checks allocation witnesses before tagged values
+are interpreted as classes, records, maps, regexes, buffers or typed arrays.
+Typed views preserve the stored element width; indexed unions check the tag
+before interpreting their payload as a pointer. Direct class downcasts and
+callable parameter/result downcasts use the same witness checks. Proven upcasts
+and compatible physical callable views retain their direct representation.
+
+Callback and constructor arguments finish converting before invocation. Native
+conversion failure facts propagate through the existing common call graph,
+keeping necessary checks through direct calls, returned values, selected region
+results and structured completions. Ordinary calls with no fallible conversion
+do not acquire an extra check before invocation. Runtime failures preserve the
+source precondition's memory-safety guarantee; this is not full recursive schema
+validation and does not promise ECMAScript parity for ill-typed assumptions.
+
+The final focused batch passes **38** source/build/run steps: 27 under GCC,
+Clang18 and ASan/UBSan across the new representation fixture, existing call
+transport, exceptions and standalone ownership runtime; 11 additional production
+and plain-binary steps. The misuse fixture covers 25 rejected representations,
+valid class/callback downcasts, bounded failure cleanup and zero remaining owners.
+Malformed array elements never enter callbacks. Production and sanitizer output
+agree with the explicit native expectations. Existing call/exception fixtures
+retain their independent valid-program oracles. Plain Uint8Array code compiles
+without the tagged-value runtime. [Receipts, logs and driver](representation-views).
+
+The initial Rust module-visibility error and fixture's un-narrowed optional
+string refusal are retained; the corrected source explicitly supplies an absent
+name fallback. No full library rerun or native performance win is claimed.
+Immutable graphs, suspension, remaining native interfaces, full capability and
+performance/cross-target qualification remain N2 work.

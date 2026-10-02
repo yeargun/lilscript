@@ -121,3 +121,13 @@ returned closures preserve their original function identity. Bridges own their
 inner callable; a reverse view recovers that callable instead of adding another
 wrapper. Equal physical conventions need no allocated adapter. These are
 representation recipes under the source contract, not configurable relaxations.
+
+Native trusted views check the physical allocation witness needed for safe C
+access. A class view accepts that class or a subclass; record/map/regex/buffer
+views require their own runtime layout, and typed arrays preserve their element
+width. These checks enforce memory safety even when a source precondition is
+violated. They are not recursive validation of every field/element or an implicit
+coercion. Failed conversions propagate before user callbacks or constructors
+run. The native optimizer propagates this failure fact over the shared call
+graph; it does not infer that a source throw-free summary erases a necessary
+representation check.

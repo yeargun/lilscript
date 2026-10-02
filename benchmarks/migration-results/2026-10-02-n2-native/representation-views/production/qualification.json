@@ -1,0 +1,172 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-views-4/lilscript",
+    "sha256": "e9e04b126621407bf5ff323ed08766130aa3013265f58ac439dc36df3bd07159"
+  },
+  "rows": [
+    {
+      "name": "representation-views-c-build",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-views-4/lilscript",
+        "tests/native/representation-views.lil",
+        "--config",
+        "/tmp/lilscript-n2-views-final/representation-views.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-views-final/representation-views.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 19,
+      "passed": true
+    },
+    {
+      "name": "representation-views-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-views-final/representation-views.c",
+        "/tmp/lilscript-n2-views-final/representation-views-host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-final/representation-views-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2116,
+      "passed": true
+    },
+    {
+      "name": "representation-views-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-views-final/representation-views-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "representation-views-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-views-final/representation-views.c",
+        "/tmp/lilscript-n2-views-final/representation-views-host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-final/representation-views-sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5336,
+      "passed": true
+    },
+    {
+      "name": "representation-views-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-views-final/representation-views-sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 13,
+      "passed": true
+    },
+    {
+      "name": "call-transport-c-build",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-views-4/lilscript",
+        "tests/native/call-transport.lil",
+        "--config",
+        "/tmp/lilscript-n2-views-final/call-transport.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-views-final/call-transport.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 22,
+      "passed": true
+    },
+    {
+      "name": "call-transport-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-views-final/call-transport.c",
+        "/tmp/lilscript-n2-views-final/call-transport-host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-final/call-transport-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1048,
+      "passed": true
+    },
+    {
+      "name": "call-transport-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-views-final/call-transport-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "plain-binary-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-views-4/lilscript",
+        "/tmp/lilscript-n2-views-final/plain-binary.lil",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-views-final/plain-binary.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5,
+      "passed": true
+    },
+    {
+      "name": "plain-binary-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-views-final/plain-binary.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-final/plain-binary"
+      ],
+      "exit": 0,
+      "elapsed_ms": 130,
+      "passed": true
+    },
+    {
+      "name": "plain-binary-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-views-final/plain-binary"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    }
+  ]
+}

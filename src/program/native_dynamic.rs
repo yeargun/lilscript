@@ -48,7 +48,8 @@ static LS_NATIVE_UNUSED ls_value ls_value_callable{index}(ls_callable{index} val
             return none();
         }
         match (from, to) {
-            (Dynamic(_), Dynamic(_)) | (Object(_), Object(_)) | (Array(_), Array(_)) => none(),
+            (Dynamic(_), Dynamic(_)) | (Array(_), Array(_)) => none(),
+            (Object(_), Object(target)) => (format!("ls_object_view{target}("), ")"),
             (I32, Dynamic(_)) => ("ls_value_int(".into(), ")"),
             (F64, Dynamic(_)) => ("ls_value_float(".into(), ")"),
             (Bool, Dynamic(_)) => ("ls_value_bool(".into(), ")"),
@@ -65,9 +66,12 @@ static LS_NATIVE_UNUSED ls_value ls_value_callable{index}(ls_callable{index} val
             (Dynamic(_), F64) => ("ls_value_to_number(".into(), ")"),
             (Dynamic(_), Bool) => ("ls_value_to_bool(".into(), ")"),
             (Dynamic(_), String) => ("ls_value_to_string(".into(), ")"),
-            (Dynamic(_), Object(_) | Shape | Record | Map | Set | Regex | Buffer | Typed(_)) => {
-                ("ls_value_to_object(".into(), ")")
-            }
+            (Dynamic(_), Object(target)) => (format!("ls_value_to_object{target}("), ")"),
+            (Dynamic(_), Shape|Record) => ("ls_value_to_record(".into(), ")"),
+            (Dynamic(_), Map|Set) => ("ls_value_to_map(".into(), ")"),
+            (Dynamic(_), Regex) => ("ls_value_to_regex(".into(), ")"),
+            (Dynamic(_), Buffer) => ("ls_value_to_buffer(".into(), ")"),
+            (Dynamic(_), Typed(kind)) => (format!("ls_value_to_typed({},",kind.bytes_per_element()), ")"),
             (Dynamic(_), Symbol) => ("ls_value_to_symbol(".into(), ")"),
             (Dynamic(_), Array(array)) => (format!("(ls_array{array} *)ls_value_to_array("), ")"),
             (Dynamic(_), Callable(signature)) => (format!("ls_value_to_callable{signature}(&ls_temps,"), ")"),
@@ -87,6 +91,9 @@ static LS_NATIVE_UNUSED ls_value ls_value_callable{index}(ls_callable{index} val
         let from = self
             .plan
             .value_type(self.plan.units[unit.index()].values[value.index()]);
+        if let (NativeType::Object(from),NativeType::Object(to))=(from,to) {
+            if self.plan.class_extends(from,to) { return self.value(unit,value); }
+        }
         if from != to && self.plan.callable_view(from, to) {
             self.write(format_args!("({to}){{("))?;
             self.value(unit, value)?;

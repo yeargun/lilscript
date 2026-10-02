@@ -406,6 +406,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let program = self.plan.program;
         self.type_declarations()?;
         self.value_types()?;
+        self.object_view_declarations()?;
         self.product_boxes()?;
         if self.plan.needs_callable_runtime() {
             self.text(native_memory::INTERFACE)?;
@@ -685,13 +686,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
                         if self.operation_can_raise(id,operation) { self.check_exception(id)?; }
                         self.clear_temporaries()?;
                     } else {
-                        self.finish_exception_region(id, region)?;
                         if let Some(destination) = destination {
                             let source = unit.regions[region.index()].result.unwrap();
                             self.operation = None;
                             self.copy_value(id, Destination::Value(destination), source)?;
+                            if self.plan.conversion_can_raise(self.plan.value_type(self.plan.units[id.index()].values[source.index()]),self.plan.value_type(self.plan.units[id.index()].values[destination.index()])) {self.check_exception_region(region)?;}
                             self.clear_temporaries()?;
                         }
+                        self.finish_exception_region(id, region)?;
                         if self.plan.needs_callable_runtime() {
                             self.cleanup_region(id, region)?;
                             let completed = self.active_regions.pop();
@@ -877,8 +879,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     ))?;
                     self.converted(id, args[0], element)?;
                     self.write(format_args!(
-                        ");\nelse ls_typed_set_{}(ls_v{r}.as.o,ls_v{i},",
-                        binary::kind_name(kind)
+                        ");\nelse ls_typed_set_{}(ls_value_to_typed({},ls_v{r}),ls_v{i},",
+                        binary::kind_name(kind),kind.bytes_per_element()
                     ))?;
                     self.converted(id, args[0], element)?;
                     self.text(");\n")?;
@@ -1119,6 +1121,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     .plan
                     .constructor_unit(identity)
                     .expect("native plan admits the constructor");
+                self.text("{\n")?;
+                self.prepare_constructor_arguments(id,constructor,&args[1..])?;
                 self.allocate_empty_object(id, result, class)?;
                 self.write(format_args!(
                     "ls_fn{}(ls_v{}",
@@ -1126,6 +1130,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     result.index()
                 ))?;
                 self.constructor_call_arguments(id, constructor, &args[1..])?;
+                self.text("}\n")?;
             }
             OperationKind::SuperConstruct => {
                 let data = self.plan.program.unit(id).unwrap();
@@ -1139,9 +1144,12 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     .constructor_unit(base)
                     .expect("native plan admits the base constructor");
                 let instance = data.parameters[0];
+                self.text("{\n")?;
+                self.prepare_constructor_arguments(id,constructor,args)?;
                 self.write(format_args!("ls_fn{}(", constructor.index()))?;
                 self.cell_place(id, instance)?;
                 self.constructor_call_arguments(id, constructor, args)?;
+                self.text("}\n")?;
             }
             OperationKind::ClosedClassTest(identity) => {
                 let class = self.plan.program.class_index(*identity).expect("checked closed class identity");
@@ -1357,12 +1365,12 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     let r = receiver.index();
                     match index {
                         Some(index) => self.write(format_args!(
-                            "(ls_v{r}.tag == LS_ARRAY ? ls_array{array}_get((ls_array{array} *)ls_v{r}.as.o,ls_v{i},&ls_temps) : ls_typed_get_{}(ls_v{r}.as.o,ls_v{i}))",
-                            binary::kind_name(kind),
+                            "(ls_v{r}.tag == LS_ARRAY ? ls_array{array}_get((ls_array{array} *)ls_v{r}.as.o,ls_v{i},&ls_temps) : ls_typed_get_{}(ls_value_to_typed({},ls_v{r}),ls_v{i}))",
+                            binary::kind_name(kind), kind.bytes_per_element(),
                             i = index.index()
                         ))?,
                         None => self.write(format_args!(
-                            "(ls_v{r}.tag == LS_ARRAY ? (int32_t)((ls_array{array} *)ls_v{r}.as.o)->length : ls_typed_length(ls_v{r}.as.o))"
+                            "(ls_v{r}.tag == LS_ARRAY ? ls_array_length((ls_array{array} *)ls_v{r}.as.o) : ls_typed_length(ls_value_to_typed({},ls_v{r})))",kind.bytes_per_element()
                         ))?,
                     }
                     break;
@@ -1513,9 +1521,19 @@ impl Emitter<'_, '_, '_, '_, '_> {
             )),
         }
     }
-    /// A constructor call's explicit arguments, after its instance: each
-    /// converted to its parameter, then the empty callable for each omitted
-    /// trailing arrow default, which the constructor's guard replaces.
+    fn prepare_constructor_arguments(&mut self,unit:UnitId,constructor:UnitId,args:&[ValueId])->Result<(),NativeError> {
+        let signature=self.plan.signature_for_unit(constructor);
+        let mut checked=false;
+        for (index,&value) in args.iter().enumerate() {
+            let to=self.plan.signatures[signature].parameters[index+1];
+            checked|=self.plan.conversion_can_raise(self.plan.value_type(self.plan.units[unit.index()].values[value.index()]),to);
+            self.write(format_args!("{to} ls_ctor_argument{index} = "))?;
+            self.converted_argument(unit,value,signature,index+1)?; self.text(";\n")?;
+        }
+        if checked {self.check_exception(unit)?;}
+        Ok(())
+    }
+    /// Presence remains separate from already converted physical arguments.
     fn constructor_call_arguments(
         &mut self,
         unit: UnitId,
@@ -1524,10 +1542,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
     ) -> Result<(), NativeError> {
         let signature = self.plan.signature_for_unit(constructor);
         let parameters = self.plan.signatures[signature].parameters.clone();
-        for (index, &value) in args.iter().enumerate() {
+        for index in 0..args.len() {
             self.budget.work(WorkKind::Render, 1)?;
-            self.text(",")?;
-            self.converted_argument(unit, value, signature, index+1)?;
+            self.write(format_args!(",ls_ctor_argument{index}"))?;
         }
         for parameter in &parameters[args.len() + 1..] {
             self.write(format_args!(",({parameter}){{0}}"))?;
@@ -1564,6 +1581,16 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 unreachable!("native checked views take a value")
             };
             let destination = Destination::Value(result.unwrap());
+            let actual=self.plan.units[unit.index()].values[value.index()];
+            let from=self.plan.value_type(actual);
+            let to=self.destination_type(unit,destination);
+            if !self.plan.compatible(ValueStorage::Value(to),actual) && !self.plan.callable_view(from,to)
+                && !matches!((from,to),(NativeType::Object(_),NativeType::Object(_))) {
+                let (prefix,suffix)=Self::conversion(NativeType::Dynamic(Tagged::ANY),to);
+                self.assignment_start(unit,destination,false)?;self.text(&prefix)?;
+                self.converted(unit,value,NativeType::Dynamic(Tagged::ANY))?;self.text(suffix)?;
+                return self.assignment_end(unit,destination);
+            }
             return self.copy_value(unit, destination, value);
         }
         if let PreparedTarget::Print = target {
@@ -1671,7 +1698,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.text(";\n")?;
             }
         }
-        self.check_exception(unit)?;
+        if args.iter().enumerate().any(|(i,arg)|match (arg,parameter_type(self.plan,i)) {
+            (CallArgument::Value(value),Some(to))=>self.plan.conversion_can_raise(self.plan.value_type(self.plan.units[unit.index()].values[value.index()]),to),_=>false,
+        }) {self.check_exception(unit)?;}
         if let Some((from, _)) = product_result {
             self.write(format_args!("{{\n{from} ls_call_result = "))?;
         } else {

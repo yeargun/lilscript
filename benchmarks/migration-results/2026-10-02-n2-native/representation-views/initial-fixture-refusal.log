@@ -1,0 +1,5 @@
+error: string conversion of an optional value observes its absent spelling (R2); narrow first; `x ?? "null"` preserves the legacy text
+ --> /home/azureuser/lilscript/tests/native/representation-views.lil:17:27
+  |
+17 |         print(test);print(description["name"]);
+  |                           ^^^^^^^^^^^^^^^^^^^

@@ -1,0 +1,228 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-views-4/lilscript",
+    "sha256": "e9e04b126621407bf5ff323ed08766130aa3013265f58ac439dc36df3bd07159"
+  },
+  "fixtures": [
+    {
+      "path": "tests/native/runtime-ownership.c",
+      "sha256": "3d372026ba5e2e720c2204f5ff86a7d66fd958df83ccefdbe5f70b48c0abb37d"
+    },
+    {
+      "path": "tests/native/call-transport.lil",
+      "sha256": "58626647c6a8282250bdcce84dcc9ce617e5336b0f79274f058582652a47f07b"
+    },
+    {
+      "path": "tests/native/call-transport.host.c",
+      "sha256": "3573ecc986d810a3a20c8a1517ed02ee6791e44c8aed30d0df0283e4f7c2fe62"
+    },
+    {
+      "path": "tests/native/call-transport.toml",
+      "sha256": "69eb341465cf4eb0460f176121d4fb1e5558bfac129d8f0f39a3228b3e074bc3"
+    },
+    {
+      "path": "tests/native/call-transport.out",
+      "sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    }
+  ],
+  "rows": [
+    {
+      "name": "runtime-gcc-build",
+      "command": "/usr/bin/cc",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-4-calls/runtime-gcc"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 301.541456,
+      "passed": true
+    },
+    {
+      "name": "runtime-gcc-run",
+      "command": "/tmp/lilscript-n2-views-4-calls/runtime-gcc",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 16.388729000000012,
+      "passed": true
+    },
+    {
+      "name": "runtime-clang-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-4-calls/runtime-clang"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 319.898694,
+      "passed": true
+    },
+    {
+      "name": "runtime-clang-run",
+      "command": "/tmp/lilscript-n2-views-4-calls/runtime-clang",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 16.080141000000026,
+      "passed": true
+    },
+    {
+      "name": "runtime-clang-sanitize-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-4-calls/runtime-clang-sanitize"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 810.3637729999999,
+      "passed": true
+    },
+    {
+      "name": "runtime-clang-sanitize-run",
+      "command": "/tmp/lilscript-n2-views-4-calls/runtime-clang-sanitize",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 53.45342000000005,
+      "passed": true
+    },
+    {
+      "name": "source",
+      "command": "/home/azureuser/lilscript-work/bin/n2-views-4/lilscript",
+      "args": [
+        "tests/native/call-transport.lil",
+        "--config",
+        "tests/native/call-transport.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-views-4-calls/ownership.c"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 11.388329999999996,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-build",
+      "command": "/usr/bin/cc",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-views-4-calls/ownership.c",
+        "/tmp/lilscript-n2-views-4-calls/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-4-calls/ownership-gcc"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 1319.4581490000003,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-run",
+      "command": "/tmp/lilscript-n2-views-4-calls/ownership-gcc",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 1.9719060000002173,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-views-4-calls/ownership.c",
+        "/tmp/lilscript-n2-views-4-calls/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-4-calls/ownership-clang"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 1243.5440059999996,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-run",
+      "command": "/tmp/lilscript-n2-views-4-calls/ownership-clang",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 2.077281999999286,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-sanitize-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-views-4-calls/ownership.c",
+        "/tmp/lilscript-n2-views-4-calls/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-views-4-calls/ownership-clang-sanitize"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 3336.668777000001,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-sanitize-run",
+      "command": "/tmp/lilscript-n2-views-4-calls/ownership-clang-sanitize",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 10.019513999999617,
+      "passed": true
+    }
+  ]
+}

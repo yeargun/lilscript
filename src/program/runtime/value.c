@@ -19,19 +19,20 @@ static LS_NATIVE_UNUSED inline double ls_value_to_number(ls_value value) {
 }
 static LS_NATIVE_UNUSED inline bool ls_value_to_bool(ls_value value) { if (value.tag != LS_BOOL) { ls_value_mismatch(); return false; } return value.as.b; }
 static LS_NATIVE_UNUSED inline ls_string ls_value_to_string(ls_value value) { if (value.tag != LS_STRING) { ls_value_mismatch(); return (ls_string){0}; } return value.as.s; }
-/* A reference slot of a class instance holds null until `init` stores it,
-   as in JavaScript: null unboxes to the empty slot there. */
-static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_object(ls_value value) {
-    if (value.tag == LS_NULL) return NULL;
-    if (value.tag != LS_OBJECT) { ls_value_mismatch(); return NULL; }
+/* Check the allocation witness before any representation-specific access.
+   Source assumptions are preconditions, but violating one remains memory-safe. */
+static LS_NATIVE_UNUSED inline ls_native_object *ls_value_checked_object(ls_value value, void (*destroy)(ls_native_object *)) {
+    if(value.tag!=LS_OBJECT || !value.as.o || value.as.o->destroy!=destroy) {ls_value_mismatch();return NULL;}
     return value.as.o;
 }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_array(ls_value value) {
-    if (value.tag == LS_NULL) return NULL;
-    if (value.tag != LS_ARRAY) { ls_value_mismatch(); return NULL; }
+    if(value.tag!=LS_ARRAY || !value.as.o) {ls_value_mismatch();return NULL;}
     return value.as.o;
 }
-static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_symbol(ls_value value) { if (value.tag != LS_SYMBOL) { ls_value_mismatch(); return NULL; } return value.as.o; }
+static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_symbol(ls_value value) {
+    if(value.tag!=LS_SYMBOL || !value.as.o) {ls_value_mismatch();return NULL;}
+    return value.as.o;
+}
 static LS_NATIVE_UNUSED inline bool ls_value_number(ls_value value) { return value.tag == LS_INT || value.tag == LS_FLOAT; }
 /* JavaScript strict equality: numbers by value, strings by code units,
    everything else by identity. */

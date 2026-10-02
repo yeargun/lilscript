@@ -2023,3 +2023,26 @@ bridges preserve managed value copies and function/array identity; repeated
 reverse views keep bounded owners. JavaScript's generic callback-field refusal
 is recorded under V1. No full suite or performance claim.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#callable-containers).
+
+## 2026-10-02 — N2 checked representation failures (implementation)
+
+Check object allocation witnesses and typed-array widths before interpreting a
+tagged value as a concrete native layout. This preserves the memory-safety
+guarantee on violated source preconditions without redefining `JS.assume` as
+a full recursive schema decoder. Complete callback/constructor argument views
+before invocation; propagate native conversion failures through the existing
+common call graph and structured completion owner, including returned values
+and selected region results.
+
+Expected effect: prevent invalid pointer/layout access while retaining ordinary
+scalar calls and proven upcasts. Focused sanitizer cases will deliberately violate
+representation preconditions, separately from valid-program ECMAScript parity.
+No semantic relaxation flag or performance claim is introduced.
+
+**Representation result.** Algorithm80, pin `n2-views-4`, passes 38 focused
+source/build/run steps, including GCC/Clang/sanitizers, production settings,
+existing defaults/exceptions, standalone ownership and plain binary emission.
+Twenty-five invalid-representation cases raise before unsafe access; valid
+class/callback downcasts and cleanup also pass. These are native precondition
+observations, not ill-typed-source JavaScript parity or a performance claim.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#checked-representation-failures).
