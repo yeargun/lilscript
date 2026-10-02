@@ -1,0 +1,80 @@
+extern void assertNativeCount(int expected);
+extern void assertMaxNativeCount(int expected);
+extern void collectNative();
+
+void casing(string text) {
+    print(JSON.stringify(text.toUpperCase()));
+    print(JSON.stringify(text.toLowerCase()));
+}
+void invalid(string pattern,string flags) {
+    try { Regex re=new Regex(pattern,flags); print(re.test("abc")); }
+    catch(auto error) { Record<string> detail=JS.assume(error); print(detail["name"]); }
+}
+Regex identity<T>(T value,Regex pattern) { print(value); return pattern; }
+void run() {
+    casing("Straße İ ﬃ ſ ǰ");
+    casing("ΟΣ ΟΣΑ ΟΣ' ΟΣ'Α Σ Σ'Α ΆΣ́ ΆΣ́Α");
+    casing("𐐀𐐨𞤀𞤢😀\uD800x\uDC00");
+    casing("\u0000\u2028\u2029");
+    casing("");
+    Regex pattern=new Regex("a","g");
+    print(pattern.test("baab")); print(pattern.lastIndex);
+    print(pattern.test("baab")); print(pattern.lastIndex);
+    print(pattern.test("baab")); print(pattern.lastIndex);
+    pattern.lastIndex=1.9; print(pattern.test("baab")); print(pattern.lastIndex);
+    pattern.lastIndex=-7.0; print(pattern.test("a")); print(pattern.lastIndex);
+    pattern.lastIndex=1.0/0.0; print(pattern.test("a")); print(pattern.lastIndex);
+    pattern.lastIndex=0.0/0.0; print(pattern.test("a")); print(pattern.lastIndex);
+    Regex alias=identity(7,pattern); print(alias==pattern);
+    alias.lastIndex=8.0; print(pattern.lastIndex);
+    Regex sticky=new Regex("a","y");
+    print(sticky.test("ba")); print(sticky.lastIndex);
+    sticky.lastIndex=1.0; print(sticky.test("ba")); print(sticky.lastIndex);
+    Regex plain=new Regex("a"); plain.lastIndex=9.0;
+    print(plain.test("a")); print(plain.lastIndex);
+    print("ba".search(plain)); print(plain.lastIndex);
+    pattern.lastIndex=-0.0; print("ba".search(pattern)); print(1.0/pattern.lastIndex);
+    sticky.lastIndex=8.0; print("ba".search(sticky)); print(sticky.lastIndex);
+    Regex empty=new Regex("","g");
+    print(empty.source); print(empty.test("")); print(empty.lastIndex);
+    print(empty.test("")); print(empty.lastIndex);
+    print(JSON.stringify("😀".replace(empty,"-"))); print(empty.lastIndex);
+    print(JSON.stringify("😀".replace(new Regex("","gu"),"-")));
+    Regex meta=new Regex("a/b\n\r\u2028\u2029","yusmigd");
+    print(JSON.stringify(meta.source)); print(meta.flags);
+    print(meta.global); print(meta.ignoreCase); print(meta.multiline);
+    print(meta.dotAll); print(meta.sticky); print(meta.unicode);
+    print(new Regex("a/b[+/=]c").source);
+    print(new Regex("[]/[^/]").source);
+    print(new Regex("\\/\\n").source);
+    print(new Regex("\\\n").source);
+    print(new Regex("^([a-z]+)-\\1$","i").test("ab-AB"));
+    print(new Regex("(?<=ab)c(?=d)").test("zabcd"));
+    print(new Regex("^.$","u").test("😀"));
+    print(new Regex("^.$").test("😀"));
+    print(new Regex("^[\\p{Script=Greek}]+$","u").test("ΑβΣ"));
+    print(new Regex("[\\p{ASCII}&&\\p{Letter}]","v").test("A"));
+    print(new Regex("[\\p{ASCII}--[A-Z]]","v").test("A"));
+    print(new Regex("[\\q{ab|cd}]","v").test("ab"));
+    print(new Regex("^s$","iu").test("ſ"));
+    print(new Regex("^a.b$","s").test("a\nb"));
+    print(new Regex("^b$","m").test("a\nb\nc"));
+    print("zabx".replace(new Regex("(a)(b)?"),"$$|$&|$`|$'|$1|$2|$3|$01|$12|$0"));
+    print("zax".replace(new Regex("(a)(b)?"),"<$1><$2>"));
+    print("ab ab".replace(new Regex("(?<first>a)(?<second>b)","g"),"$<second>$<first>:$<missing>"));
+    print("b a".replace(new Regex("(?<value>a)|(?<value>b)","g"),"<$<value>>"));
+    print("a".replace(new Regex("a"),"$<value>"));
+    print("a".replace(new Regex("(?<value>a)"),"$<value"));
+    pattern.lastIndex=99.0; print("aaa".replace(pattern,"b")); print(pattern.lastIndex);
+    plain.lastIndex=99.0; print("aaa".replace(plain,"b")); print(plain.lastIndex);
+    sticky.lastIndex=1.0; print("aaa".replace(sticky,"b")); print(sticky.lastIndex);
+    invalid("\\\n","u");
+    invalid("(",""); invalid("a","gg"); invalid("a","uv"); invalid("a","z");
+    for(int i=0;i<300;i++) {
+        Regex re=new Regex("(?<x>a+)","g");
+        string text="aa aa".replace(re,"<$<x>>");
+        string upper=text.toUpperCase();
+        assertMaxNativeCount(128);
+    }
+}
+run(); collectNative(); assertNativeCount(0); print("text ownership passed");

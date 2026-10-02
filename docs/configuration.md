@@ -91,6 +91,8 @@ warnings_as_errors = false
 link_time_optimization = false
 sanitizers = []
 cycle_collection_threshold = 4096
+regex_stack_limit = 262144
+regex_poll_limit = 0
 # triple = "aarch64-linux-gnu"
 # sysroot = "toolchains/aarch64-sysroot"
 ```
@@ -106,6 +108,8 @@ cycle_collection_threshold = 4096
 | `link_time_optimization` | `false`; `true` adds `-flto`. | Can optimize across host translation units; costs link time and memory and requires compatible tools. It is not enabled by a JavaScript compression effort. |
 | `sanitizers` | Empty, or a duplicate-free list of `address` and `undefined`. | Diagnostic builds need matching runtimes and cost executable bytes, runtime and memory. They are not production performance measurements. |
 | `cycle_collection_threshold` | `4096` allocations; the interval grows to at least half the live object count. `0` collects cycles only at explicit calls and shutdown. Ordinary zero-count reclamation always runs. | Smaller values reduce garbage-cycle retention but spend more CPU scanning candidate graphs. Larger values favor throughput at higher peak memory. This changes emitted C and its policy identity; it does not alter the JavaScript objectives or waive ownership. `--link-c` uses the threshold already in its caller-owned C. |
+| `regex_stack_limit` | `262144` bytes, at least `16384`. Bounds the pinned libregexp parser's additional stack use. | Smaller limits reject deeply nested patterns earlier with `RangeError`; larger limits require sufficient host stack. Cross profiles must reserve this space plus the caller's stack. |
+| `regex_poll_limit` | `0` (unlimited). A positive value counts libregexp poll callbacks per test/search/replace, across all matches of one replace. The pinned engine polls after 10000 internal polling points; short matches can finish without polling. | Useful for untrusted patterns. Exhaustion raises `RangeError`, never a false match result. It bounds backtracking polls, not every instruction, total memory or wall time. Both limits affect emitted C and its policy identity; they do not change JavaScript objectives. |
 
 Every configuration uses C11, `-fno-fast-math` and `-ffp-contract=off`.
 No effort level relaxes numeric behavior. `[host] native_sources` joins the same

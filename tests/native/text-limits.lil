@@ -1,0 +1,10 @@
+extern void assertNativeCount(int expected);
+extern void collectNative();
+void run() {
+    try { Regex re=new Regex("(?:".repeat(1000)+"a"+")".repeat(1000)); print(re.test("a")); }
+    catch(auto error) { Record<string> detail=JS.assume(error); print(detail["name"]); }
+    try { Regex re=new Regex("(a+)+$"); print(re.test("a".repeat(20)+"!")); }
+    catch(auto error) { Record<string> detail=JS.assume(error); print(detail["name"]); }
+    print(new Regex("^a+$").test("aaa"));
+}
+run(); collectNative(); assertNativeCount(0); print("text limits passed");

@@ -177,23 +177,10 @@ fn native_empty_structs_have_no_observable_padding_field() {
     qualify("empty-values", EMPTY, "3\n4\n5\n");
 }
 #[test]
-fn native_struct_record_fields_remain_explicitly_unsupported() {
-    for source in [
-        "struct Holder { Record<int> items; } Holder value = Holder{record{item:1}}; print(value.items.item);",
-    ] {
-        checked(source, |program| {
-            let mut compilation = compilation(MEMORY);
-            let source = compilation.adopt_checked(program, WorkDomain::Baseline).unwrap();
-            let policy = crate::config::ProjectConfig::default().resolve_policy(CompilationRequest::Native).unwrap();
-            let before = compilation.ledger().retained_bytes();
-            assert!(matches!(compilation.with_native_c(source, &policy, WorkDomain::Baseline, |_| {
-                panic!("unsupported native reference field reached output");
-            }), Err(NativeError::Unsupported { .. })));
-            assert_eq!(compilation.ledger().retained_bytes(), before);
-            assert_eq!(compilation.finish().retained_bytes(), 0);
-        });
-    }
+fn native_struct_record_fields_own_shared_storage() {
+    qualify("record-field", "struct Holder { Record<int> items; } Holder value=Holder{record{item:1}}; Holder copy=value; copy.items.item=2; print(value.items.item);", "2\n");
 }
+
 #[test]
 fn refused_native_struct_output_releases_layouts_and_partial_text() {
     // A large immutable string field forces partial C buffer growth after the

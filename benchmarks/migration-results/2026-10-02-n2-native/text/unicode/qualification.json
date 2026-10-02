@@ -1,0 +1,63 @@
+{
+  "compiler": "/home/azureuser/lilscript-work/bin/n2-text-5/lilscript",
+  "unicode": "17.0.0",
+  "conversions": 2228224,
+  "rows": [
+    {
+      "name": "build",
+      "command": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I/tmp/lilscript-n2-text-5",
+        "tests/native/text-unicode.c",
+        "/tmp/lilscript-n2-text-5/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-text-unicode/native"
+      ],
+      "status": 0,
+      "elapsed_ms": 7478.92496001441
+    },
+    {
+      "name": "native",
+      "command": [
+        "/tmp/lilscript-n2-text-unicode/native"
+      ],
+      "status": 0,
+      "elapsed_ms": 1867.7507090033032
+    },
+    {
+      "name": "node",
+      "command": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/text-unicode.oracle.mjs"
+      ],
+      "status": 0,
+      "elapsed_ms": 565.18014302128
+    }
+  ],
+  "outputs": {
+    "native": {
+      "bytes": 10879214,
+      "sha256": "b305dfa00386e88ac44b8444b141b6146393e0661fa4630911e455a5ed4b2473"
+    },
+    "node": {
+      "bytes": 10879214,
+      "sha256": "b305dfa00386e88ac44b8444b141b6146393e0661fa4630911e455a5ed4b2473"
+    }
+  },
+  "equal": true,
+  "compiler_sha256": "dacfdd126de4fb056bb6c64714840c64e3dc1fbb0e064d8362d62aa55efe30dd",
+  "fixtures": {
+    "tests/native/text-unicode.c": "679ff0b4ef67357e9881d7a37b5b984dcfd3306ef3964926b8e149462bbe52e0",
+    "tests/native/text-unicode.oracle.mjs": "e90bd4859ca0e85b3ca77704a052a045441b115a3093ded5c22e2c8890f05a4d"
+  }
+}

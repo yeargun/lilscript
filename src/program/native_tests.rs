@@ -598,10 +598,7 @@ fn wrong_target_stale_and_foreign_source_never_enter_native_callback() {
 #[test]
 fn unsupported_boundaries_reject_complete_source_without_backend_fallback() {
     for source in [
-        "Regex pattern=new Regex(\"a\");print(pattern.test(\"a\"));",
-        "func()->int make(){auto value=()=>1;return ()=>value();}auto read=make();print(read());",
         "extern int effect();print(effect());",
-        "try{print(1);}finally{print(2);}",
     ] {
         checked(source, WORK, |compilation, id| {
             let retained = compilation.ledger().retained_bytes();

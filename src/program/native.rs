@@ -242,6 +242,7 @@ pub(super) fn form(
     scalar: bool,
     dead_code: bool,
     cycle_threshold: u32,
+    regex_limits: (u32, u64),
     budget: &mut AllocationBudget<'_>,
 ) -> Result<NativeArtifacts, NativeError> {
     let mut phase = budget.scope();
@@ -266,6 +267,7 @@ pub(super) fn form(
     let mut emitter = Emitter {
         plan: &plan,
         cycle_threshold,
+        regex_limits,
         storage,
         operation: None,
         ownership_transfers: 0,
@@ -274,6 +276,7 @@ pub(super) fn form(
         stack: Vec::new(),
         field_path: Vec::new(),
         active_regions: Vec::new(),
+        exception_regions: Vec::new(),
         try_frames: Vec::new(),
         error_exit: false,
         return_exit: false,
@@ -336,6 +339,7 @@ enum Task {
 struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     plan: &'plan NativePlan<'program, 'src>,
     cycle_threshold: u32,
+    regex_limits: (u32, u64),
     storage: super::physical_storage::StorageProofs,
     operation: Option<OpId>,
     ownership_transfers: u32,
@@ -345,6 +349,7 @@ struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     field_path: Vec<(usize, Option<usize>)>,
     // The current lexical path in the original region tree, not a cleanup CFG.
     active_regions: Vec<RegionId>,
+    exception_regions: Vec<bool>,
     try_frames: Vec<TryFrame>,
     error_exit: bool,
     return_exit: bool,
@@ -389,6 +394,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.text(native_runtime::PROLOGUE)?;
         let threshold = self.cycle_threshold;
         self.write(format_args!("#define LS_NATIVE_CYCLE_THRESHOLD UINT32_C({threshold})\n"))?;
+        if self.plan.helpers.contains(Helper::Regex) {
+            let (stack, polls) = self.regex_limits;
+            self.write(format_args!("#define LS_NATIVE_REGEX_STACK_LIMIT UINT32_C({stack})\n#define LS_NATIVE_REGEX_POLL_LIMIT UINT64_C({polls})\n"))?;
+        }
         for helper in self.plan.helpers.iter() {
             self.text(helper.definition())?;
         }
@@ -553,6 +562,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.text(" {\n")?;
         self.temporary_declaration()?;
         let unit = self.plan.program.unit(id).unwrap();
+        self.exception_regions.clear();
+        for _ in &unit.regions {
+            self.budget.push(AllocationClass::Scratch, &mut self.exception_regions, false)?;
+        }
         self.control_declarations(id)?;
         if self.plan.needs_callable_runtime() {
             self.parameter_owners(id)?;
@@ -674,6 +687,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                         if self.operation_can_raise(id,operation) { self.check_exception(id)?; }
                         self.clear_temporaries()?;
                     } else {
+                        self.finish_exception_region(id, region)?;
                         if let Some(destination) = destination {
                             let source = unit.regions[region.index()].result.unwrap();
                             self.operation = None;
@@ -948,6 +962,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
                         self.text(");\n")?;
                     }
                 }
+            }
+            OperationKind::Intrinsic(ResolvedIntrinsic::Property(intrinsic))
+                if matches!(intrinsic, crate::primitive::Intrinsic::RegexSource | crate::primitive::Intrinsic::RegexFlags
+                    | crate::primitive::Intrinsic::RegexGlobal | crate::primitive::Intrinsic::RegexIgnoreCase
+                    | crate::primitive::Intrinsic::RegexMultiline | crate::primitive::Intrinsic::RegexDotAll
+                    | crate::primitive::Intrinsic::RegexSticky | crate::primitive::Intrinsic::RegexUnicode) => {
+                self.regex_property(id, result.unwrap(), args[0], *intrinsic)?;
             }
             OperationKind::Intrinsic(ResolvedIntrinsic::Property(intrinsic))
                 if *intrinsic == crate::primitive::Intrinsic::BufferByteLength
@@ -1296,6 +1317,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     self.text(")")?;
                     break;
                 }
+                PlaceRecipe::RegexLastIndex { receiver } => {
+                    self.write(format_args!("((ls_regex *)ls_v{})->last_index", receiver.index()))?;
+                    break;
+                }
                 PlaceRecipe::Member {
                     receiver,
                     class,
@@ -1569,6 +1594,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
             return self.scalar_method(unit, call, result, receiver, method);
         }
         if let PreparedTarget::Construct(intrinsic) = target {
+            if intrinsic == crate::primitive::Intrinsic::RegexNew {
+                return self.construct_regex(unit, call, result.unwrap());
+            }
             if matches!(
                 intrinsic,
                 crate::primitive::Intrinsic::MapNew

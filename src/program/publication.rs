@@ -2460,6 +2460,7 @@ impl<'src> Compilation<'src> {
             policy.tactic(TacticId::ScalarReplacement).enabled,
             policy.tactic(TacticId::DeadCodeElimination).enabled,
             policy.native_cycle_threshold(),
+            policy.native_regex_limits(),
             &mut budget,
         )?;
         budget.work(WorkKind::Render, 0)?;
@@ -2498,6 +2499,7 @@ impl<'src> Compilation<'src> {
             policy.tactic(TacticId::ScalarReplacement).enabled,
             policy.tactic(TacticId::DeadCodeElimination).enabled,
             policy.native_cycle_threshold(),
+            policy.native_regex_limits(),
             &mut budget,
         )?;
         self.artifacts.retain_native(

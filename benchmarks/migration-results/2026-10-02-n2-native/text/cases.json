@@ -1,0 +1,659 @@
+{
+ "schema": 1,
+ "kind": "lilscript-case-runner",
+ "started": "2026-10-02T04:54:05.729Z",
+ "completed": "2026-10-02T04:54:09.350Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "d275041648b5551a681400ce29f3fca842215b32",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/n2-text-5/lilscript",
+  "path": "/tmp/lilscript-n2-text-cases/bin/lilscript-dacfdd126de4fb05",
+  "sha256": "dacfdd126de4fb056bb6c64714840c64e3dc1fbb0e064d8362d62aa55efe30dd",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": null,
+ "node": {
+  "path": "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+  "version": "v24.20.0"
+ },
+ "cc": {
+  "path": "/usr/bin/cc",
+  "flagsOwner": "compiler NativeToolchain; per-artifact nativeToolchainReceipt",
+  "defaultFlags": [
+   "-O2"
+  ],
+  "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+ },
+ "scrubbedEnvironment": [],
+ "tactics": {
+  "source": "--print-policy",
+  "ids": [
+   "dead-code-elimination",
+   "constant-folding",
+   "inlining",
+   "loop-unrolling",
+   "scalar-replacement",
+   "call-specialization",
+   "helper-sharing",
+   "target-compaction",
+   "statement-spellings",
+   "declaration-order",
+   "receiver-aliases",
+   "identifier-mangling",
+   "property-mangling",
+   "string-pooling",
+   "string-array-packing",
+   "startup-reconstruction",
+   "recurring-reconstruction",
+   "naming-search",
+   "naming-compaction",
+   "representation-joints",
+   "naming-alphabet"
+  ]
+ },
+ "ledger": {
+  "path": "tests/cases/expected-failures.json",
+  "sha256": "232ed41b2164926d44d63630fc8c90262541bf547f0c3b5ac5592d90bd92805f",
+  "entries": 7
+ },
+ "masks": [
+  {
+   "id": "host-prelude",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "a .host.js prelude defines externs in a JavaScript realm",
+   "lifts": null
+  },
+  {
+   "id": "module-probe",
+   "targets": [
+    "module",
+    "cjs"
+   ],
+   "why": "a .module-probe.mjs reads the library export surface",
+   "lifts": null
+  },
+  {
+   "id": "JsValue",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "conservative corpus classification: native tagged transport is supported; host object operations require separate recipes",
+   "lifts": null
+  },
+  {
+   "id": "import extern",
+   "targets": [
+    "module"
+   ],
+   "why": "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports",
+   "lifts": null
+  },
+  {
+   "id": "extern",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "this corpus fixture needs a C provider/host-equivalent boundary; configured native function providers are supported",
+   "lifts": "N2 (M11.3 provider-backed corpus qualification)"
+  },
+  {
+   "id": "export",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "the entry's exports are a module ABI; C has none yet",
+   "lifts": "M11.8 (a C library ABI)"
+  },
+  {
+   "id": "JS namespace",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: C rejects the JS.* operations",
+   "lifts": null
+  },
+  {
+   "id": "async",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects async functions and tasks",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "generator",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: native rejects generators",
+   "lifts": "M11.6 (portable subset)"
+  },
+  {
+   "id": "object literal",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: object {} is JavaScript-only",
+   "lifts": null
+  },
+  {
+   "id": "JSON.parse",
+   "targets": [
+    "script",
+    "module",
+    "cjs",
+    "bare"
+   ],
+   "why": "language-v0.1: JSON.parse returns JsValue",
+   "lifts": null
+  }
+ ],
+ "lanes": [
+  {
+   "id": "formation-only/raw/script",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "e90aeb3d2dc9999406e5bd8651213231ae3dc33510cd113bf11cad60cf1e83e1",
+   "enabledTactics": [],
+   "optionalAlternatives": 0
+  },
+  {
+   "id": "formation-only/raw/c",
+   "mode": "formation-only",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n[javascript]\ncandidate_search = \"off\"\n\n[policy.tactics]\ndead-code-elimination = \"off\"\nconstant-folding = \"off\"\ninlining = \"off\"\nloop-unrolling = \"off\"\nscalar-replacement = \"off\"\ncall-specialization = \"off\"\nhelper-sharing = \"off\"\ntarget-compaction = \"off\"\nstatement-spellings = \"off\"\ndeclaration-order = \"off\"\nreceiver-aliases = \"off\"\nidentifier-mangling = \"off\"\nproperty-mangling = \"off\"\nstring-pooling = \"off\"\nstring-array-packing = \"off\"\nstartup-reconstruction = \"off\"\nrecurring-reconstruction = \"off\"\nnaming-search = \"off\"\nnaming-compaction = \"off\"\nrepresentation-joints = \"off\"\nnaming-alphabet = \"off\"\n\n",
+   "policyFingerprint": "be548c157758b90580329b7bad4ab2b8d20eb6079efd28af39398734ffcaf859",
+   "enabledTactics": [],
+   "optionalAlternatives": null
+  },
+  {
+   "id": "production/raw/script",
+   "mode": "production",
+   "codec": "raw",
+   "target": "script",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n",
+   "policyFingerprint": "118ea28a02d91d94d5b58e484827e03f0166ea2d51f59e474e19c05c271e6d0b",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement",
+    "call-specialization",
+    "helper-sharing",
+    "target-compaction",
+    "statement-spellings",
+    "receiver-aliases",
+    "identifier-mangling",
+    "property-mangling",
+    "string-pooling",
+    "string-array-packing",
+    "naming-search",
+    "naming-alphabet"
+   ],
+   "optionalAlternatives": 1024
+  },
+  {
+   "id": "production/raw/c",
+   "mode": "production",
+   "codec": "raw",
+   "target": "c",
+   "config": "[objective]\ncodecs = [\"raw\"]\n\n",
+   "policyFingerprint": "19e693dc46c45d65fb2e6e446728db9f558c5311fc4f248672ec6b9402fc1af3",
+   "enabledTactics": [
+    "dead-code-elimination",
+    "constant-folding",
+    "inlining",
+    "loop-unrolling",
+    "scalar-replacement"
+   ],
+   "optionalAlternatives": null
+  }
+ ],
+ "cases": [
+  {
+   "id": "cases/regressions/irjs-decoded_constant_keys_and_regex_patterns_keep_their_values",
+   "digest": "af88c769e13d8174b8de06674ab20325791c0575e742fac8bea04f0dd287c034",
+   "features": [
+    "JsValue",
+    "JS namespace"
+   ]
+  },
+  {
+   "id": "cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks",
+   "digest": "030a93d53f19770f35af0ad33365457aea829b955f0d347d1b8b8367be1344df",
+   "features": []
+  },
+  {
+   "id": "cases/regressions/irjs-emits_typed_string_and_regex_javascript_members",
+   "digest": "d58dda9bc6b0b7d108e7b398129032e48a5774c067eca948225f082cf3420d08",
+   "features": [
+    "JS namespace"
+   ]
+  }
+ ],
+ "summary": {
+  "formation-only/raw/script": {
+   "cases": 3,
+   "pass": 3,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 964
+  },
+  "formation-only/raw/c": {
+   "cases": 3,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 2,
+   "artifactBytes": 543251
+  },
+  "production/raw/script": {
+   "cases": 3,
+   "pass": 3,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 0,
+   "artifactBytes": 493
+  },
+  "production/raw/c": {
+   "cases": 3,
+   "pass": 1,
+   "fail": 0,
+   "ledgered": 0,
+   "masked": 2,
+   "artifactBytes": 543284
+  }
+ },
+ "unexpected": 0,
+ "staleLedgerEntries": [],
+ "narrowableLedgerEntries": [],
+ "unknownLedgerCases": [],
+ "results": [
+  {
+   "case": "cases/regressions/irjs-decoded_constant_keys_and_regex_patterns_keep_their_values",
+   "lane": "formation-only/raw/script",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_script/cases/regressions/irjs-decoded_constant_keys_and_regex_patterns_keep_their_values.js",
+    "bytes": 298,
+    "sha256": "5ef993f7adb09d2d0c67208cc1d4643a02b45367c516569a68b9dd19dd2ed6db"
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-decoded_constant_keys_and_regex_patterns_keep_their_values",
+   "lane": "formation-only/raw/c",
+   "state": "masked",
+   "features": [
+    "JsValue",
+    "JS namespace"
+   ]
+  },
+  {
+   "case": "cases/regressions/irjs-decoded_constant_keys_and_regex_patterns_keep_their_values",
+   "lane": "production/raw/script",
+   "compileMs": 12,
+   "artifact": {
+    "path": "lanes/production_raw_script/cases/regressions/irjs-decoded_constant_keys_and_regex_patterns_keep_their_values.js",
+    "bytes": 94,
+    "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 66,
+    "judged": 0,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 1,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 2,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 3,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 4,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 5,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 6,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 7,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 8,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 9,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 10,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 11,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     },
+     {
+      "level": 12,
+      "size": 94,
+      "sha256": "b792caf22b26c90b1017f04354cb76eb0036cf3779809e6ea271db9498f487fb"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-decoded_constant_keys_and_regex_patterns_keep_their_values",
+   "lane": "production/raw/c",
+   "state": "masked",
+   "features": [
+    "JsValue",
+    "JS namespace"
+   ]
+  },
+  {
+   "case": "cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks",
+   "lane": "formation-only/raw/script",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_script/cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks.js",
+    "bytes": 102,
+    "sha256": "9e6186b07c2c7d3c0b4e1ad972518c073747c20c54a7eda74842cd211d611a5c"
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks",
+   "lane": "formation-only/raw/c",
+   "compileMs": 6,
+   "artifact": {
+    "path": "lanes/formation-only_raw_c/cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks.c",
+    "bytes": 543251,
+    "sha256": "caad991563fd75198520007697ff1e66b78007894e0fe904df9774ff9f7b7603"
+   },
+   "nativeToolchainReceipt": "lanes/formation-only_raw_c/cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks",
+   "lane": "production/raw/script",
+   "compileMs": 9,
+   "artifact": {
+    "path": "lanes/production_raw_script/cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks.js",
+    "bytes": 55,
+    "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 0,
+    "pruned": 0,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 1,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 2,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 3,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 4,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 5,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 6,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 7,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 8,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 9,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 10,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 11,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     },
+     {
+      "level": 12,
+      "size": 55,
+      "sha256": "b1acce13e1913fccc8667c92fd61c55ac345c16ba2af385de7f946e5a0292eb5"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks",
+   "lane": "production/raw/c",
+   "compileMs": 7,
+   "artifact": {
+    "path": "lanes/production_raw_c/cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks.c",
+    "bytes": 543284,
+    "sha256": "dd01ada3c16e4d4eadba491f67de261d6764daa59768794fbbe54a267cc7d2e4"
+   },
+   "nativeToolchainReceipt": "lanes/production_raw_c/cases/regressions/irjs-emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks.exe.native.json",
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-emits_typed_string_and_regex_javascript_members",
+   "lane": "formation-only/raw/script",
+   "compileMs": 5,
+   "artifact": {
+    "path": "lanes/formation-only_raw_script/cases/regressions/irjs-emits_typed_string_and_regex_javascript_members.js",
+    "bytes": 564,
+    "sha256": "c5897c6616dbf2fb0748e56bbff886655124ada32d60f07d3f14c10fbd268342"
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-emits_typed_string_and_regex_javascript_members",
+   "lane": "formation-only/raw/c",
+   "state": "masked",
+   "features": [
+    "JS namespace"
+   ]
+  },
+  {
+   "case": "cases/regressions/irjs-emits_typed_string_and_regex_javascript_members",
+   "lane": "production/raw/script",
+   "compileMs": 17,
+   "artifact": {
+    "path": "lanes/production_raw_script/cases/regressions/irjs-emits_typed_string_and_regex_javascript_members.js",
+    "bytes": 344,
+    "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+   },
+   "walk": {
+    "searchProbes": 0,
+    "structures": 1,
+    "examined": 60,
+    "judged": 2,
+    "pruned": 5,
+    "passes": 3,
+    "starts": 5,
+    "stops": [
+     {
+      "level": 0,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 1,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 2,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 3,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 4,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 5,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 6,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 7,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 8,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 9,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 10,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 11,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     },
+     {
+      "level": 12,
+      "size": 344,
+      "sha256": "f3d1779b048116b82de30621acc70825cb26b503d25b94832405d922eca9aeb0"
+     }
+    ]
+   },
+   "state": "pass"
+  },
+  {
+   "case": "cases/regressions/irjs-emits_typed_string_and_regex_javascript_members",
+   "lane": "production/raw/c",
+   "state": "masked",
+   "features": [
+    "JS namespace"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,4 @@
+quickjs/libunicode.c:1835:15: error: non-static declaration of ‘lre_ctype_bits’ follows static declaration
+quickjs/libunicode.h:132:22: note: previous declaration of ‘lre_ctype_bits’ with type ‘const uint8_t[256]’ {aka ‘const unsigned char[256]’}
+quickjs/libregexp.c:396:23: error: redefinition of ‘char_range_s’
+quickjs/libunicode.c:1886:23: note: previous definition of ‘char_range_s’ with type ‘const uint16_t[21]’ {aka ‘const short unsigned int[21]’}

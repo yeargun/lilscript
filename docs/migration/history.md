@@ -1906,3 +1906,35 @@ two maintained formation/production cells and the independent JavaScript oracle
 also pass. Initial warning failures and corrections are retained. N2 remains
 active; this is a runtime batch, not native completion or a performance claim.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#exception-completions).
+
+
+## 2026-10-02 — N2 text runtime (implementation)
+
+1. Vendor MIT QuickJS libregexp and Unicode 17 at immutable revision
+   `535a7c250ff4a577ec36c3e103daab6dadeea650`, with original files, hashes,
+   license and reproducible library amalgamation. Only text operations requiring
+   tables include them; ordinary string code keeps its existing dependencies.
+2. Replace ASCII-only case conversion with full UTF-16 default conversion,
+   preserving surrogate pairs, lone surrogates, expansions and final sigma.
+3. Implement typed Regex construction/test/search/replacement and properties,
+   reference identity, mutable lastIndex and named/numeric substitution. Add
+   fingerprinted stack/poll limits with catchable exhaustion. Dynamic match
+   objects are part of the existing JavaScript host ABI and are not redefined.
+
+Expected effect: native text coverage expands, with Unicode tables linked only
+when used. Compiler/C compilation and resulting native size grow for these
+operations. No JavaScript compression change is intended. One focused fixture
+and maintained text cases will compare independent JavaScript behavior under
+GCC, Clang and sanitizers after the implementation batch. Results follow.
+
+
+**Text result.** Pin `n2-text-6` passes the focused GCC/Clang/sanitizer text
+fixture, emitted-JavaScript oracle parity, and eight maintained C/JS cells.
+The limits/exception/array/product checks pass on pin5, which also matches
+Unicode 17 on every code point in both cases (2,228,224 conversions). Initial
+vendor/ASan/GCC failures led to private vendor linkage, actual-frame stack
+measurement and one exception failure exit per lexical region. The last change
+reduces identical fixture C from 2,673,298 to 664,938 bytes. A JavaScript escaped
+line-terminator regex-literal bug is corrected with independent parity coverage.
+No broad library rerun or native performance claim; N2 remains active.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#unicode-and-typed-regular-expressions).

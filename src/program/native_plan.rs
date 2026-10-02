@@ -39,6 +39,7 @@ pub(super) enum NativeType {
     Shape,
     Set,
     Symbol,
+    Regex,
     /// An `ArrayBuffer` or `SharedArrayBuffer` (one thread: the same thing).
     Buffer,
     /// A typed array view of a buffer.
@@ -82,6 +83,7 @@ impl fmt::Display for NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
+            | Self::Regex
             | Self::Buffer
             | Self::Typed(_) => f.write_str("ls_native_object *"),
         }
@@ -103,6 +105,7 @@ impl NativeType {
             | Self::Map
                 | Self::Set
                 | Self::Symbol
+                | Self::Regex
                 | Self::Buffer
                 | Self::Typed(_)
                 | Self::Dynamic(Tagged { owns: true, .. })
@@ -120,6 +123,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
+            | Self::Regex
             | Self::Buffer
             | Self::Typed(_) => Some(format!("ls_native_retain({value});\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => {
@@ -140,6 +144,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
+            | Self::Regex
             | Self::Buffer
             | Self::Typed(_) => Some(format!("ls_native_release({value});\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => {
@@ -160,6 +165,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
+            | Self::Regex
             | Self::Buffer
             | Self::Typed(_) => Some("ls_object".to_owned()),
             Self::Dynamic(Tagged { owns: true, .. }) => Some("ls_value".to_owned()),
@@ -172,7 +178,8 @@ impl NativeType {
             Self::Struct(index) => Some(format!("ls_t{index}_trace({value}, visit, context);\n")),
             Self::Callable(_) => Some(format!("visit({value}.environment, context);\n")),
             Self::Array(_) | Self::Object(_) | Self::Shape | Self::Record
-            | Self::Map | Self::Set | Self::Symbol | Self::Buffer | Self::Typed(_) => Some(format!("visit({value}, context);\n")),
+            | Self::Map | Self::Set | Self::Symbol | Self::Regex
+            | Self::Buffer | Self::Typed(_) => Some(format!("visit({value}, context);\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => Some(format!("ls_value_trace({value}, visit, context);\n")),
             _ => None,
         }
@@ -187,6 +194,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
+            | Self::Regex
             | Self::Buffer
             | Self::Typed(_) => " = NULL",
             Self::Dynamic(_) => " = {0}",
@@ -285,6 +293,7 @@ pub(super) enum PreparedTarget {
 pub(super) enum PlaceRecipe {
     Cell(CellId),
     Value(ValueId),
+    RegexLastIndex { receiver: ValueId },
     Record {
         receiver: ValueId,
         key: RecordKey,
@@ -516,6 +525,7 @@ pub(super) fn native_type<'program, 'src>(
             NativeType::Set
         }
         Type::Symbol => NativeType::Symbol,
+        Type::Regex => NativeType::Regex,
         Type::ArrayBuffer | Type::SharedArrayBuffer => NativeType::Buffer,
         ty if crate::typed_array::TypedArrayKind::from_type(ty).is_some() => {
             NativeType::Typed(crate::typed_array::TypedArrayKind::from_type(ty).unwrap())
@@ -822,6 +832,13 @@ fn plan_places(
                     writable: true,
                 }
             }
+            Place::Member { receiver, key }
+                if values[receiver.index()] == ValueStorage::Value(NativeType::Regex)
+                    && program.strings[key.index()].as_unicode() == Some("lastIndex") => {
+                helpers.require(Helper::Regex);
+                PlacePlan { recipe: PlaceRecipe::RegexLastIndex { receiver },
+                    storage: ValueStorage::Value(NativeType::F64), root_cell: None, writable: true }
+            }
             Place::Member { .. } => {
                 return Err(error("native host member place"));
             }
@@ -977,7 +994,7 @@ fn addressable(places: &[PlacePlan], mut place: PlaceId) -> bool {
     loop {
         match places[place.index()].recipe {
             PlaceRecipe::Field { base, unbox: None, .. } => place = base,
-            PlaceRecipe::Cell(_) | PlaceRecipe::Member { .. } => return true,
+            PlaceRecipe::Cell(_) | PlaceRecipe::Member { .. } | PlaceRecipe::RegexLastIndex { .. } => return true,
             _ => return false,
         }
     }
@@ -1617,6 +1634,15 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     }
                     CallTarget::Builtin(BuiltinCall::Print) => PreparedTarget::Print,
                     CallTarget::Builtin(BuiltinCall::JsAssume) => PreparedTarget::Assume,
+                    CallTarget::Intrinsic { operation: ResolvedIntrinsic::Constructor(Intrinsic::RegexNew), receiver: None } => {
+                        plan.helpers.require(Helper::Regex);
+                        PreparedTarget::Construct(Intrinsic::RegexNew)
+                    }
+                    CallTarget::Intrinsic { operation: ResolvedIntrinsic::Method(Intrinsic::RegexTest), receiver: Some(receiver) }
+                        if values[receiver.index()] == ValueStorage::Value(NativeType::Regex) => {
+                        plan.helpers.require(Helper::Regex);
+                        PreparedTarget::ScalarMethod { receiver, method: Intrinsic::RegexTest }
+                    }
                     CallTarget::Intrinsic {
                         operation:
                             ResolvedIntrinsic::Constructor(
@@ -1719,7 +1745,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                 PreparedTarget::CharAt { receiver }
                             }
                             Intrinsic::StringReplace | Intrinsic::StringSearch => {
-                                return Err(error("native regular expression"))
+                                plan.helpers.require(Helper::Regex);
+                                PreparedTarget::ScalarMethod { receiver, method: intrinsic }
                             }
                             Intrinsic::StringIncludes
                             | Intrinsic::StringIndexOf
@@ -1736,6 +1763,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             | Intrinsic::StringSplit
                             | Intrinsic::StringCodePointLength => {
                                 plan.helpers.require(Helper::Strings);
+                                if matches!(intrinsic, Intrinsic::StringToUpperCase | Intrinsic::StringToLowerCase) {
+                                    plan.helpers.require(Helper::Unicode);
+                                }
                                 if intrinsic == Intrinsic::StringSplit {
                                     plan.helpers.require(Helper::ClosureRuntime);
                                 }
@@ -2104,6 +2134,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Map
                     | NativeType::Set
                     | NativeType::Symbol
+                    | NativeType::Regex
                     | NativeType::Buffer
                     | NativeType::Typed(_)
             )
@@ -2290,6 +2321,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Map
                         | NativeType::Set
                         | NativeType::Symbol
+                        | NativeType::Regex
                         | NativeType::Buffer
                         | NativeType::Typed(_)
                 )
@@ -2624,6 +2656,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 self.helpers.require(Helper::ClosureRuntime);
                 Ok(())
             }
+            OperationKind::Intrinsic(ResolvedIntrinsic::Property(intrinsic @ (Intrinsic::RegexSource | Intrinsic::RegexFlags
+                | Intrinsic::RegexGlobal | Intrinsic::RegexIgnoreCase | Intrinsic::RegexMultiline
+                | Intrinsic::RegexDotAll | Intrinsic::RegexSticky | Intrinsic::RegexUnicode))) => {
+                let output = if matches!(intrinsic, Intrinsic::RegexSource | Intrinsic::RegexFlags) { Text } else { Bool };
+                expect(operand(0) == Stored(NativeType::Regex) && result == Some(Stored(output)), "native regex property")?;
+                self.helpers.require(Helper::Regex);
+                Ok(())
+            }
             OperationKind::Intrinsic(ResolvedIntrinsic::Property(Intrinsic::BufferByteLength)) => {
                 expect(
                     operand(0) == Stored(NativeType::Buffer) && result == Some(Stored(I32)),
@@ -2782,6 +2822,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                     NativeType::Shape | NativeType::Record | NativeType::Map
                                         | NativeType::Set
                                         | NativeType::Symbol
+                                        | NativeType::Regex
                                         | NativeType::Buffer
                                         | NativeType::Typed(_)
                                 )
@@ -3034,6 +3075,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     }
                     PreparedTarget::Construct(intrinsic) => {
                         let (admitted, output) = match intrinsic {
+                            Intrinsic::RegexNew => (
+                                (1..=2).contains(&arguments.len()) && argument(0) == Some(Stored(Text))
+                                    && (arguments.len() == 1 || argument(1) == Some(Stored(Text))), NativeType::Regex),
                             Intrinsic::MapNew => (arguments.is_empty(), NativeType::Map),
                             Intrinsic::SetNew => (arguments.is_empty(), NativeType::Set),
                             Intrinsic::ArrayBufferNew | Intrinsic::SharedArrayBufferNew => (
@@ -3121,6 +3165,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                 ((count == 1 || (count == 2 && int(1))) && text(0), I32)
                             }
                             Intrinsic::StringRepeat => (count == 1 && int(0), Text),
+                            Intrinsic::RegexTest => (count == 1 && text(0), Bool),
+                            Intrinsic::StringSearch => (count == 1 && argument(0) == Some(Stored(NativeType::Regex)), I32),
+                            Intrinsic::StringReplace => (count == 2 && argument(0) == Some(Stored(NativeType::Regex)) && text(1), Text),
                             Intrinsic::StringToUpperCase
                             | Intrinsic::StringToLowerCase
                             | Intrinsic::StringTrim

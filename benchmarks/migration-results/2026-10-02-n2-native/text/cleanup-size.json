@@ -1,0 +1,39 @@
+{
+  "original": {
+    "compiler": {
+      "path": "/home/azureuser/lilscript-work/bin/n2-text-3/lilscript",
+      "sha256": "11bc23f83e32d542b864bc84a70758ae45dde1c165b6bf686da0244d81b78083"
+    },
+    "c_bytes": 2673298
+  },
+  "revised": {
+    "compiler": {
+      "path": "/home/azureuser/lilscript-work/bin/n2-text-5/lilscript",
+      "sha256": "dacfdd126de4fb056bb6c64714840c64e3dc1fbb0e064d8362d62aa55efe30dd"
+    },
+    "c_bytes": 664938
+  },
+  "fixtures": [
+    {
+      "path": "tests/native/runtime-ownership.c",
+      "sha256": "78956e7bc6120bb6cce97725b6d5c8501ab644a02b59d05a109d018cb9918f94"
+    },
+    {
+      "path": "tests/native/text.lil",
+      "sha256": "0d3eb0f02fa6f4ce9b0a5789e6b8f675d0e6e93474d9a3f4f2607467199d98a8"
+    },
+    {
+      "path": "tests/native/text.host.c",
+      "sha256": "eece0c784c33b16f9a6318c6d4685f527aa312698e0aebb85c3d9a76c63df84f"
+    },
+    {
+      "path": "tests/native/text.toml",
+      "sha256": "3b8ae9899f82fb138d0cdfd5c4a35f9265b9bbc753caac7a12027d8eb6ed5450"
+    },
+    {
+      "path": "tests/native/text.out",
+      "sha256": "df917055c70eda81c703aacc0509e364980e64d9590d21b72810096e3664105d"
+    }
+  ],
+  "scope": "Emission size of identical fixture before/after one exception exit per lexical region and the ASan stack-address correction; not a native executable-size or runtime benchmark."
+}

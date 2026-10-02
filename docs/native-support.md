@@ -20,8 +20,8 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 | Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, checked JSON stringify, shape fields/spreads/optional writes/tag narrowing, scalar array join | Typed parsing and immutable graph qualification: N2 |
 | Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | Remaining native error recipes and full corpus qualification: N2 |
 | Generators, async/tasks | Source-qualified refusal | Region state machines and microtask queue: N2 |
-| Regular expressions | Source-qualified refusal | Pinned ECMAScript-compatible engine: N2 |
-| Strings | Reference-counted UTF-16 ABI v2, owned views and temporary-conversion cleanup | Complete Unicode/runtime support: N2 |
+| Regular expressions | Pinned QuickJS libregexp; typed construction/test/search/string replacement, metadata and shared lastIndex; catchable syntax/resource errors | Broad corpus qualification: N2; JsValue match objects use the JavaScript host ABI |
+| Strings | Reference-counted UTF-16 ABI v2, owned views, temporary-conversion cleanup and Unicode 17 case conversion | Broad runtime qualification: N2 |
 | Memory | Reference counting, traced closures/objects/containers, final-use transfer and synchronous trial deletion | Broad cycle/performance qualification: N2 |
 | Extern providers | Explicit `host_` functions and generated C headers, mapped from checked identities | Remaining extern/C library ABI and portable process/file/clock API: N2 |
 | Toolchain | One library owner; strict C11 flags, explicit TOML controls, source/output receipts | Native objective measurements, sanitizer matrix and cross-target profiles: N2 |
@@ -74,3 +74,20 @@ functions never unwind a foreign C frame. Resource exhaustion and violated
 runtime ownership invariants remain fatal. Runtime type/bounds/range failures
 are ordinary catchable failures; source precondition checks on JavaScript are
 selected independently with `[javascript] checks="development"`.
+
+Native case conversion and regular expressions use Unicode 17.0.0, pinned with
+QuickJS libregexp at `535a7c250ff4a577ec36c3e103daab6dadeea650`. The independent
+comparison runtime must use the same Unicode version: older JavaScript engines
+can differ on newly assigned characters. Case conversion preserves lone UTF-16
+surrogates, expansions and contextual final sigma. Regex supports the engine's
+ECMAScript flags, including `d` and `v`, while typed metadata remains the source
+language's declared surface. `exec`/JS match objects and callback replacements
+remain JavaScript host operations. No target silently approximates those objects.
+
+The library sources and MIT license live in `third_party/quickjs`; the checked
+manifest and `scripts/vendor-native-text.py` reproduce standalone amalgamations.
+Their private declarations have internal linkage. Vendor-only unused/sign-compare
+warnings are isolated; generated program and provider warnings remain enabled.
+Unicode tables are included only when case conversion or regex needs them.
+TOML stack/backtracking limits report catchable exhaustion;
+resource rejection does not turn a regex operation into an ordinary non-match.

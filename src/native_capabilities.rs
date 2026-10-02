@@ -13,7 +13,6 @@ pub struct Capability {
     pub boundary: &'static str,
     pub remaining_owner: Option<&'static str>,
 }
-pub const REGEX: &str = "native regular expressions are not implemented yet (N2)";
 pub const ASYNC: &str = "native tasks and async functions are not implemented yet (N2)";
 pub const GENERATORS: &str = "native generators are not implemented yet (N2)";
 
@@ -26,8 +25,8 @@ pub const CAPABILITIES: &[Capability] = &[
     Capability { id: "records-and-shapes", status: Status::Partial, boundary: "traced string-keyed records, Object keys/values/hasOwn/assign, checked JSON stringify, declared shape storage/spreads/optional fields/tag tests; typed parsing and immutable graph qualification remain", remaining_owner: Some("N2") },
     Capability { id: "exceptions", status: Status::Partial, boundary: "owned status propagation through calls and callbacks, catch/rethrow, finally completion overrides and checked runtime failures, explicit provider pending/take/raise; remaining runtime recipes and complete corpus qualification remain", remaining_owner: Some("N2") },
     Capability { id: "suspension", status: Status::Pending, boundary: "generator and async state machines, task ownership and microtask queue", remaining_owner: Some("N2") },
-    Capability { id: "regex", status: Status::Pending, boundary: "ECMAScript regular expressions using a pinned runtime", remaining_owner: Some("N2") },
-    Capability { id: "strings", status: Status::Partial, boundary: "ABI v2 reference-counted UTF-16 with owned slices and host copy/return operations; full Unicode case conversion and broad runtime qualification remain", remaining_owner: Some("N2") },
+    Capability { id: "regex", status: Status::Partial, boundary: "pinned QuickJS libregexp, typed construction/test/search/replacement, metadata and shared lastIndex, configurable stack/work limits; JsValue match objects remain a JavaScript host boundary", remaining_owner: Some("N2") },
+    Capability { id: "strings", status: Status::Partial, boundary: "ABI v2 reference-counted UTF-16 with owned slices and host copy/return operations; Unicode 17 default case conversion including contextual sigma; broad runtime qualification remains", remaining_owner: Some("N2") },
     Capability { id: "host-abi", status: Status::Partial, boundary: "explicit host_ function providers; synchronous same-thread callbacks, borrowed inputs and owned returned handles; C library exports and portable process/file/clock API remain", remaining_owner: Some("N2") },
     Capability { id: "memory", status: Status::Partial, boundary: "reference counts, managed product/string/closure/object ownership, final-use transfers and synchronous candidate trial-deletion collection; full native corpus qualification remains", remaining_owner: Some("N2") },
     Capability { id: "toolchain", status: Status::Partial, boundary: "one strict C11 driver and input/artifact receipts; performance, sanitizer matrix and cross-target qualification remain", remaining_owner: Some("N2") },

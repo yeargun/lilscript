@@ -1,0 +1,4 @@
+# Retain the pinned upstream files and their reproducible amalgamations exactly.
+third_party/quickjs/* whitespace=-blank-at-eol,-blank-at-eof
+src/program/runtime/unicode-library.c whitespace=-blank-at-eol,-blank-at-eof
+src/program/runtime/regex-library.c whitespace=-blank-at-eol,-blank-at-eof

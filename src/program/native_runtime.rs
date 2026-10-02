@@ -50,10 +50,12 @@ pub(super) enum Helper {
     Json,
     Exceptions,
     Binary,
+    Unicode,
+    Regex,
 }
 
 impl Helper {
-    pub(super) const ALL: [Self; 28] = [
+    pub(super) const ALL: [Self; 30] = [
         Self::FromU32,
         Self::ToInt32,
         Self::RoundBinary64,
@@ -82,6 +84,8 @@ impl Helper {
         Self::Json,
         Self::Exceptions,
         Self::Binary,
+        Self::Unicode,
+        Self::Regex,
     ];
 
     pub(super) const fn name(self) -> &'static str {
@@ -113,6 +117,8 @@ impl Helper {
             Self::Json => "ls_json_scalar",
             Self::Exceptions => "ls_native_throw",
             Self::Binary => "ls_buffer_new",
+            Self::Unicode => "ls_string_case",
+            Self::Regex => "ls_regex_new",
             Self::ClosureRuntime => "ls_native_retain",
         }
     }
@@ -136,6 +142,8 @@ impl Helper {
             Self::Json => &[Self::Records],
             Self::Exceptions => &[Self::Records, Self::Products],
             Self::Binary => &[Self::ClosureRuntime, Self::FromU32],
+            Self::Unicode => &[Self::Strings],
+            Self::Regex => &[Self::Unicode, Self::Exceptions],
             _ => &[],
         }
     }
@@ -152,6 +160,8 @@ impl Helper {
             Self::Json => include_str!("runtime/json.c"),
             Self::Exceptions => include_str!("runtime/exceptions.c"),
             Self::Binary => super::native::BINARY_RUNTIME,
+            Self::Unicode => concat!(include_str!("runtime/unicode-library.c"), include_str!("runtime/unicode.c")),
+            Self::Regex => concat!(include_str!("runtime/regex-library.c"), include_str!("runtime/regex.c")),
             Self::FromU32 => {
                 include_str!("runtime/from_u32.c")
             }

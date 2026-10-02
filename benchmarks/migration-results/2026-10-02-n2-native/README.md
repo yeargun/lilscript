@@ -142,3 +142,44 @@ scratch sentinel before propagation. Source fallthrough semantics are unchanged.
 The lexical exceptions mask is removed. Other corpus masks remain conservative;
 portable tagged transport does not implement JavaScript host object operations.
 Remaining ordinary runtime errors, suspension, text, data and interfaces stay N2.
+
+## Unicode and typed regular expressions
+
+Algorithm76, final pin `n2-text-6`, implements Unicode 17 case conversion and
+pinned standalone QuickJS libregexp with owned UTF-16 state. Source/flags,
+lastIndex, test/search/replacement, named/numeric captures, Unicode properties
+and sets, empty matches and catchable syntax/resource errors are covered.
+The original MIT sources, manifest and deterministic amalgamation script are
+maintained. TOML stack/poll controls document their defaults and precise limits;
+short matches can finish without an engine poll. Ordinary strings do not include
+the Unicode tables unless a case operation or regex requires them.
+
+[Retained evidence](text) records 35 focused source/build/run cells across text,
+limits, exceptions, arrays and products. GCC, Clang 18 and ASan/UBSan pass, including
+allocation bounds and zero live owners. The complete text fixture also matches
+emitted JavaScript on Node 24.20.0. Eight maintained formation/production C/JS
+cells pass; four JavaScript-host cells remain explicitly masked on native.
+These do not constitute the full native corpus or broad library qualification.
+
+The independent Unicode 17 oracle agrees byte for byte on **2,228,224** isolated
+lower/upper conversions, including all code points and surrogate units. Its
+10,879,214-byte stream has SHA-256
+`b305dfa00386e88ac44b8444b141b6146393e0661fa4630911e455a5ed4b2473`.
+Contextual sigma, expansions and mixed surrogate sequences are additionally
+covered by the ordinary text fixture. The exhaustive run uses pin5; pin6 only
+changes regex source serialization and JavaScript regex-literal serialization.
+
+Initial failures are retained: two upstream symbols required private linkage/
+namespace handling in amalgamation; ASan's fake-stack locals required actual
+frame addresses for the parser limit; GCC's one-minute compile limit exposed
+repeated exception cleanup. Sharing one failure exit per lexical region shrinks
+identical fixture C from 2,673,298 to 664,938 bytes. The revised fixture builds
+under all profiles. No executable-size or runtime-performance win is claimed.
+The runner now terminates timed-out compiler process groups, including children.
+
+The JavaScript parity check also found an escaped-line-terminator regex literal
+that failed artifact admission. Literal serialization now preserves legacy
+constructor meaning and retains invalid Unicode constructors so they still throw
+at runtime. The new fixture independently checks both outcomes. Updated Rust
+expectations remain for the consolidated N2 Rust batch. N2 still owns its
+remaining data, suspension, host ABI and performance/cross-target commitments.

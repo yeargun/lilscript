@@ -276,19 +276,6 @@ static LS_NATIVE_UNUSED inline ls_string ls_string_repeat(ls_string text, int32_
     for (int32_t index = 0; index < count; index++) memcpy(units + (size_t)index * text.length, text.data, text.length * sizeof *units);
     return result;
 }
-static LS_NATIVE_UNUSED inline ls_string ls_string_case(ls_string text, bool upper) {
-    if (!text.length) return (ls_string){0};
-    ls_string result = ls_string_allocate(text.length);
-    uint16_t *units = (uint16_t *)result.data;
-    for (size_t index = 0; index < text.length; index++) {
-        uint16_t unit = text.data[index];
-        if (unit >= 0x80) ls_string_failure("LilScript native case mapping supports ASCII text only");
-        if (upper && unit >= 'a' && unit <= 'z') unit = (uint16_t)(unit - 32);
-        if (!upper && unit >= 'A' && unit <= 'Z') unit = (uint16_t)(unit + 32);
-        units[index] = unit;
-    }
-    return result;
-}
 static LS_NATIVE_UNUSED inline int32_t ls_string_code_points(ls_string text) {
     int32_t count = 0;
     for (size_t index = 0; index < text.length; index++, count++) {

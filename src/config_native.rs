@@ -49,6 +49,15 @@ pub struct TargetNativeConfig {
     /// reclaim cycles sooner at more CPU cost; zero collects only explicitly
     /// and at shutdown. Ordinary zero-count reclamation is always immediate.
     pub cycle_collection_threshold: u32,
+    /// 262144 bytes by default. Bounds libregexp parser stack use; at least
+    /// 16384. Smaller values reject deeply nested patterns sooner. Exhaustion
+    /// raises RangeError. Reserve this plus the caller stack in a cross profile.
+    pub regex_stack_limit: u32,
+    /// Zero by default (unlimited). Maximum libregexp polling intervals per
+    /// test/search/replace operation, shared by all matches in a replace. A
+    /// positive limit bounds adversarial backtracking at the cost of a catchable
+    /// RangeError; it never changes an exhausted operation into a failed match.
+    pub regex_poll_limit: u64,
 }
 impl Default for TargetNativeConfig {
     fn default() -> Self {
@@ -62,11 +71,16 @@ impl Default for TargetNativeConfig {
             link_time_optimization: false,
             sanitizers: Vec::new(),
             cycle_collection_threshold: 4096,
+            regex_stack_limit: 262144,
+            regex_poll_limit: 0,
         }
     }
 }
 impl TargetNativeConfig {
     pub fn validate(&self) -> Result<(), String> {
+        if self.regex_stack_limit < 16384 {
+            return Err("target.native.regex_stack_limit must be at least 16384 bytes".into());
+        }
         if self.compiler.iter().chain(&self.sysroot).any(|path| path.to_str().is_none()) {
             return Err("target.native compiler/sysroot controls must use UTF-8 paths, as in TOML".into());
         }

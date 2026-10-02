@@ -566,7 +566,6 @@ pub(crate) fn native_type_capability(ty: &crate::check::Type<'_>) -> Option<&'st
     use crate::check::Type;
     match ty {
         Type::Unknown => Some("unknown requires a JavaScript target"),
-        Type::Regex => Some(crate::native_capabilities::REGEX),
         Type::Task(_) => Some(crate::native_capabilities::ASYNC),
         Type::Generator(_) => Some(crate::native_capabilities::GENERATORS),
         Type::ModuleNamespace(_) | Type::ModuleLoadError => {

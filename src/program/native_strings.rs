@@ -110,6 +110,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 "ls_string_last_index_of({r},{first},{})",
                 argument(1).unwrap_or_else(|| "INT32_MAX".into())
             ),
+            Intrinsic::RegexTest => format!("ls_regex_test({r},{first})"),
+            Intrinsic::StringSearch => format!("ls_regex_search({r},{first})"),
+            Intrinsic::StringReplace => format!("ls_regex_replace({r},{first},{})", argument(1).unwrap()),
             Intrinsic::StringRepeat => format!("ls_string_repeat({r},{first})"),
             Intrinsic::StringToUpperCase => format!("ls_string_case({r},true)"),
             Intrinsic::StringToLowerCase => format!("ls_string_case({r},false)"),
@@ -155,6 +158,41 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.assignment_start(unit, destination, true)?;
         self.text(&expression)?;
         self.assignment_end(unit, destination)
+    }
+
+    pub(super) fn construct_regex(&mut self, unit: UnitId, call: CallId, result: ValueId) -> Result<(), NativeError> {
+        let data = self.plan.program.unit(unit).unwrap();
+        let arguments = data.arguments(data.calls[call.index()].arguments).unwrap();
+        self.assignment_start(unit, Destination::Value(result), true)?;
+        self.text("ls_regex_new(")?;
+        let CallArgument::Value(pattern) = arguments[0] else { unreachable!() };
+        self.value(unit, pattern)?;
+        self.text(",")?;
+        if let Some(CallArgument::Value(flags)) = arguments.get(1) { self.value(unit, *flags)?; }
+        else { self.text("(ls_string){0}")?; }
+        self.text(")")?;
+        self.assignment_end(unit, Destination::Value(result))
+    }
+
+    pub(super) fn regex_property(&mut self, unit: UnitId, result: ValueId, receiver: ValueId, property: Intrinsic) -> Result<(), NativeError> {
+        self.assignment_start(unit, Destination::Value(result), false)?;
+        let r = receiver.index();
+        let flag = match property {
+            Intrinsic::RegexSource | Intrinsic::RegexFlags => {
+                let member = if property == Intrinsic::RegexSource { "source" } else { "flags" };
+                self.write(format_args!("((ls_regex *)ls_v{r})->{member}"))?;
+                return self.assignment_end(unit, Destination::Value(result));
+            }
+            Intrinsic::RegexGlobal => "GLOBAL",
+            Intrinsic::RegexIgnoreCase => "IGNORECASE",
+            Intrinsic::RegexMultiline => "MULTILINE",
+            Intrinsic::RegexDotAll => "DOTALL",
+            Intrinsic::RegexSticky => "STICKY",
+            Intrinsic::RegexUnicode => "UNICODE",
+            _ => unreachable!(),
+        };
+        self.write(format_args!("((((ls_regex *)ls_v{r})->bits & LRE_FLAG_{flag}) != 0)"))?;
+        self.assignment_end(unit, Destination::Value(result))
     }
 
     /// `split` with a string separator, as String.prototype.split: an empty

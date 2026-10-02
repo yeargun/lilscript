@@ -66,7 +66,6 @@ export const FEATURES = [
   { id: "export", targets: JAVASCRIPT, pattern: /\bexport\b/, entryOnly: true, why: "the entry's exports are a module ABI; C has none yet", lifts: "M11.8 (a C library ABI)" },
   { id: "JS namespace", targets: JAVASCRIPT, pattern: /\bJS\./, why: "language-v0.1: C rejects the JS.* operations" },
   { id: "async", targets: JAVASCRIPT, pattern: /\b(?:async|await|Task)\b/, why: "language-v0.1: native rejects async functions and tasks", lifts: "M11.6 (portable subset)" },
-  { id: "Regex", targets: JAVASCRIPT, pattern: /\bRegex\b/, why: "language-v0.1: native rejects Regex", lifts: "M11.6 (portable subset)" },
   { id: "generator", targets: JAVASCRIPT, pattern: /\bgenerator\b/, why: "language-v0.1: native rejects generators", lifts: "M11.6 (portable subset)" },
   { id: "object literal", targets: JAVASCRIPT, pattern: /\bobject\s*\{/, why: "language-v0.1: object {} is JavaScript-only" },
   { id: "JSON.parse", targets: JAVASCRIPT, pattern: /\bJSON\.parse\b/, why: "language-v0.1: JSON.parse returns JsValue" },

@@ -15,7 +15,7 @@ pub(crate) fn literal_from_decoded(pattern: &str, flags: &str) -> Option<String>
         return None;
     }
 
-    let body = serialize_literal_body(pattern);
+    let body = serialize_literal_body(pattern, parsed_flags.unicode)?;
     Some(format!("/{body}/{flags}"))
 }
 
@@ -37,8 +37,8 @@ pub(crate) fn literal_from_decoded_checked(
     if !es2018 {
         return None;
     }
-    RegexFlags::parse(flags)?;
-    let body = serialize_literal_body(pattern);
+    let parsed_flags = RegexFlags::parse(flags)?;
+    let body = serialize_literal_body(pattern, parsed_flags.unicode)?;
     let allocator = oxc_allocator::Allocator::default();
     oxc_regular_expression::LiteralParser::new(
         &allocator,
@@ -449,9 +449,9 @@ fn decimal_not_greater(left: &str, right: &str) -> bool {
     left.len() < right.len() || (left.len() == right.len() && left <= right)
 }
 
-fn serialize_literal_body(pattern: &str) -> String {
+fn serialize_literal_body(pattern: &str, unicode: bool) -> Option<String> {
     if pattern.is_empty() {
-        return "(?:)".to_string();
+        return Some("(?:)".to_string());
     }
 
     let mut body = String::with_capacity(pattern.len());
@@ -462,7 +462,19 @@ fn serialize_literal_body(pattern: &str) -> String {
     let mut class = false;
     for character in pattern.chars() {
         if escaped {
-            body.push(character);
+            // A constructor may contain an identity-escaped line terminator
+            // in legacy mode. Its literal must use a lexical escape. In
+            // Unicode mode that constructor throws: never repair it into a
+            // valid literal before the pattern grammar gets to reject it.
+            let line = match character {
+                '\n' => Some("n"), '\r' => Some("r"),
+                '\u{2028}' => Some("u2028"), '\u{2029}' => Some("u2029"),
+                _ => None,
+            };
+            if let Some(line) = line {
+                if unicode { return None; }
+                body.push_str(line);
+            } else { body.push(character); }
             escaped = false;
             continue;
         }
@@ -488,7 +500,7 @@ fn serialize_literal_body(pattern: &str) -> String {
             _ => body.push(character),
         }
     }
-    body
+    Some(body)
 }
 
 #[cfg(test)]
@@ -532,6 +544,11 @@ mod tests {
         assert_eq!(checked("a", "gg"), None);
         // An older output keeps the proven subset only.
         assert_eq!(literal_from_decoded_checked(r"(?<!a)b", "", false), None);
+        for (line, escaped) in [('\n', "n"), ('\r', "r"), ('\u{2028}', "u2028"), ('\u{2029}', "u2029")] {
+            let pattern = format!("\\{line}");
+            assert_eq!(checked(&pattern, ""), Some(format!("/\\{escaped}/")));
+            assert_eq!(checked(&pattern, "u"), None);
+        }
     }
 
     fn literal(pattern: &str, flags: &str) -> Option<String> {

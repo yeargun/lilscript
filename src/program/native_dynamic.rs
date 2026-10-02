@@ -51,7 +51,7 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
             (String, Dynamic(_)) => ("ls_value_string(".into(), ")"),
             (Struct(index), Dynamic(_)) => (format!("ls_t{index}_box(&ls_temps,"), ")"),
             (Dynamic(_), Struct(index)) => (format!("ls_value_to_t{index}("), ")"),
-            (Object(_) | Shape | Record | Map | Set | Buffer | Typed(_), Dynamic(_)) => {
+            (Object(_) | Shape | Record | Map | Set | Regex | Buffer | Typed(_), Dynamic(_)) => {
                 ("ls_value_object(".into(), ")")
             }
             (Symbol, Dynamic(_)) => ("ls_value_symbol(".into(), ")"),
@@ -61,7 +61,7 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
             (Dynamic(_), F64) => ("ls_value_to_number(".into(), ")"),
             (Dynamic(_), Bool) => ("ls_value_to_bool(".into(), ")"),
             (Dynamic(_), String) => ("ls_value_to_string(".into(), ")"),
-            (Dynamic(_), Object(_) | Shape | Record | Map | Set | Buffer | Typed(_)) => {
+            (Dynamic(_), Object(_) | Shape | Record | Map | Set | Regex | Buffer | Typed(_)) => {
                 ("ls_value_to_object(".into(), ")")
             }
             (Dynamic(_), Symbol) => ("ls_value_to_symbol(".into(), ")"),

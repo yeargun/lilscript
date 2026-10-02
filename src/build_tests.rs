@@ -4761,6 +4761,11 @@ fn n1_native_check_and_compile_share_source_qualified_representation_refusals() 
         "struct Box<T> { T value; }\nBox<int> b=Box<int>{1};print(b.value);",
         "struct Point { int x; }\nPoint? point=null;print(point==null);",
         "int x=1;\ntry{print(x);}finally{print(2);}",
+    ] {
+        check_source_for_target(source, &settings, options).unwrap();
+        compile_source(source, &settings, options).unwrap();
+    }
+    for source in [
         "export int answer(){return 42;}",
         "extern class Error{string message;init(string message);}class Problem extends Error{init(string message){super(message);}}Problem p=new Problem(\"oops\");print(p.message);",
     ] {
@@ -4776,7 +4781,7 @@ fn n1_native_check_and_compile_share_source_qualified_representation_refusals() 
     let scratch = Scratch::new();
     let entry = scratch.0.join("main.lil"); let dependency = scratch.0.join("value.lil");
     std::fs::write(&entry, "import {run} from \"./value.lil\";run();").unwrap();
-    let source = "struct Box<T> { T value; }\nexport void run(){Box<int> value=Box<int>{2};print(value.value);}";
+    let source = r#"export void run(){JsValue value=JSON.parse("1");print(value);}"#;
     std::fs::write(&dependency, source).unwrap();
     let error = check_entries_for_target(&[EntrySource::of(&entry)], &settings, options).unwrap_err();
     let diagnostic = error.diagnostic.unwrap();

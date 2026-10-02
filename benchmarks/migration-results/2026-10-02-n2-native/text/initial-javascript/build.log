@@ -1,0 +1,1 @@
+compiler (javascript): Candidate(AdmissionParse("the delivered script does not parse: Unterminated regular expression at byte 1846: `;console.log(/\\/\\n/.source);console.log(/\\ /.source);console.log(/^([a-z]+)-\\1$/i.test(\"ab-AB\"));console.log(/(?<=ab)c(?`"))

@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-text-5/lilscript",
+    "sha256": "dacfdd126de4fb056bb6c64714840c64e3dc1fbb0e064d8362d62aa55efe30dd"
+  },
+  "fixtures": [
+    {
+      "path": "tests/native/runtime-ownership.c",
+      "sha256": "78956e7bc6120bb6cce97725b6d5c8501ab644a02b59d05a109d018cb9918f94"
+    },
+    {
+      "path": "tests/native/text-limits.lil",
+      "sha256": "2b79bad004275126e31e5e4584975e8c125d38d97fe351771fe1a7d12a73cb10"
+    },
+    {
+      "path": "tests/native/text-limits.host.c",
+      "sha256": "ca482ec6cc77618495e8d55fe1c9a2672afb759439068a7ad0d8cc308edf8199"
+    },
+    {
+      "path": "tests/native/text-limits.toml",
+      "sha256": "87b8956a590444ebffbeeafb522163312d89803c9d58d204990d4d809b00bcaa"
+    },
+    {
+      "path": "tests/native/text-limits.out",
+      "sha256": "7ddf3c182e0b27552dedbdffcc34308b8fe582e9e8b886e053f4d5b734ce5d0d"
+    }
+  ],
+  "rows": [
+    {
+      "name": "source",
+      "command": "/home/azureuser/lilscript-work/bin/n2-text-5/lilscript",
+      "args": [
+        "tests/native/text-limits.lil",
+        "--config",
+        "tests/native/text-limits.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-text-5b-text-limits/ownership.c"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 9.924496000000001,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-build",
+      "command": "/usr/bin/cc",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-text-5b-text-limits/ownership.c",
+        "/tmp/lilscript-n2-text-5b-text-limits/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-text-5b-text-limits/ownership-gcc"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 1777.9294590000002,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-run",
+      "command": "/tmp/lilscript-n2-text-5b-text-limits/ownership-gcc",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 2.818019999999933,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-text-5b-text-limits/ownership.c",
+        "/tmp/lilscript-n2-text-5b-text-limits/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-text-5b-text-limits/ownership-clang"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 1745.1955269999999,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-run",
+      "command": "/tmp/lilscript-n2-text-5b-text-limits/ownership-clang",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 2.5773589999998876,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-sanitize-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-text-5b-text-limits/ownership.c",
+        "/tmp/lilscript-n2-text-5b-text-limits/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-text-5b-text-limits/ownership-clang-sanitize"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 4867.32014,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-sanitize-run",
+      "command": "/tmp/lilscript-n2-text-5b-text-limits/ownership-clang-sanitize",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 14.565662000000884,
+      "passed": true
+    }
+  ]
+}

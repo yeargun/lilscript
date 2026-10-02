@@ -53,9 +53,20 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
     }
     pub(super) fn check_exception(&mut self,unit:UnitId)->Result<(),NativeError> {
-        self.text("if (ls_native_raised) {\n")?;
+        let data=self.plan.program.unit(unit).unwrap();
+        let region=data.operations[self.operation.expect("scheduled throwing operation").index()].region;
+        self.exception_regions[region.index()]=true;
+        self.write(format_args!("if (ls_native_raised) goto ls_throw_region{};\n",region.index()))
+    }
+    pub(super) fn finish_exception_region(&mut self,unit:UnitId,region:RegionId)->Result<(),NativeError> {
+        if !self.exception_regions[region.index()] { return Ok(()); }
+        // All checks in one lexical region cross the same ownership scopes
+        // and handlers. Emit that exit once, while its original try frames are
+        // active, rather than copying the complete cleanup at every operation.
+        let index=region.index();
+        self.write(format_args!("goto ls_throw_done{index};\nls_throw_region{index}:;\n"))?;
         self.complete(unit,Completion::Throw)?;
-        self.text("}\n")
+        self.write(format_args!("ls_throw_done{index}:;\n"))
     }
     pub(super) fn complete(&mut self,unit:UnitId,action:Completion)->Result<(),NativeError> {
         let data=self.plan.program.unit(unit).unwrap();

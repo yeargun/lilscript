@@ -214,10 +214,10 @@ The portable static record operations are:
 those scalars. Floats are currently rejected: the native runtime does not yet
 implement ECMAScript's shortest binary64-to-decimal algorithm, so accepting
 them would make output target-dependent. `JSON.parse(string)` returns
-`JsValue` and is therefore JavaScript-only; native compilation rejects it
+`JsValue` through the JavaScript host API; native compilation rejects it
 instead of substituting a different dynamic representation.
 
-`Regex` is the exact JavaScript-target ECMAScript regular-expression type:
+`Regex` uses ECMAScript regular-expression semantics:
 
 ```lilscript
 Regex sale = new Regex("sale", "gi");
@@ -232,8 +232,12 @@ preserves JavaScript's stateful `global` and `sticky` behavior. The typed
 metadata surface is `source`, `flags`, `global`, `ignoreCase`, `multiline`,
 `dotAll`, `sticky`, and `unicode`. Construction and testing remain effectful in
 the optimizer because invalid patterns can throw and stateful tests update the
-regular expression. Native compilation rejects `Regex` rather than
-approximating ECMAScript syntax or Unicode behavior.
+regular expression. Native uses pinned QuickJS libregexp and Unicode 17 for
+these typed operations, string search/replacement and mutable `lastIndex`.
+Native case conversion uses the same Unicode version. Older JavaScript runtimes
+may have older Unicode data. Regex `exec` results and JS callback replacements
+remain JavaScript host facilities. Native stack/work resource limits are documented
+under `target.native`; exhaustion throws rather than reporting no match.
 
 With the `regex-literals` compression decision enabled **and**
 `javascript.assume_pristine_builtins = true`, the JavaScript emitter may

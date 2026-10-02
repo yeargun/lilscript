@@ -609,6 +609,17 @@ pub(crate) fn resolve_member(
         (Type::Array(_), "length") => Some(ResolvedIntrinsic::Property(Intrinsic::ArrayLength)),
         (Type::Map(_, _), "size") => Some(ResolvedIntrinsic::Property(Intrinsic::MapSize)),
         (Type::Set(_), "size") => Some(ResolvedIntrinsic::Property(Intrinsic::SetSize)),
+        (Type::Regex, property) => match property {
+            "source" => Some(ResolvedIntrinsic::Property(Intrinsic::RegexSource)),
+            "flags" => Some(ResolvedIntrinsic::Property(Intrinsic::RegexFlags)),
+            "global" => Some(ResolvedIntrinsic::Property(Intrinsic::RegexGlobal)),
+            "ignoreCase" => Some(ResolvedIntrinsic::Property(Intrinsic::RegexIgnoreCase)),
+            "multiline" => Some(ResolvedIntrinsic::Property(Intrinsic::RegexMultiline)),
+            "dotAll" => Some(ResolvedIntrinsic::Property(Intrinsic::RegexDotAll)),
+            "sticky" => Some(ResolvedIntrinsic::Property(Intrinsic::RegexSticky)),
+            "unicode" => Some(ResolvedIntrinsic::Property(Intrinsic::RegexUnicode)),
+            _ => member_intrinsic(receiver, property).map(ResolvedIntrinsic::Method),
+        },
         (Type::ArrayBuffer | Type::SharedArrayBuffer, "byteLength") => {
             Some(ResolvedIntrinsic::Property(Intrinsic::BufferByteLength))
         }
