@@ -1,0 +1,68 @@
+extern void collectNative();
+extern void assertNativeCount(int expected);
+extern void assertMaxNativeCount(int maximum);
+int defaults=0;
+int choose() { defaults+=1; print("default"); return 2; }
+int failDefault() {throw "default failed";}
+generator int range(int count=choose()) {
+    print("start");
+    try { for(int i=0;i<count;i++) {yield i;} }
+    finally { print("range finally"); }
+}
+generator int badDefault(int count=failDefault()) {yield count;}
+generator int delegated() {yield* [7,8];yield* range(2);}
+generator float decimals() {Float64Array values=new Float64Array(2);values[0]=1.5;values[1]=-0.0;yield* values;}
+struct Payload {string text;int[] shared;}
+generator T twice<T>(T value) {yield value;yield value;}
+generator func()->int callbacks() {for(int i=0;i<3;i++) {int local=i;yield ()=>local;}}
+generator int withCleanup() {try {yield 1;yield 2;}finally{print("cleanup");yield 9;print("cleanup end");}}
+generator int outer() {try {yield* withCleanup();print("after delegate");}finally{print("outer finally");}}
+generator int closeThrows() {try {yield 1;}finally{throw "close failed";}}
+generator int nested() {
+    try {for(int value of range(3)) {if(value==1){continue;}yield value;}}
+    finally {print("nested finally");}
+}
+string returnFromLoop() {for(int value of range(3)) {return "return "+value;}return "empty";}
+Generator<int>? active=null;
+generator int reenter() {
+    try {for(int n of active??range(0)) {print(n);}}
+    catch(auto error) {Record<string> info=JS.assume(error);print(info.name??"missing");}
+    yield 42;
+}
+class Sequence {int end;init(int end){this.end=end;}generator int values(){for(int i=0;i<this.end;i++){yield i;}}}
+class Owner {Generator<int>? value;init(){this.value=null;}}
+generator int cycle(Owner owner) {try {yield 1;print(owner.value==null);}finally{print("must not run from GC");}}
+void unreachableCycle() {Owner owner=new Owner();Generator<int> value=cycle(owner);owner.value=value;}
+void run() {
+    Generator<int> unused=range();print(defaults);print("created");
+    for(int value of unused){print(value);break;}
+    for(int value of unused){print("unexpected");}
+    try {Generator<int> bad=badDefault();print("missing default error");}
+    catch(auto error){string message=JS.assume(error);print(message);}
+    for(int value of delegated()){print(value);}
+    for(float value of decimals()){print(value);}
+    Payload original=Payload{"managed".repeat(2),[3]};
+    Generator<Payload> products=twice(original);original.text="changed";
+    for(Payload value of products){print(value.text);value.text="local";value.shared.push(4);}
+    print(original.shared.length);
+    (func()->int)[] saved=[];for(func()->int callback of callbacks()){saved.push(callback);}
+    for(func()->int callback of saved){print(callback());}
+    Generator<int> cleanup=withCleanup();for(int value of cleanup){print(value);break;}
+    for(int value of cleanup){print(value);}
+    Generator<int> forwarding=outer();for(int value of forwarding){print(value);break;}
+    for(int value of forwarding){print(value);}
+    try {for(int value of closeThrows()){try {break;}catch(auto error){print("wrong inner catch");}}}
+    catch(auto error){string message=JS.assume(error);print(message);}
+    try {for(int value of closeThrows()){throw "original throw";}}
+    catch(auto error){string message=JS.assume(error);print(message);}
+    for(int value of nested()){print(value);break;}
+    print(returnFromLoop());
+    active=reenter();for(int value of active??range(0)){print(value);}active=null;
+    Sequence sequence=new Sequence(3);for(int value of sequence.values()){print(value);}
+    Set<int> values=new Set<int>();values.add(1);values.add(2);values.add(3);
+    for(int value of values){print(value);if(value==1){values.delete(2);values.add(4);}if(value==3){values.clear();values.add(5);}}
+    print(values.size);
+    for(int i=0;i<100;i++){Generator<Payload> stream=twice(original);for(Payload value of stream){if(i==99){print(value.text);}break;}assertMaxNativeCount(100);}
+    unreachableCycle();collectNative();assertMaxNativeCount(100);
+}
+run();collectNative();assertNativeCount(0);print("generators done");

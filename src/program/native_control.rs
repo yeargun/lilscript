@@ -26,7 +26,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         for &(region,cell) in &self.plan.units[unit.index()].catch_bindings {
             let _=region;
             if self.plan.boxed_cell(cell) { self.write(format_args!("ls_box{0} *ls_c{0} = NULL;\n",cell.index()))?; }
-            else { self.write(format_args!("ls_value ls_c{} LS_NATIVE_UNUSED = {{0}};\n",cell.index()))?; }
+            else { let ty=self.plan.value_type(self.plan.cell_storage(cell));self.write(format_args!("{ty} ls_c{} LS_NATIVE_UNUSED = {{0}};\n",cell.index()))?; }
         }
         for (index,operation) in data.operations.iter().enumerate() {
             self.budget.work(WorkKind::Render,1)?;
@@ -73,12 +73,16 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.write(format_args!("ls_throw_done{index}:;\n"))
     }
     pub(super) fn complete(&mut self,unit:UnitId,action:Completion)->Result<(),NativeError> {
+        self.complete_at(unit,action,usize::MAX)
+    }
+    pub(super) fn complete_at(&mut self,unit:UnitId,action:Completion,origin_depth:usize)->Result<(),NativeError> {
         let data=self.plan.program.unit(unit).unwrap();
         let stop=match action {Completion::Break(op)|Completion::Continue(op)=>Some(data.operations[op.index()].region),_=>None};
         let stop_depth=stop.and_then(|r|self.active_regions.iter().position(|&v|v==r));
         for index in (0..self.try_frames.len()).rev() {
             let frame=&self.try_frames[index];
             let depth=self.active_regions.iter().position(|&r|r==frame.parent).expect("active try parent");
+            if depth>origin_depth {continue;}
             if stop_depth.is_some_and(|stop|depth<stop) { break; }
             let op=frame.op; let parent=frame.parent;
             if frame.phase==Phase::Finally {
@@ -89,18 +93,18 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 continue;
             }
             if action==Completion::Throw && frame.phase==Phase::Body && frame.catch.is_some() {
-                self.cleanup_path(unit,Some(parent))?; self.clear_temporaries()?;
+                self.cleanup_path_action(unit,Some(parent),action)?; self.clear_temporaries()?;
                 return self.write(format_args!("goto ls_catch{};\n",op.index()));
             }
             if frame.finally.is_some() {
                 if !self.try_frames[index].actions.contains(&action) {
                     self.budget.push(AllocationClass::Scratch,&mut self.try_frames[index].actions,action)?;
                 }
-                self.cleanup_path(unit,Some(parent))?; self.clear_temporaries()?;
+                self.cleanup_path_action(unit,Some(parent),action)?; self.clear_temporaries()?;
                 return self.write(format_args!("ls_completion{0}={1}; goto ls_finally{0};\n",op.index(),action.code()));
             }
         }
-        self.cleanup_path(unit,stop)?; self.clear_temporaries()?;
+        self.cleanup_path_action(unit,stop,action)?; self.clear_temporaries()?;
         match action {
             Completion::Throw=>{self.error_exit=true;self.text("goto ls_error;\n")},
             Completion::Return=>{self.return_exit=true;self.text("goto ls_return;\n")},
@@ -170,6 +174,12 @@ impl Emitter<'_, '_, '_, '_, '_> {
     }
     pub(super) fn control_exits(&mut self,unit:UnitId)->Result<(),NativeError> {
         let ty=self.plan.units[unit.index()].return_type;
+        if self.plan.program.unit(unit).unwrap().suspension==Suspension::Generator {
+            self.text("ls_generator_finish(base);return;\n")?;
+            if self.return_exit {self.text("ls_return:;ls_generator_finish(base);return;\n")?;}
+            if self.error_exit {self.text("ls_error:;ls_generator_finish(base);return;\n")?;}
+            return Ok(());
+        }
         if self.error_exit || self.return_exit {
             // Checked nonvoid bodies end in source return/throw. Void bodies
             // may fall through normally and must not enter failure cleanup.

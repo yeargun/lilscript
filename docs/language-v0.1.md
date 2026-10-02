@@ -96,7 +96,7 @@ compatibility default remains `legacy` during port migration.
 | `Symbol`            | unique opaque identity value                                  | native `Symbol`                                   | unique symbol handle                        |
 | `Regex`             | exact ECMAScript regular expression                           | native `RegExp`                                   | unsupported                                 |
 | `Task<T>`           | typed asynchronous result                                     | native `Promise`                                  | unsupported                                 |
-| `Generator<T>`      | typed synchronous iterable yielding `T`                       | native generator object                           | unsupported                                 |
+| `Generator<T>`      | typed synchronous iterable yielding `T`                       | native generator object                           | owned typed region frame                    |
 | `JsValue`           | raw dynamically typed JavaScript boundary value               | unchanged host value                              | unsupported                                 |
 | `T?`                | either a `T` value or `null`                                  | `T` or raw `null`                                 | tagged `LilScriptOptional`                  |
 | `A \| B`            | value belonging to either member type                         | raw member value                                  | tagged `LilScriptValue` at union boundaries |
@@ -330,7 +330,7 @@ for (int value of values()) {
 
 Generator methods use the same modifier. JavaScript emission is direct
 `function*`, `yield`, `yield*`, and `for...of`; there is no iterator helper or
-state-machine runtime. Native compilation rejects generator functions. A
+state-machine runtime. Native compilation uses owned typed region frames. A
 regular or arrow-function boundary blocks `yield`, so a nested callback cannot
 accidentally suspend its containing generator. Async generators are not yet in
 the portable core.
@@ -1071,7 +1071,8 @@ bump(ref count);   // count is now 2
   and host-backed locations and class fields are rejected.
 - A `ref` parameter has no default, cannot be captured by a closure (copy it
   into a local first), and is rejected on constructors, `async` and generator
-  functions, and foreign callable contracts.
+  functions, and foreign callable contracts. Generic calls, class methods and
+  union-callable boundaries also currently require value parameters.
 - JavaScript needs a strict module frame: a program that passes a reference
   builds with `--target js-module` and is refused as a script (`--target js`).
   A binding exported from the root module cannot be passed by reference.

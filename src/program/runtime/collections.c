@@ -6,6 +6,7 @@ typedef struct ls_map {
     /* Entry position + 1, or 0 for an empty index slot. */
     size_t *index;
     size_t slots;
+    size_t iterators; /* live Set cursors pin entry positions across mutation */
 } ls_map;
 static LS_NATIVE_UNUSED inline void ls_map_destroy(ls_native_object *owner) {
     ls_map *map = (ls_map *)owner;
@@ -76,11 +77,13 @@ static LS_NATIVE_UNUSED inline size_t ls_map_find(ls_map *map, ls_value key) {
 }
 /* Compacts removed entries and rebuilds the index with room to grow. */
 static LS_NATIVE_UNUSED inline void ls_map_rebuild(ls_map *map, size_t needed) {
-    size_t kept = 0;
-    for (size_t position = 0; position < map->used; position++) {
-        if (map->entries[position].live) map->entries[kept++] = map->entries[position];
+    if(!map->iterators) {
+        size_t kept=0;
+        for(size_t position=0;position<map->used;position++)
+            if(map->entries[position].live) map->entries[kept++]=map->entries[position];
+        map->used=kept;
     }
-    map->used = kept;
+    if(needed<map->used) needed=map->used;
     size_t slots = 8;
     while (slots < 2 * needed) {
         if (slots > SIZE_MAX / 4) ls_native_resource_failure();
@@ -91,6 +94,7 @@ static LS_NATIVE_UNUSED inline void ls_map_rebuild(ls_map *map, size_t needed) {
     if (!map->index) ls_native_resource_failure();
     map->slots = slots;
     for (size_t position = 0; position < map->used; position++) {
+        if(!map->entries[position].live) continue;
         size_t slot = (size_t)ls_map_hash(map->entries[position].key) & (slots - 1);
         while (map->index[slot]) slot = (slot + 1) & (slots - 1);
         map->index[slot] = position + 1;
@@ -121,7 +125,7 @@ static LS_NATIVE_UNUSED inline void ls_map_set(ls_native_object *owner, ls_value
     if (key.tag == LS_FLOAT && key.as.f == 0) key.as.f = 0;
     if (map->size >= (size_t)INT32_MAX) ls_native_resource_failure();
     if (map->used == map->capacity) {
-        if (map->size < map->used / 2) {
+        if (!map->iterators && map->size < map->used / 2) {
             ls_map_rebuild(map, map->size + 1);
         } else {
             size_t capacity = map->capacity ? map->capacity * 2 : 8;

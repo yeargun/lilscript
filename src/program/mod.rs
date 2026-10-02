@@ -186,6 +186,9 @@ pub struct UnitData {
     pub kind: UnitKind,
     /// How this callable body suspends; module initialization never does.
     pub suspension: Suspension,
+    /// Generator parameter initialization runs at call time, before its lazy body.
+    /// When present this is the first block in the entry region.
+    pub parameter_region: Option<RegionId>,
     /// Set on the constructor of a class kept as a JavaScript class (its
     /// identity is observed: `ClassDefinition::observed`): that class. The
     /// body is the class's constructor. Its first parameter is the instance:
@@ -230,7 +233,7 @@ pub struct UnitData {
 
 /// An async body awaits tasks and resolves its `Task<T>` with the `T` it
 /// returns; a generator body yields `T` and returns nothing. Both are
-/// JavaScript-only: native targets refuse them.
+/// Both targets preserve suspension with their own execution representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Suspension {
     #[default]
@@ -286,6 +289,7 @@ impl UnitData {
         Self {
             kind,
             suspension: Suspension::None,
+            parameter_region: None,
             constructor_of: None,
             module: ModuleId::from_index(0).unwrap(),
             instantiation_prefix: 0,

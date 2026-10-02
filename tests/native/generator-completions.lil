@@ -1,0 +1,29 @@
+extern void collectNative();
+extern void assertNativeCount(int expected);
+generator int pendingThrow() {
+    try {throw "saved throw";}
+    finally {yield 4;print("resumed finally");}
+}
+generator int returnWins() {
+    try {throw "overridden";}
+    finally {yield 5;return;}
+}
+generator string empty(string value) {if(false){yield value;}print("empty body");}
+void run() {
+    try {for(int value of pendingThrow()){print(value);}}
+    catch(auto error){string text=JS.assume(error);print(text);}
+    Generator<int> closed=pendingThrow();for(int value of closed){print(value);break;}
+    for(int value of closed){print("must stay closed");}
+    for(int value of returnWins()){print(value);}print("return won");
+    Generator<string> unused=empty("unstarted".repeat(3));
+    for(string value of empty("started".repeat(3))){print(value);}
+    Set<int> values=new Set<int>();for(int i=0;i<20;i++){values.add(i);}
+    int sum=0;
+    for(int value of values){
+        if(value==0){for(int inner of values){if(inner<10){values.delete(inner);}if(inner==10){values.add(20);break;}}}
+        sum+=value;
+    }
+    print(sum);print(values.size);values.clear();values.add(30);
+    for(int value of values){print(value);}
+}
+run();collectNative();assertNativeCount(0);print("completion done");

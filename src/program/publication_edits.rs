@@ -876,6 +876,7 @@ fn copy_unit(unit: &UnitData) -> Result<UnitData, PublicationError> {
     Ok(UnitData {
         kind: unit.kind,
         suspension: unit.suspension,
+        parameter_region: unit.parameter_region,
         constructor_of: unit.constructor_of,
         module: unit.module,
         instantiation_prefix: unit.instantiation_prefix,

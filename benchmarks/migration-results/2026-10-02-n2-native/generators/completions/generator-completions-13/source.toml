@@ -1,0 +1,13 @@
+effort.level=13
+[policy.tactics]
+constant-folding="auto"
+inlining="auto"
+scalar-replacement="auto"
+[language]
+absence="unified"
+[host.native]
+collectNative="host_collectNative"
+assertNativeCount="host_assertNativeCount"
+[target.native]
+objective="balanced"
+cycle_collection_threshold=1

@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+    "sha256": "27aa2542af693cdc7cc35817d023ee46fe041a6721f5e97b7e00c84eb9864549"
+  },
+  "rows": [
+    {
+      "name": "independent-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/generator-completions.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 33,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+        "tests/native/generator-completions.lil",
+        "--config",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/output.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    }
+  ]
+}

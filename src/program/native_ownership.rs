@@ -373,11 +373,15 @@ impl Emitter<'_, '_, '_, '_, '_> {
         unit: UnitId,
         stop_before: Option<RegionId>,
     ) -> Result<(), NativeError> {
+        self.cleanup_path_action(unit,stop_before,Completion::Return)
+    }
+    pub(super) fn cleanup_path_action(&mut self,unit:UnitId,stop_before:Option<RegionId>,action:Completion)->Result<(),NativeError> {
         for index in (0..self.active_regions.len()).rev() {
             let region = self.active_regions[index];
             if Some(region) == stop_before {
                 break;
             }
+            self.close_region_iterator(unit,region,action)?;
             self.cleanup_region(unit, region)?;
         }
         Ok(())

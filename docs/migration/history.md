@@ -2077,3 +2077,31 @@ tradeoff, not a measured throughput or compression win. Initial emitter borrow
 errors, fixture language errors and driver errors are retained. No broad library
 rerun; new Rust expectations await the consolidated N2 check.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#immutable-static-graphs).
+
+## 2026-10-02 — N2 generator frames and iterable completions (implementation)
+
+1. Admit generator handles and emit owned frames over the existing structured
+   regions, retaining locals/captures/prepared callees and saved completions
+   across yields. Keep the ordinary direct-call path unchanged.
+2. Drive for-of and yield delegation with owned iterator state. Early exit runs
+   generator finalizers under the same throw/return/break/continue rules; garbage
+   collection only releases storage. Preserve Set traversal under mutation.
+3. Qualify lazy execution, default timing, delegation, closures, exceptions,
+   finalizers, reentry and owner cleanup against independent ECMAScript and
+   sanitizer observations after the implementation batch. Account for emitted
+   frame/runtime costs; do not claim a performance win without measurements.
+
+The suspected generic-reference ABI gap is a shared source refusal:
+`analyze_generic_call` requires value parameters before either target runs.
+N2 preserves that source contract, along with the existing ban on captured or
+suspending references; it does not add an unrequested generic reference language
+extension or a copy-in/copy-out ABI with different aliasing semantics.
+
+**Generator result.** Algorithm82, pin `n2-generators-1`, passes 31 focused
+oracle/source/build/runtime steps. Strict GCC, Clang18 and ASan/UBSan agree
+on defaults at call time, lazy bodies, managed generic yields, delegation,
+per-iteration captures, saved throws across yields, finalizer overrides,
+reentry, Set mutation and unreachable cycles. Existing exception completion
+checks also pass. No full suite or performance claim. Emitted JavaScript has
+a separately recorded V1 default-timing defect; it is not counted as parity.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#generator-frames-and-iterable-completions).

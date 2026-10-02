@@ -231,3 +231,10 @@ container evidence.
 `non-finite semantic literal`. Native handles NaN, infinities, signed zero and
 subnormals. The complete finite-number variant matches emitted JavaScript at
 both efforts; that is explicitly a variant, not full source parity.
+
+**V1** owns JavaScript generator default timing in `tests/native/generators.lil`:
+at effort0 and13 nonliteral defaults execute on first iteration, rather than at
+the call, and a throwing default is correspondingly delayed. The complete native
+trace matches an independent ECMAScript oracle. JavaScript formation succeeds
+and all observations after this default prefix agree, but full parity is not
+claimed before correcting the JavaScript parameter transport.

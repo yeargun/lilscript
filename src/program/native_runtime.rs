@@ -55,10 +55,11 @@ pub(super) enum Helper {
     TextUtilities,
     Numbers,
     JsonParse,
+    Iterators,
 }
 
 impl Helper {
-    pub(super) const ALL: [Self; 33] = [
+    pub(super) const ALL: [Self; 34] = [
         Self::FromU32,
         Self::ToInt32,
         Self::RoundBinary64,
@@ -92,6 +93,7 @@ impl Helper {
         Self::Unicode,
         Self::Regex,
         Self::JsonParse,
+        Self::Iterators,
     ];
 
     pub(super) const fn name(self) -> &'static str {
@@ -128,6 +130,7 @@ impl Helper {
             Self::TextUtilities => "unicode_to_utf8",
             Self::Numbers => "js_dtoa",
             Self::JsonParse => "ls_json_parse",
+            Self::Iterators => "ls_iteration_next",
             Self::ClosureRuntime => "ls_native_retain",
         }
     }
@@ -154,6 +157,7 @@ impl Helper {
             Self::Unicode => &[Self::Strings, Self::TextUtilities],
             Self::Numbers => &[Self::TextUtilities],
             Self::JsonParse => &[Self::Arrays, Self::Exceptions, Self::Numbers],
+            Self::Iterators => &[Self::Arrays, Self::Collections, Self::Exceptions],
             Self::Regex => &[Self::Unicode, Self::Exceptions],
             _ => &[],
         }
@@ -174,6 +178,7 @@ impl Helper {
             Self::TextUtilities => include_str!("runtime/text-utils.c"),
             Self::Numbers => concat!(include_str!("runtime/number-library.c"), include_str!("runtime/decimal_parse.c")),
             Self::JsonParse => include_str!("runtime/json_parse.c"),
+            Self::Iterators => include_str!("runtime/iterators.c"),
             Self::Unicode => concat!(include_str!("runtime/unicode-library.c"), include_str!("runtime/unicode.c")),
             Self::Regex => concat!(include_str!("runtime/regex-library.c"), include_str!("runtime/regex.c")),
             Self::FromU32 => {

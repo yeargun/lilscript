@@ -1,0 +1,40 @@
+[
+  {
+    "name": "source-0",
+    "args": [
+      "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+      "tests/native/generators.lil",
+      "--config",
+      "/tmp/lilscript-n2-generators-js/level-0.toml",
+      "--target",
+      "js",
+      "-o",
+      "/tmp/lilscript-n2-generators-js/generators-0.mjs"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "run-0",
+    "exit": 0,
+    "matched": false
+  },
+  {
+    "name": "source-13",
+    "args": [
+      "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+      "tests/native/generators.lil",
+      "--config",
+      "/tmp/lilscript-n2-generators-js/level-13.toml",
+      "--target",
+      "js",
+      "-o",
+      "/tmp/lilscript-n2-generators-js/generators-13.mjs"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "run-13",
+    "exit": 0,
+    "matched": false
+  }
+]

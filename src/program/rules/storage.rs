@@ -145,6 +145,7 @@ pub(super) fn unit(
         Ok(UnitData {
             kind: source.kind,
             suspension: source.suspension,
+            parameter_region: source.parameter_region,
             constructor_of: source.constructor_of,
             module: source.module,
             instantiation_prefix: source.instantiation_prefix,

@@ -105,6 +105,8 @@ impl NativePlan<'_, '_> {
         let mut pairs=Vec::new();
         let mut add=|from,to|budget.push(Scratch,&mut pairs,(from,to));
         match &operation.kind {
+            OperationKind::Yield {delegate:false}=>add(value(operands[0]),tagged)?,
+            OperationKind::ForOf {item,..}=>add(tagged,self.value_type(self.cell_storage(*item)))?,
             OperationKind::Initialize(cell)=>add(value(operands[0]),self.value_type(self.cell_storage(*cell)))?,
             OperationKind::Load(place) if result.is_some()=>add(self.value_type(plan.places[place.index()].storage),result.unwrap())?,
             OperationKind::Store(place)=>add(value(operands[0]),self.value_type(plan.places[place.index()].storage))?,

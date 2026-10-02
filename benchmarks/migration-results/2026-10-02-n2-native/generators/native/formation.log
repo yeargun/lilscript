@@ -1,0 +1,5 @@
+error: expected `;` after statement
+ --> /home/azureuser/lilscript/tests/native/generators.lil:24:22
+  |
+24 | string returnFromLoop() {for(int value of range(3)) {return "return "+value;}return "empty";}
+  |                      ^

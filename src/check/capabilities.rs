@@ -101,26 +101,6 @@ pub(crate) fn native(
             }
         }
     }
-    let mut failure = Ok(());
-    crate::ast_walk::each_statement(source, &mut |statement| {
-        if failure.is_err() {
-            return;
-        }
-        failure = budget
-            .work(WorkKind::Analysis, 1)
-            .map_err(AdmittedCheckError::from);
-        if failure.is_err() {
-            return;
-        }
-        let unsupported = match statement {
-            Stmt::Yield { span, .. } => Some((*span, crate::native_capabilities::GENERATORS)),
-            _ => None,
-        };
-        if let Some((span, message)) = unsupported {
-            failure = Err(AdmittedCheckError::new(span, message));
-        }
-    });
-    failure?;
     for export in exports {
         budget.work(WorkKind::Analysis, 1)?;
         if matches!(export.target, InterfaceTarget::Value(_)) {

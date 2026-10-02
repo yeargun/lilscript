@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+    "sha256": "27aa2542af693cdc7cc35817d023ee46fe041a6721f5e97b7e00c84eb9864549"
+  },
+  "rows": [
+    {
+      "name": "independent-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/generators.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 32,
+      "passed": true
+    },
+    {
+      "name": "level-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+        "tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-n2-generators-1/level-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-generators-1/level-0/generators.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "level-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-generators-1/level-0/generators.c",
+        "/tmp/lilscript-n2-generators-1/level-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generators-1/level-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2116,
+      "passed": true
+    },
+    {
+      "name": "level-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-generators-1/level-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-0-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-generators-1/level-0/generators.c",
+        "/tmp/lilscript-n2-generators-1/level-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generators-1/level-0/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1896,
+      "passed": true
+    },
+    {
+      "name": "level-0-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-generators-1/level-0/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-generators-1/level-0/generators.c",
+        "/tmp/lilscript-n2-generators-1/level-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generators-1/level-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5330,
+      "passed": true
+    },
+    {
+      "name": "level-0-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-generators-1/level-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "level-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+        "tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-n2-generators-1/level-13/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-generators-1/level-13/generators.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 18,
+      "passed": true
+    },
+    {
+      "name": "level-13-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-generators-1/level-13/generators.c",
+        "/tmp/lilscript-n2-generators-1/level-13/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generators-1/level-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2169,
+      "passed": true
+    },
+    {
+      "name": "level-13-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-generators-1/level-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-13-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-generators-1/level-13/generators.c",
+        "/tmp/lilscript-n2-generators-1/level-13/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generators-1/level-13/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1945,
+      "passed": true
+    },
+    {
+      "name": "level-13-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-generators-1/level-13/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-13-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-generators-1/level-13/generators.c",
+        "/tmp/lilscript-n2-generators-1/level-13/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generators-1/level-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5419,
+      "passed": true
+    },
+    {
+      "name": "level-13-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-generators-1/level-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    }
+  ]
+}

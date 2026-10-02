@@ -2554,9 +2554,6 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             let (name, member_id, this, signature, pure, method_parameters) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => {
-                    if function.is_async || function.is_generator {
-                        return self.unsupported(function.span, "suspending method conversion");
-                    }
                     let method = info.methods.get(function.name.name).ok_or(Unsupported {
                         span: function.span,
                         feature: "missing checked method",
@@ -2762,6 +2759,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let class = self.declared_class(declaration.name)?;
         for member in declaration.members {
             self.work(1)?;
+            let suspension=match member {ast::ClassMember::Method(function) if function.is_generator=>Suspension::Generator,ast::ClassMember::Method(function) if function.is_async=>Suspension::Async,_=>Suspension::None};
             let (name, this, params, body, span, pool, choices) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => (
@@ -2800,6 +2798,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
                 feature: "unregistered class body",
             })?;
+            self.units[method.unit.index()].suspension=suspension;
             let outer_choices = self.enter_choices(method.unit, choices, span)?;
             let outer_pool = self.enter_pool(pool, span)?;
             let this_cell = self.cell(this)?;
@@ -3626,7 +3625,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
     ) -> Result<(), ConversionError> {
         // Declaration defaults are evaluated by the selected callee, in its
         // defining environment. Mutable aliases cannot cache another body's default.
-        let entry = RegionId::from_index(0).unwrap();
+        let root=RegionId::from_index(0).unwrap();
+        let entry=if self.units[unit.index()].suspension==Suspension::Generator && parameters.iter().any(|p|p.default.is_some()) {
+            let span=parameters.first().map_or(Span::default(),|p|p.span);
+            let region=self.region(unit,root,span)?;
+            self.units[unit.index()].parameter_region=Some(region);
+            self.effect(unit,root,OperationKind::Block(region),&[],span)?;
+            region
+        } else {root};
         for (index, parameter) in parameters.iter().enumerate() {
             self.work(1)?;
             let position = index + offset;

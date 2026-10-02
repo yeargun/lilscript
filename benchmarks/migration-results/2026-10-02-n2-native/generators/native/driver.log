@@ -1,0 +1,15 @@
+independent-oracle True
+level-0-source True
+level-0-gcc-build True
+level-0-gcc-run True
+level-0-clang-build True
+level-0-clang-run True
+level-0-sanitize-build True
+level-0-sanitize-run True
+level-13-source True
+level-13-gcc-build True
+level-13-gcc-run True
+level-13-clang-build True
+level-13-clang-run True
+level-13-sanitize-build True
+level-13-sanitize-run True

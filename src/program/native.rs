@@ -26,6 +26,8 @@ mod records;
 mod products;
 #[path = "native_static.rs"]
 mod static_data;
+#[path = "native_generators.rs"]
+mod generators;
 #[path = "native_dynamic.rs"]
 mod dynamic;
 #[path = "native_enums.rs"]
@@ -338,6 +340,8 @@ enum Task {
     },
     LoopUpdate(OpId),
     LoopEnd(OpId),
+    ForOfBody {operation:OpId,item:CellId,body:RegionId},
+    ForOfEnd(OpId),
     TryBodyEnd(OpId),
     TryCatchEnd(OpId),
     TryFinallyEnd(OpId),
@@ -460,6 +464,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if self.plan.needs_callable_runtime() {
             self.closure_recipes()?;
         }
+        self.generator_frames()?;
         for frozen in &program.units {
             if !self.plan.created[frozen.id().index()] {
                 continue;
@@ -526,7 +531,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
     }
     fn signature(&mut self, id: UnitId) -> Result<(), NativeError> {
         let unit = self.plan.program.unit(id).unwrap();
-        let result = self.plan.units[id.index()].return_type;
+        let result = if unit.suspension==Suspension::Generator {NativeType::Generator} else {self.plan.units[id.index()].return_type};
         let name = if unit.kind == UnitKind::ModuleInitialization {
             "ls_init"
         } else {
@@ -565,15 +570,17 @@ impl Emitter<'_, '_, '_, '_, '_> {
     fn unit(&mut self, id: UnitId) -> Result<(), NativeError> {
         debug_assert!(self.active_regions.is_empty() && self.try_frames.is_empty());
         self.error_exit=false; self.return_exit=false;
-        self.signature(id)?;
-        self.text(" {\n")?;
-        self.temporary_declaration()?;
         let unit = self.plan.program.unit(id).unwrap();
+        let generator=unit.suspension==Suspension::Generator;
+        if generator {self.generator_begin(id)?;}
+        else {self.signature(id)?;self.text(" {\n")?;self.temporary_declaration()?;}
         self.exception_regions.clear();
         for _ in &unit.regions {
             self.budget.push(AllocationClass::Scratch, &mut self.exception_regions, false)?;
         }
+        if !generator {
         self.control_declarations(id)?;
+        self.iteration_declarations(id)?;
         if self.plan.needs_callable_runtime() {
             self.parameter_owners(id)?;
         }
@@ -625,6 +632,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     "ls_callable{signature} ls_pc{call_index} = {{0}};\n"
                 ))?;
             }
+        }
         }
         // Every reference argument owns one ordered address temporary. Later
         // arguments can change the pointee value, never the selected location.
@@ -707,9 +715,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
                             let completed = self.active_regions.pop();
                             debug_assert_eq!(completed, Some(region));
                         }
+                        if generator && self.generator_parameters(id)==Some(region) {
+                            self.text("base->pc=SIZE_MAX;return;\nls_body:;\n")?;
+                        }
                     }
                 }
                 Task::Text(text) => self.text(text)?,
+                Task::ForOfBody {operation,item,body}=>self.for_of_body(id,operation,item,body)?,
+                Task::ForOfEnd(op)=>self.for_of_end(id,op)?,
                 Task::TryBodyEnd(op) => self.try_body_end(id,op)?,
                 Task::TryCatchEnd(op) => self.try_catch_end(id,op)?,
                 Task::TryFinallyEnd(op) => self.try_finally_end(id,op)?,
@@ -735,7 +748,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         debug_assert!(self.active_regions.is_empty());
         self.control_exits(id)?;
-        self.text("}\n")
+        self.text("}\n")?;
+        if generator {self.generator_factory(id)?;}
+        Ok(())
     }
     fn operation(
         &mut self,
@@ -1305,6 +1320,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
                 self.region(*test, Some(op))?;
             }
+            OperationKind::ForOf {item,body}=>self.for_of(id,op,*item,*body,args[0])?,
+            OperationKind::Yield {delegate}=>self.yield_value(id,op,args[0],*delegate)?,
             OperationKind::Try {body,catch,finally} => self.start_try(id,op,*body,*catch,*finally,enclosing_loop)?,
             OperationKind::Throw => {
                 self.text("ls_native_throw(")?;
@@ -1312,7 +1329,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.text(");\n")?;
                 self.complete(id,Completion::Throw)?;
             }
-            OperationKind::Return if !self.try_frames.is_empty() => self.defer_return(id,args.first().copied())?,
+            OperationKind::Return if !self.try_frames.is_empty() || unit.suspension==Suspension::Generator || !self.plan.units[id.index()].iterators.is_empty() => self.defer_return(id,args.first().copied())?,
             OperationKind::Return if self.plan.needs_callable_runtime() => {
                 self.return_value(id, args.first().copied())?;
             }

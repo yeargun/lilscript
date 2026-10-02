@@ -1,0 +1,250 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+    "sha256": "27aa2542af693cdc7cc35817d023ee46fe041a6721f5e97b7e00c84eb9864549"
+  },
+  "rows": [
+    {
+      "name": "independent-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/generator-completions.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 31,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+        "tests/native/generator-completions.lil",
+        "--config",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/output.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/output.c",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 638,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/output.c",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1575,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-0-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-generator-completions/generator-completions-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+        "tests/native/generator-completions.lil",
+        "--config",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/output.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-13-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/output.c",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 635,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-13-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-13-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/output.c",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1525,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-13-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-generator-completions/generator-completions-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "exceptions-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-generators-1/lilscript",
+        "tests/native/exceptions.lil",
+        "--config",
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/output.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 21,
+      "passed": true
+    },
+    {
+      "name": "exceptions-13-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/output.c",
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1213,
+      "passed": true
+    },
+    {
+      "name": "exceptions-13-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "exceptions-13-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/output.c",
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 3360,
+      "passed": true
+    },
+    {
+      "name": "exceptions-13-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-generator-completions/exceptions-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    }
+  ]
+}

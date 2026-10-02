@@ -42,6 +42,7 @@ pub(super) enum NativeType {
     Set,
     Symbol,
     Regex,
+    Generator,
     /// An `ArrayBuffer` or `SharedArrayBuffer` (one thread: the same thing).
     Buffer,
     /// A typed array view of a buffer.
@@ -85,7 +86,7 @@ impl fmt::Display for NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex
+            | Self::Regex | Self::Generator
             | Self::Buffer
             | Self::Typed(_) => f.write_str("ls_native_object *"),
         }
@@ -107,7 +108,7 @@ impl NativeType {
             | Self::Map
                 | Self::Set
                 | Self::Symbol
-                | Self::Regex
+                | Self::Regex | Self::Generator
                 | Self::Buffer
                 | Self::Typed(_)
                 | Self::Dynamic(Tagged { owns: true, .. })
@@ -125,7 +126,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex
+            | Self::Regex | Self::Generator
             | Self::Buffer
             | Self::Typed(_) => Some(format!("ls_native_retain({value});\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => {
@@ -146,7 +147,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex
+            | Self::Regex | Self::Generator
             | Self::Buffer
             | Self::Typed(_) => Some(format!("ls_native_release({value});\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => {
@@ -167,7 +168,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex
+            | Self::Regex | Self::Generator
             | Self::Buffer
             | Self::Typed(_) => Some("ls_object".to_owned()),
             Self::Dynamic(Tagged { owns: true, .. }) => Some("ls_value".to_owned()),
@@ -180,7 +181,7 @@ impl NativeType {
             Self::Struct(index) => Some(format!("ls_t{index}_trace({value}, visit, context);\n")),
             Self::Callable(_) => Some(format!("visit({value}.environment, context);\n")),
             Self::Array(_) | Self::Object(_) | Self::Shape | Self::Record
-            | Self::Map | Self::Set | Self::Symbol | Self::Regex
+            | Self::Map | Self::Set | Self::Symbol | Self::Regex | Self::Generator
             | Self::Buffer | Self::Typed(_) => Some(format!("visit({value}, context);\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => Some(format!("ls_value_trace({value}, visit, context);\n")),
             _ => None,
@@ -196,7 +197,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex
+            | Self::Regex | Self::Generator
             | Self::Buffer
             | Self::Typed(_) => " = NULL",
             Self::Dynamic(_) => " = {0}",
@@ -366,6 +367,7 @@ pub(super) struct UnitPlan {
     pub(super) may_throw: bool,
     pub(super) conversion_checks: Vec<bool>,
     pub(super) catch_bindings: Vec<(RegionId,CellId)>,
+    pub(super) iterators: Vec<(RegionId,OpId)>,
 }
 
 #[derive(Debug)]
@@ -532,6 +534,7 @@ pub(super) fn native_type<'program, 'src>(
         }
         Type::Symbol => NativeType::Symbol,
         Type::Regex => NativeType::Regex,
+        Type::Generator(_) => NativeType::Generator,
         Type::ArrayBuffer | Type::SharedArrayBuffer => NativeType::Buffer,
         ty if crate::typed_array::TypedArrayKind::from_type(ty).is_some() => {
             NativeType::Typed(crate::typed_array::TypedArrayKind::from_type(ty).unwrap())
@@ -1155,7 +1158,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             |effects, budget| {
                 for (index, target) in self.units.iter_mut().enumerate() {
                     work(budget, 1)?;
-                    target.may_throw=target.conversion_checks.iter().any(|&checked|checked) || effects.summary(UnitId::from_index(index).unwrap()).is_none_or(|summary|summary.effects.may_throw);
+                    target.may_throw=program.unit(UnitId::from_index(index).unwrap()).unwrap().parameter_region.is_some() || target.conversion_checks.iter().any(|&checked|checked) || effects.summary(UnitId::from_index(index).unwrap()).is_none_or(|summary|summary.effects.may_throw);
                 }
                 // Physical checks add native failures to the common call graph;
                 // propagate only this target fact, never build another graph.
@@ -1435,6 +1438,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         )?;
         let mut helpers = Helpers::default();
         if !arrays.is_empty() { helpers.require(Helper::Arrays); }
+        if classes.iter().any(|c|matches!(c,TypeClass::Value(NativeType::Generator))) {helpers.require(Helper::Iterators);}
         if !hosts.bindings.is_empty() { helpers.require(Helper::Exceptions); }
         if signatures.iter().any(|signature| signature.needed)
             || cells.iter().any(|cell| cell.captured)
@@ -1492,7 +1496,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             {
                 return Err(unit_error("stale native unit index"));
             }
-            let return_type = if data.kind == UnitKind::ModuleInitialization {
+            let return_type = if data.kind == UnitKind::ModuleInitialization || data.suspension==Suspension::Generator {
                 NativeType::Void
             } else {
                 let TypeClass::Function(signature) =
@@ -1502,6 +1506,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 };
                 plan.signatures[signature].result
             };
+            if data.suspension==Suspension::Generator { plan.helpers.require(Helper::Iterators); }
             let mut has_environment = data.kind == UnitKind::Closure;
             for &capture in &data.captures {
                 work(budget, 1)?;
@@ -1897,12 +1902,13 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 };
                 calls.push(target);
             }
-            let mut catch_bindings=Vec::new();
-            for operation in &data.operations {
+            let mut catch_bindings=Vec::new();let mut iterators=Vec::new();
+            for (index,operation) in data.operations.iter().enumerate() {
                 work(budget,1)?;
-                if let OperationKind::Try {catch:Some((Some(cell),region)),..}=operation.kind {
+                if let OperationKind::Try {catch:Some((Some(cell),region)),..}|OperationKind::ForOf {item:cell,body:region}=operation.kind {
                     budget.push(Scratch,&mut catch_bindings,(region,cell))?;
                 }
+                if let OperationKind::ForOf {body,..}=operation.kind {budget.push(Scratch,&mut iterators,(body,OpId::from_index(index).unwrap()))?;}
             }
             let mut unit_plan = UnitPlan {
                 values,
@@ -1913,7 +1919,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 named_adapter_needed: false,
                 may_throw: true,
                 conversion_checks: budget.filled(Scratch,data.operations.len(),false)?,
-                catch_bindings,
+                catch_bindings,iterators,
             };
             let parents = budget
                 .filled(Scratch, data.regions.len(), None)
@@ -2154,7 +2160,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Map
                     | NativeType::Set
                     | NativeType::Symbol
-                    | NativeType::Regex
+                    | NativeType::Regex | NativeType::Generator
                     | NativeType::Buffer
                     | NativeType::Typed(_)
             )
@@ -2318,7 +2324,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Map
                         | NativeType::Set
                         | NativeType::Symbol
-                        | NativeType::Regex
+                        | NativeType::Regex | NativeType::Generator
                         | NativeType::Buffer
                         | NativeType::Typed(_)
                 )
@@ -2818,7 +2824,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                     NativeType::Shape | NativeType::Record | NativeType::Map
                                         | NativeType::Set
                                         | NativeType::Symbol
-                                        | NativeType::Regex
+                                        | NativeType::Regex | NativeType::Generator
                                         | NativeType::Buffer
                                         | NativeType::Typed(_)
                                 )
@@ -3418,6 +3424,15 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 region_result(*test).is_none_or(|value| value == Stored(Bool)),
                 "native loop condition",
             ),
+            OperationKind::ForOf {item,..} => {
+                self.helpers.require(Helper::Iterators);
+                expect(matches!(operand(0),Stored(NativeType::Generator|NativeType::Set)) && self.compatible(self.cell_storage(*item),Stored(NativeType::Dynamic(Tagged::ANY))),"native iterable binding")
+            }
+            OperationKind::Yield {delegate} => {
+                self.helpers.require(Helper::Iterators);
+                if matches!(operand(0),Stored(NativeType::Typed(_))) {self.helpers.require(Helper::Binary);}
+                expect(data.suspension==Suspension::Generator && operands.len()==1 && if *delegate {matches!(operand(0),Stored(NativeType::Generator|NativeType::Array(_)|NativeType::Typed(_)))} else {self.compatible(Stored(NativeType::Dynamic(Tagged::ANY)),operand(0))},"native generator yield")
+            }
             OperationKind::Try { catch, .. } => {
                 self.helpers.require(Helper::Exceptions);
                 expect(catch.is_none_or(|(cell,_)| cell.is_none_or(|cell| matches!(self.cell_storage(cell),Stored(NativeType::Dynamic(_))))), "native exception binding")

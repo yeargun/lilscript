@@ -365,3 +365,29 @@ is measured; runtime speed and broad performance are not. Initial Rust borrow,
 fixture syntax/type and driver failures are retained separately from final
 passes. No broad suite rerun. Consolidated Rust/native corpus checks, suspension,
 native interfaces and performance/cross-target work remain N2.
+
+## Generator frames and iterable completions
+
+Algorithm82, compiler pin `n2-generators-1`; source and compiler identity are
+retained under `generators/native/qualification.json`. Fifteen main-fixture
+steps pass across efforts0/13, strict GCC, Clang18 and combined ASan/UBSan.
+Sixteen supplemental steps qualify saved throws across a yield in finally,
+return/early-close overrides, unstarted frames, Set cursor mutation through
+rehashing, and the existing exception fixture. All native traces match the
+independent ECMAScript observations; ownership returns to zero after collection.
+
+The emitter stores typed source slots in retained frames and dispatches to
+compiled resume labels over the existing regions. Generator parameters/defaults
+execute at call time and bodies stay lazy. Iteration retains its source; early
+exit closes it through shared completion cleanup. Finally may yield while
+closing, and a preexisting throw takes precedence over a close failure. A Set
+cursor pins entry positions while deletion, clear and appending retain source
+order. GC never invokes source finalizers.
+
+The full emitted JavaScript trace differs only in the default-timing prefix:
+its body guards delay nonliteral defaults and their exceptions until iteration.
+`generators/javascript/qualification.json` records both effort0/13 mismatches;
+V1 owns that correction. This batch claims independent native correctness, not
+full source parity. Initial fixture parse and stale provider-configuration
+errors are retained. No broad library suite, speed or executable-size win is
+claimed; frame and helper overhead require the final N2 profile qualification.

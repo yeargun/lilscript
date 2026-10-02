@@ -678,6 +678,11 @@ fn verify_units(
         {
             return fail("invalid unit entry region");
         }
+        if let Some(region)=unit.parameter_region {
+            if unit.suspension!=Suspension::Generator || unit.regions.get(region.index()).is_none_or(|r|r.parent!=Some(unit.entry)) {
+                return fail("invalid generator parameter region");
+            }
+        }
         let prefix_uses = verify_instantiation_prefix(
             program,
             frozen.id(),
