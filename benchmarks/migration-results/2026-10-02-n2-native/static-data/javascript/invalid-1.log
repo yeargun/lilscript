@@ -1,0 +1,5 @@
+error: cannot mutate const data through a field, index or alias
+ --> /tmp/lilscript-n2-static-js/invalid-1.lil:1:73
+  |
+ 1 | const Record<int[]> data=record{x:[1]};int[][] copy=Object.values(data);copy[0][0]=2;
+  |                                                                         ^^^^^^^^^^^^

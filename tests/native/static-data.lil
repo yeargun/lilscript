@@ -1,0 +1,50 @@
+import {imported, importedChild} from "./static-data-module";
+extern void observeNativeStartup();
+extern void collectNative();
+extern void assertMaxNativeCount(int maximum);
+struct Payload { string text; int[] items; }
+struct Box<T> { T value; }
+shape Label { data string name; data int[] items; }
+class Base { int x; init(int x) { this.x=x; } }
+class Derived extends Base { string name; init(int x,string name) { super(x); this.name=name; } }
+int[] build(int n) { int[] out=[]; for(int i=0;i<n;i++) { out.push(i*i); } return out; }
+const int[] values=build(5);
+const int[][] nested=[values,values,[]];
+const int[] alias=nested[0];
+const Record<int[]> arrays=record{left:values,right:values};
+const Record<string> words=record{"10":"ten","2":"two",b:"bee",a:"aye","01":"one","4294967295":"last","4294967294":"index","__proto__":"own","":"empty"};
+const Payload item=Payload{"\ud800\u0000😀",values};
+const Box<Payload> boxed=Box{item};
+const Box<Payload>[] boxedArray=[boxed];
+const Payload[] products=[item,item];
+const Record<Payload> productRecord=record{first:item};
+const Label label=Label{name:"label",items:values};
+const Derived derived=new Derived(7,"derived");
+const Base base=derived;
+const Base same=derived;
+const float[] numbers=[-0.0,1.5,1.0/0.0,0.0/0.0,5e-324];
+const int?[] nullable=[null,0,42];
+const Record<string> empty=record{};
+observeNativeStartup();
+print(values.join(","));
+print(nested[0]==nested[1]); print(alias==values);
+print((arrays.left??[])==(arrays.right??[]));
+print(imported[0]==importedChild); print(importedChild[1]);
+print(Object.keys(words).join("|")); print(Object.values(words).join("|"));
+print(JSON.stringify(words)); print(Object.hasOwn(words,"__proto__"));
+print(words.missing??"missing"); print(JSON.stringify(empty));
+print(item.text.length); print(item.text.charCodeAt(0)); print(item.text.charCodeAt(1));
+print(boxed.value.items==values); print(boxedArray[0].value.text.length);
+print(products[1].items==values); print((productRecord.first??item).items==values);
+print(label.items==values); print(label.name); print(base==same); print(base.x); print(derived.name);
+print(JSON.stringify(numbers)); print(nullable[0]??-1); print(nullable[1]??-1); print(nullable[2]??-1);
+int[] fresh() { const int[] local=[1,2]; return local; }
+void copies() {
+    int[] copy=values.slice(1,4); copy[0]=99; print(copy.join(",")); print(values[1]);
+    int[][] shallow=nested.slice(0,2); print(shallow[0]==values); shallow.push([7]); print(shallow.length);
+    print(fresh()==fresh());
+    int[] previous=[];
+    for(int i=0;i<3;i++) { const int[] local=[4,5]; print(local==previous); previous=local; }
+    for(int i=0;i<200;i++) { int[] next=fresh(); assertMaxNativeCount(100); }
+}
+copies(); collectNative(); assertMaxNativeCount(100); print("static data done");

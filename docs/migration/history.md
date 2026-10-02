@@ -2046,3 +2046,34 @@ Twenty-five invalid-representation cases raise before unsafe access; valid
 class/callback downcasts and cleanup also pass. These are native precondition
 observations, not ill-typed-source JavaScript parity or a performance claim.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#checked-representation-failures).
+
+## 2026-10-02 — N2 immutable native graphs
+
+Use checked const provenance and existing SSA definitions to place eligible
+once-created immutable graphs in C static storage. Preserve original binding
+initialization points, array/object aliases, key order and product value copies;
+repeated activations and loops keep fresh runtime owners. Static records retain
+a precomputed hash index, and generic product fields use immutable physical
+boxes. Immortal owners stay outside cycle collection and reject mutation.
+
+Add fingerprinted `target.native.static_data` with an explicit owned-storage
+fallback for comparisons. Static placement trades initialization/allocation work
+for executable data and relocations; qualify both configurations with independent
+JavaScript behavior, ownership and sanitizer observations before claiming gains.
+
+**Result.** Algorithm81, pin `n2-static-2`, passes 29 native/oracle steps
+across static/owned modes and efforts0/13, strict GCC/Clang and ASan/UBSan,
+including standalone immortal-owner/cycle observations. Five finite-variant
+JavaScript/oracle steps and three const-child mutation refusals pass. Four CLI
+policy receipts confirm native-only flag identity. Full-source JavaScript
+non-finite literal formation remains a recorded V1 gap. The shared const checker
+now permits typed read-only readers and mutable outer copies without permitting
+writes through their const children.
+
+This fixture reduces startup owners from18 to0 (effort0), or16 to0 (effort13),
+at an executable-size cost: GCC `-O2` artifacts grow from110624 to128440 bytes
+and105944 to127144 bytes respectively. This is an explicit startup/storage
+tradeoff, not a measured throughput or compression win. Initial emitter borrow
+errors, fixture language errors and driver errors are retained. No broad library
+rerun; new Rust expectations await the consolidated N2 check.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#immutable-static-graphs).

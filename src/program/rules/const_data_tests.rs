@@ -57,11 +57,18 @@ fn q4_const_mutation_rejects_alias_parameter_and_nested_container() {
         "extern int[] outside;const int[] data=[1];outside=data;",
         "extern Record<int[]> outside;const int[] data=[1];outside[\"leak\"]=data;",
         "const int[] data=[1];extern void keep(func()->int[] callback);keep(()=>data);",
+        "const int[][] data=[[1]];int[][] copy=data.slice();copy[0].push(2);",
+        "const Record<int[]> data=record{x:[1]};int[][] copy=Object.values(data);copy[0][0]=2;",
+        "const int[] data=[1];int[] copy=data.concat([2]);copy[0]=3;data[0]=4;",
     ] {
         let error =
             compile_source(source, &configuration(""), ServiceOptions::default()).unwrap_err();
         assert!(error.to_string().contains("const"), "{error:?}");
     }
+}
+#[test]
+fn n2_const_readers_preserve_mutable_outer_copies() {
+    execute(r#"const int[] data=[1,2];int[] copy=data.slice();copy[0]=9;copy.push(3);print(data.join(","));print(copy.join(","));const Record<string> recordData=record{b:"B",a:"A"};string[] values=Object.values(recordData);values[0]="changed";print(JSON.stringify(recordData));print(Object.keys(recordData).join(","));print(Object.hasOwn(recordData,"a"));print(values.join(","));"#, &configuration(""), "1,2\n9,2,3\n{\"b\":\"B\",\"a\":\"A\"}\nb,a\ntrue\nchanged,A\n");
 }
 #[test]
 fn q4_const_required_failures_and_configured_bounds_are_diagnostic() {

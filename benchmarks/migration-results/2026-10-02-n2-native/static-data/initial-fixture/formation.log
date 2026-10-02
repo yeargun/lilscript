@@ -1,0 +1,5 @@
+error: expected class member name
+ --> /home/azureuser/lilscript/tests/native/static-data.lil:8:32
+  |
+ 8 | class Base { int x; constructor(int x) { this.x=x; } }
+  |                                ^

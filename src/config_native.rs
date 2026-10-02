@@ -49,6 +49,9 @@ pub struct TargetNativeConfig {
     /// reclaim cycles sooner at more CPU cost; zero collects only explicitly
     /// and at shutdown. Ordinary zero-count reclamation is always immediate.
     pub cycle_collection_threshold: u32,
+    /// True: eligible once-created immutable graphs use static C storage.
+    /// False retains ordinary owned initialization, useful for size/startup comparisons.
+    pub static_data: bool,
     /// 262144 bytes by default. Bounds libregexp parser stack use; at least
     /// 16384. Smaller values reject deeply nested patterns sooner. Exhaustion
     /// raises RangeError. Reserve this plus the caller stack in a cross profile.
@@ -71,6 +74,7 @@ impl Default for TargetNativeConfig {
             link_time_optimization: false,
             sanitizers: Vec::new(),
             cycle_collection_threshold: 4096,
+            static_data: true,
             regex_stack_limit: 262144,
             regex_poll_limit: 0,
         }

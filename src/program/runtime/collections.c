@@ -108,6 +108,7 @@ static LS_NATIVE_UNUSED inline bool ls_map_has(ls_native_object *owner, ls_value
     return ls_map_find((ls_map *)owner, key) != SIZE_MAX;
 }
 static LS_NATIVE_UNUSED inline void ls_map_set(ls_native_object *owner, ls_value key, ls_value value) {
+    if(!ls_native_mutable(owner)) return;
     ls_map *map = (ls_map *)owner;
     size_t position = ls_map_find(map, key);
     ls_value_retain(value);
@@ -140,6 +141,7 @@ static LS_NATIVE_UNUSED inline void ls_map_set(ls_native_object *owner, ls_value
     map->size++;
 }
 static LS_NATIVE_UNUSED inline bool ls_map_delete(ls_native_object *owner, ls_value key) {
+    if(!ls_native_mutable(owner)) return false;
     ls_map *map = (ls_map *)owner;
     size_t position = ls_map_find(map, key);
     if (position == SIZE_MAX) return false;
@@ -150,6 +152,7 @@ static LS_NATIVE_UNUSED inline bool ls_map_delete(ls_native_object *owner, ls_va
     return true;
 }
 static LS_NATIVE_UNUSED inline void ls_map_clear(ls_native_object *owner) {
+    if(!ls_native_mutable(owner)) return;
     ls_map *map = (ls_map *)owner;
     for (size_t position = 0; position < map->used; position++) {
         if (map->entries[position].live) {

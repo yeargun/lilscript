@@ -1,0 +1,14 @@
+independent-oracle True
+level-0-static-1-source True
+level-0-static-1-gcc-build True
+level-0-static-1-gcc-run True
+level-0-static-1-sanitize-build True
+level-0-static-1-sanitize-run True
+level-0-static-1-clang-build True
+level-0-static-1-clang-run True
+level-0-static-0-source True
+Traceback (most recent call last):
+  File "/tmp/qualify-n2-static.py", line 28, in <module>
+    assert ('#define LS_NATIVE_STATIC_DATA 1' in c.read_text()) == static
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

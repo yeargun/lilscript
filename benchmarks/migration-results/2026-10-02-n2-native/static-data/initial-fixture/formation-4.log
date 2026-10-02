@@ -1,0 +1,5 @@
+error: const data cannot reach a mutating, callback or unknown intrinsic
+ --> /home/azureuser/lilscript/tests/native/static-data.lil:29:7
+  |
+29 | print(values.join(","));
+  |       ^^^^^^^^^^^^^^^^

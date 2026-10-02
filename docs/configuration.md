@@ -91,6 +91,7 @@ warnings_as_errors = false
 link_time_optimization = false
 sanitizers = []
 cycle_collection_threshold = 4096
+static_data = true
 regex_stack_limit = 262144
 regex_poll_limit = 0
 # triple = "aarch64-linux-gnu"
@@ -108,6 +109,7 @@ regex_poll_limit = 0
 | `link_time_optimization` | `false`; `true` adds `-flto`. | Can optimize across host translation units; costs link time and memory and requires compatible tools. It is not enabled by a JavaScript compression effort. |
 | `sanitizers` | Empty, or a duplicate-free list of `address` and `undefined`. | Diagnostic builds need matching runtimes and cost executable bytes, runtime and memory. They are not production performance measurements. |
 | `cycle_collection_threshold` | `4096` allocations; the interval grows to at least half the live object count. `0` collects cycles only at explicit calls and shutdown. Ordinary zero-count reclamation always runs. | Smaller values reduce garbage-cycle retention but spend more CPU scanning candidate graphs. Larger values favor throughput at higher peak memory. This changes emitted C and its policy identity; it does not alter the JavaScript objectives or waive ownership. `--link-c` uses the threshold already in its caller-owned C. |
+| `static_data` | `true`: checked immutable graphs created once during module initialization can use static C storage. `false`: initialize ordinary runtime owners. | Static storage avoids startup allocation and reference-count updates for those graphs. It can increase data/relocation bytes while reducing initialization code; compare the final executable for the workload. Source evaluation, aliases and value copies are preserved. Repeated function or loop activations retain fresh objects. This control changes native policy identity, independently of JavaScript compression effort. |
 | `regex_stack_limit` | `262144` bytes, at least `16384`. Bounds the pinned libregexp parser's additional stack use. | Smaller limits reject deeply nested patterns earlier with `RangeError`; larger limits require sufficient host stack. Cross profiles must reserve this space plus the caller's stack. |
 | `regex_poll_limit` | `0` (unlimited). A positive value counts libregexp poll callbacks per test/search/replace, across all matches of one replace. The pinned engine polls after 10000 internal polling points; short matches can finish without polling. | Useful for untrusted patterns. Exhaustion raises `RangeError`, never a false match result. It bounds backtracking polls, not every instruction, total memory or wall time. Both limits affect emitted C and its policy identity; they do not change JavaScript objectives. |
 

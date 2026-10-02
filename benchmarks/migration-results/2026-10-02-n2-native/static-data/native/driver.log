@@ -1,0 +1,40 @@
+independent-oracle retained pass
+level-0-static-1-source retained pass
+level-0-static-1-gcc-build retained pass
+level-0-static-1-gcc-run retained pass
+level-0-static-1-sanitize-build retained pass
+level-0-static-1-sanitize-run retained pass
+level-0-static-1-clang-build retained pass
+level-0-static-1-clang-run retained pass
+level-0-static-0-source retained pass
+level-0-static-0-gcc-build retained pass
+level-0-static-0-gcc-run retained pass
+level-0-static-0-sanitize-build retained pass
+level-0-static-0-sanitize-run retained pass
+level-0-static-0-clang-build retained pass
+level-0-static-0-clang-run retained pass
+level-13-static-1-source retained pass
+level-13-static-1-gcc-build retained pass
+level-13-static-1-gcc-run retained pass
+level-13-static-1-sanitize-build retained pass
+level-13-static-1-sanitize-run retained pass
+level-13-static-0-source retained pass
+level-13-static-0-gcc-build retained pass
+level-13-static-0-gcc-run retained pass
+level-13-static-0-sanitize-build retained pass
+level-13-static-0-sanitize-run retained pass
+ownership-gcc-build retained pass
+ownership-gcc-run retained pass
+ownership-sanitize-build retained pass
+ownership-sanitize-run retained pass
+js-0-source False
+compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 1237, end: 1244 }, feature: "non-finite semantic literal" }))
+ 
+Traceback (most recent call last):
+  File "/tmp/qualify-n2-static.py", line 43, in <module>
+    js=work/f'js-{level}.js';run(f'js-{level}-source',[compiler,'tests/native/static-data.lil','--config',str(config),'--target','js','-o',str(js)])
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qualify-n2-static.py", line 19, in run
+    assert ok
+           ^^
+AssertionError

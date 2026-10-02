@@ -1,0 +1,216 @@
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+warning: unused import: `with_analyzed_modules`
+  --> src/check.rs:38:26
+   |
+38 | pub(crate) use modules::{with_analyzed_modules, with_analyzed_modules_with_contract};
+   |                          ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `AdmittedModuleCheckError`
+  --> src/check.rs:39:50
+   |
+39 | pub(crate) use modules::{analyze_modules_cached, AdmittedModuleCheckError, ElaborationCache};
+   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `cycle_entries_admitted`, `lazy_roots_admitted`, and `lazy_roots_from_orders_admitted`
+   --> src/module.rs:156:24
+    |
+156 | pub(crate) use graph::{cycle_entries_admitted, fresh_orders_admitted, lazy_roots_admitted,
+    |                        ^^^^^^^^^^^^^^^^^^^^^^                         ^^^^^^^^^^^^^^^^^^^
+157 |     lazy_roots_from_orders_admitted, static_cycles_admitted};
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around block return value
+    --> src/program/native_plan.rs:2264:21
+     |
+2264 |                     (self.compatible(ValueStorage::Value(inner), ValueStorage::Value(outer))
+     |                     ^
+2265 |                             || matches!((inner, outer), (NativeType::Object(_), NativeType::Object(_))))
+     |                                                                                                        ^
+     |
+     = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+     |
+2264 ~                     self.compatible(ValueStorage::Value(inner), ValueStorage::Value(outer))
+2265 ~                             || matches!((inner, outer), (NativeType::Object(_), NativeType::Object(_)))
+     |
+
+warning: variable does not need to be mutable
+   --> src/check/modules.rs:593:21
+    |
+593 |                 let mut ty = analyzer.resolve_value_type(decl.ty, "module binding")?;
+    |                     ----^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `span`
+    --> src/check.rs:5387:63
+     |
+5387 |                 kind: ExprKind::ArrowFunction { params, body, span },
+     |                                                               ^^^^ help: try ignoring the field: `span: _`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+    --> src/program/from_source.rs:4424:13
+     |
+4424 |             _ => return self.unsupported(statement.span(), "statement conversion"),
+     |             ^ no value can reach this
+     |
+note: multiple earlier patterns match some of the same values
+    --> src/program/from_source.rs:4424:13
+     |
+4146 | /             Stmt::ArrayDestructure {
+4147 | |                 bindings, value, ..
+4148 | |             } => self.array_destructure(unit, region, bindings, value)?,
+     | |_____________- matches some of the same values
+4149 | /             Stmt::RecordDestructure {
+4150 | |                 bindings,
+4151 | |                 rest,
+4152 | |                 value,
+4153 | |                 span,
+4154 | |                 ..
+4155 | |             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
+     | |_____________- matches some of the same values
+4156 |               Stmt::VarDecl(declaration, ..) => {
+     |               ------------------------------ matches some of the same values
+...
+4193 |               Stmt::Expr(expr, ..) => {
+     |               -------------------- matches some of the same values
+...
+4424 |               _ => return self.unsupported(statement.span(), "statement conversion"),
+     |               ^ ...and 15 other patterns collectively make this unreachable
+     = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `program`
+   --> src/program/javascript_public_structs.rs:714:13
+    |
+714 |         let program = self.program;
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program`
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> src/program/native_static.rs:268:39
+    |
+265 |         for &key in &self.static_storage.objects {
+    |                     ----------------------------
+    |                     |
+    |                     immutable borrow occurs here
+    |                     immutable borrow later used here
+...
+268 |                 NativeType::Array(_)=>self.text("static ls_native_array ")?,
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> src/program/native_static.rs:269:55
+    |
+265 |         for &key in &self.static_storage.objects {
+    |                     ----------------------------
+    |                     |
+    |                     immutable borrow occurs here
+    |                     immutable borrow later used here
+...
+269 |                 NativeType::Record|NativeType::Shape=>self.text("static ls_map ")?,
+    |                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> src/program/native_static.rs:270:40
+    |
+265 |         for &key in &self.static_storage.objects {
+    |                     ----------------------------
+    |                     |
+    |                     immutable borrow occurs here
+    |                     immutable borrow later used here
+...
+270 |                 NativeType::Object(c)=>self.write(format_args!("static ls_object{c} "))?,
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> src/program/native_static.rs:271:40
+    |
+265 |         for &key in &self.static_storage.objects {
+    |                     ----------------------------
+    |                     |
+    |                     immutable borrow occurs here
+    |                     immutable borrow later used here
+...
+271 |                 NativeType::Struct(_)=>self.write(format_args!("static {ty} "))?,
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> src/program/native_static.rs:274:13
+    |
+265 |         for &key in &self.static_storage.objects {
+    |                     ----------------------------
+    |                     |
+    |                     immutable borrow occurs here
+    |                     immutable borrow later used here
+...
+274 |             self.write(format_args!("ls_static_{}_{} LS_NATIVE_UNUSED;\n",key.0.index(),key.1.index()))?;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> src/program/native_static.rs:276:77
+    |
+265 | ...in &self.static_storage.objects {
+    |       ----------------------------
+    |       |
+    |       immutable borrow occurs here
+    |       immutable borrow later used here
+...
+276 | ...f self.static_storage.boxes[key.0.index()][key.1.index()] {self.write(format_args!("static ls_product{s} ls_static_box_{}_{} LS_NATIVE_UNUSED;\n",key.0.index(),key.1.index()))?;}
+    |                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+warning: unreachable pattern
+   --> src/program/native_plan.rs:937:13
+    |
+937 |             _ => {
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> src/program/native_plan.rs:937:13
+    |
+712 |             Place::Cell(cell) => PlacePlan {
+    |             ----------------- matches some of the same values
+...
+718 |             Place::Value(value) => PlacePlan {
+    |             ------------------- matches some of the same values
+...
+822 |             Place::Index { receiver, key } => {
+    |             ------------------------------ matches some of the same values
+...
+848 |             Place::Member { .. } => {
+    |             -------------------- matches some of the same values
+...
+937 |             _ => {
+    |             ^ ...and 2 other patterns collectively make this unreachable
+
+warning: variable does not need to be mutable
+  --> src/program/search_independent.rs:22:9
+   |
+22 |         mut observe: impl FnMut(SearchObservation<'_>),
+   |         ----^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/rules/dirty.rs:63:17
+   |
+63 |             let mut run = || {
+   |                 ----^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/verify.rs:559:17
+    |
+559 |             let mut name_work = 1;
+    |                 ----^^^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+For more information about this error, try `rustc --explain E0502`.
+warning: `lilscript` (lib) generated 12 warnings
+error: could not compile `lilscript` (lib) due to 6 previous errors; 12 warnings emitted

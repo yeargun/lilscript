@@ -1,0 +1,46 @@
+independent-oracle retained pass
+level-0-static-1-source retained pass
+level-0-static-1-gcc-build retained pass
+level-0-static-1-gcc-run retained pass
+level-0-static-1-sanitize-build retained pass
+level-0-static-1-sanitize-run retained pass
+level-0-static-1-clang-build retained pass
+level-0-static-1-clang-run retained pass
+level-0-static-0-source retained pass
+level-0-static-0-gcc-build True
+level-0-static-0-gcc-run True
+level-0-static-0-sanitize-build True
+level-0-static-0-sanitize-run True
+level-0-static-0-clang-build True
+level-0-static-0-clang-run True
+level-13-static-1-source True
+level-13-static-1-gcc-build True
+level-13-static-1-gcc-run True
+level-13-static-1-sanitize-build True
+level-13-static-1-sanitize-run True
+level-13-static-0-source True
+level-13-static-0-gcc-build True
+level-13-static-0-gcc-run True
+level-13-static-0-sanitize-build True
+level-13-static-0-sanitize-run True
+ownership-gcc-build True
+ownership-gcc-run True
+ownership-sanitize-build True
+ownership-sanitize-run True
+js-0-source False
+error: unexpected argument '--compression' found
+
+  tip: to pass '--compression' as a value, use '-- --compression'
+
+Usage: lilscript --config <CONFIG> --target <TARGET> <INPUT>
+
+For more information, try '--help'.
+ 
+Traceback (most recent call last):
+  File "/tmp/qualify-n2-static.py", line 42, in <module>
+    js=work/f'js-{level}.js';run(f'js-{level}-source',[compiler,'tests/native/static-data.lil','--config',str(config),'--target','js','--compression','raw','-o',str(js)])
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/qualify-n2-static.py", line 19, in run
+    assert ok
+           ^^
+AssertionError

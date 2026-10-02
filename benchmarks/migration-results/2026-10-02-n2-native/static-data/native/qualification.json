@@ -1,0 +1,486 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+    "sha256": "b9526cc450af2f99f815696ef52d1a7b4da133b34b4ee4ff7ece11e04835bbab"
+  },
+  "rows": [
+    {
+      "name": "independent-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/static-data.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 32,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/static-data.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-1-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=1",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1912,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-1-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-0-static-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-1-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=1",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 3482,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-1-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-0-static-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-1-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=1",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-0-static-1/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1405,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-1-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-0-static-1/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/static-data.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=0",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1858,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-0-static-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=0",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 3594,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-0-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-0-static-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-0-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=0",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-0-static-0/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1392,
+      "passed": true
+    },
+    {
+      "name": "level-0-static-0-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-0-static-0/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-2/level-13-static-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-13-static-1/static-data.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 12,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-1-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=1",
+        "/tmp/lilscript-n2-static-2/level-13-static-1/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-13-static-1/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-13-static-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1993,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-1-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-13-static-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-1-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=1",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-static-2/level-13-static-1/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-13-static-1/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-13-static-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 3769,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-1-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-13-static-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-2/level-13-static-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-13-static-0/static-data.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 12,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=0",
+        "/tmp/lilscript-n2-static-2/level-13-static-0/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-13-static-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-13-static-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1945,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-13-static-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-DLS_EXPECT_STATIC=0",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-static-2/level-13-static-0/static-data.c",
+        "/tmp/lilscript-n2-static-2/level-13-static-0/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/level-13-static-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 3862,
+      "passed": true
+    },
+    {
+      "name": "level-13-static-0-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/level-13-static-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/ownership-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 305,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/ownership-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 15,
+      "passed": true
+    },
+    {
+      "name": "ownership-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-static-2/ownership-sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 827,
+      "passed": true
+    },
+    {
+      "name": "ownership-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-static-2/ownership-sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 51,
+      "passed": true
+    },
+    {
+      "name": "js-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-2/js-0.toml",
+        "--target",
+        "js",
+        "--compression",
+        "raw",
+        "-o",
+        "/tmp/lilscript-n2-static-2/js-0.js"
+      ],
+      "exit": 2,
+      "elapsed_ms": 2,
+      "passed": false
+    },
+    {
+      "name": "js-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-2/js-0.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-static-2/js-0.js"
+      ],
+      "exit": 1,
+      "elapsed_ms": 8,
+      "passed": false
+    }
+  ]
+}

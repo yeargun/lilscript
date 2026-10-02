@@ -191,6 +191,20 @@ mod tests {
         assert_eq!(config.objective.codecs.len(), 3);
     }
     #[test]
+    fn n2_static_data_control_changes_only_native_policy_identity() {
+        use crate::compilation_policy::CompilationRequest;
+        let mut config=ProjectConfig::default();
+        let native=config.resolve_policy(CompilationRequest::Native).unwrap();
+        let js_request=CompilationRequest::JavaScript {preserve_root_exports:false};
+        let javascript=config.resolve_policy(js_request).unwrap();
+        assert!(native.native_static_data());
+        config.target.native.static_data=false;
+        let owned=config.resolve_policy(CompilationRequest::Native).unwrap();
+        assert!(!owned.native_static_data());
+        assert_ne!(native.fingerprint(),owned.fingerprint());
+        assert_eq!(javascript.fingerprint(),config.resolve_policy(js_request).unwrap().fingerprint());
+    }
+    #[test]
     fn n1_native_toolchain_executes_all_objectives_and_identifies_actual_files() {
         let scratch = Scratch::new();
         let c = "#include <stdio.h>\n#include <stdint.h>\nint main(void){volatile uint32_t n=2147483647;printf(\"%d\\n\",(int32_t)(n+1));return 0;}\n";

@@ -77,12 +77,14 @@ static LS_NATIVE_UNUSED inline void *ls_array_append_slot(ls_native_array *array
     ++array->length; return slot;
 }
 static LS_NATIVE_UNUSED inline void *ls_array_store_slot(ls_native_array *array, int32_t index) {
+    if(!ls_native_mutable(&array->owner)) return NULL;
     if(index<0 || (size_t)index>array->length) { ls_native_undefined_element(); return NULL; }
     if((size_t)index==array->length) return ls_array_append_slot(array);
     if(array->present) array->present[index]=1;
     return ls_array_item(array,(size_t)index);
 }
 static LS_NATIVE_UNUSED inline void ls_array_hole(ls_native_array *array) {
+    if(!ls_native_mutable(&array->owner)) return;
     ls_array_append_slot(array); ls_array_presence(array); array->present[array->length-1]=0;
 }
 static LS_NATIVE_UNUSED inline ls_value ls_array_read(ls_native_array *array, size_t index, ls_native_temporary **temps) {
@@ -94,6 +96,7 @@ static LS_NATIVE_UNUSED inline void ls_array_write(ls_native_array *array, int32
     if(slot) array->ops->write(slot,value);
 }
 static LS_NATIVE_UNUSED inline void ls_array_drop_last(ls_native_array *array) {
+    if(!ls_native_mutable(&array->owner)) return;
     if(!array->length) return;
     size_t index=array->length-1;
     if(ls_array_has(array,index)) array->ops->drop(ls_array_item(array,index));
@@ -134,6 +137,7 @@ static LS_NATIVE_UNUSED inline ls_native_array *ls_array_concat(ls_native_array 
     return out;
 }
 static LS_NATIVE_UNUSED inline ls_native_array *ls_array_splice(ls_native_array *array, int32_t start, int32_t count) {
+    if(!ls_native_mutable(&array->owner)) return NULL;
     size_t from=ls_array_relative(start,array->length),removed=count>0?(size_t)count:0;
     if(removed>array->length-from) removed=array->length-from;
     ls_native_array *out=ls_array_slice(array,from,from+removed);
@@ -144,6 +148,7 @@ static LS_NATIVE_UNUSED inline ls_native_array *ls_array_splice(ls_native_array 
     array->length-=removed; return out;
 }
 static LS_NATIVE_UNUSED inline ls_native_array *ls_array_reverse(ls_native_array *array) {
+    if(!ls_native_mutable(&array->owner)) return NULL;
     if(array->length<2) return array;
     void *temporary=malloc(array->ops->width);
     if(!temporary) ls_native_resource_failure();
@@ -155,6 +160,7 @@ static LS_NATIVE_UNUSED inline ls_native_array *ls_array_reverse(ls_native_array
     free(temporary); return array;
 }
 static LS_NATIVE_UNUSED inline ls_native_array *ls_array_copy_within(ls_native_array *array, int32_t target, int32_t start, bool bounded, int32_t end) {
+    if(!ls_native_mutable(&array->owner)) return NULL;
     size_t to=ls_array_relative(target,array->length),from=ls_array_relative(start,array->length);
     size_t final=bounded?ls_array_relative(end,array->length):array->length;
     if(final<=from) return array;

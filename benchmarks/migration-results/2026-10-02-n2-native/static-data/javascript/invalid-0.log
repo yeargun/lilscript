@@ -1,0 +1,5 @@
+error: const data cannot reach a mutating, callback or unknown intrinsic
+ --> /tmp/lilscript-n2-static-js/invalid-0.lil:1:52
+  |
+ 1 | const int[][] data=[[1]];int[][] copy=data.slice();copy[0].push(2);
+  |                                                    ^^^^^^^^^^^^^^^

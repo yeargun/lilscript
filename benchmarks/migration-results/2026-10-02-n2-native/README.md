@@ -327,3 +327,41 @@ string refusal are retained; the corrected source explicitly supplies an absent
 name fallback. No full library rerun or native performance win is claimed.
 Immutable graphs, suspension, remaining native interfaces, full capability and
 performance/cross-target qualification remain N2 work.
+
+## Immutable static graphs
+
+Algorithm81, pin `n2-static-2`, gives checked once-created immutable graphs
+static physical storage. Array/object aliases, imported constants, record key
+order, generic product snapshots, inheritance, UTF-16 literals, absent values,
+signed zero, non-finite values and subnormals use the same physical runtime
+views. Source initialization points remain in order. Repeated function and loop
+activations keep fresh identities. Static owners bypass retaining, destruction
+and cycle scans. A garbage cycle may refer to static data without retaining
+the cycle or modifying the static header. The fingerprinted
+`target.native.static_data=false` selects ordinary runtime initialization.
+
+The shared const checker admits typed read-only readers and mutable outer
+copies from slice/concat/Object.values; shared const children remain protected.
+This is a provenance correction, not permission to remove host calls.
+
+**29 native/oracle source/build/run steps** pass across static and owned modes,
+efforts0/13, GCC/Clang18 and ASan/UBSan, including standalone ownership.
+**Five** finite-variant JavaScript/oracle steps and **three** const-child mutation
+refusals also pass. Four CLI policy receipts confirm the flag changes native
+identity and leaves JavaScript identity unchanged. Full-source JavaScript
+formation refuses mandatory non-finite literals at both efforts; V1 owns that
+gap. The finite variant changes only Infinity/NaN to2.5/3.5 and is not claimed
+as full-source parity. [Drivers, logs, receipts and exact sizes](static-data).
+
+| Effort | Static storage | Startup owners | GCC executable bytes |
+|---|---|---|---|
+| 0 | off | 18 | 110624 |
+| 0 | on | 0 | 128440 |
+| 13 | off | 16 | 105944 |
+| 13 | on | 0 | 127144 |
+
+The executable growth is a real tradeoff in this fixture. Startup allocation
+is measured; runtime speed and broad performance are not. Initial Rust borrow,
+fixture syntax/type and driver failures are retained separately from final
+passes. No broad suite rerun. Consolidated Rust/native corpus checks, suspension,
+native interfaces and performance/cross-target work remain N2.

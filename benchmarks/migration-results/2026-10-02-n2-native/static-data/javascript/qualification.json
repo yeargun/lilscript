@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "compiler": "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+  "rows": [
+    {
+      "name": "finite-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-static-js/finite.oracle.mjs"
+      ],
+      "exit": 0,
+      "status": "passed",
+      "elapsed_ms": 31
+    },
+    {
+      "name": "finite-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "/tmp/lilscript-n2-static-js/finite.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-js/level-0.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-static-js/finite-0.mjs"
+      ],
+      "exit": 0,
+      "status": "passed",
+      "elapsed_ms": 9
+    },
+    {
+      "name": "finite-0-run",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-static-js/finite-0-run.mjs"
+      ],
+      "exit": 0,
+      "status": "passed",
+      "elapsed_ms": 29
+    },
+    {
+      "name": "full-13-refusal",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-js/level-13.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-static-js/full-13.js"
+      ],
+      "exit": 1,
+      "status": "known-refusal",
+      "elapsed_ms": 12
+    },
+    {
+      "name": "finite-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "/tmp/lilscript-n2-static-js/finite.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-js/level-13.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-static-js/finite-13.mjs"
+      ],
+      "exit": 0,
+      "status": "passed",
+      "elapsed_ms": 142
+    },
+    {
+      "name": "finite-13-run",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-static-js/finite-13-run.mjs"
+      ],
+      "exit": 0,
+      "status": "passed",
+      "elapsed_ms": 32
+    },
+    {
+      "name": "invalid-0",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "/tmp/lilscript-n2-static-js/invalid-0.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-js/level-0.toml",
+        "--check"
+      ],
+      "exit": 1,
+      "status": "known-refusal",
+      "elapsed_ms": 3
+    },
+    {
+      "name": "invalid-1",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "/tmp/lilscript-n2-static-js/invalid-1.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-js/level-0.toml",
+        "--check"
+      ],
+      "exit": 1,
+      "status": "known-refusal",
+      "elapsed_ms": 3
+    },
+    {
+      "name": "invalid-2",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-static-2/lilscript",
+        "/tmp/lilscript-n2-static-js/invalid-2.lil",
+        "--config",
+        "/tmp/lilscript-n2-static-js/level-0.toml",
+        "--check"
+      ],
+      "exit": 1,
+      "status": "known-refusal",
+      "elapsed_ms": 3
+    }
+  ]
+}

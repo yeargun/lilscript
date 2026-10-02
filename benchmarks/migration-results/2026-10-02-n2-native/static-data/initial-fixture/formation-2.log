@@ -1,0 +1,5 @@
+error: operator `==` cannot be applied to `Base` and `Derived`
+ --> /home/azureuser/lilscript/tests/native/static-data.lil:38:54
+  |
+38 | print(label.items==values); print(label.name); print(base==derived); print(base.x); print(derived.name);
+  |                                                      ^^^^^^^^^^^^^

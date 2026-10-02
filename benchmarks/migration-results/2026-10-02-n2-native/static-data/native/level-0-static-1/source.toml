@@ -1,0 +1,15 @@
+effort.level=0
+[policy.tactics]
+constant-folding="off"
+inlining="off"
+scalar-replacement="off"
+[language]
+absence="unified"
+[host.native]
+observeNativeStartup="host_observeNativeStartup"
+collectNative="host_collectNative"
+assertMaxNativeCount="host_assertMaxNativeCount"
+[target.native]
+objective="balanced"
+cycle_collection_threshold=1
+static_data=true

@@ -46,7 +46,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // with objective fragments and admits fixed batches of independent file scores.
 // Version69 retains abrupt-exit finalizers and resolves embedded ESM re-exports.
 // Version71 preserves per-module identity for opaque embedded hosts.
-pub const POLICY_ALGORITHM_VERSION: u32 = 80;
+pub const POLICY_ALGORITHM_VERSION: u32 = 81;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -671,6 +671,7 @@ pub fn serialize_bound<S: serde::Serializer>(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedPolicy {
     native_cycle_threshold: u32,
+    native_static_data: bool,
     native_regex_limits: (u32, u64),
     cache: crate::config::CacheConfig,
     execution: crate::config::ExecutionConfig,
@@ -705,6 +706,7 @@ impl ResolvedPolicy {
     ) -> Self {
         let mut policy = Self {
             native_cycle_threshold: 4096,
+            native_static_data: true,
             native_regex_limits: (262144, 0),
             cache: Default::default(),
             execution: Default::default(),
@@ -731,6 +733,14 @@ impl ResolvedPolicy {
         self.cache = cache;
         self
     }
+    pub(crate) fn with_native_static_data(mut self, enabled: bool) -> Self {
+        if matches!(self.contract, CompilationContract::Native { .. }) {
+            self.native_static_data=enabled;
+            self.fingerprint=Sha256::digest(self.receipt().to_string().as_bytes()).into();
+        }
+        self
+    }
+    pub fn native_static_data(&self)->bool {self.native_static_data}
     pub(crate) fn with_native_cycle_threshold(mut self, threshold: u32) -> Self {
         if matches!(self.contract, CompilationContract::Native { .. }) {
             self.native_cycle_threshold = threshold;
@@ -1128,7 +1138,7 @@ impl ResolvedPolicy {
         use serde_json::json;
         let contract = match &self.contract {
             CompilationContract::Native { abi_version } => {
-                json!({"target":"native", "abi_version":abi_version, "string_abi":2, "cycle_collection_threshold":self.native_cycle_threshold, "regex_stack_limit":self.native_regex_limits.0, "regex_poll_limit":self.native_regex_limits.1})
+                json!({"target":"native", "abi_version":abi_version, "string_abi":2, "cycle_collection_threshold":self.native_cycle_threshold,"static_data":self.native_static_data, "regex_stack_limit":self.native_regex_limits.0, "regex_poll_limit":self.native_regex_limits.1})
             }
             CompilationContract::JavaScript {
                 language,

@@ -17,7 +17,7 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 | Functions | Direct/indirect calls, captured declarations, supported generic tagged values, per-argument absence/defaults and managed/callable references | Polymorphic container/callback bridges implemented; complete qualification: N2 |
 | Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Native specialization and full qualification: N2 |
 | Collections and classes | Shared-identity concrete/generic arrays, owned callbacks and sparse copies; class objects, maps, sets, symbols, buffers and typed arrays | Remaining recipes and comparisons: N2 |
-| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join | Callable transport implemented; immutable graph qualification: N2 |
+| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join and once-created immutable static graphs | Full capability/ABI qualification: N2 |
 | Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | Remaining native error recipes and full corpus qualification: N2 |
 | Generators, async/tasks | Source-qualified refusal | Region state machines and microtask queue: N2 |
 | Regular expressions | Pinned QuickJS libregexp; typed construction/test/search/string replacement, metadata and shared lastIndex; catchable syntax/resource errors | Broad corpus qualification: N2; JsValue match objects use the JavaScript host ABI |
@@ -131,3 +131,12 @@ coercion. Failed conversions propagate before user callbacks or constructors
 run. The native optimizer propagates this failure fact over the shared call
 graph; it does not infer that a source throw-free summary erases a necessary
 representation check.
+
+Checked immutable arrays, records, shapes, classes and products created once by
+module initialization can use static storage under `target.native.static_data`.
+Aliases and typed product copies keep their original meaning. Repeated function
+and loop activations create fresh owned objects. Static owners never enter
+reference-count or cycle-collector worklists. Mutable outer copies from `slice`,
+`concat` and `Object.values` preserve the protection of shared const children.
+The [focused qualification](../benchmarks/migration-results/2026-10-02-n2-native/README.md#immutable-static-graphs)
+records startup allocation and the executable-size cost of each setting.

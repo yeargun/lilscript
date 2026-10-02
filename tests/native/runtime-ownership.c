@@ -43,6 +43,17 @@ int main(void) {
     ls_native_release(a); ls_native_release(b); ls_native_collect_cycles();
     assert(ls_native_live_objects == 1 && root->owner.references == 1);
     ls_native_release(root); assert_empty();
+    /* Static graphs stay outside the heap and collector even when a garbage
+       cycle points to them. Their headers and outgoing edges never change. */
+    static const uint16_t literal[] = {'s','t','a','t','i','c'};
+    static node immutable = {.owner={.references=SIZE_MAX,.destroy=node_drop,.trace=node_trace},.text={literal,6,NULL}};
+    ls_native_retain(&immutable); ls_native_release(&immutable);
+    a=make_node(); b=make_node();
+    edge(&a->left,b); edge(&b->left,a); edge(&b->right,&immutable);
+    ls_native_release(a); ls_native_release(b); assert_empty();
+    assert(immutable.owner.references==SIZE_MAX && immutable.owner.color==0 && !immutable.owner.buffered);
+    assert(!ls_native_mutable(&immutable.owner) && ls_native_exception_pending());
+    ls_native_raised=false; ls_native_error_name=ls_native_error_message=NULL;
     /* Zero-count destruction and gray/black walks must not recurse in C. */
     root = make_node(); node *tail = root;
     for (int i=0;i<100000;i++) { node *next=make_node(); edge(&tail->left,next); ls_native_release(next); tail=next; }

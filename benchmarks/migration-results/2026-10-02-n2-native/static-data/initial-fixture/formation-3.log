@@ -1,0 +1,5 @@
+error: JSON serialization observes optional values outside optional object fields (R2); narrow before serializing
+ --> /home/azureuser/lilscript/tests/native/static-data.lil:40:54
+  |
+40 | print(JSON.stringify(numbers)); print(JSON.stringify(nullable));
+  |                                                      ^^^^^^^^

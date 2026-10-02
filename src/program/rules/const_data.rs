@@ -1557,6 +1557,28 @@ fn mark_place(
 fn tracked(ty: &Type<'_>) -> bool {
     aggregate(ty) || matches!(ty, Type::Function(_) | Type::GenericFunction(_))
 }
+/// The ordinary effect catalog stays conservative about host dispatch. Const
+/// checking additionally knows these source-typed operations cannot call user
+/// coercions or mutate their inputs. This does not grant removal permissions.
+fn readonly_intrinsic(program:&Program<'_>,data:&UnitData,site:&CallSite,intrinsic:crate::primitive::ResolvedIntrinsic)->bool {
+    use crate::catalog::EffectClass as E;
+    use crate::primitive::ResolvedIntrinsic as R;
+    if matches!(crate::catalog::effect_class(intrinsic),E::Read {..}|E::Pure {fresh:false,..}|E::Inert {..}) {return true;}
+    match intrinsic {
+        R::Method(Intrinsic::ArrayConcat)=>true,
+        R::Method(Intrinsic::ArrayJoin)=>{
+            let CallTarget::Intrinsic {receiver:Some(receiver),..}=site.target else {return false;};
+            matches!(&program.types[data.values[receiver.index()].ty.index()],Type::Array(element) if matches!(element.as_ref(),Type::Int|Type::Float|Type::Bool|Type::String|Type::Enum(_)))
+        },
+        _=>false,
+    }
+}
+/// Fresh identity alone is insufficient (typed subarray views still alias).
+/// These operations copy their outer storage, retaining any const children.
+fn copies_outer(intrinsic:crate::primitive::ResolvedIntrinsic)->bool {
+    use crate::primitive::ResolvedIntrinsic as R;
+    matches!(intrinsic,R::Method(Intrinsic::ArraySlice|Intrinsic::ArrayConcat|Intrinsic::ArraySplice|Intrinsic::BufferSlice))
+}
 fn validate(program: &Program<'_>, budget: &mut AllocationBudget<'_>) -> Result<(), Error> {
     let fail = |unit: UnitId, span: Span, message: &str| Error {
         module: program.unit(unit).unwrap().module,
@@ -1682,7 +1704,7 @@ fn validate(program: &Program<'_>, budget: &mut AllocationBudget<'_>) -> Result<
                                 }
                             }
                             bits = returns[target.index()];
-                        } else if let Callee::Intrinsic(_) = effects.graph().callee(unit.id(), call)
+                        } else if let Callee::Intrinsic(intrinsic) = effects.graph().callee(unit.id(), call)
                         {
                             let site = &data.calls[call.index()];
                             let receiver = match site.target {
@@ -1691,7 +1713,10 @@ fn validate(program: &Program<'_>, budget: &mut AllocationBudget<'_>) -> Result<
                                 }
                                 _ => 0,
                             };
-                            if receiver != 0 || data.arguments(site.arguments).unwrap().iter().any(|arg| matches!(arg, CallArgument::Value(value) if values[own][value.index()] != 0)) { bits = 1; }
+                            if receiver != 0 || data.arguments(site.arguments).unwrap().iter().any(|arg| matches!(arg, CallArgument::Value(value) if values[own][value.index()] != 0)) { bits = if copies_outer(intrinsic) {2}else{1}; }
+                        } else if matches!(effects.graph().callee(unit.id(),call),Callee::Builtin(crate::check::BuiltinCall::ObjectValues)) {
+                            let site=&data.calls[call.index()];
+                            if data.arguments(site.arguments).unwrap().iter().any(|arg|matches!(arg,CallArgument::Value(value) if values[own][value.index()]!=0)) {bits=2;}
                         }
                     }
                     _ => {}
@@ -1812,13 +1837,12 @@ fn validate(program: &Program<'_>, budget: &mut AllocationBudget<'_>) -> Result<
                         }
                         Callee::Intrinsic(intrinsic) if tainted || receiver != 0 => {
                             use crate::catalog::EffectClass as E;
-                            if !matches!(
-                                crate::catalog::effect_class(intrinsic),
-                                E::Read { .. } | E::Pure { fresh: false, .. } | E::Inert { .. }
-                            ) {
+                            let writes_mutable_outer=receiver&1==0 && !tainted && matches!(crate::catalog::effect_class(intrinsic),E::Write {..});
+                            if !readonly_intrinsic(program,data,site,intrinsic) && !writes_mutable_outer {
                                 return Err(fail(unit.id(), operation.span, "const data cannot reach a mutating, callback or unknown intrinsic"));
                             }
                         }
+                        Callee::Builtin(crate::check::BuiltinCall::ObjectKeys|crate::check::BuiltinCall::ObjectValues|crate::check::BuiltinCall::ObjectHasOwn|crate::check::BuiltinCall::JsonStringify)=>{},
                         _ if tainted || receiver != 0 || callable != 0 => {
                             return Err(fail(
                                 unit.id(),

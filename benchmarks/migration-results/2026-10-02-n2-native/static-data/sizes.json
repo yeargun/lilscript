@@ -1,0 +1,38 @@
+[
+  {
+    "effort": 0,
+    "static_data": false,
+    "c_bytes": 272777,
+    "executable_bytes": 110624,
+    "executable_sha256": "c0d43d3e1f4abab0950f2e074f8365e9f79ed31aa805eeb1cfe3e9a7b0f0cf8e",
+    "sections": "   text\t   data\t    bss\t    dec\t    hex\tfilename\n  90808\t   1232\t    169\t  92209\t  16831\t/tmp/lilscript-n2-static-2/level-0-static-0/gcc\n",
+    "startup_owned_objects": 18
+  },
+  {
+    "effort": 0,
+    "static_data": true,
+    "c_bytes": 278330,
+    "executable_bytes": 128440,
+    "executable_sha256": "32225dbd6dc8d39ae7344d42fe93db2913b7a06f0a4822dbf4838fdf2736c820",
+    "sections": "   text\t   data\t    bss\t    dec\t    hex\tfilename\n 100984\t   5552\t    249\t 106785\t  1a121\t/tmp/lilscript-n2-static-2/level-0-static-1/gcc\n",
+    "startup_owned_objects": 0
+  },
+  {
+    "effort": 13,
+    "static_data": false,
+    "c_bytes": 291127,
+    "executable_bytes": 105944,
+    "executable_sha256": "d778e7550eb36005e042b212ab90ddca77d226a228912631d5391c4888a14533",
+    "sections": "   text\t   data\t    bss\t    dec\t    hex\tfilename\n  87088\t   1168\t    153\t  88409\t  15959\t/tmp/lilscript-n2-static-2/level-13-static-0/gcc\n",
+    "startup_owned_objects": 16
+  },
+  {
+    "effort": 13,
+    "static_data": true,
+    "c_bytes": 296122,
+    "executable_bytes": 127144,
+    "executable_sha256": "0d8f365d644a13cd5458513b96d7041afa85a25c3bdc8f392e0dfb25f2993cd3",
+    "sections": "   text\t   data\t    bss\t    dec\t    hex\tfilename\n  98952\t   4912\t    249\t 104113\t  196b1\t/tmp/lilscript-n2-static-2/level-13-static-1/gcc\n",
+    "startup_owned_objects": 0
+  }
+]

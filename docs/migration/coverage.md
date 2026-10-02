@@ -77,7 +77,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.11 | [S4](plan.md#s4), [Q4](plan.md#q4) | Q4 implements checked scalar defines and TOML overrides, exact policy identity and bounded required evaluation. Preserve Y4; `inline for` expansion, resource/replay admission and independent TOML permission implemented; `@pool` consumed through formation/replay; `@choose` complete for documented regional families with hard permissions and stable pinned sites |
 | M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
 | M10.14 | [S4](plan.md#s4), complete under current contract | Public adapters preserve constructibility; the Y3 amendment remains unapproved |
-| M10.3 | [Q4](plan.md#q4), complete; [D2](plan.md#d2), complete; [N2](plan.md#n2) | Checked required evaluation and private immutable graphs; supported JS public data freezes exactly. D2 implements graph-preserving public product views; N2 owns static storage/native ABI |
+| M10.3 | [Q4](plan.md#q4), complete; [D2](plan.md#d2), complete; [N2](plan.md#n2) | Checked required evaluation and private immutable graphs; supported JS public data freezes exactly. D2 implements graph-preserving public product views; N2 static storage implemented; native library ABI remains |
 | M10.19 | [Q4](plan.md#q4), complete | Bounded uniform static-schema parameter forwarding, ordinary aggregate folding and existing per-call choices |
 | M10.1 | [S4](plan.md#s4) | Implemented: declared data/accessor shapes, contextual generic literals, tags, development checks and concrete product storage; unrestricted public presence needs the [separate ABI](s4-public-abi.md), native storage remains N2 |
 | M10.8 | [S4](plan.md#s4) | Implemented: declared-key shape spread, shared-key intersection checks, optional defaults and CreateDataProperty behavior; existing dictionary spread retained |
@@ -225,3 +225,9 @@ The same **V1** erased-interface gap also refuses
 read, at effort0 and13. Native formation/production and independent ECMAScript
 observations pass; both JavaScript refusal logs are retained with N2's callable
 container evidence.
+
+**V1** owns JavaScript formation of mandatory const non-finite values: the full
+`tests/native/static-data.lil` fixture is refused at effort0 and13 with
+`non-finite semantic literal`. Native handles NaN, infinities, signed zero and
+subnormals. The complete finite-number variant matches emitted JavaScript at
+both efforts; that is explicitly a variant, not full source parity.

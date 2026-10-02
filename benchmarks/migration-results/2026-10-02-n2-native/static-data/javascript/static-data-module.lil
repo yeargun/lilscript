@@ -1,0 +1,2 @@
+export const int[] importedChild=[3,7];
+export const int[][] imported=[importedChild,importedChild];

@@ -24,6 +24,8 @@ mod collections;
 mod records;
 #[path = "native_products.rs"]
 mod products;
+#[path = "native_static.rs"]
+mod static_data;
 #[path = "native_dynamic.rs"]
 mod dynamic;
 #[path = "native_enums.rs"]
@@ -243,6 +245,7 @@ pub(super) fn form(
     hosts: &NativeHostBindings<'_>,
     scalar: bool,
     dead_code: bool,
+    static_data: bool,
     cycle_threshold: u32,
     regex_limits: (u32, u64),
     budget: &mut AllocationBudget<'_>,
@@ -254,6 +257,7 @@ pub(super) fn form(
     )?;
     let mut plan = NativePlan::build_with_hosts(program, uses, hosts, &mut phase)?;
     plan.resolve_effects(uses, dead_code, &mut phase)?;
+    let static_storage=static_data::StaticStorage::build(&mut plan,static_data,&mut phase)?;
     let initialization_guards_removed = plan.cells.iter().filter(|cell| cell.global && !cell.global_guard).count() as u32;
     let storage = if scalar {
         super::physical_storage::StorageProofs::build(
@@ -268,6 +272,7 @@ pub(super) fn form(
     };
     let mut emitter = Emitter {
         plan: &plan,
+        static_storage,
         cycle_threshold,
         regex_limits,
         storage,
@@ -340,6 +345,7 @@ enum Task {
 
 struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     plan: &'plan NativePlan<'program, 'src>,
+    static_storage: static_data::StaticStorage,
     cycle_threshold: u32,
     regex_limits: (u32, u64),
     storage: super::physical_storage::StorageProofs,
@@ -394,6 +400,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
     }
     fn program(&mut self) -> Result<(), NativeError> {
         self.text(native_runtime::PROLOGUE)?;
+        self.write(format_args!("#define LS_NATIVE_STATIC_DATA {}\n",u8::from(self.static_storage.has_objects())))?;
         let threshold = self.cycle_threshold;
         self.write(format_args!("#define LS_NATIVE_CYCLE_THRESHOLD UINT32_C({threshold})\n"))?;
         if self.plan.helpers.contains(Helper::Regex) {
@@ -441,6 +448,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             self.text("};\n")?;
         }
+        self.static_graphs()?;
         self.globals()?;
         for frozen in &program.units {
             if !self.plan.created[frozen.id().index()] {
@@ -741,6 +749,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let args = unit.operands(operation.operands).unwrap();
         let result = operation.result;
         let stored_result = result.filter(|value| matches!(self.plan.units[id.index()].values[value.index()], ValueStorage::Value(ty) if ty != NativeType::Void));
+        if matches!(operation.kind,OperationKind::Allocate {..}) {
+            if let Some(value)=result {if self.static_allocation(id,value)? {return Ok(());}}
+        }
         match &operation.kind {
             OperationKind::Constant(value) => {
                 let value_id = result.unwrap();
@@ -848,6 +859,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
             }
             OperationKind::Store(place) => {
+                if let PlaceRecipe::Member {receiver,..}=self.plan.units[id.index()].places[place.index()].recipe {
+                    self.write(format_args!("if(!ls_native_mutable(ls_v{})) {{\n",receiver.index()))?;
+                    self.check_exception(id)?;self.text("}\n")?;
+                }
                 let captured=match self.plan.units[id.index()].places[place.index()].recipe {
                     PlaceRecipe::Cell(cell) if self.plan.boxed_cell(cell) && !self.plan.reference_parameter(cell)=>Some(cell),
                     _=>None,

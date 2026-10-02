@@ -1,0 +1,1 @@
+const int[] data=[1];int[] copy=data.concat([2]);copy[0]=3;data[0]=4;

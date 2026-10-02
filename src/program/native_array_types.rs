@@ -59,6 +59,7 @@ if(index<0 || (size_t)index>=array->length) return (ls_value){{0}};
 return ls_array_read(array,(size_t)index,temps);
 }}
 static LS_NATIVE_UNUSED int32_t ls_array{s}_push_owned(ls_array{s} *array, {e} value) {{
+if(!ls_native_mutable(&array->owner)) {{ls_array{s}_drop(value);return (int32_t)array->length;}}
 if(array->ops==&ls_array{s}_ops) {{ *({e} *)ls_array_append_slot(array)=value; }}
 else {{
 ls_native_temporary *ls_temps=NULL;
@@ -81,6 +82,7 @@ ls_array_write(array,index,boxed); ls_native_temporaries_clear(&ls_temps);
 }}
 }}
 static LS_NATIVE_UNUSED {e} ls_array{s}_pop(ls_array{s} *array) {{
+if(!ls_native_mutable(&array->owner)) return ({e}){{0}};
 if(!array->length) return ls_array{s}_absent();
 size_t index=array->length-1;
 if(!ls_array_has(array,index)) {{ --array->length; return ls_array{s}_absent(); }}
@@ -95,6 +97,7 @@ static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_reverse(ls_array{s} *array) {{ 
 static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_splice(ls_array{s} *array, int32_t start, int32_t count) {{ return ls_array_splice(array,start,count); }}
 static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_copy_within(ls_array{s} *array, int32_t target, int32_t start, bool bounded, int32_t end) {{ return ls_array_copy_within(array,target,start,bounded,end); }}
 static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_fill(ls_array{s} *array, {e} value) {{
+if(!ls_native_mutable(&array->owner)) return NULL;
 for(size_t i=0;i<array->length;++i) {{ ls_array{s}_set(array,(int32_t)i,value); }}
 return array;
 }}

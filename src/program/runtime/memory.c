@@ -19,6 +19,16 @@ static uint64_t ls_native_identity_counter;
 static size_t ls_native_live_objects, ls_native_since_collection;
 static ls_native_object *ls_native_candidates, *ls_native_pending;
 static bool ls_native_collecting, ls_native_destroying;
+#ifndef LS_NATIVE_STATIC_DATA
+#define LS_NATIVE_STATIC_DATA 1
+#endif
+static LS_NATIVE_UNUSED inline bool ls_native_static(const ls_native_object *object) {
+    return LS_NATIVE_STATIC_DATA && object && object->references==SIZE_MAX;
+}
+static LS_NATIVE_UNUSED inline bool ls_native_mutable(ls_native_object *object) {
+    if(ls_native_static(object)) {ls_native_raise_error("TypeError","cannot mutate immutable native data");return false;}
+    return true;
+}
 #ifndef LS_NATIVE_CYCLE_THRESHOLD
 #define LS_NATIVE_CYCLE_THRESHOLD 4096
 #endif
@@ -44,13 +54,13 @@ static LS_NATIVE_UNUSED inline void ls_native_buffer(ls_native_object *object) {
 }
 void ls_native_retain(void *handle) {
     ls_native_object *object = handle;
-    if (!object) return;
-    if (object->references == SIZE_MAX) ls_native_resource_failure();
+    if (!object || ls_native_static(object)) return;
+    if (object->references >= SIZE_MAX-1) ls_native_resource_failure();
     ++object->references;
 }
 void ls_native_release(void *handle) {
     ls_native_object *object = handle;
-    if (!object || (ls_native_collecting && object->color == 3)) return;
+    if (!object || ls_native_static(object) || (ls_native_collecting && object->color == 3)) return;
     if (!object->references) ls_native_resource_failure();
     if (--object->references) { ls_native_buffer(object); return; }
     ls_native_unbuffer(object);
@@ -69,7 +79,7 @@ void ls_native_release(void *handle) {
 }
 typedef struct { ls_native_object *work, *touched; } ls_native_trial;
 static LS_NATIVE_UNUSED inline void ls_native_gray(ls_native_object *object, ls_native_trial *trial) {
-    if (object->color) return;
+    if (ls_native_static(object) || object->color) return;
     object->color = 1;
     object->trial = object->references;
     object->scan_next = trial->touched;
@@ -79,7 +89,7 @@ static LS_NATIVE_UNUSED inline void ls_native_gray(ls_native_object *object, ls_
 }
 static LS_NATIVE_UNUSED inline void ls_native_subtract(void *handle, void *context) {
     ls_native_object *object = handle;
-    if (!object) return;
+    if (!object || ls_native_static(object)) return;
     ls_native_gray(object, context);
     if (!object->trial) ls_native_resource_failure(); /* invalid trace/owner count */
     --object->trial;
@@ -87,7 +97,7 @@ static LS_NATIVE_UNUSED inline void ls_native_subtract(void *handle, void *conte
 static LS_NATIVE_UNUSED inline void ls_native_black(void *handle, void *context) {
     ls_native_object *object = handle;
     ls_native_trial *trial = context;
-    if (!object || object->color == 2) return;
+    if (!object || ls_native_static(object) || object->color == 2) return;
     object->color = 2;
     object->work_next = trial->work;
     trial->work = object;

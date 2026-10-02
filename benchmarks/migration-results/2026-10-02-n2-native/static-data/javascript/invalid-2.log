@@ -1,0 +1,5 @@
+error: cannot mutate const data through a field, index or alias
+ --> /tmp/lilscript-n2-static-js/invalid-2.lil:1:60
+  |
+ 1 | const int[] data=[1];int[] copy=data.concat([2]);copy[0]=3;data[0]=4;
+  |                                                            ^^^^^^^^^
