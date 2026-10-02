@@ -1,0 +1,31 @@
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:747:20: error: unused function 'ls_callable1_release' [-Werror,-Wunused-function]
+  747 | static inline void ls_callable1_release(ls_callable1 value) { ls_native_release(value.environment); }
+      |                    ^~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:753:20: error: unused function 'ls_callable1_take' [-Werror,-Wunused-function]
+  753 | static inline void ls_callable1_take(ls_callable1 *destination, ls_callable1 value) {
+      |                    ^~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:757:20: error: unused function 'ls_callable1_clear' [-Werror,-Wunused-function]
+  757 | static inline void ls_callable1_clear(ls_callable1 *destination) {
+      |                    ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:770:20: error: unused function 'ls_callable2_release' [-Werror,-Wunused-function]
+  770 | static inline void ls_callable2_release(ls_callable2 value) { ls_native_release(value.environment); }
+      |                    ^~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:776:20: error: unused function 'ls_callable2_take' [-Werror,-Wunused-function]
+  776 | static inline void ls_callable2_take(ls_callable2 *destination, ls_callable2 value) {
+      |                    ^~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:780:20: error: unused function 'ls_callable2_clear' [-Werror,-Wunused-function]
+  780 | static inline void ls_callable2_clear(ls_callable2 *destination) {
+      |                    ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:793:20: error: unused function 'ls_callable3_release' [-Werror,-Wunused-function]
+  793 | static inline void ls_callable3_release(ls_callable3 value) { ls_native_release(value.environment); }
+      |                    ^~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:799:20: error: unused function 'ls_callable3_take' [-Werror,-Wunused-function]
+  799 | static inline void ls_callable3_take(ls_callable3 *destination, ls_callable3 value) {
+      |                    ^~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:803:20: error: unused function 'ls_callable3_clear' [-Werror,-Wunused-function]
+  803 | static inline void ls_callable3_clear(ls_callable3 *destination) {
+      |                    ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified-final/ownership.c:817:20: error: unused function 'ls_callable5_release' [-Werror,-Wunused-function]
+  817 | static inline void ls_callable5_release(ls_callable5 value) { ls_native_release(value.environment); }
+      |                    ^~~~~~~~~~~~~~~~~~~~
+10 errors generated.

@@ -46,7 +46,7 @@ impl CheckedSourceSession<'_> {
     pub fn check_native(&mut self, source: SemanticId) -> Result<(), ServiceError> {
         let policy = self.native.as_ref().ok_or_else(|| ServiceError::new("native", "not a native session"))?;
         let bindings = self.native_bindings.iter().map(|(cell, link_name)| NativeHostBinding { cell: *cell, link_name }).collect::<Vec<_>>();
-        let hosts = NativeHostBindings { callback_abi_version: 1, bindings: &bindings };
+        let hosts = NativeHostBindings { callback_abi_version: NativeHostBindings::ABI_VERSION, bindings: &bindings };
         self.compilation.check_native(source, policy, WorkDomain::Baseline, &hosts)
             .map_err(|error| self.native_error(source, error))
     }

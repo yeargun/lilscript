@@ -32,7 +32,7 @@ A configuration is read in two steps:
 
 An `extern` normally uses its declared global name. `[host.javascript]` selects
 another global or a dotted property path for that declaration. `[host.native]`
-selects an explicit callback ABI v1 provider symbol. Both mappings resolve to
+selects an explicit callback ABI v2 provider symbol. Both mappings resolve to
 checked declaration identities and enter the policy fingerprint.
 
 ```toml
@@ -90,6 +90,7 @@ debug_info = false
 warnings_as_errors = false
 link_time_optimization = false
 sanitizers = []
+cycle_collection_threshold = 4096
 # triple = "aarch64-linux-gnu"
 # sysroot = "toolchains/aarch64-sysroot"
 ```
@@ -104,6 +105,7 @@ sanitizers = []
 | `warnings_as_errors` | `false`; `true` adds `-Wall -Wextra -Werror`. | Useful for qualifying generated and provider C. A newer compiler can introduce warnings that stop the build. |
 | `link_time_optimization` | `false`; `true` adds `-flto`. | Can optimize across host translation units; costs link time and memory and requires compatible tools. It is not enabled by a JavaScript compression effort. |
 | `sanitizers` | Empty, or a duplicate-free list of `address` and `undefined`. | Diagnostic builds need matching runtimes and cost executable bytes, runtime and memory. They are not production performance measurements. |
+| `cycle_collection_threshold` | `4096` allocations; the interval grows to at least half the live object count. `0` collects cycles only at explicit calls and shutdown. Ordinary zero-count reclamation always runs. | Smaller values reduce garbage-cycle retention but spend more CPU scanning candidate graphs. Larger values favor throughput at higher peak memory. This changes emitted C and its policy identity; it does not alter the JavaScript objectives or waive ownership. `--link-c` uses the threshold already in its caller-owned C. |
 
 Every configuration uses C11, `-fno-fast-math` and `-ffp-contract=off`.
 No effort level relaxes numeric behavior. `[host] native_sources` joins the same

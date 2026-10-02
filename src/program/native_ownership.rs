@@ -87,8 +87,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if self.plan.cells[cell.index()].global_guard && self.plan.program.cells[cell.index()].owner != unit {
             self.write(format_args!("(*ls_g{}())", cell.index()))
         } else if self.plan.boxed_cell(cell) {
+            self.write(format_args!("(*ls_box_value{}(", cell.index()))?;
             self.box_pointer(unit, cell)?;
-            self.text("->value")
+            self.text("))")
         } else if self.plan.reference_parameter(cell) {
             self.write(format_args!("(*ls_c{})", cell.index()))
         } else {
@@ -120,18 +121,24 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             let ty = self.plan.value_type(cell.storage);
             self.write(format_args!(
-                "typedef struct {{ ls_native_object owner; {ty} value; }} ls_box{index};\n"
+                "typedef struct {{ ls_native_object owner; {ty} value; bool ready; }} ls_box{index};\n"
             ))?;
             // A box owns a managed payload: it retains on creation and
             // releases when the last closure sharing it goes.
             let destroy = if let Some(prefix) = ty.owner_prefix() {
-                self.write(format_args!("static void ls_box_destroy{index}(ls_native_object *owner) {{ {prefix}_clear(&((ls_box{index} *)owner)->value); }}\n"))?;
+                self.write(format_args!("static LS_NATIVE_UNUSED void ls_box_destroy{index}(ls_native_object *owner) {{ {prefix}_clear(&((ls_box{index} *)owner)->value); }}\n"))?;
                 format!("ls_box_destroy{index}")
             } else {
                 "NULL".to_owned()
             };
+            let trace = if let Some(trace) = ty.trace(&format!("((ls_box{index} *)owner)->value")) {
+                self.write(format_args!("static LS_NATIVE_UNUSED void ls_box_trace{index}(ls_native_object *owner, ls_native_visit visit, void *context) {{ {trace} }}\n"))?;
+                format!("ls_box_trace{index}")
+            } else { "NULL".to_owned() };
             let retain = ty.retain("value").unwrap_or_default();
-            self.write(format_args!("static ls_box{index} *ls_box_new{index}({ty} value) {{\nls_box{index} *box = ls_native_allocate(sizeof *box,{destroy});\n{retain}box->value = value;\nreturn box;\n}}\n"))?;
+            self.write(format_args!("static LS_NATIVE_UNUSED ls_box{index} *ls_box_allocate{index}(void) {{ return ls_native_allocate(sizeof(ls_box{index}),{destroy},{trace}); }}\nstatic LS_NATIVE_UNUSED void ls_box_initialize{index}(ls_box{index} *box, {ty} value) {{\n{retain}"))?;
+            if let Some(drop) = ty.release("box->value") { self.text(&drop)?; }
+            self.write(format_args!("box->value = value; box->ready = true;\n}}\nstatic LS_NATIVE_UNUSED ls_box{index} *ls_box_new{index}({ty} value) {{ ls_box{index} *box = ls_box_allocate{index}(); ls_box_initialize{index}(box, value); return box; }}\nstatic LS_NATIVE_UNUSED {ty} *ls_box_value{index}(ls_box{index} *box) {{ if (!box || !box->ready) {{ fputs(\"LilScript native captured binding used before initialization\\n\", stderr); abort(); }} return &box->value; }}\n"))?;
         }
         for frozen in &self.plan.program.units {
             let unit = frozen.id();
@@ -146,7 +153,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     self.write(format_args!("ls_box{} *ls_e{slot};\n", cell.index()))?;
                 }
             }
-            self.write(format_args!("}} ls_env{0};\nstatic void ls_env_destroy{0}(ls_native_object *owner) {{\nls_env{0} *environment = (ls_env{0} *)owner;\n",unit.index()))?;
+            self.write(format_args!("}} ls_env{0};\nstatic LS_NATIVE_UNUSED void ls_env_destroy{0}(ls_native_object *owner) {{\nls_env{0} *environment = (ls_env{0} *)owner;\n",unit.index()))?;
             for (slot, cell) in frozen.data().captures.iter().copied().enumerate() {
                 self.budget.work(WorkKind::Render, 1)?;
                 if self.plan.boxed_cell(cell) {
@@ -154,6 +161,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                         "ls_native_release(environment->ls_e{slot});\n"
                     ))?;
                 }
+            }
+            self.write(format_args!("}}\nstatic LS_NATIVE_UNUSED void ls_env_trace{0}(ls_native_object *owner, ls_native_visit visit, void *context) {{\nls_env{0} *environment = (ls_env{0} *)owner;\n", unit.index()))?;
+            for (slot, cell) in frozen.data().captures.iter().copied().enumerate() {
+                if self.plan.boxed_cell(cell) { self.write(format_args!("visit(environment->ls_e{slot}, context);\n"))?; }
             }
             self.text("}\n")?;
         }
@@ -175,7 +186,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 let signature = self.plan.signature_for_unit(unit);
                 let result = self.plan.signatures[signature].result;
                 self.write(format_args!(
-                    "static {result} ls_adapter{}(void *environment",
+                    "static LS_NATIVE_UNUSED {result} ls_adapter{}(void *environment",
                     unit.index()
                 ))?;
                 self.signature_parameters(signature, true, true)?;
@@ -193,7 +204,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             let signature = self.plan.signature_for_unit(unit);
             let boxed = self.has_boxes(unit)?;
             self.write(format_args!(
-                "static ls_callable{signature} ls_closure{}(",
+                "static LS_NATIVE_UNUSED ls_callable{signature} ls_closure{}(",
                 unit.index()
             ))?;
             let mut emitted = false;
@@ -212,7 +223,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             self.text(") {\n")?;
             if boxed {
-                self.write(format_args!("ls_env{0} *environment = ls_native_allocate(sizeof *environment,ls_env_destroy{0});\n",unit.index()))?;
+                self.write(format_args!("ls_env{0} *environment = ls_native_allocate(sizeof *environment,ls_env_destroy{0},ls_env_trace{0});\n",unit.index()))?;
                 for (slot, cell) in frozen.data().captures.iter().copied().enumerate() {
                     self.budget.work(WorkKind::Render, 1)?;
                     if self.plan.boxed_cell(cell) {
@@ -262,6 +273,21 @@ impl Emitter<'_, '_, '_, '_, '_> {
             ))?;
         }
         self.assignment_end(unit, destination)
+    }
+    /// Allocate lexical boxes on region entry, before closure creation can
+    /// capture them. Initialization fills the existing box, permitting recursive
+    /// closures without reading a still-uninitialized binding.
+    pub(super) fn region_owners(&mut self, unit: UnitId, region: RegionId) -> Result<(), NativeError> {
+        let data = self.plan.program.unit(unit).unwrap();
+        for &op in &data.regions[region.index()].operations {
+            self.budget.work(WorkKind::Render, 1)?;
+            if let OperationKind::Initialize(cell) = data.operations[op.index()].kind {
+                if self.plan.boxed_cell(cell) {
+                    self.write(format_args!("ls_c{0} = ls_box_allocate{0}();\n", cell.index()))?;
+                }
+            }
+        }
+        Ok(())
     }
     pub(super) fn parameter_owners(&mut self, unit: UnitId) -> Result<(), NativeError> {
         for &cell in &self.plan.program.unit(unit).unwrap().parameters {

@@ -24,10 +24,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     .next()
                     .is_none()
                 {
-                    self.text(",(ls_string){NULL,0})")?;
+                    self.text(",(ls_string){0})")?;
                 } else {
                     self.write(format_args!(
-                        ",(ls_string){{ls_s{0},sizeof ls_s{0}/sizeof *ls_s{0}}})",
+                        ",(ls_string){{ls_s{0},sizeof ls_s{0}/sizeof *ls_s{0},NULL}})",
                         id.index()
                     ))?;
                 }

@@ -1,0 +1,128 @@
+/tmp/lilscript-n2-runtime/ownership.c: In function ‘ls_init0’:
+/tmp/lilscript-n2-runtime/ownership.c:1282:1: error: label ‘ls_update37’ defined but not used [-Werror=unused-label]
+ 1282 | ls_update37: ;
+      | ^~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c: In function ‘ls_fn1’:
+/tmp/lilscript-n2-runtime/ownership.c:1303:9: error: variable ‘ls_v5’ set but not used [-Werror=unused-but-set-variable]
+ 1303 | int32_t ls_v5;
+      |         ^~~~~
+/tmp/lilscript-n2-runtime/ownership.c: In function ‘ls_fn2’:
+/tmp/lilscript-n2-runtime/ownership.c:1421:1: error: label ‘ls_update20’ defined but not used [-Werror=unused-label]
+ 1421 | ls_update20: ;
+      | ^~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c: At top level:
+/tmp/lilscript-n2-runtime/ownership.c:1142:13: error: ‘ls_array2_includes’ defined but not used [-Werror=unused-function]
+ 1142 | static bool ls_array2_includes(ls_array2 *array, int32_t right, int32_t start) {
+      |             ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1138:16: error: ‘ls_array2_index_of’ defined but not used [-Werror=unused-function]
+ 1138 | static int32_t ls_array2_index_of(ls_array2 *array, int32_t right) {
+      |                ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1134:17: error: ‘ls_array2_optional’ defined but not used [-Werror=unused-function]
+ 1134 | static ls_value ls_array2_optional(ls_array2 *array, int32_t index) {
+      |                 ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1118:19: error: ‘ls_array2_copy_within’ defined but not used [-Werror=unused-function]
+ 1118 | static ls_array2 *ls_array2_copy_within(ls_array2 *array, int32_t target, int32_t start, bool bounded, int32_t end) {
+      |                   ^~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1108:19: error: ‘ls_array2_splice’ defined but not used [-Werror=unused-function]
+ 1108 | static ls_array2 *ls_array2_splice(ls_array2 *array, int32_t start, int32_t count) {
+      |                   ^~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1104:19: error: ‘ls_array2_fill’ defined but not used [-Werror=unused-function]
+ 1104 | static ls_array2 *ls_array2_fill(ls_array2 *array, int32_t value) {
+      |                   ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1100:19: error: ‘ls_array2_reverse’ defined but not used [-Werror=unused-function]
+ 1100 | static ls_array2 *ls_array2_reverse(ls_array2 *array) {
+      |                   ^~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1093:19: error: ‘ls_array2_concat’ defined but not used [-Werror=unused-function]
+ 1093 | static ls_array2 *ls_array2_concat(ls_array2 *left, ls_array2 *right) {
+      |                   ^~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1088:19: error: ‘ls_array2_slice’ defined but not used [-Werror=unused-function]
+ 1088 | static ls_array2 *ls_array2_slice(ls_array2 *array, size_t start, size_t end) {
+      |                   ^~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1084:16: error: ‘ls_array2_pop’ defined but not used [-Werror=unused-function]
+ 1084 | static int32_t ls_array2_pop(ls_array2 *array) {
+      |                ^~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1079:13: error: ‘ls_array2_set’ defined but not used [-Werror=unused-function]
+ 1079 | static void ls_array2_set(ls_array2 *array, int32_t index, int32_t value) {
+      |             ^~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1075:16: error: ‘ls_array2_get’ defined but not used [-Werror=unused-function]
+ 1075 | static int32_t ls_array2_get(ls_array2 *array, int32_t index) {
+      |                ^~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1074:13: error: ‘ls_array2_hole’ defined but not used [-Werror=unused-function]
+ 1074 | static void ls_array2_hole(ls_array2 *array) { ls_array2_push(array, 0); }
+      |             ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1020:19: error: ‘ls_array1_copy_within’ defined but not used [-Werror=unused-function]
+ 1020 | static ls_array1 *ls_array1_copy_within(ls_array1 *array, int32_t target, int32_t start, bool bounded, int32_t end) {
+      |                   ^~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1010:19: error: ‘ls_array1_splice’ defined but not used [-Werror=unused-function]
+ 1010 | static ls_array1 *ls_array1_splice(ls_array1 *array, int32_t start, int32_t count) {
+      |                   ^~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1006:19: error: ‘ls_array1_fill’ defined but not used [-Werror=unused-function]
+ 1006 | static ls_array1 *ls_array1_fill(ls_array1 *array, ls_t0 value) {
+      |                   ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:1002:19: error: ‘ls_array1_reverse’ defined but not used [-Werror=unused-function]
+ 1002 | static ls_array1 *ls_array1_reverse(ls_array1 *array) {
+      |                   ^~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:995:19: error: ‘ls_array1_concat’ defined but not used [-Werror=unused-function]
+  995 | static ls_array1 *ls_array1_concat(ls_array1 *left, ls_array1 *right) {
+      |                   ^~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:990:19: error: ‘ls_array1_slice’ defined but not used [-Werror=unused-function]
+  990 | static ls_array1 *ls_array1_slice(ls_array1 *array, size_t start, size_t end) {
+      |                   ^~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:976:13: error: ‘ls_array1_hole’ defined but not used [-Werror=unused-function]
+  976 | static void ls_array1_hole(ls_array1 *array) { (void)array; ls_native_undefined_element(); }
+      |             ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:929:13: error: ‘ls_array0_includes’ defined but not used [-Werror=unused-function]
+  929 | static bool ls_array0_includes(ls_array0 *array, ls_string right, int32_t start) {
+      |             ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:925:16: error: ‘ls_array0_index_of’ defined but not used [-Werror=unused-function]
+  925 | static int32_t ls_array0_index_of(ls_array0 *array, ls_string right) {
+      |                ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:921:17: error: ‘ls_array0_optional’ defined but not used [-Werror=unused-function]
+  921 | static ls_value ls_array0_optional(ls_array0 *array, int32_t index) {
+      |                 ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:905:19: error: ‘ls_array0_copy_within’ defined but not used [-Werror=unused-function]
+  905 | static ls_array0 *ls_array0_copy_within(ls_array0 *array, int32_t target, int32_t start, bool bounded, int32_t end) {
+      |                   ^~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:895:19: error: ‘ls_array0_splice’ defined but not used [-Werror=unused-function]
+  895 | static ls_array0 *ls_array0_splice(ls_array0 *array, int32_t start, int32_t count) {
+      |                   ^~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:891:19: error: ‘ls_array0_fill’ defined but not used [-Werror=unused-function]
+  891 | static ls_array0 *ls_array0_fill(ls_array0 *array, ls_string value) {
+      |                   ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:887:19: error: ‘ls_array0_reverse’ defined but not used [-Werror=unused-function]
+  887 | static ls_array0 *ls_array0_reverse(ls_array0 *array) {
+      |                   ^~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:880:19: error: ‘ls_array0_concat’ defined but not used [-Werror=unused-function]
+  880 | static ls_array0 *ls_array0_concat(ls_array0 *left, ls_array0 *right) {
+      |                   ^~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:875:19: error: ‘ls_array0_slice’ defined but not used [-Werror=unused-function]
+  875 | static ls_array0 *ls_array0_slice(ls_array0 *array, size_t start, size_t end) {
+      |                   ^~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:871:18: error: ‘ls_array0_pop’ defined but not used [-Werror=unused-function]
+  871 | static ls_string ls_array0_pop(ls_array0 *array) {
+      |                  ^~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:866:13: error: ‘ls_array0_set’ defined but not used [-Werror=unused-function]
+  866 | static void ls_array0_set(ls_array0 *array, int32_t index, ls_string value) {
+      |             ^~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:861:13: error: ‘ls_array0_hole’ defined but not used [-Werror=unused-function]
+  861 | static void ls_array0_hole(ls_array0 *array) { ls_array0_push(array, (ls_string){0}); }
+      |             ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:807:21: error: ‘ls_value_to_callable4’ defined but not used [-Werror=unused-function]
+  807 | static ls_callable4 ls_value_to_callable4(ls_value value) {
+      |                     ^~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:806:17: error: ‘ls_value_callable4’ defined but not used [-Werror=unused-function]
+  806 | static ls_value ls_value_callable4(ls_callable4 value) { ls_value result = {.tag = LS_CALLABLE, .signature = 4}; memcpy(&result.as.c, &value, sizeof value); return result; }
+      |                 ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:800:21: error: ‘ls_value_to_callable2’ defined but not used [-Werror=unused-function]
+  800 | static ls_callable2 ls_value_to_callable2(ls_value value) {
+      |                     ^~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:799:17: error: ‘ls_value_callable2’ defined but not used [-Werror=unused-function]
+  799 | static ls_value ls_value_callable2(ls_callable2 value) { ls_value result = {.tag = LS_CALLABLE, .signature = 2}; memcpy(&result.as.c, &value, sizeof value); return result; }
+      |                 ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:793:21: error: ‘ls_value_to_callable1’ defined but not used [-Werror=unused-function]
+  793 | static ls_callable1 ls_value_to_callable1(ls_value value) {
+      |                     ^~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime/ownership.c:792:17: error: ‘ls_value_callable1’ defined but not used [-Werror=unused-function]
+  792 | static ls_value ls_value_callable1(ls_callable1 value) { ls_value result = {.tag = LS_CALLABLE, .signature = 1}; memcpy(&result.as.c, &value, sizeof value); return result; }
+      |                 ^~~~~~~~~~~~~~~~~~
+cc1: all warnings being treated as errors

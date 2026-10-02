@@ -65,7 +65,7 @@ fn with_host_program<R>(
     }
     bindings.sort_by_key(|binding| binding.cell);
     let hosts = NativeHostBindings {
-        callback_abi_version: 1,
+        callback_abi_version: NativeHostBindings::ABI_VERSION,
         bindings: &bindings,
     };
     let mut compilation = Compilation::new(
@@ -270,7 +270,7 @@ fn fixture_artifacts(
     let render_before = compilation.ledger().work_by_kind(WorkKind::Render);
     let (c, header) = emit_pair(compilation, source, hosts);
     let native_work = compilation.ledger().work_by_kind(WorkKind::Render) - render_before;
-    assert!(header.contains("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 1"));
+    assert!(header.contains("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 2"));
     assert!(header.contains("host_keep_arg1_retain"));
     assert!(header.contains("host_keep_arg1_release"));
     assert!(header.contains("host_keep_arg1_call"));
@@ -334,7 +334,7 @@ fn fixture_artifacts(
         "expected":expected,"expected_sha256":digest(expected),
         "c":c,"c_sha256":digest(&c),"header":header,"header_sha256":digest(&header),
         "host_c":HOST_C,"host_c_sha256":digest(HOST_C),"host_js":HOST_JS,"host_js_sha256":digest(HOST_JS),
-        "callback_abi_version":1,"host_bindings":bindings,"native_render_work":native_work,
+        "callback_abi_version":NativeHostBindings::ABI_VERSION,"host_bindings":bindings,"native_render_work":native_work,
         "executions":executions,"javascript":javascript,
         "compiler_build":if cfg!(debug_assertions) {"debug-assertions"} else {"release-no-debug-assertions"},
         "qualification":"original checked source and fixed trace; same generated C/header artifacts compiled as separate TUs; real reference-count owner and Node callback oracle",
@@ -416,7 +416,7 @@ fn public_qualified_pair(
             ArtifactRuntimeEvidence::default(),
             WorkDomain::Baseline,
             &NativeHostBindings {
-                callback_abi_version: 1,
+                callback_abi_version: NativeHostBindings::ABI_VERSION,
                 bindings: &bindings,
             },
         )
@@ -424,7 +424,7 @@ fn public_qualified_pair(
     drop(bindings);
     assert_eq!(receipt.policy_fingerprint(), policy.fingerprint());
     assert_eq!(receipt.abi_version(), crate::package::LILSCRIPT_ABI_VERSION);
-    assert_eq!(receipt.callback_abi_version(), 1);
+    assert_eq!(receipt.callback_abi_version(), NativeHostBindings::ABI_VERSION);
     assert_eq!(
         receipt.cost(),
         crate::compilation_policy::CandidateCostEvidence::size_only(
@@ -437,7 +437,7 @@ fn public_qualified_pair(
             assert_eq!(view.header.len(), receipt.header_bytes());
             assert!(view
                 .header
-                .contains("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 1"));
+                .contains("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 2"));
             assert!(view.header.contains("host_keep_arg1_retain"));
             assert!(view.header.contains("host_keep_arg1_release"));
             assert!(view.header.contains("host_keep_arg1_call"));

@@ -2459,6 +2459,7 @@ impl<'src> Compilation<'src> {
             hosts,
             policy.tactic(TacticId::ScalarReplacement).enabled,
             policy.tactic(TacticId::DeadCodeElimination).enabled,
+            policy.native_cycle_threshold(),
             &mut budget,
         )?;
         budget.work(WorkKind::Render, 0)?;
@@ -2496,6 +2497,7 @@ impl<'src> Compilation<'src> {
             hosts,
             policy.tactic(TacticId::ScalarReplacement).enabled,
             policy.tactic(TacticId::DeadCodeElimination).enabled,
+            policy.native_cycle_threshold(),
             &mut budget,
         )?;
         self.artifacts.retain_native(

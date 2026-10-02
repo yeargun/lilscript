@@ -90,21 +90,22 @@ pub struct NativeHostBinding<'a> {
     pub link_name: &'a str,
 }
 
-/// Callback ABI v1 supports synchronous entry/reentry on the originating
+/// Callback ABI v2 supports synchronous entry/reentry on the originating
 /// thread. Input handles are borrowed; retaining them acquires an owner.
 /// A returned handle transfers an owner. Hosts release retained callbacks
 /// before execution ends; concurrent calls and foreign unwinding are excluded.
-/// String payloads (including struct fields) borrow immutable UTF-16 storage
-/// valid until execution ends, matching this native client's static-string
-/// representation. Hosts must not return pointers to temporary string storage.
+/// String ABI v2 includes an owner. Inputs borrow; returned handles/strings
+/// transfer an owner. A retained slice keeps its backing allocation alive.
+/// Static host string storage uses a null owner; temporary storage must be copied.
 #[derive(Debug, Clone, Copy)]
 pub struct NativeHostBindings<'a> {
     pub callback_abi_version: u32,
     pub bindings: &'a [NativeHostBinding<'a>],
 }
 impl NativeHostBindings<'_> {
+    pub const ABI_VERSION: u32 = super::native_memory::CALLBACK_ABI_VERSION;
     pub const EMPTY: Self = Self {
-        callback_abi_version: 1,
+        callback_abi_version: Self::ABI_VERSION,
         bindings: &[],
     };
 }
@@ -231,6 +232,7 @@ pub(super) fn form(
     hosts: &NativeHostBindings<'_>,
     scalar: bool,
     dead_code: bool,
+    cycle_threshold: u32,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<NativeArtifacts, NativeError> {
     let mut phase = budget.scope();
@@ -254,6 +256,7 @@ pub(super) fn form(
     };
     let mut emitter = Emitter {
         plan: &plan,
+        cycle_threshold,
         storage,
         operation: None,
         ownership_transfers: 0,
@@ -317,6 +320,7 @@ enum Task {
 
 struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     plan: &'plan NativePlan<'program, 'src>,
+    cycle_threshold: u32,
     storage: super::physical_storage::StorageProofs,
     operation: Option<OpId>,
     ownership_transfers: u32,
@@ -365,16 +369,18 @@ impl Emitter<'_, '_, '_, '_, '_> {
     }
     fn program(&mut self) -> Result<(), NativeError> {
         self.text(native_runtime::PROLOGUE)?;
+        let threshold = self.cycle_threshold;
+        self.write(format_args!("#define LS_NATIVE_CYCLE_THRESHOLD UINT32_C({threshold})\n"))?;
         for helper in self.plan.helpers.iter() {
             self.text(helper.definition())?;
         }
         let program = self.plan.program;
+        self.type_declarations()?;
         self.value_types()?;
         if self.plan.needs_callable_runtime() {
             self.text(native_memory::INTERFACE)?;
             self.text(native_memory::QUALIFICATION_IMPLEMENTATION)?;
             // Callable signatures may mention arrays; arrays hold no callables.
-            self.array_declarations()?;
             self.callable_types()?;
             self.dynamic_callables()?;
             self.adapters()?;
@@ -398,7 +404,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             if value.code_units().next().is_none() {
                 continue;
             }
-            self.write(format_args!("static const uint16_t ls_s{index}[] = {{"))?;
+            self.write(format_args!("static LS_NATIVE_UNUSED const uint16_t ls_s{index}[] = {{"))?;
             for unit in value.code_units() {
                 self.write(format_args!("{unit},"))?;
             }
@@ -446,8 +452,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
             }
         }
-        if self.plan.helpers.contains(Helper::Strings) {
-            self.text("ls_strings_release();\n")?;
+        if self.plan.needs_callable_runtime() {
+            self.text("ls_native_collect_cycles();\n")?;
         }
         self.text("return 0;\n}\n")
     }
@@ -465,14 +471,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
             let ValueStorage::Value(ty) = cell.storage else {
                 unreachable!("native globals are value storage")
             };
-            self.write(format_args!("static {ty} ls_c{index}{};\n", ty.empty_slot()))?;
+            self.write(format_args!("static LS_NATIVE_UNUSED {ty} ls_c{index}{};\n", ty.empty_slot()))?;
             if !cell.global_guard { continue; }
             if first {
-                self.text("#include <stdlib.h>\nstatic void ls_native_unbound(void) {\nfputs(\"LilScript native module binding used before initialization\\n\", stderr);\nabort();\n}\n")?;
+                self.text("#include <stdlib.h>\nstatic LS_NATIVE_UNUSED void ls_native_unbound(void) {\nfputs(\"LilScript native module binding used before initialization\\n\", stderr);\nabort();\n}\n")?;
                 first = false;
             }
             self.write(format_args!(
-                "static bool ls_ready{index};\nstatic {ty} *ls_g{index}(void) {{\nif (!ls_ready{index}) ls_native_unbound();\nreturn &ls_c{index};\n}}\n"
+                "static LS_NATIVE_UNUSED bool ls_ready{index};\nstatic LS_NATIVE_UNUSED {ty} *ls_g{index}(void) {{\nif (!ls_ready{index}) ls_native_unbound();\nreturn &ls_c{index};\n}}\n"
             ))?;
         }
         Ok(())
@@ -485,10 +491,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
         } else {
             "ls_fn"
         };
-        self.write(format_args!("static {} {name}{}(", result, id.index()))?;
+        self.write(format_args!("static LS_NATIVE_UNUSED {} {name}{}(", result, id.index()))?;
         let environment = self.plan.units[id.index()].has_environment;
         if environment {
-            self.text("void *ls_env")?;
+            self.text("void *ls_env LS_NATIVE_UNUSED")?;
         }
         if unit.parameters.is_empty() && !environment {
             self.text("void")?;
@@ -501,7 +507,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 unreachable!("native plan has only by-value parameters")
             };
             self.write(format_args!(
-                "{} {}ls_{}{}",
+                "{} {}ls_{}{} LS_NATIVE_UNUSED",
                 ty,
                 if self.plan.reference_parameter(cell) {
                     "*"
@@ -515,7 +521,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if unit.kind != UnitKind::ModuleInitialization
             && self.plan.signatures[self.plan.signature_for_unit(id)].has_optional()
         {
-            self.text(",size_t ls_argc")?;
+            self.text(",size_t ls_argc LS_NATIVE_UNUSED")?;
         }
         self.text(")")
     }
@@ -545,7 +551,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                         ))?;
                     } else {
                         self.write(format_args!(
-                            "{} ls_c{}{};\n",
+                            "{} ls_c{} LS_NATIVE_UNUSED{};\n",
                             ty,
                             cell.index(),
                             ty.empty_slot()
@@ -563,7 +569,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.budget.work(WorkKind::Render, 1)?;
             if let ValueStorage::Value(ty) = storage {
                 if ty != NativeType::Void {
-                    self.write(format_args!("{} ls_v{index}{};\n", ty, ty.empty_slot()))?;
+                    self.write(format_args!("{} ls_v{index} LS_NATIVE_UNUSED{};\n", ty, ty.empty_slot()))?;
                 }
             }
         }
@@ -611,6 +617,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     destination,
                 } => {
                     if self.plan.needs_callable_runtime() {
+                        self.region_owners(id, region)?;
                         self.budget.push(
                             AllocationClass::Scratch,
                             &mut self.active_regions,
@@ -665,7 +672,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     ))?;
                 }
                 Task::LoopUpdate(operation) => {
-                    self.write(format_args!("ls_update{}: ;\n", operation.index()))?
+                    self.write(format_args!("ls_update{}: LS_NATIVE_UNUSED;\n", operation.index()))?
                 }
                 Task::LoopEnd(operation) => self.write(format_args!(
                     "goto ls_test{};\nls_end{}: ;\n",
@@ -723,10 +730,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     Constant::String(string) => {
                         let value = &self.plan.program.strings[string.index()];
                         if value.code_units().next().is_none() {
-                            self.text("(ls_string){NULL,0}")?;
+                            self.text("(ls_string){0}")?;
                         } else {
                             self.write(format_args!(
-                                "(ls_string){{ls_s{0},sizeof ls_s{0}/sizeof *ls_s{0}}}",
+                                "(ls_string){{ls_s{0},sizeof ls_s{0}/sizeof *ls_s{0},NULL}}",
                                 string.index(),
                             ))?;
                         }
@@ -748,7 +755,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             OperationKind::Initialize(cell) => {
                 if self.plan.boxed_cell(*cell) {
                     self.write(format_args!(
-                        "ls_native_release(ls_c{0});\nls_c{0} = ls_box_new{0}(",
+                        "ls_box_initialize{0}(ls_c{0},",
                         cell.index()
                     ))?;
                     let ty = self.plan.value_type(self.plan.cell_storage(*cell));
@@ -939,7 +946,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 else {
                     unreachable!("native struct allocation is a value")
                 };
-                self.write(format_args!("ls_v{} = ({ty}){{", result.index()))?;
+                self.assignment_start(id, Destination::Value(result), false)?;
+                self.write(format_args!("({ty}){{"))?;
                 if args.is_empty() {
                     self.text("0")?;
                 }
@@ -953,7 +961,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     }
                     self.converted(id, *value, self.plan.field_type(field))?;
                 }
-                self.text("};\n")?;
+                self.text("}")?;
+                self.assignment_end(id, Destination::Value(result))?;
             }
             OperationKind::CopyValue => {
                 if let Some(result) = stored_result {
@@ -988,9 +997,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.binary(id, *kind, result.unwrap(), args[0], args[1])?;
             }
             OperationKind::Template => {
-                self.write(format_args!("ls_v{} = ", result.unwrap().index()))?;
+                let destination = Destination::Value(result.unwrap());
+                self.assignment_start(id, destination, true)?;
                 self.concatenation(id, args)?;
-                self.text(";\n")?;
+                self.assignment_end(id, destination)?;
             }
             OperationKind::Unary { op, integer } => {
                 let result = result.unwrap().index();

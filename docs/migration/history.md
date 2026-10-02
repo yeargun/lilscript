@@ -1836,3 +1836,23 @@ facilities. N2 retains exception status, native specialization, RC strings,
 cycles, the remaining language/ABI runtime and performance requirements; none
 is counted as implemented by N1. N1 is complete under
 [its acceptance contract](n1-acceptance.md); N2 follows.
+
+## 2026-10-02: N2 runtime ownership foundation
+
+Algorithm74 moves runtime recipes into C files under the existing dependency
+owner, implements reference-counted UTF-16 string ABI 2, managed nongeneric
+product fields and synchronous candidate trial-deletion cycle collection.
+Generated traces share field ownership with destruction. Lexical boxes are
+allocated before closure creation, permitting self-recursive captures while
+retaining initialization checks. Provider headers use callback ABI 2 and
+include an owned UTF-16 copy operation. TOML documents the collection threshold
+and its memory/CPU tradeoff; generated helpers/slots have explicit unused
+annotations so provider warnings remain enforced.
+
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md)
+retains standalone GCC/Clang/ASan/UBSan ownership checks, generated source
+checks including exact live-object assertions and eight passing C-runner
+cells. The self-recursive closure ledger entry is removed. Initial Rust and
+strict-C build failures and their fixes are retained. No full library suite,
+compression comparison or native-speed qualification was run. N2 remains the
+sole active milestone; portable data operations follow.

@@ -856,7 +856,7 @@ fn s4_native_code_unit_and_every_binary_kind_trap_invalid_reads() {
                 program.cells().iter().position(|cell|cell.name=="selected" && cell.binding==CellBinding::Foreign).unwrap()
             ).unwrap()).unwrap();
             let bindings=[NativeHostBinding{cell,link_name:"host_selected"}];
-            let hosts=NativeHostBindings{callback_abi_version:1,bindings:&bindings};
+            let hosts=NativeHostBindings{callback_abi_version:NativeHostBindings::ABI_VERSION,bindings:&bindings};
             compilation.with_native_c_and_hosts(source,&native_policy(),WorkDomain::Baseline,&hosts,|output|output.take_c()).unwrap()
         });
         let input = directory.0.join(format!("{name}.c"));

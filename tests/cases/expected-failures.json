@@ -58,12 +58,6 @@
       "lanes": "c",
       "reason": "Native `Record<T>` is refused (\"native source type\", \"native callable payload type\").",
       "owner": "M11.4"
-    },
-    {
-      "case": "cases/regressions/irjs-emits_exclusive_recursive_local_as_a_named_function_expression_iife",
-      "lanes": "c",
-      "reason": "A self-recursive closure is refused natively: \"native captured dynamic callable payload\".",
-      "owner": "M11.6 (the portable subset; the plan's list does not yet name closures)"
     }
   ]
 }

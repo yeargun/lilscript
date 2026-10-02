@@ -147,6 +147,7 @@ External C compiler settings; these never relax checked source semantics.
 | `warnings_as_errors` | `bool` | `false` | False by default. |
 | `link_time_optimization` | `bool` | `false` | False by default. |
 | `sanitizers` | `Vec<NativeSanitizer>` | `Vec::new()` | Empty by default. |
+| `cycle_collection_threshold` | `u32` | `4096` | 4096 allocations by default, scaled with the live heap. |
 
 ## `[delivery]` — closed
 

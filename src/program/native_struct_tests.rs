@@ -177,9 +177,8 @@ fn native_empty_structs_have_no_observable_padding_field() {
     qualify("empty-values", EMPTY, "3\n4\n5\n");
 }
 #[test]
-fn native_struct_reference_fields_remain_explicitly_unsupported() {
+fn native_struct_record_fields_remain_explicitly_unsupported() {
     for source in [
-        "struct Holder { int[] items; } Holder value = Holder{[1,2]}; print(value.items.length);",
         "struct Holder { Record<int> items; } Holder value = Holder{record{item:1}}; print(value.items.item);",
     ] {
         checked(source, |program| {

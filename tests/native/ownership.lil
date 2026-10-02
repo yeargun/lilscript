@@ -1,0 +1,48 @@
+extern void assertNativeCount(int expected);
+extern void collectNative();
+extern string makeHostText();
+struct Text { string label; int[] items; }
+Text change(Text value) { value.label = value.label.slice(1); value.items.push(9); return value; }
+void strings() {
+    string host = makeHostText();
+    print(host.slice(1));
+    string value = "seed";
+    for (int i=0;i<100;i++) { value = `${i}:${value.slice(0,3)}`; }
+    string[] parts = value.split(":");
+    print(parts[0]);
+    string view = value.slice(0,2);
+    value = "gone";
+    print(view);
+    Text first = Text{"prefix".repeat(2),[1,2]};
+    Text second = change(first);
+    print(first.label); print(second.label); print(first.items.length);
+    Text[] copies = [first,second];
+    Text out = copies.pop();
+    copies[0] = out;
+    print(copies[0].label);
+}
+class Node {
+    Node? next = null;
+    Node? alias = null;
+    string name = "";
+    init(string label) { this.name = label; }
+}
+void cycle() {
+    Node a = new Node("a".repeat(2));
+    Node b = new Node("b".repeat(3));
+    a.next=b; a.alias=b; b.next=a;
+}
+func()->int callback() { int state=0; auto step=()=>{ state+=1; return state; }; return ()=>step(); }
+struct FnBox { func()->int run; string name; }
+FnBox makeBox(){ return FnBox{callback(), "boxed".repeat(2)}; }
+void closures() {
+    auto f=callback(); print(f()); print(f());
+    FnBox box=makeBox(); FnBox other=box;
+    print(other.run()); print(box.run()); print(other.name);
+}
+int walk(int n){func(int)->int step=(int x)=>{if(x<=0){return 0;}return x+step(x-1);};return step(n);}
+strings(); closures(); print(walk(4));
+collectNative(); assertNativeCount(0);
+for (int i=0;i<100;i++) { cycle(); }
+collectNative(); assertNativeCount(0);
+print("done");

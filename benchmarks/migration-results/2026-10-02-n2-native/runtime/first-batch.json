@@ -1,0 +1,60 @@
+{
+  "compiler_sha256": "0787a0e2a4d63f86349ce9d33c7a308ecf9c5d27ad43b508a7ca608ba380befd",
+  "rows": [
+    {
+      "name": "standalone-gcc",
+      "exit": 0,
+      "command": [
+        "/usr/bin/cc",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-O2",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-runtime/runtime-gcc"
+      ]
+    },
+    {
+      "name": "standalone-gcc-run",
+      "exit": 0,
+      "command": [
+        "/tmp/lilscript-n2-runtime/runtime-gcc"
+      ]
+    },
+    {
+      "name": "ownership-source",
+      "exit": 0,
+      "command": [
+        "/home/azureuser/lilscript-work/bin/n2-runtime-1/lilscript",
+        "tests/native/ownership.lil",
+        "--config",
+        "tests/native/ownership.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-runtime/ownership.c"
+      ]
+    },
+    {
+      "name": "ownership-gcc",
+      "exit": 1,
+      "command": [
+        "/usr/bin/cc",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-O2",
+        "/tmp/lilscript-n2-runtime/ownership.c",
+        "/tmp/lilscript-n2-runtime/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-runtime/ownership"
+      ]
+    }
+  ]
+}

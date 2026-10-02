@@ -29,10 +29,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
             return Ok(());
         }
         self.text(
-            "static void ls_native_undefined_element(void) {\n\
+            "static LS_NATIVE_UNUSED void ls_native_undefined_element(void) {\n\
              fputs(\"LilScript native array element is undefined\\n\", stderr);\n\
              abort();\n}\n\
-             static size_t ls_array_relative(int32_t index, size_t length) {\n\
+             static LS_NATIVE_UNUSED size_t ls_array_relative(int32_t index, size_t length) {\n\
              if (index < 0) return (size_t)-(int64_t)index >= length ? 0 : length - (size_t)-(int64_t)index;\n\
              return (size_t)index < length ? (size_t)index : length;\n}\n",
         )?;
@@ -44,28 +44,30 @@ impl Emitter<'_, '_, '_, '_, '_> {
             // owner to the caller.
             let acquire = element.retain("value").unwrap_or_default();
             let drop = element.release("value").unwrap_or_default();
+            let trace = element.trace("array->items[index]").unwrap_or_default();
             let absent = match element {
                 NativeType::I32 => "return 0;".to_owned(),
-                NativeType::String => "return (ls_string){NULL,0};".to_owned(),
+                NativeType::String => "return (ls_string){0};".to_owned(),
                 NativeType::Dynamic(_) => "return (ls_value){0};".to_owned(),
                 _ => "ls_native_undefined_element(); return array->items[0];".to_owned(),
             };
             let hole = match element {
                 NativeType::I32 => format!("ls_array{s}_push(array, 0);"),
-                NativeType::String => format!("ls_array{s}_push(array, (ls_string){{NULL,0}});"),
+                NativeType::String => format!("ls_array{s}_push(array, (ls_string){{0}});"),
                 NativeType::Dynamic(_) => format!("ls_array{s}_push(array, (ls_value){{0}});"),
                 _ => "(void)array; ls_native_undefined_element();".to_owned(),
             };
             self.write(format_args!(
                 "struct ls_array{s} {{ ls_native_object owner; size_t length; size_t capacity; {e} *items; }};\n\
-static void ls_array{s}_acquire({e} value) {{ (void)value; {acquire}}}\n\
-static void ls_array{s}_drop({e} value) {{ (void)value; {drop}}}\n\
-static void ls_array{s}_destroy(ls_native_object *owner) {{\n\
+static LS_NATIVE_UNUSED void ls_array{s}_acquire({e} value) {{ (void)value; {acquire}}}\n\
+static LS_NATIVE_UNUSED void ls_array{s}_drop({e} value) {{ (void)value; {drop}}}\n\
+static LS_NATIVE_UNUSED void ls_array{s}_trace(ls_native_object *owner, ls_native_visit visit, void *context) {{ ls_array{s} *array = (ls_array{s} *)owner; (void)visit; (void)context; for (size_t index = 0; index < array->length; ++index) {{ {trace} }} }}\n\
+static LS_NATIVE_UNUSED void ls_array{s}_destroy(ls_native_object *owner) {{\n\
 ls_array{s} *array = (ls_array{s} *)owner;\n\
 for (size_t index = 0; index < array->length; index++) ls_array{s}_drop(array->items[index]);\n\
 free(array->items);\n}}\n\
-static ls_array{s} *ls_array{s}_new(size_t capacity) {{\n\
-ls_array{s} *array = ls_native_allocate(sizeof *array, ls_array{s}_destroy);\n\
+static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_new(size_t capacity) {{\n\
+ls_array{s} *array = ls_native_allocate(sizeof *array, ls_array{s}_destroy, ls_array{s}_trace);\n\
 array->length = 0; array->capacity = 0; array->items = NULL;\n\
 if (capacity) {{\n\
 if (capacity > SIZE_MAX / sizeof *array->items) ls_native_resource_failure();\n\
@@ -73,49 +75,49 @@ array->items = malloc(capacity * sizeof *array->items);\n\
 if (!array->items) ls_native_resource_failure();\n\
 array->capacity = capacity;\n}}\n\
 return array;\n}}\n\
-static void ls_array{s}_reserve(ls_array{s} *array, size_t length) {{\n\
+static LS_NATIVE_UNUSED void ls_array{s}_reserve(ls_array{s} *array, size_t length) {{\n\
 if (length <= array->capacity) return;\n\
 size_t capacity = array->capacity ? array->capacity : 4;\n\
 while (capacity < length) {{ if (capacity > SIZE_MAX / 2 / sizeof *array->items) ls_native_resource_failure(); capacity *= 2; }}\n\
 {e} *items = realloc(array->items, capacity * sizeof *items);\n\
 if (!items) ls_native_resource_failure();\n\
 array->items = items; array->capacity = capacity;\n}}\n\
-static int32_t ls_array{s}_push_owned(ls_array{s} *array, {e} value) {{\n\
+static LS_NATIVE_UNUSED int32_t ls_array{s}_push_owned(ls_array{s} *array, {e} value) {{\n\
 if (array->length >= (size_t)INT32_MAX) ls_native_resource_failure();\n\
 ls_array{s}_reserve(array, array->length + 1);\n\
 array->items[array->length++] = value;\n\
 return (int32_t)array->length;\n}}\n\
-static int32_t ls_array{s}_push(ls_array{s} *array, {e} value) {{\n\
+static LS_NATIVE_UNUSED int32_t ls_array{s}_push(ls_array{s} *array, {e} value) {{\n\
 ls_array{s}_acquire(value);\n\
 return ls_array{s}_push_owned(array, value);\n}}\n\
-static void ls_array{s}_hole(ls_array{s} *array) {{ {hole} }}\n\
-static {e} ls_array{s}_get(ls_array{s} *array, int32_t index) {{\n\
+static LS_NATIVE_UNUSED void ls_array{s}_hole(ls_array{s} *array) {{ {hole} }}\n\
+static LS_NATIVE_UNUSED {e} ls_array{s}_get(ls_array{s} *array, int32_t index) {{\n\
 if (index < 0 || (size_t)index >= array->length) {{ ls_native_undefined_element(); }}\n\
 return array->items[index];\n}}\n\
-static void ls_array{s}_set(ls_array{s} *array, int32_t index, {e} value) {{\n\
+static LS_NATIVE_UNUSED void ls_array{s}_set(ls_array{s} *array, int32_t index, {e} value) {{\n\
 if (index >= 0 && (size_t)index < array->length) {{ ls_array{s}_acquire(value); ls_array{s}_drop(array->items[index]); array->items[index] = value; return; }}\n\
 if (index >= 0 && (size_t)index == array->length) {{ ls_array{s}_push(array, value); return; }}\n\
 ls_native_undefined_element();\n}}\n\
-static {e} ls_array{s}_pop(ls_array{s} *array) {{\n\
+static LS_NATIVE_UNUSED {e} ls_array{s}_pop(ls_array{s} *array) {{\n\
 if (!array->length) {{ {absent} }}\n\
 return array->items[--array->length];\n}}\n\
-static ls_array{s} *ls_array{s}_slice(ls_array{s} *array, size_t start, size_t end) {{\n\
+static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_slice(ls_array{s} *array, size_t start, size_t end) {{\n\
 ls_array{s} *result = ls_array{s}_new(end > start ? end - start : 0);\n\
 for (size_t index = start; index < end && index < array->length; index++) ls_array{s}_push(result, array->items[index]);\n\
 return result;\n}}\n\
-static ls_array{s} *ls_array{s}_concat(ls_array{s} *left, ls_array{s} *right) {{\n\
+static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_concat(ls_array{s} *left, ls_array{s} *right) {{\n\
 size_t left_length = left->length, right_length = right->length;\n\
 ls_array{s} *result = ls_array{s}_new(left_length + right_length);\n\
 for (size_t index = 0; index < left_length; index++) ls_array{s}_push(result, left->items[index]);\n\
 for (size_t index = 0; index < right_length; index++) ls_array{s}_push(result, right->items[index]);\n\
 return result;\n}}\n\
-static ls_array{s} *ls_array{s}_reverse(ls_array{s} *array) {{\n\
+static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_reverse(ls_array{s} *array) {{\n\
 for (size_t low = 0, high = array->length; low + 1 < high; low++, high--) {{ {e} value = array->items[low]; array->items[low] = array->items[high - 1]; array->items[high - 1] = value; }}\n\
 return array;\n}}\n\
-static ls_array{s} *ls_array{s}_fill(ls_array{s} *array, {e} value) {{\n\
+static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_fill(ls_array{s} *array, {e} value) {{\n\
 for (size_t index = 0; index < array->length; index++) {{ ls_array{s}_acquire(value); ls_array{s}_drop(array->items[index]); array->items[index] = value; }}\n\
 return array;\n}}\n\
-static ls_array{s} *ls_array{s}_splice(ls_array{s} *array, int32_t start, int32_t count) {{\n\
+static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_splice(ls_array{s} *array, int32_t start, int32_t count) {{\n\
 size_t from = ls_array_relative(start, array->length);\n\
 size_t removed = count <= 0 ? 0 : (size_t)count;\n\
 if (removed > array->length - from) removed = array->length - from;\n\
@@ -124,7 +126,7 @@ for (size_t index = 0; index < removed; index++) ls_array{s}_push_owned(result, 
 memmove(array->items + from, array->items + from + removed, (array->length - from - removed) * sizeof *array->items);\n\
 array->length -= removed;\n\
 return result;\n}}\n\
-static ls_array{s} *ls_array{s}_copy_within(ls_array{s} *array, int32_t target, int32_t start, bool bounded, int32_t end) {{\n\
+static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_copy_within(ls_array{s} *array, int32_t target, int32_t start, bool bounded, int32_t end) {{\n\
 size_t length = array->length;\n\
 size_t to = ls_array_relative(target, length), from = ls_array_relative(start, length);\n\
 size_t final = bounded ? ls_array_relative(end, length) : length;\n\
@@ -135,9 +137,9 @@ for (size_t index = 0; index < count; index++) ls_array{s}_acquire(array->items[
 for (size_t index = 0; index < count; index++) ls_array{s}_drop(array->items[to + index]);\n\
 memmove(array->items + to, array->items + from, count * sizeof *array->items);\n}}\n\
 return array;\n}}\n\
-static void ls_array{s}_copy(ls_array{s} **slot, ls_array{s} *value) {{ ls_native_retain(value); ls_native_release(*slot); *slot = value; }}\n\
-static void ls_array{s}_take(ls_array{s} **slot, ls_array{s} *value) {{ ls_native_release(*slot); *slot = value; }}\n\
-static void ls_array{s}_clear(ls_array{s} **slot) {{ ls_native_release(*slot); *slot = NULL; }}\n"
+static LS_NATIVE_UNUSED void ls_array{s}_copy(ls_array{s} **slot, ls_array{s} *value) {{ ls_native_retain(value); ls_native_release(*slot); *slot = value; }}\n\
+static LS_NATIVE_UNUSED void ls_array{s}_take(ls_array{s} **slot, ls_array{s} *value) {{ ls_native_release(*slot); *slot = value; }}\n\
+static LS_NATIVE_UNUSED void ls_array{s}_clear(ls_array{s} **slot) {{ ls_native_release(*slot); *slot = NULL; }}\n"
             ))?;
             // An optional read, past the end null, boxes a present element.
             if self.plan.helpers.contains(Helper::Dynamic)
@@ -145,7 +147,7 @@ static void ls_array{s}_clear(ls_array{s} **slot) {{ ls_native_release(*slot); *
             {
                 let (prefix, suffix) = Self::conversion(element, NativeType::Dynamic(Tagged::ANY));
                 self.write(format_args!(
-                    "static ls_value ls_array{s}_optional(ls_array{s} *array, int32_t index) {{\n\
+                    "static LS_NATIVE_UNUSED ls_value ls_array{s}_optional(ls_array{s} *array, int32_t index) {{\n\
 if (index < 0 || (size_t)index >= array->length) return (ls_value){{0}};\n\
 return {prefix}array->items[index]{suffix};\n}}\n"
                 ))?;
@@ -176,10 +178,10 @@ return {prefix}array->items[index]{suffix};\n}}\n"
                 _ => continue,
             };
             self.write(format_args!(
-                "static int32_t ls_array{s}_index_of(ls_array{s} *array, {e} right) {{\n\
+                "static LS_NATIVE_UNUSED int32_t ls_array{s}_index_of(ls_array{s} *array, {e} right) {{\n\
 for (size_t index = 0; index < array->length; index++) {{ {e} left = array->items[index]; if ({strict}) return (int32_t)index; }}\n\
 return -1;\n}}\n\
-static bool ls_array{s}_includes(ls_array{s} *array, {e} right, int32_t start) {{\n\
+static LS_NATIVE_UNUSED bool ls_array{s}_includes(ls_array{s} *array, {e} right, int32_t start) {{\n\
 size_t length = array->length;\n\
 size_t from = start >= 0 ? (size_t)start : ls_array_relative(start, length);\n\
 for (size_t index = from; index < length; index++) {{ {e} left = array->items[index]; if ({zero}) return true; }}\n\

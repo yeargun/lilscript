@@ -988,7 +988,7 @@ impl<'src> CheckedSourceSession<'src> {
         let bindings = self.native_bindings.iter().map(|(cell, link_name)| NativeHostBinding {
             cell: *cell, link_name,
         }).collect::<Vec<_>>();
-        let hosts = NativeHostBindings { callback_abi_version: 1, bindings: &bindings };
+        let hosts = NativeHostBindings { callback_abi_version: NativeHostBindings::ABI_VERSION, bindings: &bindings };
         self.compilation
             .retain_native_c_and_hosts(
                 source,

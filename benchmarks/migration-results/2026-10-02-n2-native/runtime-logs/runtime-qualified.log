@@ -1,0 +1,11 @@
+runtime-gcc-build: passed
+runtime-gcc-run: passed
+runtime-clang-build: passed
+runtime-clang-run: passed
+runtime-clang-sanitize-build: passed
+runtime-clang-sanitize-run: passed
+source: passed
+ownership-gcc-build: passed
+ownership-gcc-run: passed
+ownership-clang-build: FAILED
+ownership-clang-sanitize-build: FAILED

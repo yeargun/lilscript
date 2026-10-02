@@ -1,0 +1,199 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-runtime-3/lilscript",
+    "sha256": "d753474af3f872414ccaa396a04ae7a909a4b8a810213c84e8324d4a3abb7663"
+  },
+  "fixtures": [
+    {
+      "path": "tests/native/runtime-ownership.c",
+      "sha256": "d1d39213f7bf36b5e9a296dc2002ebc0979f8b3ca8f494d147261cd175313425"
+    },
+    {
+      "path": "tests/native/ownership.lil",
+      "sha256": "6e0d0c93450e46b05df922f5ac73a1506f4ee0df037684b9ca6182d7918ee8aa"
+    },
+    {
+      "path": "tests/native/ownership.host.c",
+      "sha256": "8f161b1a28a548fe29532b98c91060f7ba72db16906e6b1be39595436e4a0a7f"
+    },
+    {
+      "path": "tests/native/ownership.toml",
+      "sha256": "a174ec66836ef2c4d0d511de4c98c2adfa7e90314480e80dee6358549329a74b"
+    },
+    {
+      "path": "tests/native/ownership.out",
+      "sha256": "55d33a7efa45eafc50f49d4430a68a1e974e7dbe8374320c6ddaa1af1acee3ab"
+    }
+  ],
+  "rows": [
+    {
+      "name": "runtime-gcc-build",
+      "command": "/usr/bin/cc",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-runtime-qualified-final/runtime-gcc"
+      ],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "runtime-gcc-run",
+      "command": "/tmp/lilscript-n2-runtime-qualified-final/runtime-gcc",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "runtime-clang-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-runtime-qualified-final/runtime-clang"
+      ],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "runtime-clang-run",
+      "command": "/tmp/lilscript-n2-runtime-qualified-final/runtime-clang",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "runtime-clang-sanitize-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "tests/native/runtime-ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-runtime-qualified-final/runtime-clang-sanitize"
+      ],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "runtime-clang-sanitize-run",
+      "command": "/tmp/lilscript-n2-runtime-qualified-final/runtime-clang-sanitize",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "source",
+      "command": "/home/azureuser/lilscript-work/bin/n2-runtime-3/lilscript",
+      "args": [
+        "tests/native/ownership.lil",
+        "--config",
+        "tests/native/ownership.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-runtime-qualified-final/ownership.c"
+      ],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-build",
+      "command": "/usr/bin/cc",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-runtime-qualified-final/ownership.c",
+        "/tmp/lilscript-n2-runtime-qualified-final/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-runtime-qualified-final/ownership-gcc"
+      ],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-run",
+      "command": "/tmp/lilscript-n2-runtime-qualified-final/ownership-gcc",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-runtime-qualified-final/ownership.c",
+        "/tmp/lilscript-n2-runtime-qualified-final/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-runtime-qualified-final/ownership-clang"
+      ],
+      "exit": 1,
+      "signal": null,
+      "passed": false
+    },
+    {
+      "name": "ownership-clang-sanitize-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-runtime-qualified-final/ownership.c",
+        "/tmp/lilscript-n2-runtime-qualified-final/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-runtime-qualified-final/ownership-clang-sanitize"
+      ],
+      "exit": 1,
+      "signal": null,
+      "passed": false
+    }
+  ]
+}

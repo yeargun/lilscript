@@ -1,0 +1,59 @@
+/tmp/lilscript-n2-runtime-qualified/ownership.c:291:25: error: unused function 'ls_string_concat' [-Werror,-Wunused-function]
+  291 | static inline ls_string ls_string_concat(ls_string left, ls_string right) {
+      |                         ^~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:320:19: error: unused function 'ls_string_compare' [-Werror,-Wunused-function]
+  320 | static inline int ls_string_compare(ls_string left, ls_string right) {
+      |                   ^~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:329:25: error: unused function 'ls_bool_to_string' [-Werror,-Wunused-function]
+  329 | static inline ls_string ls_bool_to_string(bool value) {
+      |                         ^~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:490:23: error: unused function 'ls_string_index_of' [-Werror,-Wunused-function]
+  490 | static inline int32_t ls_string_index_of(ls_string text, ls_string search, int32_t position) {
+      |                       ^~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:496:23: error: unused function 'ls_string_last_index_of' [-Werror,-Wunused-function]
+  496 | static inline int32_t ls_string_last_index_of(ls_string text, ls_string search, int32_t position) {
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:505:20: error: unused function 'ls_string_starts_with' [-Werror,-Wunused-function]
+  505 | static inline bool ls_string_starts_with(ls_string text, ls_string search) {
+      |                    ^~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:508:20: error: unused function 'ls_string_ends_with' [-Werror,-Wunused-function]
+  508 | static inline bool ls_string_ends_with(ls_string text, ls_string search) {
+      |                    ^~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:526:25: error: unused function 'ls_string_trim' [-Werror,-Wunused-function]
+  526 | static inline ls_string ls_string_trim(ls_string text, bool start, bool end) {
+      |                         ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:542:25: error: unused function 'ls_string_case' [-Werror,-Wunused-function]
+  542 | static inline ls_string ls_string_case(ls_string text, bool upper) {
+      |                         ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:555:23: error: unused function 'ls_string_code_points' [-Werror,-Wunused-function]
+  555 | static inline int32_t ls_string_code_points(ls_string text) {
+      |                       ^~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:563:22: error: unused function 'ls_round' [-Werror,-Wunused-function]
+  563 | static inline double ls_round(double value) {
+      |                      ^~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:570:22: error: unused function 'ls_min' [-Werror,-Wunused-function]
+  570 | static inline double ls_min(double left, double right) {
+      |                      ^~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:575:22: error: unused function 'ls_max' [-Werror,-Wunused-function]
+  575 | static inline double ls_max(double left, double right) {
+      |                      ^~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:615:20: error: unused function 'ls_value_take' [-Werror,-Wunused-function]
+  615 | static inline void ls_value_take(ls_value *slot, ls_value value) { ls_value_release(*slot); *slot = value; }
+      |                    ^~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:618:24: error: unused function 'ls_value_float' [-Werror,-Wunused-function]
+  618 | static inline ls_value ls_value_float(double value) { ls_value result = {.tag = LS_FLOAT}; result.as.f = value; return result; }
+      |                        ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:619:24: error: unused function 'ls_value_bool' [-Werror,-Wunused-function]
+  619 | static inline ls_value ls_value_bool(bool value) { ls_value result = {.tag = LS_BOOL}; result.as.b = value; return result; }
+      |                        ^~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:622:24: error: unused function 'ls_value_array' [-Werror,-Wunused-function]
+  622 | static inline ls_value ls_value_array(ls_native_object *value) { ls_value result = {.tag = LS_ARRAY}; result.as.o = value; return result; }
+      |                        ^~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:623:24: error: unused function 'ls_value_symbol' [-Werror,-Wunused-function]
+  623 | static inline ls_value ls_value_symbol(ls_native_object *value) { ls_value result = {.tag = LS_SYMBOL}; result.as.o = value; return result; }
+      |                        ^~~~~~~~~~~~~~~
+/tmp/lilscript-n2-runtime-qualified/ownership.c:624:23: error: unused function 'ls_value_to_int' [-Werror,-Wunused-function]
+  624 | static inline int32_t ls_value_to_int(ls_value value) { if (value.tag != LS_INT) ls_value_mismatch(); return value.as.i; }
+      |                       ^~~~~~~~~~~~~~~
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+20 errors generated.

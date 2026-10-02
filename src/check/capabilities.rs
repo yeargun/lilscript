@@ -61,7 +61,7 @@ pub(crate) fn native(
                 };
                 if signature.params.iter().any(|p| p.optional || p.receiver || p.passing != crate::primitive::ParameterPassing::Value) {
                     return Err(AdmittedCheckError::new(symbol.span,
-                        "native provider ABI v1 requires value parameters without defaults or an implicit receiver"));
+                        "native provider ABI v2 requires value parameters without defaults or an implicit receiver"));
                 }
                 if !hosts.native.contains_key(symbol.name) {
                     return Err(AdmittedCheckError::new(symbol.span,

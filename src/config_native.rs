@@ -45,6 +45,10 @@ pub struct TargetNativeConfig {
     pub link_time_optimization: bool,
     /// Empty by default. Address/undefined checks cost code, memory and runtime.
     pub sanitizers: Vec<NativeSanitizer>,
+    /// 4096 allocations by default, scaled with the live heap. Smaller values
+    /// reclaim cycles sooner at more CPU cost; zero collects only explicitly
+    /// and at shutdown. Ordinary zero-count reclamation is always immediate.
+    pub cycle_collection_threshold: u32,
 }
 impl Default for TargetNativeConfig {
     fn default() -> Self {
@@ -57,6 +61,7 @@ impl Default for TargetNativeConfig {
             warnings_as_errors: false,
             link_time_optimization: false,
             sanitizers: Vec::new(),
+            cycle_collection_threshold: 4096,
         }
     }
 }

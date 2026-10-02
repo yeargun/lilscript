@@ -8,7 +8,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
     fn string_of(&mut self, unit: UnitId, value: ValueId) -> Result<(), NativeError> {
         let index = value.index();
         match self.plan.units[unit.index()].values[index] {
-            ValueStorage::Value(NativeType::String) => self.write(format_args!("ls_v{index}")),
+            ValueStorage::Value(NativeType::String) => self.write(format_args!("ls_string_hold(ls_v{index})")),
             ValueStorage::Value(NativeType::I32) => {
                 self.write(format_args!("ls_int_to_string(ls_v{index})"))
             }
@@ -29,17 +29,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
         unit: UnitId,
         values: &[ValueId],
     ) -> Result<(), NativeError> {
-        match values {
-            [] => self.text("(ls_string){NULL,0}"),
-            [only] => self.string_of(unit, *only),
-            [rest @ .., last] => {
-                self.text("ls_string_concat(")?;
-                self.concatenation(unit, rest)?;
-                self.text(",")?;
-                self.string_of(unit, *last)?;
-                self.text(")")
-            }
+        if values.is_empty() { return self.text("(ls_string){0}"); }
+        self.write(format_args!("ls_string_join_owned({},(ls_string[]){{", values.len()))?;
+        for (index, value) in values.iter().copied().enumerate() {
+            if index != 0 { self.text(",")?; }
+            self.string_of(unit, value)?;
         }
+        self.text("})")
     }
 
     /// String `+`, equality and ordering; false when this is not one.
@@ -54,9 +50,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let values = &self.plan.units[unit.index()].values;
         let text = ValueStorage::Value(NativeType::String);
         if kind == BinaryOp::Add && values[result.index()] == text {
-            self.write(format_args!("ls_v{} = ", result.index()))?;
+            self.assignment_start(unit, Destination::Value(result), true)?;
             self.concatenation(unit, &[left, right])?;
-            self.text(";\n")?;
+            self.assignment_end(unit, Destination::Value(result))?;
             return Ok(true);
         }
         if values[left.index()] != text || values[right.index()] != text {
@@ -166,17 +162,17 @@ impl Emitter<'_, '_, '_, '_, '_> {
     /// unless the separator is empty too.
     pub(super) fn string_split_runtime(&mut self, array: usize) -> Result<(), NativeError> {
         self.write(format_args!(
-            "static ls_array{array} *ls_string_split(ls_string text, ls_string separator) {{\n\
+            "static LS_NATIVE_UNUSED ls_array{array} *ls_string_split(ls_string text, ls_string separator) {{\n\
 ls_array{array} *parts = ls_array{array}_new(0);\n\
 if (!separator.length) {{\n\
-for (size_t index = 0; index < text.length; index++) ls_array{array}_push(parts, ls_string_view(text, index, index + 1));\n\
+for (size_t index = 0; index < text.length; index++) ls_array{array}_push_owned(parts, ls_string_view(text, index, index + 1));\n\
 return parts;\n}}\n\
 if (!text.length) {{ ls_array{array}_push(parts, text); return parts; }}\n\
 size_t start = 0;\n\
 for (size_t at = 0; at + separator.length <= text.length;) {{\n\
-if (ls_string_matches(text, at, separator)) {{ ls_array{array}_push(parts, ls_string_view(text, start, at)); at += separator.length; start = at; }}\n\
+if (ls_string_matches(text, at, separator)) {{ ls_array{array}_push_owned(parts, ls_string_view(text, start, at)); at += separator.length; start = at; }}\n\
 else at++;\n}}\n\
-ls_array{array}_push(parts, ls_string_view(text, start, text.length));\n\
+ls_array{array}_push_owned(parts, ls_string_view(text, start, text.length));\n\
 return parts;\n}}\n"
         ))
     }

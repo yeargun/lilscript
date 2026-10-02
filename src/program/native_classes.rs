@@ -19,9 +19,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
             return Ok(());
         }
         self.text(
-            "static void ls_object_copy(ls_native_object **slot, ls_native_object *value) { ls_native_retain(value); ls_native_release(*slot); *slot = value; }\n\
-static void ls_object_take(ls_native_object **slot, ls_native_object *value) { ls_native_release(*slot); *slot = value; }\n\
-static void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot); *slot = NULL; }\n",
+            "static LS_NATIVE_UNUSED void ls_object_copy(ls_native_object **slot, ls_native_object *value) { ls_native_retain(value); ls_native_release(*slot); *slot = value; }\n\
+static LS_NATIVE_UNUSED void ls_object_take(ls_native_object **slot, ls_native_object *value) { ls_native_release(*slot); *slot = value; }\n\
+static LS_NATIVE_UNUSED void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot); *slot = NULL; }\n",
         )?;
         let program = self.plan.program;
         let mut emitted =
@@ -57,7 +57,7 @@ static void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot);
                     self.write(format_args!("{ty} ls_m{slot};\n"))?;
                 }
                 self.write(format_args!(
-                    "}} ls_object{class};\nstatic void ls_object{class}_clear_fields(ls_object{class} *object) {{\n(void)object;\n"
+                    "}} ls_object{class};\nstatic LS_NATIVE_UNUSED void ls_object{class}_clear_fields(ls_object{class} *object) {{\n(void)object;\n"
                 ))?;
                 for slot in inherited..self.plan.class_fields[class].len() {
                     let ty = self.plan.class_fields[class][slot];
@@ -71,8 +71,14 @@ static void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot);
                     ))?;
                 }
                 self.write(format_args!(
-                    "}}\nstatic void ls_object{class}_destroy(ls_native_object *owner) {{ ls_object{class}_clear_fields((ls_object{class} *)owner); }}\n"
+                    "}}\nstatic LS_NATIVE_UNUSED void ls_object{class}_destroy(ls_native_object *owner) {{ ls_object{class}_clear_fields((ls_object{class} *)owner); }}\n"
                 ))?;
+                self.write(format_args!("static LS_NATIVE_UNUSED void ls_object{class}_trace(ls_native_object *owner, ls_native_visit visit, void *context) {{ ls_object{class} *object = (ls_object{class} *)owner; (void)object; (void)visit; (void)context;\n"))?;
+                if let Some(base) = base { self.write(format_args!("ls_object{base}_trace(owner, visit, context);\n"))?; }
+                for slot in inherited..self.plan.class_fields[class].len() {
+                    if let Some(trace) = self.plan.class_fields[class][slot].trace(&format!("object->ls_m{slot}")) { self.text(&trace)?; }
+                }
+                self.text("}\n")?;
             }
         }
         self.budget.release(
@@ -92,7 +98,7 @@ static void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot);
             if !self.plan.class_tests[target] {
                 continue;
             }
-            self.write(format_args!("static bool ls_is_class{target}(ls_native_object *value) {{ return value && (false"))?;
+            self.write(format_args!("static LS_NATIVE_UNUSED bool ls_is_class{target}(ls_native_object *value) {{ return value && (false"))?;
             for actual in 0..program.classes.len() {
                 if program.classes[actual].external {
                     continue;
@@ -141,7 +147,7 @@ static void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot);
         class: usize,
     ) -> Result<(), NativeError> {
         self.write(format_args!(
-            "{{\nls_object{class} *ls_o = ls_native_allocate(sizeof *ls_o, ls_object{class}_destroy);\nmemset((char *)ls_o + sizeof(ls_native_object), 0, sizeof *ls_o - sizeof(ls_native_object));\n"
+            "{{\nls_object{class} *ls_o = ls_native_allocate(sizeof *ls_o, ls_object{class}_destroy, ls_object{class}_trace);\nmemset((char *)ls_o + sizeof(ls_native_object), 0, sizeof *ls_o - sizeof(ls_native_object));\n"
         ))?;
         let destination = Destination::Value(result);
         self.assignment_start(unit, destination, true)?;
@@ -160,7 +166,7 @@ static void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot);
         values: &[ValueId],
     ) -> Result<(), NativeError> {
         self.write(format_args!(
-            "{{\nls_object{class} *ls_o = ls_native_allocate(sizeof *ls_o, ls_object{class}_destroy);\n"
+            "{{\nls_object{class} *ls_o = ls_native_allocate(sizeof *ls_o, ls_object{class}_destroy, ls_object{class}_trace);\n"
         ))?;
         for (slot, &value) in values.iter().enumerate() {
             self.budget.work(WorkKind::Render, 1)?;

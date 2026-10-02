@@ -186,7 +186,7 @@ fn native_host_header_is_qualified_retained_and_transferred_with_c() {
                 link_name: "host_compute",
             }];
             let hosts = NativeHostBindings {
-                callback_abi_version: 1,
+                callback_abi_version: NativeHostBindings::ABI_VERSION,
                 bindings: &bindings,
             };
             let receipt = owner
@@ -215,7 +215,7 @@ fn native_host_header_is_qualified_retained_and_transferred_with_c() {
                     )
                 })
                 .unwrap();
-            assert_eq!(receipt.callback_abi_version(), 1);
+            assert_eq!(receipt.callback_abi_version(), NativeHostBindings::ABI_VERSION);
             assert_eq!(receipt.abi_version(), crate::package::LILSCRIPT_ABI_VERSION);
             let retained = owner.ledger().retained_bytes();
             let (c, header) = owner.take_qualified_native_artifact(receipt).unwrap();

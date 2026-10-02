@@ -91,7 +91,9 @@ impl NativeType {
     pub(super) fn managed(self) -> bool {
         matches!(
             self,
-            Self::Callable(_)
+            Self::String
+                | Self::Struct(_)
+                | Self::Callable(_)
                 | Self::Array(_)
                 | Self::Object(_)
                 | Self::Map
@@ -105,6 +107,8 @@ impl NativeType {
     /// The statement that acquires one more owner of `value`, if it owns.
     pub(super) fn retain(self, value: &str) -> Option<String> {
         match self {
+            Self::String => Some(format!("ls_native_retain({value}.owner);\n")),
+            Self::Struct(index) => Some(format!("ls_t{index}_retain({value});\n")),
             Self::Callable(_) => Some(format!("ls_native_retain({value}.environment);\n")),
             Self::Array(_)
             | Self::Object(_)
@@ -122,6 +126,8 @@ impl NativeType {
     /// The statement that gives up one owner of `value`, if it owns.
     pub(super) fn release(self, value: &str) -> Option<String> {
         match self {
+            Self::String => Some(format!("ls_native_release({value}.owner);\n")),
+            Self::Struct(index) => Some(format!("ls_t{index}_release({value});\n")),
             Self::Callable(_) => Some(format!("ls_native_release({value}.environment);\n")),
             Self::Array(_)
             | Self::Object(_)
@@ -139,6 +145,8 @@ impl NativeType {
     /// The C prefix of this managed type's `_copy`/`_take`/`_clear` helpers.
     pub(super) fn owner_prefix(self) -> Option<String> {
         match self {
+            Self::String => Some("ls_string".to_owned()),
+            Self::Struct(index) => Some(format!("ls_t{index}")),
             Self::Callable(signature) => Some(format!("ls_callable{signature}")),
             Self::Array(index) => Some(format!("ls_array{index}")),
             Self::Object(_)
@@ -151,10 +159,20 @@ impl NativeType {
             _ => None,
         }
     }
+    pub(super) fn trace(self, value: &str) -> Option<String> {
+        match self {
+            Self::String => Some(format!("visit({value}.owner, context);\n")),
+            Self::Struct(index) => Some(format!("ls_t{index}_trace({value}, visit, context);\n")),
+            Self::Callable(_) => Some(format!("visit({value}.environment, context);\n")),
+            Self::Array(_) | Self::Object(_) | Self::Map | Self::Set | Self::Symbol | Self::Buffer | Self::Typed(_) => Some(format!("visit({value}, context);\n")),
+            Self::Dynamic(Tagged { owns: true, .. }) => Some(format!("ls_value_trace({value}, visit, context);\n")),
+            _ => None,
+        }
+    }
     /// The C initializer of an empty managed slot.
     pub(super) fn empty_slot(self) -> &'static str {
         match self {
-            Self::Callable(_) => " = {0}",
+            Self::Callable(_) | Self::String | Self::Struct(_) => " = {0}",
             Self::Array(_)
             | Self::Object(_)
             | Self::Map
@@ -611,17 +629,8 @@ fn struct_layouts(
                     }
                     _ => {}
                 },
-                // A value struct is copied bit for bit, so a field may not
-                // own anything: no retain would follow the copy.
-                TypeClass::Value(ty) if ty.managed() => {
-                    return Err(fail(
-                        site,
-                        None,
-                        definition.span,
-                        "native managed struct field",
-                    ))
-                }
                 TypeClass::Value(ty) if ty != NativeType::Void => {}
+                TypeClass::Function(_) => {}
                 _ => {
                     return Err(fail(
                         site,
@@ -821,8 +830,9 @@ fn plan_places(
                 let field = found
                     .map(|slot| &program.fields[slot])
                     .ok_or_else(|| error("native field identity"))?;
-                let TypeClass::Value(ty) = types[field.ty.index()] else {
-                    return Err(error("native field representation"));
+                let ty = match types[field.ty.index()] {
+                    TypeClass::Value(ty) => ty,
+                    TypeClass::Function(signature) => NativeType::Callable(signature),
                 };
                 PlacePlan {
                     recipe: PlaceRecipe::Field {
@@ -1151,6 +1161,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             mut signatures,
         } = tables;
         let struct_order = struct_layouts(program, &classes, budget)?;
+        for field in program.fields.iter() {
+            work(budget, 1)?;
+            if let TypeClass::Function(signature) = classes[field.ty.index()] {
+                signatures::require(&mut signatures, signature, budget)?;
+            }
+        }
         let mut class_fields = budget.vector(Scratch, program.classes.len())?;
         for class in program.classes.iter() {
             work(budget, class.fields.len() + 1)?;
@@ -1284,9 +1300,6 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 return Err(error("native captured local declared without a value"));
             }
             if captured {
-                if matches!(storage, ValueStorage::Value(NativeType::Callable(_))) {
-                    return Err(error("native captured dynamic callable payload"));
-                }
                 if reference_parameter(program, id) {
                     return Err(error("native captured reference parameter lifetime"));
                 }
@@ -1320,6 +1333,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 .any(|class| matches!(class, TypeClass::Value(ty) if ty.managed()))
         {
             helpers.require(Helper::ClosureRuntime);
+        }
+        if !hosts.bindings.is_empty() && classes.iter().any(|class| matches!(class, TypeClass::Value(NativeType::String))) {
+            helpers.require(Helper::Strings);
         }
         if classes
             .iter()
@@ -1888,10 +1904,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
     }
 
     pub(super) fn field_type(&self, index: usize) -> NativeType {
-        let TypeClass::Value(ty) = self.types[self.program.fields[index].ty.index()] else {
-            unreachable!("native plan admits only by-value fields")
-        };
-        ty
+        match self.types[self.program.fields[index].ty.index()] {
+            TypeClass::Value(ty) => ty,
+            TypeClass::Function(signature) => NativeType::Callable(signature),
+        }
     }
 
     pub(super) fn cell_storage(&self, cell: CellId) -> ValueStorage {
@@ -2403,10 +2419,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 )?;
                 for (field, &argument) in definition.fields.clone().zip(operands) {
                     work(budget, 1)?;
-                    let TypeClass::Value(ty) = self.types[self.program.fields[field].ty.index()]
-                    else {
-                        return Err(error("native struct field representation"));
-                    };
+                    let ty = self.field_type(field);
                     expect(
                         self.compatible(Stored(ty), value(argument)),
                         "native struct field value",
@@ -3153,7 +3166,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     if self.global_cell(cell) {
                         continue;
                     }
-                    initialized(cell, budget)?;
+                    // Capture the allocated lexical box, not its current
+                    // payload. Access through a closure checks initialization.
                     expect(self.boxed_cell(cell), "native closure captured box")?;
                 }
                 Ok(())

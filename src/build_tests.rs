@@ -4766,7 +4766,7 @@ fn n1_native_check_and_compile_share_source_qualified_representation_refusals() 
     let settings: ProjectConfig = toml::from_str("effort.level=0\n[target.native]\ncompiler='/no/compiler/is/needed/to/check'").unwrap();
     check_source_for_target("print(42);", &settings, options).unwrap();
     for source in [
-        "struct Box { int[] values; }\nBox b=Box{[1,2]};print(b.values[0]);",
+        "struct Box<T> { T value; }\nBox<int> b=Box<int>{1};print(b.value);",
         "struct Point { int x; }\nPoint? point=null;print(point==null);",
         "int x=1;\ntry{print(x);}finally{print(2);}",
         "export int answer(){return 42;}",
@@ -4784,7 +4784,7 @@ fn n1_native_check_and_compile_share_source_qualified_representation_refusals() 
     let scratch = Scratch::new();
     let entry = scratch.0.join("main.lil"); let dependency = scratch.0.join("value.lil");
     std::fs::write(&entry, "import {run} from \"./value.lil\";run();").unwrap();
-    let source = "struct Box { int[] values; }\nexport void run(){Box value=Box{[2,3]};print(value.values[0]);}";
+    let source = "struct Box<T> { T value; }\nexport void run(){Box<int> value=Box<int>{2};print(value.value);}";
     std::fs::write(&dependency, source).unwrap();
     let error = check_entries_for_target(&[EntrySource::of(&entry)], &settings, options).unwrap_err();
     let diagnostic = error.diagnostic.unwrap();

@@ -1,0 +1,176 @@
+{
+  "algorithm": 74,
+  "pins": [
+    {
+      "pin": 1,
+      "path": "/home/azureuser/lilscript-work/bin/n2-runtime-1/lilscript",
+      "sha256": "0787a0e2a4d63f86349ce9d33c7a308ecf9c5d27ad43b508a7ca608ba380befd"
+    },
+    {
+      "pin": 2,
+      "path": "/home/azureuser/lilscript-work/bin/n2-runtime-2/lilscript",
+      "sha256": "162ce9da05c26cebf517ed8d96df8de4686dea46a41f172f9da1351fc9ad36f1"
+    },
+    {
+      "pin": 3,
+      "path": "/home/azureuser/lilscript-work/bin/n2-runtime-3/lilscript",
+      "sha256": "d753474af3f872414ccaa396a04ae7a909a4b8a810213c84e8324d4a3abb7663"
+    },
+    {
+      "pin": 4,
+      "path": "/home/azureuser/lilscript-work/bin/n2-runtime-4/lilscript",
+      "sha256": "e913fedb5223d449fe6fc66ff805fcf7c49a0ee877a89aa4435da3977c7c8a91"
+    },
+    {
+      "pin": 5,
+      "path": "/home/azureuser/lilscript-work/bin/n2-runtime-5/lilscript",
+      "sha256": "d6e495b83e093f3fffa893aec51aa4202bfea6583457dc510631b7a4da67ab6a"
+    }
+  ],
+  "final_inputs": [
+    {
+      "path": "src/program/runtime/README.md",
+      "sha256": "97fe067c74d0e694776d81a881b5e14c7d7a877eea877cada2449131d17829d9"
+    },
+    {
+      "path": "src/program/runtime/binary.c",
+      "sha256": "f1a94ac8fd0acf4ae1e3f6631d91e21bcc6abdbbac746990fe1ffa325ad8caf4"
+    },
+    {
+      "path": "src/program/runtime/char_at.c",
+      "sha256": "0afeb08291f2d91484573c5818ceadf80687f0c10e650171252237c9a0869353"
+    },
+    {
+      "path": "src/program/runtime/char_code_at.c",
+      "sha256": "1bb6783eb7a6dba5d8243ec1ffb001348c6f161f160d83159b50c282241fdd2d"
+    },
+    {
+      "path": "src/program/runtime/char_code_at_number.c",
+      "sha256": "67fa59ce31162455ddfa74ce1bf182737e4037e7cc749c36096ed8362d8854f8"
+    },
+    {
+      "path": "src/program/runtime/code_unit_at.c",
+      "sha256": "4fb05186bd81111d7fade9b360b24aee4c2e4eead192b5a6d6f7bb02a11a26c3"
+    },
+    {
+      "path": "src/program/runtime/collections.c",
+      "sha256": "fd4f0009c6d2eb0336ec440064e10a5c426d831a0e289d830492f207288e943d"
+    },
+    {
+      "path": "src/program/runtime/divide.c",
+      "sha256": "e76a5f7abc2bd77e86d5d6767b18aebfe14664091cfd329be1cd7c6ebd8820ad"
+    },
+    {
+      "path": "src/program/runtime/double_bits.c",
+      "sha256": "cfd2a6e738d2fbb838c43ffcf4a06ffa6f0fe3a0e0672bb3fc8e9d2a1cc7a912"
+    },
+    {
+      "path": "src/program/runtime/from_u32.c",
+      "sha256": "6804dd4a87fb9cc705a519ab0286b4679aff4c242598b1fcf9d2a3010c8137b1"
+    },
+    {
+      "path": "src/program/runtime/imul.c",
+      "sha256": "23d71880f6dab735f51b9c25034b73aeb8e32b29323747a02ea9aff65be51c64"
+    },
+    {
+      "path": "src/program/runtime/memory.c",
+      "sha256": "f98d66087320fdeee9ced93f8999c4aca7e51fa57b6b81147c7b92ac22107d5f"
+    },
+    {
+      "path": "src/program/runtime/memory.h",
+      "sha256": "0dcdc59944aa84d29a2bae7992102a0b388db48f4e6b05b18be3bcc625a1da7a"
+    },
+    {
+      "path": "src/program/runtime/multiply.c",
+      "sha256": "16d61ed0e2908880a4ee8d2baf44282ec3e4c0219efd4bc992e9bc5bcbc46f3e"
+    },
+    {
+      "path": "src/program/runtime/prologue.h",
+      "sha256": "ca8c0332bce579ce7d7aaecf5a270a11370d9f357bc4138618e6f22b06ae48c4"
+    },
+    {
+      "path": "src/program/runtime/qualification.c",
+      "sha256": "bd74876271015b48b507aae85b1ed119b6278ac1c619dd19d3f6b8243207973c"
+    },
+    {
+      "path": "src/program/runtime/qualification.h",
+      "sha256": "3679de3844f310e4d40e63eeb5d4d86568cedc8d14282cbe3003c3d4ccfc59b7"
+    },
+    {
+      "path": "src/program/runtime/remainder.c",
+      "sha256": "750daa1c62245fa1695c44820d017def559de3e688e82e73e389ce62282a90ab"
+    },
+    {
+      "path": "src/program/runtime/round_binary64.c",
+      "sha256": "c6a9041b8538fc61e76bba4352734f1b39fb901753365c4a08690f859d74df37"
+    },
+    {
+      "path": "src/program/runtime/shift_left.c",
+      "sha256": "c1d061eb0d6151439a24ddd8b0c19346dbbb4ec8ba8145a29123b5dfa3fff90d"
+    },
+    {
+      "path": "src/program/runtime/shift_right.c",
+      "sha256": "f87d9d5d73c38a2fd0986e1b29242d084cc487243ba5c14f0f1c11a4ba15c5bf"
+    },
+    {
+      "path": "src/program/runtime/string.h",
+      "sha256": "8a333bb33e283883cd215b99cff3a32d211988230274fc703c9100d17a2f0f31"
+    },
+    {
+      "path": "src/program/runtime/string_equal.c",
+      "sha256": "804dd6a3c7e6e9b0d5d17ed31c53953dd1560c8e979eb8e71e43ca9c2c47fe2a"
+    },
+    {
+      "path": "src/program/runtime/string_index.c",
+      "sha256": "906567a73b3423e1235033167f1b9ac45e2fa1c3b3e01f1729fba662eea53929"
+    },
+    {
+      "path": "src/program/runtime/string_length.c",
+      "sha256": "d48c4e9dfb1d9ed65ec3c55840f6ebbe21df353bad7f4ba95f184d15324eb97c"
+    },
+    {
+      "path": "src/program/runtime/strings.c",
+      "sha256": "9c9360c0960b8828e5cb535249ae6d3c1471dc571cee29453c0d6037ad67277a"
+    },
+    {
+      "path": "src/program/runtime/to_int32.c",
+      "sha256": "d64ef5b0a3bac9d362add0df8223cffb80298b09f0238e3506506a30a39d365c"
+    },
+    {
+      "path": "src/program/runtime/unsigned_shift_right.c",
+      "sha256": "28b468777607c9f323081fc4d5d3d210d39f4c3a8dd2d7e4f732584476fe0237"
+    },
+    {
+      "path": "src/program/runtime/value.c",
+      "sha256": "a81b0d04af05b34daa6a8201e4bec7c285c0c27052ebf173f4b2b0e6cfa7cbe6"
+    },
+    {
+      "path": "src/program/runtime/value.h",
+      "sha256": "d588c590b299f5221980b5b3c2d9790d0f4a14fb3b37ddc949484c9ed5f675b2"
+    },
+    {
+      "path": "tests/native/ownership.host.c",
+      "sha256": "8f161b1a28a548fe29532b98c91060f7ba72db16906e6b1be39595436e4a0a7f"
+    },
+    {
+      "path": "tests/native/ownership.lil",
+      "sha256": "7ef1e30b381121f017e6d33f2efc036af88adac3e4d458b0ed461beddef9140d"
+    },
+    {
+      "path": "tests/native/ownership.out",
+      "sha256": "6f21811607331a69044dd4ffa8333418f9225ae0168e6c9b18a35019628b6b1c"
+    },
+    {
+      "path": "tests/native/ownership.toml",
+      "sha256": "a174ec66836ef2c4d0d511de4c98c2adfa7e90314480e80dee6358549329a74b"
+    },
+    {
+      "path": "tests/native/qualify-ownership.mjs",
+      "sha256": "147138c223a3322a938fe958d93e25ba96c6fed425352d674e5754366b5a9a85"
+    },
+    {
+      "path": "tests/native/runtime-ownership.c",
+      "sha256": "d1d39213f7bf36b5e9a296dc2002ebc0979f8b3ca8f494d147261cd175313425"
+    }
+  ]
+}

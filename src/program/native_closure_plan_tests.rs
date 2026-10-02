@@ -134,7 +134,7 @@ fn nested_zero_capture_signatures_are_physical_values_and_static_route_stays_pla
 }
 
 #[test]
-fn a_checked_early_creation_edit_refuses_without_promoting_hoisted_storage_to_initialized() {
+fn a_checked_early_creation_edit_captures_a_box_without_reading_its_payload() {
     checked(
         "func()->int make(){int state=1;return ()=>state;}print(make()());",
         |mut program| {
@@ -169,31 +169,20 @@ fn a_checked_early_creation_edit_refuses_without_promoting_hoisted_storage_to_in
             program.units.insert(owner.index(), working.freeze());
             program.verify().unwrap();
             inspect_plan(&program, |result| {
-                assert!(matches!(
-                    result,
-                    Err(NativeError::Unsupported {
-                        feature: "native cell access before initialization",
-                        ..
-                    })
-                ))
+                assert!(result.unwrap().cells[state.index()].captured);
             });
         },
     );
 }
 
 #[test]
-fn captured_callable_payload_refuses_instead_of_leaking_an_unproved_ownership_graph() {
+fn captured_callable_payload_has_a_traced_owner_graph() {
     checked(
         "func()->int make(){auto first=()=>1;return ()=>first();}print(make()());",
         |program| {
             inspect_plan(&program, |result| {
-                assert!(matches!(
-                    result,
-                    Err(NativeError::Unsupported {
-                        feature: "native captured dynamic callable payload",
-                        ..
-                    })
-                ))
+                let plan = result.unwrap();
+                assert!(plan.cells.iter().any(|cell| cell.captured && matches!(cell.storage, ValueStorage::Value(NativeType::Callable(_)))));
             });
         },
     );
@@ -235,7 +224,7 @@ fn foreign_callback_binding_is_canonical_versioned_and_direct_only() {
             let uses = UseIndex::build(&program, &mut ledger, WorkDomain::Baseline).unwrap();
             let before = ledger.retained_bytes();
             let rows = [NativeHostBinding { cell, link_name: "host_keep" }];
-            let hosts = NativeHostBindings { callback_abi_version: 1, bindings: &rows };
+            let hosts = NativeHostBindings { callback_abi_version: NativeHostBindings::ABI_VERSION, bindings: &rows };
             {
                 let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
                 let plan = NativePlan::build_with_hosts(&program, &uses, &hosts, &mut budget).unwrap();
@@ -244,9 +233,9 @@ fn foreign_callback_binding_is_canonical_versioned_and_direct_only() {
             }
             assert_eq!(ledger.retained_bytes(), before);
             for (version, name, feature) in [
-                (2, "host_keep", "native callback ABI version"),
-                (1, "printf", "native callback provider symbol namespace"),
-                (1, "host_", "native host link identifier"),
+                (1, "host_keep", "native callback ABI version"),
+                (NativeHostBindings::ABI_VERSION, "printf", "native callback provider symbol namespace"),
+                (NativeHostBindings::ABI_VERSION, "host_", "native host link identifier"),
             ] {
                 let rows = [NativeHostBinding { cell, link_name: name }];
                 let hosts = NativeHostBindings { callback_abi_version: version, bindings: &rows };
@@ -339,7 +328,7 @@ fn host_symbols_reject_only_aliases_and_wrappers_that_this_interface_emits() {
                 ];
                 rows.sort_by_key(|row| row.cell);
                 let hosts = NativeHostBindings {
-                    callback_abi_version: 1,
+                    callback_abi_version: NativeHostBindings::ABI_VERSION,
                     bindings: &rows,
                 };
                 {
@@ -390,7 +379,7 @@ fn host_symbols_reject_only_aliases_and_wrappers_that_this_interface_emits() {
                 .collect::<Vec<_>>();
             rows.sort_by_key(|row| row.cell);
             let hosts = NativeHostBindings {
-                callback_abi_version: 1,
+                callback_abi_version: NativeHostBindings::ABI_VERSION,
                 bindings: &rows,
             };
             let mut ledger = ledger(10_000_000);
@@ -445,7 +434,7 @@ fn detached_formal_metadata_is_not_storage_and_a_new_read_requires_initializatio
                 link_name: "host_declaration",
             }];
             let hosts = NativeHostBindings {
-                callback_abi_version: 1,
+                callback_abi_version: NativeHostBindings::ABI_VERSION,
                 bindings: &rows,
             };
             let mut ledger = ledger(10_000_000);
