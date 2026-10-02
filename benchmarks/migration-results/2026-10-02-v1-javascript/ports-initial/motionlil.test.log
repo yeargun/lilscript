@@ -1,0 +1,135 @@
+
+> motionlil@0.1.5 test
+> node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs test/shared-graph.test.mjs
+
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/dist/index.js' imported from /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/test/node.test.mjs
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:381:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/dist/index.js'
+}
+
+Node.js v24.20.0
+✖ test/node.test.mjs (55.549451ms)
+✘ [ERROR] Could not resolve "motionlil"
+
+    <stdin>:1:28:
+      1 │ export { animateMini } from "motionlil"
+        ╵                             ~~~~~~~~~~~
+
+  The module "./dist/index.js" was not found on the file system:
+
+    package.json:508:16:
+      508 │       "import": "./dist/index.js",
+          ╵                 ~~~~~~~~~~~~~~~~~
+
+  You can mark the path "motionlil" as external to exclude it from the bundle, which will remove this error and leave the unresolved path in the bundle.
+
+✖ named imports do not pull the whole consumer graph (16.155873ms)
+node:internal/fs/promises:1345
+  return new FileHandle(await PromisePrototypeThen(
+                        ^
+
+Error: ENOENT: no such file or directory, open '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/dist/lilscript.manifest.json'
+    at async open (node:internal/fs/promises:1345:25)
+    at async readFile (node:internal/fs/promises:1996:14)
+    at async file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/test/shared-graph.test.mjs:7:29 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/dist/lilscript.manifest.json'
+}
+
+Node.js v24.20.0
+✖ test/shared-graph.test.mjs (47.460132ms)
+✘ [ERROR] Could not resolve "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/dist/animate.js"
+
+✖ the distributed animate module survives a second Terser pass (16.198293ms)
+✖ Vite bundles the public package entry (129.790396ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 344.564932
+
+✖ failing tests:
+
+test at test/node.test.mjs:1:1
+✖ test/node.test.mjs (55.549451ms)
+  'test failed'
+
+test at test/shake.test.mjs:31:1
+✖ named imports do not pull the whole consumer graph (16.155873ms)
+  Error: Build failed with 1 error:
+  <stdin>:1:28: ERROR: Could not resolve "motionlil"
+      at failureErrorWithLog (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:1467:15)
+      at /home/azureuser/motionlil/node_modules/esbuild/lib/main.js:926:25
+      at /home/azureuser/motionlil/node_modules/esbuild/lib/main.js:878:52
+      at buildResponseToResult (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:924:7)
+      at /home/azureuser/motionlil/node_modules/esbuild/lib/main.js:951:16
+      at responseCallbacks.<computed> (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:603:9)
+      at handleIncomingPacket (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:658:12)
+      at Socket.readFromStdout (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:581:7)
+      at Socket.emit (node:events:514:28)
+      at addChunk (node:internal/streams/readable:567:12) {
+    errors: [ { detail: undefined, id: '', location: [Object], notes: [Array], pluginName: '', text: 'Could not resolve "motionlil"' } ],
+    warnings: []
+  }
+
+test at test/shared-graph.test.mjs:1:1
+✖ test/shared-graph.test.mjs (47.460132ms)
+  'test failed'
+
+test at test/terser.test.mjs:8:1
+✖ the distributed animate module survives a second Terser pass (16.198293ms)
+  Error: Build failed with 1 error:
+  error: Could not resolve "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/dist/animate.js"
+      at failureErrorWithLog (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:1467:15)
+      at /home/azureuser/motionlil/node_modules/esbuild/lib/main.js:926:25
+      at /home/azureuser/motionlil/node_modules/esbuild/lib/main.js:878:52
+      at buildResponseToResult (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:924:7)
+      at /home/azureuser/motionlil/node_modules/esbuild/lib/main.js:951:16
+      at responseCallbacks.<computed> (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:603:9)
+      at handleIncomingPacket (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:658:12)
+      at Socket.readFromStdout (/home/azureuser/motionlil/node_modules/esbuild/lib/main.js:581:7)
+      at Socket.emit (node:events:514:28)
+      at addChunk (node:internal/streams/readable:567:12) {
+    errors: [ { detail: undefined, id: '', location: null, notes: [], pluginName: '', text: 'Could not resolve "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/dist/animate.js"' } ],
+    warnings: []
+  }
+
+test at test/vite.test.mjs:12:1
+✖ Vite bundles the public package entry (129.790396ms)
+  [commonjs--resolver] Failed to resolve entry for package "motionlil". The package may have incorrect main/module/exports specified in its package.json.
+      at packageEntryFailure (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:16198:15)
+      at resolvePackageEntry (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:16195:3)
+      at tryNodeResolve (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:16060:18)
+      at Object.resolveId (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:15831:19)
+      at Object.handler (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:46618:15)
+      at file:///home/azureuser/motionlil/node_modules/rollup/dist/es/shared/node-entry.js:22787:40
+      at async PluginDriver.hookFirstAndGetPlugin (file:///home/azureuser/motionlil/node_modules/rollup/dist/es/shared/node-entry.js:22669:28)
+      at async resolveId (file:///home/azureuser/motionlil/node_modules/rollup/dist/es/shared/node-entry.js:21131:26)
+      at async ModuleLoader.resolveId (file:///home/azureuser/motionlil/node_modules/rollup/dist/es/shared/node-entry.js:21575:15)
+      at async Object.resolveId (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:2835:10) {
+    code: 'PLUGIN_ERROR',
+    pluginCode: 'ERR_RESOLVE_PACKAGE_ENTRY_FAIL',
+    plugin: 'commonjs--resolver',
+    hook: 'resolveId',
+    watchFiles: [ '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/test/fixtures/vite/index.html', '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/test/fixtures/vite/main.js' ]
+  }
+

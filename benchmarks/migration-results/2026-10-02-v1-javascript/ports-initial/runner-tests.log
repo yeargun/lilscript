@@ -1,0 +1,31 @@
+✔ feature detection ignores comments and string text but not template expressions (1.384364ms)
+✔ lane selection unions items and intersects components (2.046515ms)
+✔ a case configuration merges into the lane's tables, one [javascript] table (0.876563ms)
+✔ production lanes carry no tactic table (0.264596ms)
+✔ objective rewriting replaces codecs or a port's cost_model, and inserts or appends codecs (0.535664ms)
+✔ port objective and check overrides discover named delivery profiles (1.509679ms)
+✔ failing-test names from node:test, jest and TAP (1.903587ms)
+✔ the port ledger: regressions, removals, and intermittent entries (0.349065ms)
+✔ a suite that ran no test reports no ledgered test as passing (0.471834ms)
+✔ a failed package build does not run or qualify its dependent suite (291.218156ms)
+✔ port receipts retain production evidence when a suite replaces its artifacts (449.870963ms)
+✔ ratchet: an item loses to a bar only when strictly larger, per metric (0.647363ms)
+✔ ratchet: growth, a new loss and a broken lane block; shrinking is an improvement (0.71529ms)
+✔ ratchet: a default-container change cannot rewrite the old delivery baseline (0.324639ms)
+✔ ratchet: retained configuration identities detect changed and removed lane files (2.189924ms)
+✔ ratchet: experimental configurations cannot overwrite the ordinary baseline through an alias (0.728065ms)
+✔ ratchet: a named objective lane must resolve to that actual compiler objective (0.693659ms)
+✔ ratchet: the ledger needs owners and reasons, covers by glob, bar and metric, and reports stale entries (0.866904ms)
+✔ ratchet: catalog ids carry the behavior family; filters take substrings and globs (0.358943ms)
+✔ the idiom debt ledger validates, and a malformed entry is refused (NO4) (0.825156ms)
+✔ ratchet: a lane that starts compiling may lose without growth; its losses still need the ledger (0.848189ms)
+✔ the case runner reads a build's walk counts and stops from its explain report (0.416891ms)
+✔ ratchet: explicit corpus growth retains separate full-population objective totals (0.92284ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 844.246079

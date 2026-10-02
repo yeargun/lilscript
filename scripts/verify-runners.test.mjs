@@ -2,13 +2,14 @@
 // scripts/ratchet.mjs.
 //   node --test scripts/verify-runners.test.mjs
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes, walkCounts } from "./cases.mjs";
-import { diffAgainstLedger, failingTests, rewriteObjective, suiteRan, testTotals } from "./ports.mjs";
+import { configFiles, diffAgainstLedger, failingTests, rewriteObjective, suiteRan, testTotals } from "./ports.mjs";
 import { growthAcceptance, validateGrowthOptions, applyLedger, catalogId, changedConfigurations, compareWithBaseline, configurationOverrideProblem, configurationSnapshot, countLosses, deliveryProblem, lossRows, selectItems, validateLedger, validateObjectivePolicy } from "./ratchet.mjs";
 import { validateIdiomDebt } from "./lib/idiom-debt.mjs";
 
@@ -19,8 +20,9 @@ test("feature detection ignores comments and string text but not template expres
 });
 
 test("lane selection unions items and intersects components", () => {
-  assert.equal(selectLanes("all").length, 18);
-  assert.equal(selectLanes("production").length, 9);
+  // IIFE, ESM, CJS, bare script and native C, each with three objectives.
+  assert.equal(selectLanes("all").length, 30);
+  assert.equal(selectLanes("production").length, 15);
   assert.deepEqual(selectLanes("production/*/c,formation-only/raw/script").map((lane) => lane.id), [
     "formation-only/raw/script", "production/brotli/c", "production/gzip/c", "production/raw/c",
   ]);
@@ -54,6 +56,21 @@ test("objective rewriting replaces codecs or a port's cost_model, and inserts or
   assert.equal(rewriteObjective('[javascript]\ncost_model = "brotli"\n', "raw"), '[javascript]\ncost_model = "raw"\n');
   assert.equal(rewriteObjective("[package]\nname = 'x'\n[objective]\n[effort]\nlevel = 13\n", "gzip"), "[package]\nname = 'x'\n[objective]\ncodecs = [\"gzip\"]\n[effort]\nlevel = 13\n");
   assert.equal(rewriteObjective("[mangle]\nexports = false\n", "raw"), '[mangle]\nexports = false\n\n[objective]\ncodecs = ["raw"]\n');
+});
+
+test("port objective and check overrides discover named delivery profiles", () => {
+  const root = mkdtempSync(join(tmpdir(), "lilscript-port-configs-"));
+  try {
+    mkdirSync(join(root, "config"));
+    mkdirSync(join(root, "node_modules"));
+    writeFileSync(join(root, "lilscript.toml"), "[mangle]\nidentifiers = true\n");
+    writeFileSync(join(root, "config/production.min.toml"), '[objective]\ncodecs = "brotli"\n');
+    writeFileSync(join(root, "config/editor-worker.toml"), '[delivery.entries]\nworker = "worker.lil"\n');
+    writeFileSync(join(root, "config/dev.toml"), '[javascript] # checks profile\nchecks = "development"\n');
+    writeFileSync(join(root, "config/unrelated.toml"), '[site]\nname = "docs"\n');
+    writeFileSync(join(root, "node_modules/lilscript.toml"), "[effort]\nlevel = 1\n");
+    assert.deepEqual(configFiles(root), ["config/dev.toml", "config/editor-worker.toml", "config/production.min.toml", "lilscript.toml"].map(file => join(root, file)));
+  } finally { rmSync(root, {recursive: true, force: true}); }
 });
 
 test("failing-test names from node:test, jest and TAP", () => {
@@ -90,6 +107,60 @@ test("a suite that ran no test reports no ledgered test as passing", () => {
   assert.equal(suiteRan(undefined), false);
   const ran = "Tests:       1 failed, 2 passed, 3 total\n";
   assert.equal(suiteRan({ ...testTotals(ran) }), true);
+});
+
+test("a failed package build does not run or qualify its dependent suite", () => {
+  const root = mkdtempSync(join(tmpdir(), "lilscript-port-failure-"));
+  try {
+    const port = join(root, "brokenlil"), work = join(root, "work");
+    mkdirSync(port);
+    writeFileSync(join(root, "compiler"), '#!/bin/sh\necho "fixture compiler"\n', {mode: 0o755});
+    writeFileSync(join(port, "package.json"), JSON.stringify({scripts: {build: "node build.mjs", test: "node test.mjs"}}));
+    writeFileSync(join(port, "build.mjs"), "process.exit(7)\n");
+    writeFileSync(join(port, "test.mjs"), "throw Error('dependent suite must not run')\n");
+    const report = join(root, "report.json");
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL("./ports.mjs", import.meta.url)),
+      "--compiler", join(root, "compiler"), "--ports", "brokenlil", "--ports-root", root,
+      "--work", work, "--json", report, "--codec", "none", "--ledger", "none"], {encoding: "utf8"});
+    assert.equal(result.status, 1, result.stderr);
+    const row = JSON.parse(readFileSync(report, "utf8")).ports[0];
+    assert.deepEqual(row.failing, ["(build failed)"]);
+    assert.equal(row.test.skipped, "build did not produce a complete package");
+    assert.equal(suiteRan(row.test), false);
+    const retained = JSON.parse(readFileSync(join(work, "logs/brokenlil.result.json"), "utf8"));
+    assert.equal(retained.result.test.skipped, row.test.skipped);
+  } finally { rmSync(root, {recursive: true, force: true}); }
+});
+
+test("port receipts retain production evidence when a suite replaces its artifacts", () => {
+  const root = mkdtempSync(join(tmpdir(), "lilscript-port-rebuild-"));
+  try {
+    const port = join(root, "rebuildinglil"), work = join(root, "work");
+    mkdirSync(port);
+    writeFileSync(join(root, "compiler"), '#!/bin/sh\necho "fixture compiler"\n', {mode: 0o755});
+    writeFileSync(join(port, "package.json"), JSON.stringify({scripts: {build: "node build.mjs", test: "node test.mjs"}}));
+    writeFileSync(join(port, "build.mjs"), `
+import {mkdirSync, writeFileSync} from "node:fs";
+import {execFileSync} from "node:child_process";
+execFileSync(process.env.LILSCRIPT_COMPILER, ["--version"]);
+mkdirSync("dist"); mkdirSync(".tmp");
+writeFileSync("dist/entry.js", "export const value = 1;");
+writeFileSync(".tmp/build-report.json", '{"mode":"production"}');
+`);
+    writeFileSync(join(port, "test.mjs"), `
+import {rmSync, writeFileSync} from "node:fs";
+rmSync("dist/entry.js");
+writeFileSync(".tmp/build-report.json", '{"mode":"development"}');
+`);
+    const report = join(root, "report.json");
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL("./ports.mjs", import.meta.url)),
+      "--compiler", join(root, "compiler"), "--ports", "rebuildinglil", "--ports-root", root,
+      "--work", work, "--json", report, "--codec", "none", "--ledger", "none"], {encoding: "utf8"});
+    assert.equal(result.status, 0, result.stderr);
+    const row = JSON.parse(readFileSync(report, "utf8")).ports[0];
+    assert.deepEqual(row.test.artifactChanges, [{path: "dist/entry.js", before: row.artifacts[0].sha256, after: null}]);
+    assert.equal(JSON.parse(readFileSync(join(work, row.build.receipts[0].path), "utf8")).mode, "production");
+  } finally { rmSync(root, {recursive: true, force: true}); }
 });
 
 // The generic corpus ratchet (scripts/ratchet.mjs): verdicts, the baseline

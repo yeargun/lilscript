@@ -15,7 +15,8 @@
 //   2. uses each port's owned source; an explicit --patches DIR can evaluate
 //      a proposed source change without modifying its checkout;
 //   3. with --objective other than `shipped`, rewrites `cost_model` in every
-//      copied lilscript*.toml; with --checks development, sets
+//      copied compiler configuration (including config/*.toml); with
+//      --checks development, sets
 //      `javascript.checks = "development"` in each (the development-check
 //      lane: a precondition violation throws where production is unspecified);
 //   4. builds with LILSCRIPT_COMPILER and MOTIONLIL_LILSCRIPT_BIN pointing at a
@@ -72,14 +73,21 @@ function copyPort(source, destination) {
   walk(source, destination, 0);
 }
 
-function configFiles(directory) {
+export function configFiles(directory) {
   const found = [];
   const walk = (current) => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       if (entry.name === "node_modules" || entry.name === ".git") continue;
       const path = join(current, entry.name);
       if (entry.isDirectory()) walk(path);
-      else if (/^lilscript.*\.toml$/.test(entry.name)) found.push(path);
+      else if (/\.toml$/.test(entry.name)) {
+        // Multi-output ports also use config/dev.toml, production.min.toml,
+        // worker profiles, and extension profiles. Rewriting only files named
+        // lilscript*.toml silently leaves part of an objective run unchanged.
+        const text = readFileSync(path, "utf8");
+        if (/^lilscript.*\.toml$/.test(entry.name)
+          || /^\s*\[(?:policy|javascript|objective|effort|delivery)(?:\.[^\]]+)?\]\s*(?:#.*)?$/m.test(text)) found.push(path);
+      }
     }
   };
   walk(directory);
@@ -272,7 +280,7 @@ async function runPort(port, context) {
     const completedPath = join(logs, `${port}.result.json`);
     writeFileSync(`${completedPath}.tmp`, `${JSON.stringify({
       schema: 1, kind: "lilscript-port-result", compiler, codec, objective,
-      patches, checks, completed: new Date().toISOString(), result,
+      patches, checks, node: process.version, completed: new Date().toISOString(), result,
     }, null, 1)}\n`);
     renameSync(`${completedPath}.tmp`, completedPath);
     if (!keep) rmSync(parent, { recursive: true, force: true });
@@ -314,7 +322,12 @@ async function runPort(port, context) {
   // compiled nothing (a stale dist, a hard-coded binary) cannot pass silently.
   const invocationLog = join(parent, "compiler-invocations.log");
   const wrapper = join(parent, "lilscript-wrapper");
-  writeFileSync(wrapper, `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(invocationLog)}\nexec ${JSON.stringify(compiler.path)} "$@"\n`, { mode: 0o755 });
+  const shellQuote = value => `'${value.replaceAll("'", "'\\''")}'`;
+  writeFileSync(wrapper, `#!/bin/sh\nprintf '%s\\n' "$*" >> ${shellQuote(invocationLog)}\nexec ${shellQuote(compiler.path)} "$@"\n`, { mode: 0o755 });
+  // A port's own receipt may fingerprint the wrapper it invoked. Retain the
+  // exact wrapper-to-binary link so that hash is not mistaken for a different
+  // compiler executable during later release qualification.
+  row.compilerWrapper = { path: wrapper, sha256: sha256File(wrapper), targetSha256: compiler.sha256 };
   const invocations = () => (existsSync(invocationLog) ? readFileSync(invocationLog, "utf8").split("\n").filter(Boolean).length : 0);
   const env = {};
   for (const [key, value] of Object.entries(process.env)) if (!key.startsWith("LILSCRIPT_") && key !== "MOTIONLIL_LILSCRIPT_BIN") env[key] = value;
@@ -360,7 +373,17 @@ async function runPort(port, context) {
       compilerInvocations: invocations(),
       errors: (build.stdout + build.stderr).split("\n").filter((line) => /error|refus|unsupported/i.test(line) && !/^warning/i.test(line)).slice(0, 10),
     };
-    if (build.status !== 0) failing.push(build.timedOut ? "(build timed out)" : "(build failed)");
+    if (build.status !== 0) {
+      failing.push(build.timedOut ? "(build timed out)" : "(build failed)");
+      row.compilerInvocations = invocations();
+      // A missing or partial package cannot qualify its dependent suite. Do
+      // not report cascading module-load errors as behavioral test failures,
+      // or let a test script's development rebuild qualify a failed release.
+      return finish({ test: {
+        skipped: "build did not produce a complete package", status: null,
+        tests: null, pass: null, fail: null, failing: [],
+      } });
+    }
     const artifacts = distArtifacts(workspace);
     row.artifacts = artifacts.map((path) => ({ path: relative(workspace, path), bytes: readFileSync(path).length, sha256: sha256File(path) }));
     if (codec && artifacts.length) {
@@ -368,6 +391,14 @@ async function runPort(port, context) {
       if (measured.status === 0) {
         JSON.parse(measured.stdout).artifacts.forEach((size, index) => Object.assign(row.artifacts[index], { raw: size.raw, gzip9: size.gzip9, brotli11: size.brotli11 }));
       } else row.measurementError = headLines(measured.stderr, 3);
+    }
+    row.build.receipts = [];
+    for (const file of [".tmp/build-report.json", "dist/lilscript.manifest.json"]) {
+      const path = join(workspace, file);
+      if (!existsSync(path)) continue;
+      const retained = join(logs, `${port}.${basename(file)}`);
+      cpSync(path, retained);
+      row.build.receipts.push({ source: file, path: relative(work, retained), sha256: sha256File(retained) });
     }
   }
 
@@ -384,9 +415,22 @@ async function runPort(port, context) {
   else if (test.status !== 0 && !names.length) names.push("(suite failed without named failures)");
   row.compilerInvocations = invocations();
   if (!row.compilerInvocations) failing.push("(compiler not invoked)");
+  // Some npm suites rebuild a development variant. Preserve the production
+  // measurements above and explicitly report which files the suite replaced
+  // or deleted, instead of implying that all assertions exercised that build.
+  const after = new Map(distArtifacts(workspace).map(path => [relative(workspace, path), sha256File(path)]));
+  const artifactChanges = [];
+  for (const artifact of row.artifacts ?? []) {
+    const hash = after.get(artifact.path) ?? null;
+    if (hash !== artifact.sha256) artifactChanges.push({path: artifact.path, before: artifact.sha256, after: hash});
+    after.delete(artifact.path);
+  }
+  for (const [path, hash] of after) artifactChanges.push({path, before: null, after: hash});
   return finish({
     test: {
       command: `npm ${suite[1].join(" ")}`, status: test.status, signal: test.signal, ms: test.ms,
+      compilerInvocations: row.compilerInvocations - (row.build?.compilerInvocations ?? 0),
+      artifactChanges,
       ...testTotals(text), failing: names, tail: text.trim().split("\n").slice(-15).join("\n"),
     },
   });
@@ -402,7 +446,8 @@ function printReport(report) {
   out(`${"port".padEnd(width)}  state      build        suite              failing  ledgered  new  now-passing  compiles`);
   for (const row of report.ports) {
     const build = row.build ? `${row.build.status === 0 ? "ok" : "FAIL"} ${Math.round(row.build.ms / 1000)}s` : row.state === "missing" ? "-" : "none";
-    const suite = row.test ? `${row.test.pass ?? "?"}/${row.test.tests ?? "?"} exit ${row.test.status}` : "-";
+    const suite = row.test?.skipped ? "not run (build)"
+      : row.test ? `${row.test.pass ?? "?"}/${row.test.tests ?? "?"} exit ${row.test.status}` : "-";
     out(`${row.port.padEnd(width)}  ${row.state.padEnd(9)}  ${build.padEnd(11)}  ${suite.padEnd(17)}  ${String(row.failing.length).padStart(7)}  ${String(row.ledgered?.length ?? 0).padStart(8)}  ${String(row.regressions.length).padStart(3)}  ${String(row.nowPassing.length).padStart(11)}  ${String(row.compilerInvocations ?? "-").padStart(8)}`);
   }
   for (const row of report.ports) {

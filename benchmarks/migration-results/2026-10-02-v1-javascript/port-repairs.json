@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "complete": false,
+  "compiler": {
+    "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+    "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/bin/lilscript-42b48470e2436ab8",
+    "sha256": "42b48470e2436ab8fffdfdab1c2e28402d103ce445dc8974146ae268c6c3aa5b",
+    "version": "lilscript 0.1.0"
+  },
+  "motionlil": {
+    "classification": "source boundary",
+    "change": "Public array identity helpers now take JsValue and retain strict index comparison. Native/value-struct equality was not their contract.",
+    "check": "Ten-entry target check passes; production rebuild and two new upstream differential tests are pending."
+  },
+  "mobxlil": {
+    "classification": "test build workflow",
+    "observation": "The complete package built; npm test then replaced it with development-only dist, so three production imports failed. 766 passed; 11 upstream skips.",
+    "change": "npm test uses the completed package. test:build explicitly builds before testing.",
+    "qualification": "Affected production tests and workflow recheck pending; initial failures remain retained."
+  },
+  "jquerylil": {
+    "classification": "test syntax assumption",
+    "observation": "Six behavioral tests passed. The remaining assertion required export default syntax although the namespace exposes its default using an export specifier.",
+    "change": "Assert actual default/jQuery/$ identity while retaining compact-output checks.",
+    "qualification": "Affected test passes against unchanged candidate-5 artifacts. Together with the six initial passing tests, all seven are qualified.",
+    "test_sha256": "d6bbf85b3caab03534a3dcb1089e6be12818c49cd999751dcbfc3a54d157b647"
+  },
+  "runner": {
+    "qualification": "23 tests pass",
+    "changes": [
+      "Discover all compiler TOML profiles, not just lilscript*.toml; includes MobX, workers and extensions.",
+      "Do not execute or claim behavior coverage after a failed package build.",
+      "Retain production build receipts before a suite can overwrite them; record changed/deleted artifacts after tests.",
+      "Retain wrapper-to-compiler hash relation and Node identity.",
+      "Repair obsolete lane-count expectations after CJS and bare format additions."
+    ]
+  },
+  "other_test_workflows": {
+    "ports": [
+      "cnlil",
+      "playcanvaslil",
+      "remark-breakslil",
+      "remark-gfmlil",
+      "remark-mathlil",
+      "zodlil"
+    ],
+    "change": "Separate npm test from test:build; release/check commands still request a fresh build. This removes duplicate compiler work from qualification.",
+    "qualification": "Cnlil runtime evidence is retained; other ports use the updated source-owned command in the continuing batch."
+  },
+  "cost_observation": {
+    "old_hast_logical_work": 200000000,
+    "current_cli_logical_work": 40000000000,
+    "same_config_sha256": "a7c05c78534a607af965a1188725c16a98c5f5a9186b59cc972f9bd11339370f",
+    "interpretation": "Historical 2.7s public compile and fresh full 736.4s package build differ in both scope and effective budgets. Neither is an isolated compiler timing comparison. Matched cost work must pin both ceilings."
+  }
+}

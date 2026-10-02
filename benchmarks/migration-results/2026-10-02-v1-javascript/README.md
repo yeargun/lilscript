@@ -162,3 +162,33 @@ Candidate 5 repeats all 91 semantic commands successfully, and its 54 applicatio
 algorithm artifacts have exactly the candidate-4 hashes. Library qualification
 resumes on candidate 5 without repeating cnlil. No fleet timing improvement is
 claimed from the interrupted run.
+
+The resumed run retains each completed port under `ports-initial/`; the full
+fleet is still running. Hast-util-to-html passes all 456 tests. jQuery passes
+six behavioral checks and exposes a stale syntax assertion: its default export
+uses an export specifier. The repaired check compares the imported default,
+`jQuery` and `$` identities and passes on the unchanged compiled artifact.
+Together these qualify all seven jQuery checks without rebuilding the package.
+
+Motion's generic array-identity helper now declares its JavaScript boundary
+explicitly; the ten-entry checker passes, while its production build and new
+upstream comparisons remain pending. MobX builds all four profiles, but its old
+test command immediately replaces `dist` with development-only output. Three
+production imports consequently fail; 766 tests pass and 11 are upstream skips.
+Its corrected test command consumes the completed package. The affected
+production checks still need a fresh artifact, because the initial test command
+deleted it. [Repair dispositions](port-repairs.json) keep these distinctions.
+
+The runner now preserves build receipts before tests can overwrite them and
+reports changed/deleted artifacts afterwards. It skips dependent suites after a
+failed build, records the wrapper-to-compiler identity, and discovers named TOML
+profiles as well as `lilscript*.toml` when overriding objectives/checks. All 23
+runner tests pass. Source-owned `test:build` commands keep clean-build convenience
+and release checks; plain `npm test` avoids a duplicate compilation in the fleet.
+
+An older HTML-library receipt used 200 million logical work units; the current
+CLI resolves 40 billion with the same TOML. Its historical short compile and
+this full package build are not matched timing samples. V1's remaining cost
+study must pin equal effective ceilings, in addition to source, effort and
+objective. No timing improvement or regression is inferred from those two
+different build boundaries.

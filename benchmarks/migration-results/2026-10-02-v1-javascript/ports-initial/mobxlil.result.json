@@ -1,0 +1,172 @@
+{
+ "schema": 1,
+ "kind": "lilscript-port-result",
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/bin/lilscript-42b48470e2436ab8",
+  "sha256": "42b48470e2436ab8fffdfdab1c2e28402d103ce445dc8974146ae268c6c3aa5b",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "objective": "shipped",
+ "patches": "none",
+ "checks": "production",
+ "completed": "2026-10-02T11:45:09.042Z",
+ "result": {
+  "port": "mobxlil",
+  "source": {
+   "path": "/home/azureuser/mobxlil",
+   "head": "ef932517a74b144a870462f4f0095c46058271da",
+   "dirty": true
+  },
+  "build": {
+   "command": "npm run build",
+   "status": 0,
+   "ms": 1074403,
+   "timedOut": false,
+   "compilerInvocations": 9,
+   "errors": []
+  },
+  "artifacts": [
+   {
+    "path": "dist/index.js",
+    "bytes": 255,
+    "sha256": "945050791144e28077bade9b417acf8ab34b5f3e52bd1730512145b4be2fea7c",
+    "raw": 255,
+    "gzip9": 203,
+    "brotli11": 175
+   },
+   {
+    "path": "dist/mobx.cjs.development.js",
+    "bytes": 117145,
+    "sha256": "1b51a91aa37a3750d505e976f4af90c2c15a31a6cfa487616456ae3072b99006",
+    "raw": 117145,
+    "gzip9": 27093,
+    "brotli11": 23754
+   },
+   {
+    "path": "dist/mobx.cjs.production.js",
+    "bytes": 61867,
+    "sha256": "8839c849f5102a60ef88f8c9a52a24a9f2acdff8be5ee0e59004659bc3ed4afa",
+    "raw": 61867,
+    "gzip9": 17391,
+    "brotli11": 15551
+   },
+   {
+    "path": "dist/mobx.cjs.production.min.js",
+    "bytes": 64471,
+    "sha256": "2cf2903491116f25345a48b9db0674bbcc6d93a144964cabcab69c5fca095120",
+    "raw": 64471,
+    "gzip9": 17900,
+    "brotli11": 15967
+   },
+   {
+    "path": "dist/mobx.dev.esm.js",
+    "bytes": 113012,
+    "sha256": "e2354eff3714df17a74f07391d6fac27533f78459b9919722d78d50b0aef1546",
+    "raw": 113012,
+    "gzip9": 26725,
+    "brotli11": 23281
+   },
+   {
+    "path": "dist/mobx.esm.development.js",
+    "bytes": 113012,
+    "sha256": "e2354eff3714df17a74f07391d6fac27533f78459b9919722d78d50b0aef1546",
+    "raw": 113012,
+    "gzip9": 26725,
+    "brotli11": 23281
+   },
+   {
+    "path": "dist/mobx.esm.js",
+    "bytes": 58221,
+    "sha256": "c3b83881de1378d2e3397332e67a1f6581cffec4d439741466ee861e953a9496",
+    "raw": 58221,
+    "gzip9": 17007,
+    "brotli11": 15159
+   },
+   {
+    "path": "dist/mobx.esm.production.min.js",
+    "bytes": 60586,
+    "sha256": "24d7e6448a05e46071a382237fcb39acbd337bbf0981f1fda2a7e03360f4c1ec",
+    "raw": 60586,
+    "gzip9": 17775,
+    "brotli11": 15808
+   },
+   {
+    "path": "dist/mobx.mjs",
+    "bytes": 58221,
+    "sha256": "c3b83881de1378d2e3397332e67a1f6581cffec4d439741466ee861e953a9496",
+    "raw": 58221,
+    "gzip9": 17007,
+    "brotli11": 15159
+   },
+   {
+    "path": "dist/mobx.umd.development.js",
+    "bytes": 117457,
+    "sha256": "8d8cbefc5c0a80fccc3af5a3a6017514fbe9dc43b0fd9a07b9da54148e0c6fcf",
+    "raw": 117457,
+    "gzip9": 27211,
+    "brotli11": 23795
+   },
+   {
+    "path": "dist/mobx.umd.production.js",
+    "bytes": 62447,
+    "sha256": "f91811761bb0a8011342bff55f6ad14aa74fc56c48a4240e8ad02760dd5d177c",
+    "raw": 62447,
+    "gzip9": 17502,
+    "brotli11": 15605
+   },
+   {
+    "path": "dist/mobx.umd.production.min.js",
+    "bytes": 64783,
+    "sha256": "31464ccda1e17af5dc2e6b8ea832aa075978ebfb4198c1932b4b1630368f9e9a",
+    "raw": 64783,
+    "gzip9": 18015,
+    "brotli11": 16036
+   }
+  ],
+  "compilerInvocations": 14,
+  "test": {
+   "command": "npm test",
+   "status": 1,
+   "signal": null,
+   "ms": 15103,
+   "tests": 780,
+   "pass": 766,
+   "fail": 3,
+   "failing": [
+    "Default debug names - production",
+    "User provided debug names are always respected",
+    "makeAutoObservable + production build #2751"
+   ],
+   "tail": "    > 940 |     const mobxProduction = require(`../../dist/mobx.cjs.production.min.js`)\n          |                            ^\n      941 |\n      942 |     const name = \"CustomName\"\n      943 |\n\n      at createNoMappedModuleFoundError (../../../../../../mobxlil/node_modules/jest-resolve/build/index.js:1149:17)\n      at Object.<anonymous> (tests/upstream/base/extras.js:940:28)\n\n\nTest Suites: 2 failed, 35 passed, 37 total\nTests:       3 failed, 11 skipped, 766 passed, 780 total\nSnapshots:   32 passed, 32 total\nTime:        11.084 s\nRan all test suites."
+  },
+  "failing": [
+   "Default debug names - production",
+   "User provided debug names are always respected",
+   "makeAutoObservable + production build #2751"
+  ],
+  "ledgered": [],
+  "regressions": [
+   "Default debug names - production",
+   "User provided debug names are always respected",
+   "makeAutoObservable + production build #2751"
+  ],
+  "nowPassing": [
+   "(build failed)",
+   "Test suite failed to run"
+  ],
+  "ledgerEntries": [
+   {
+    "index": 0,
+    "owner": "M12.2 (the port's rebuild on the current compiler: drop the refused key, define its host globals for the development bundle)"
+   }
+  ],
+  "state": "regressed"
+ }
+}

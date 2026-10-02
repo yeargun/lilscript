@@ -1,0 +1,11 @@
+▶ @itslil/jquery vs jquery@3.7.1
+  ✔ ships compact ESM with the same default and named exports (2.023321ms)
+✔ @itslil/jquery vs jquery@3.7.1 (3.42071ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 466.599625

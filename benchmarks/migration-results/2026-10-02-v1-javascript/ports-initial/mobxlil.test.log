@@ -1,0 +1,176 @@
+
+> @itslil/mobx@7.0.1 test
+> node scripts/build.mjs --dev && node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs
+
+Built 6 compiler-written artifacts (development, package)
+
+warning: javascript: `policy.tactics.naming-search` is unavailable because required tactic `identifier-mangling` is disabled
+warning: javascript: `policy.tactics.naming-alphabet` is unavailable because required tactic `identifier-mangling` is disabled
+FAIL tests/upstream/base/make-observable.ts
+  ● makeAutoObservable + production build #2751
+
+    Configuration error:
+
+    Could not locate module ../../dist/mobx.cjs.production.min.js mapped as:
+    /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^\.\.\/\.\.\/dist\/mobx\.cjs\.production\.min\.js$/": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js"
+      },
+      "resolver": undefined
+    }
+
+      1077 |
+      1078 | test("makeAutoObservable + production build #2751", () => {
+    > 1079 |     const mobx = require(`../../dist/mobx.cjs.production.min.js`)
+           |                  ^
+      1080 |     class Foo {
+      1081 |         x = "x"
+      1082 |         constructor() {
+
+      at createNoMappedModuleFoundError (../../../../../../mobxlil/node_modules/jest-resolve/build/index.js:1149:17)
+      at Object.<anonymous> (tests/upstream/base/make-observable.ts:1079:18)
+
+FAIL tests/upstream/base/extras.js
+  ● Default debug names - production
+
+    Configuration error:
+
+    Could not locate module ../../dist/mobx.cjs.production.min.js mapped as:
+    /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^\.\.\/\.\.\/dist\/mobx\.cjs\.production\.min\.js$/": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js"
+      },
+      "resolver": undefined
+    }
+
+      912 |
+      913 | test("Default debug names - production", () => {
+    > 914 |     const mobx = require(`../../dist/mobx.cjs.production.min.js`)
+          |                  ^
+      915 |
+      916 |     expect(mobx.getDebugName(mobx.observable({ x() {} }, { x: mobx.action }).x)).toBe("x") // perhaps should be "<unnamed action>"??
+      917 |     expect(mobx.getDebugName(mobx.createAtom())).toBe("Atom")
+
+      at createNoMappedModuleFoundError (../../../../../../mobxlil/node_modules/jest-resolve/build/index.js:1149:17)
+      at Object.<anonymous> (tests/upstream/base/extras.js:914:18)
+
+  ● User provided debug names are always respected
+
+    Configuration error:
+
+    Could not locate module ../../dist/mobx.cjs.production.min.js mapped as:
+    /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^\.\.\/\.\.\/dist\/mobx\.cjs\.production\.min\.js$/": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js"
+      },
+      "resolver": undefined
+    }
+
+      938 | test("User provided debug names are always respected", () => {
+      939 |     const mobxDevelopment = mobx
+    > 940 |     const mobxProduction = require(`../../dist/mobx.cjs.production.min.js`)
+          |                            ^
+      941 |
+      942 |     const name = "CustomName"
+      943 |
+
+      at createNoMappedModuleFoundError (../../../../../../mobxlil/node_modules/jest-resolve/build/index.js:1149:17)
+      at Object.<anonymous> (tests/upstream/base/extras.js:940:28)
+
+
+Summary of all failing tests
+FAIL tests/upstream/base/make-observable.ts
+  ● makeAutoObservable + production build #2751
+
+    Configuration error:
+
+    Could not locate module ../../dist/mobx.cjs.production.min.js mapped as:
+    /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^\.\.\/\.\.\/dist\/mobx\.cjs\.production\.min\.js$/": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js"
+      },
+      "resolver": undefined
+    }
+
+      1077 |
+      1078 | test("makeAutoObservable + production build #2751", () => {
+    > 1079 |     const mobx = require(`../../dist/mobx.cjs.production.min.js`)
+           |                  ^
+      1080 |     class Foo {
+      1081 |         x = "x"
+      1082 |         constructor() {
+
+      at createNoMappedModuleFoundError (../../../../../../mobxlil/node_modules/jest-resolve/build/index.js:1149:17)
+      at Object.<anonymous> (tests/upstream/base/make-observable.ts:1079:18)
+
+FAIL tests/upstream/base/extras.js
+  ● Default debug names - production
+
+    Configuration error:
+
+    Could not locate module ../../dist/mobx.cjs.production.min.js mapped as:
+    /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^\.\.\/\.\.\/dist\/mobx\.cjs\.production\.min\.js$/": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js"
+      },
+      "resolver": undefined
+    }
+
+      912 |
+      913 | test("Default debug names - production", () => {
+    > 914 |     const mobx = require(`../../dist/mobx.cjs.production.min.js`)
+          |                  ^
+      915 |
+      916 |     expect(mobx.getDebugName(mobx.observable({ x() {} }, { x: mobx.action }).x)).toBe("x") // perhaps should be "<unnamed action>"??
+      917 |     expect(mobx.getDebugName(mobx.createAtom())).toBe("Atom")
+
+      at createNoMappedModuleFoundError (../../../../../../mobxlil/node_modules/jest-resolve/build/index.js:1149:17)
+      at Object.<anonymous> (tests/upstream/base/extras.js:914:18)
+
+  ● User provided debug names are always respected
+
+    Configuration error:
+
+    Could not locate module ../../dist/mobx.cjs.production.min.js mapped as:
+    /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^\.\.\/\.\.\/dist\/mobx\.cjs\.production\.min\.js$/": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mobxlil/mobxlil/dist/mobx.cjs.production.min.js"
+      },
+      "resolver": undefined
+    }
+
+      938 | test("User provided debug names are always respected", () => {
+      939 |     const mobxDevelopment = mobx
+    > 940 |     const mobxProduction = require(`../../dist/mobx.cjs.production.min.js`)
+          |                            ^
+      941 |
+      942 |     const name = "CustomName"
+      943 |
+
+      at createNoMappedModuleFoundError (../../../../../../mobxlil/node_modules/jest-resolve/build/index.js:1149:17)
+      at Object.<anonymous> (tests/upstream/base/extras.js:940:28)
+
+
+Test Suites: 2 failed, 35 passed, 37 total
+Tests:       3 failed, 11 skipped, 766 passed, 780 total
+Snapshots:   32 passed, 32 total
+Time:        11.084 s
+Ran all test suites.

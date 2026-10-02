@@ -1,0 +1,6 @@
+
+> @itslil/jquery@3.7.1 build
+> node scripts/build.mjs
+
+Built 5 compiler-written artifacts (public)
+

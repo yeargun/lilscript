@@ -1,0 +1,79 @@
+{
+ "schema": 1,
+ "kind": "lilscript-port-result",
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/bin/lilscript-42b48470e2436ab8",
+  "sha256": "42b48470e2436ab8fffdfdab1c2e28402d103ce445dc8974146ae268c6c3aa5b",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "objective": "shipped",
+ "patches": "none",
+ "checks": "production",
+ "completed": "2026-10-02T11:26:58.056Z",
+ "result": {
+  "port": "motionlil",
+  "source": {
+   "path": "/home/azureuser/motionlil",
+   "head": "ee5ebd1806f74acf34176aeea08988236ade3d58",
+   "dirty": true
+  },
+  "build": {
+   "command": "npm run build",
+   "status": 1,
+   "ms": 235,
+   "timedOut": false,
+   "compilerInvocations": 3,
+   "errors": [
+    "error: array search element type `T` has no portable identity contract",
+    "    child.on('close', status => status === 0 ? accept() : reject(Error(`LilScript exited ${status}`)))",
+    "Error: LilScript exited 1"
+   ]
+  },
+  "artifacts": [],
+  "compilerInvocations": 3,
+  "test": {
+   "command": "npm test",
+   "status": 1,
+   "signal": null,
+   "ms": 506,
+   "tests": 5,
+   "pass": 0,
+   "fail": 5,
+   "failing": [
+    "Vite bundles the public package entry",
+    "named imports do not pull the whole consumer graph",
+    "test/node.test.mjs",
+    "test/shared-graph.test.mjs",
+    "the distributed animate module survives a second Terser pass"
+   ],
+   "tail": "      at resolvePackageEntry (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:16195:3)\n      at tryNodeResolve (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:16060:18)\n      at Object.resolveId (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:15831:19)\n      at Object.handler (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:46618:15)\n      at file:///home/azureuser/motionlil/node_modules/rollup/dist/es/shared/node-entry.js:22787:40\n      at async PluginDriver.hookFirstAndGetPlugin (file:///home/azureuser/motionlil/node_modules/rollup/dist/es/shared/node-entry.js:22669:28)\n      at async resolveId (file:///home/azureuser/motionlil/node_modules/rollup/dist/es/shared/node-entry.js:21131:26)\n      at async ModuleLoader.resolveId (file:///home/azureuser/motionlil/node_modules/rollup/dist/es/shared/node-entry.js:21575:15)\n      at async Object.resolveId (file:///home/azureuser/motionlil/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:2835:10) {\n    code: 'PLUGIN_ERROR',\n    pluginCode: 'ERR_RESOLVE_PACKAGE_ENTRY_FAIL',\n    plugin: 'commonjs--resolver',\n    hook: 'resolveId',\n    watchFiles: [ '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/test/fixtures/vite/index.html', '/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/test/fixtures/vite/main.js' ]\n  }"
+  },
+  "failing": [
+   "(build failed)",
+   "Vite bundles the public package entry",
+   "named imports do not pull the whole consumer graph",
+   "test/node.test.mjs",
+   "test/shared-graph.test.mjs",
+   "the distributed animate module survives a second Terser pass"
+  ],
+  "ledgered": [],
+  "regressions": [
+   "(build failed)",
+   "Vite bundles the public package entry",
+   "named imports do not pull the whole consumer graph",
+   "test/node.test.mjs",
+   "test/shared-graph.test.mjs",
+   "the distributed animate module survives a second Terser pass"
+  ],
+  "nowPassing": [],
+  "ledgerEntries": [],
+  "state": "regressed"
+ }
+}

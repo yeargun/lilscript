@@ -1,0 +1,21 @@
+
+> motionlil@0.1.5 build
+> node scripts/build.mjs
+
+
+error: array search element type `T` has no portable identity contract
+ --> /home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/src/motion-utils/array.lil:2:7
+  |
+ 2 |   if (arr.indexOf(item) == -1) {
+  |       ^^^^^^^^^^^
+file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/scripts/build.mjs:44
+    child.on('close', status => status === 0 ? accept() : reject(Error(`LilScript exited ${status}`)))
+                                                                 ^
+
+Error: LilScript exited 1
+    at ChildProcess.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-2/runs/motionlil/motionlil/scripts/build.mjs:44:66)
+    at ChildProcess.emit (node:events:514:28)
+    at maybeClose (node:internal/child_process:1141:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:306:5)
+
+Node.js v24.20.0

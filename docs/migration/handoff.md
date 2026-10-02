@@ -16,6 +16,15 @@ followed by compile-cost qualification. Candidate 5 is pinned at
 DAG indexing passes all 192 affected checks and preserves the 54 app/algorithm
 artifact hashes. The library runner saves completed per-port results under its
 work directory; cnlil is already qualified and is excluded from the resumed batch.
+The resumed work directory is `lilscript-work/out/v1-ports-production-2` and its
+log is `/tmp/lilscript-v1-ports-production-2.log`. Hast-util-to-html is green;
+jQuery's remaining syntax-only assertion is repaired and passes against the
+same output. Motion has a source-boundary repair and MobX a test-workflow repair
+awaiting their affected production checks. See `port-repairs.json` in the V1
+evidence. Several port checkouts also separate `npm test` from `test:build` to
+avoid compiling twice. Preserve their unrelated preexisting working-tree edits
+when committing. The continuing fleet predates the runner's new build-failure
+skip/receipt-preservation logic; do not silently relabel its old rows.
 Do not restart the broad
 compiler suite: every original failure has a passing focused recheck in the
 [evidence](../../benchmarks/migration-results/2026-10-02-v1-javascript/README.md).

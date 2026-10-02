@@ -1,0 +1,96 @@
+{
+ "schema": 1,
+ "kind": "lilscript-port-result",
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/bin/lilscript-42b48470e2436ab8",
+  "sha256": "42b48470e2436ab8fffdfdab1c2e28402d103ce445dc8974146ae268c6c3aa5b",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "objective": "shipped",
+ "patches": "none",
+ "checks": "production",
+ "completed": "2026-10-02T11:26:56.868Z",
+ "result": {
+  "port": "hast-util-to-htmllil",
+  "source": {
+   "path": "/home/azureuser/hast-util-to-htmllil",
+   "head": "be31694aa2c211f993101cea8828d1bc336e2894",
+   "dirty": true
+  },
+  "build": {
+   "command": "npm run build",
+   "status": 0,
+   "ms": 736428,
+   "timedOut": false,
+   "compilerInvocations": 5,
+   "errors": []
+  },
+  "artifacts": [
+   {
+    "path": "dist/to-html.cjs",
+    "bytes": 29164,
+    "sha256": "321c84d756f02c14e8267bb2472eb10f0026dc814cafcd5e243c36f3c2f95c64",
+    "raw": 29164,
+    "gzip9": 9352,
+    "brotli11": 8277
+   },
+   {
+    "path": "dist/to-html.closed.js",
+    "bytes": 29209,
+    "sha256": "b7a242f0ef68e76e47aa94d94102442e45a287b95e6bdd9492d3db2232e445e1",
+    "raw": 29209,
+    "gzip9": 9394,
+    "brotli11": 8311
+   },
+   {
+    "path": "dist/to-html.esm.js",
+    "bytes": 29051,
+    "sha256": "80e59e16bfa030337b75639fb340be095eed4f8c7db822d25d197cde4977b057",
+    "raw": 29051,
+    "gzip9": 9318,
+    "brotli11": 8228
+   },
+   {
+    "path": "dist/to-html.raw.js",
+    "bytes": 29051,
+    "sha256": "80e59e16bfa030337b75639fb340be095eed4f8c7db822d25d197cde4977b057",
+    "raw": 29051,
+    "gzip9": 9318,
+    "brotli11": 8228
+   },
+   {
+    "path": "dist/to-html.umd.js",
+    "bytes": 29254,
+    "sha256": "0712d5520b4afcf303326fcaf29634d1110d1c7bedfc1d82360483c139719b3c",
+    "raw": 29254,
+    "gzip9": 9394,
+    "brotli11": 8311
+   }
+  ],
+  "compilerInvocations": 5,
+  "test": {
+   "command": "npm test",
+   "status": 0,
+   "signal": null,
+   "ms": 672,
+   "tests": 456,
+   "pass": 456,
+   "fail": 0,
+   "failing": [],
+   "tail": "  ✔ escapes text and attributes (1.782931ms)\n  ✔ joins className and emits boolean and void markup (0.312506ms)\n  ✔ emits raw only when allowDangerousHtml is set (0.208972ms)\n✔ @itslil/hast-util-to-html library (6.842572ms)\n▶ @itslil/hast-util-to-html closed lane\n  ✔ exists and still serializes a tree (1.813138ms)\n✔ @itslil/hast-util-to-html closed lane (1.984369ms)\nℹ tests 456\nℹ suites 4\nℹ pass 456\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 521.863799"
+  },
+  "failing": [],
+  "ledgered": [],
+  "regressions": [],
+  "nowPassing": [],
+  "ledgerEntries": [],
+  "state": "green"
+ }
+}
