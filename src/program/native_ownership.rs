@@ -96,7 +96,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.write(format_args!("ls_c{}", cell.index()))
         }
     }
-    fn box_pointer(&mut self, unit: UnitId, cell: CellId) -> Result<(), NativeError> {
+    pub(super) fn box_pointer(&mut self, unit: UnitId, cell: CellId) -> Result<(), NativeError> {
         if self.plan.program.cells[cell.index()].owner == unit {
             self.write(format_args!("ls_c{}", cell.index()))
         } else {
@@ -281,7 +281,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let data = self.plan.program.unit(unit).unwrap();
         for &op in &data.regions[region.index()].operations {
             self.budget.work(WorkKind::Render, 1)?;
-            if let OperationKind::Initialize(cell) = data.operations[op.index()].kind {
+            if let OperationKind::Initialize(cell) | OperationKind::Declare(cell) = data.operations[op.index()].kind {
                 if self.plan.boxed_cell(cell) {
                     self.write(format_args!("ls_c{0} = ls_box_allocate{0}();\n", cell.index()))?;
                 }
@@ -299,14 +299,19 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 ))?;
             } else if let ValueStorage::Value(ty) = self.plan.cell_storage(cell) {
                 // A parameter owns what it holds for the call's duration.
-                if let Some(retain) = ty.retain(&format!("ls_c{}", cell.index())) {
-                    self.text(&retain)?;
+                if !self.plan.reference_parameter(cell) {
+                    if let Some(retain) = ty.retain(&format!("ls_c{}", cell.index())) {
+                        self.text(&retain)?;
+                    }
                 }
             }
         }
         Ok(())
     }
     fn cleanup_cell(&mut self, cell: CellId) -> Result<(), NativeError> {
+        if self.plan.reference_parameter(cell) && !self.plan.boxed_cell(cell) {
+            return Ok(()); // Borrowed location; the caller owns its backing slot.
+        }
         if self.plan.global_cell(cell) {
             // Cleared when `main` ends: functions may still use it.
             return Ok(());

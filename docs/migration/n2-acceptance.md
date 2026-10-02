@@ -27,6 +27,10 @@ not permission to mark portable omissions complete by refusing them.
    ownership. Supply typed argv/env/standard streams/files/clock/exit bindings.
    Default/absent and mutable-reference callable transport must follow the
    language contract, not acquire a different native meaning.
+   Capturing a `ref` parameter is a shared source error, as are suspension and
+   public opaque reference ABIs; N2 preserves that contract. It must support
+   managed/callable payloads through legal synchronous references, rather than
+   adding escaping reference ownership and heap allocation to ordinary calls.
 5. **Optimization and profiles.** Native speed/size/balanced controls consume
    the shared optimized program. Qualify hot generic specialization, borrowed
    closures, ownership/stack storage and exception-check omission on portable

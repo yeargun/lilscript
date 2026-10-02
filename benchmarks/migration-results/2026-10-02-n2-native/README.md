@@ -234,3 +234,35 @@ ASan leak detection and UBSan halt-on-error are enabled. Compiler/fixture hashes
 and build/failure logs are retained. Updated Rust expectations await N2's
 consolidated Rust check. N2 remains active; no native speed or executable-size
 win is claimed for this semantic batch.
+
+## Call presence and managed references
+
+Algorithm78 implements callback ABI 3 with a supplied count and a borrowed
+per-position absence bitmap. Defaults execute in the selected callee, including
+absence before later supplied arguments, indirect/generic calls, constructors
+and super. Ordinary scalar arguments remain unboxed. Legal synchronous mutable
+references now support managed and callable payloads without acquiring ownership
+of the caller's slot. Captured bare declarations allocate their cell before
+assignment; assigned captures preserve ownership and initialization checks.
+The shared source prohibition on captured/suspending reference parameters remains
+in force; it does not require a native escaping-reference ABI.
+
+Four final affected fixtures pass **28** source/build/run steps under strict GCC,
+Clang 18 and ASan/UBSan: call transport and arrays on pin `n2-call-transport-4`,
+products and exceptions on pin3. Independent ECMAScript oracles cover defaults
+past parameter 64, effect order, generic adapter defaults, alias writes, callable
+references, nullable findIndex elements and deleted positions in both absence
+policies. Repeated calls check bounded allocation and zero owners at completion.
+Pin4 only extends the findIndex fix to legacy defaults and explicit nullable null.
+
+The extracted default-argument subset also matches emitted JavaScript at effort
+0 and 13; the complete source passes native GCC at effort13. The full source's
+JavaScript formation is refused with `reference callable requires a complete
+private interface`; V1 owns that gap. Do not count the extracted subset as full
+source parity. The exact extraction driver, sources, oracle, logs and receipts
+are [retained](call-transport). Initial build and fixture failures are retained:
+Rust2021 does not admit let-chains; callback parameter types must match the
+array's nullable element type. Neither is presented as a passing initial run.
+No broad library rerun or performance claim. Updated Rust expectations await
+N2's consolidated check; callable containers, static data, suspension, native
+interfaces and performance qualification remain open.

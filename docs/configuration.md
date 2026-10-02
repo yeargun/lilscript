@@ -32,7 +32,7 @@ A configuration is read in two steps:
 
 An `extern` normally uses its declared global name. `[host.javascript]` selects
 another global or a dotted property path for that declaration. `[host.native]`
-selects an explicit callback ABI v2 provider symbol. Both mappings resolve to
+selects an explicit callback ABI v3 provider symbol. Both mappings resolve to
 checked declaration identities and enter the policy fingerprint.
 
 ```toml

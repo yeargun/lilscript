@@ -140,7 +140,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M9.3 / M10.4 | [S4](plan.md#s4) | Implemented: callable adapters use actual rest arrays, preserving `.length`, undefined/default behavior and variable indices. |
 | M4 / M10 | [S4](plan.md#s4) | `??=` on a place: implemented and qualified in `8ebb686d`; four carried tests enabled |
 | M4 / M10 | [S4](plan.md#s4) | Implemented: generic methods and observed generic classes, checked constructor/default/rest substitution, fixed struct generic callables and canonical one-module exports |
-| M4 / M10 | [S4](plan.md#s4), resolved | Unified defaults accept explicit `undefined` and `JS.undefined()` through functions, generic calls, constructors and `super`; native absent-to-default transport is source-diagnosed pending N2 |
+| M4 / M10 | [S4](plan.md#s4), resolved; N2 transport implemented | Unified defaults accept explicit `undefined` and `JS.undefined()` through functions, generic calls, constructors and `super`; native callback ABI 3 preserves presence independently at each argument |
 | M4 / M10 | [S4](plan.md#s4) | Resolved: detached primitive methods have a checked refusal and explicit-closure alternative; the focused `charCodeAt` audit passes. |
 | M10.14 | [G2](plan.md#g2) | Complete in G2: both wrapper-name cases explicitly select name preservation and expect anonymous adapters. |
 | M12.2 | [D3](plan.md#d3), complete | Nominal rename workarounds reverted in Motion's source-owned integration. |
@@ -212,3 +212,10 @@ products fixture as a JavaScript/native parity pass before closing this refusal.
 `tests/native/arrays.lil` (`List<T>` initialization reports "erased product
 escapes a closed typed interface"). Native array qualification uses the separate
 ECMAScript oracle; it does not count this full source as JavaScript parity.
+
+**V1** owns the JavaScript formation refusal in `tests/native/call-transport.lil`:
+`reference callable requires a complete private interface`. Legal indirect
+managed/callable reference arguments pass native and the independent ECMAScript
+location model. The defaults-only extracted subset passes JavaScript at effort0
+and13; this is not full source parity. The retained N2 call-transport driver and
+failed formation log reproduce the distinction.

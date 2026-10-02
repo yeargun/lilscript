@@ -5,7 +5,8 @@ use crate::primitive::ParameterPassing;
 
 impl Emitter<'_, '_, '_, '_, '_> {
     pub(super) fn header(&mut self) -> Result<(), NativeError> {
-        self.text("#ifndef LILSCRIPT_NATIVE_CALLBACK_ABI_V2_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_V2_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 2\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\n")?;
+        self.text("#ifndef LILSCRIPT_NATIVE_CALLBACK_ABI_V3_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_V3_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 3\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\n")?;
+        self.text(include_str!("runtime/call.h"))?;
         self.text(include_str!("runtime/string.h"))?;
         self.text(native_memory::INTERFACE)?;
         self.text("typedef struct ls_native_object ls_native_object;\n")?;
@@ -92,11 +93,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.text(",")?;
             }
             self.write(format_args!(
-                "{ty}{}",
+                "{}",
                 if signature.source.params[position].passing == ParameterPassing::MutableReference {
-                    " *"
+                    format!("{ty} *")
                 } else {
-                    ""
+                    ty.to_string()
                 }
             ))?;
             if names {
@@ -104,7 +105,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
         }
         if signature.has_optional() {
-            self.text(if names { ",size_t ls_argc" } else { ",size_t" })?;
+            self.text(if names { ",ls_native_arguments ls_args" } else { ",ls_native_arguments" })?;
         }
         Ok(())
     }
@@ -121,7 +122,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.write(format_args!("ls_p{position}"))?;
         }
         if self.plan.signatures[index].has_optional() {
-            self.text(",ls_argc")?;
+            self.text(",ls_args")?;
         }
         Ok(())
     }

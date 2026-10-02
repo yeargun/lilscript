@@ -3,14 +3,14 @@
 //! The emitter admits each byte before writing it and emits this support only
 //! when a managed closure/cell or an explicit callback interface requires it.
 
-pub(super) const CALLBACK_ABI_VERSION: u32 = 2;
+pub(super) const CALLBACK_ABI_VERSION: u32 = 3;
 
 /// Public portion of the callback ABI. A host receives a borrowed callable;
 /// retaining its environment acquires an owner which must later be released.
 /// The target emits signature-specific callable records and typed wrappers
 /// around these operations in the same generated header. Calls/retains/releases
 /// must remain on the originating thread; cross-thread or asynchronous use is
-/// outside version 2. A synchronous host may retain between calls and reenter.
+/// outside version 3. A synchronous host may retain between calls and reenter.
 pub(super) const INTERFACE: &str = include_str!("runtime/memory.h");
 
 /// One runtime owner for retained allocations. Generated trace functions expose

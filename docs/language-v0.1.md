@@ -1036,7 +1036,10 @@ does not replace the selected function's default.
 
 Exported JavaScript functions preserve omitted-call behavior and
 `Function.length`, including the position of the first default. Native calls
-carry the supplied argument count when omission is possible.
+carry the supplied argument count and per-argument presence when omission is
+possible. Under unified absence, an absent optional argument takes the default
+even when followed by another supplied argument. Native callback ABI 3 carries
+that metadata without boxing ordinary scalar parameters.
 
 Receiver literals use `(this T self, A value) => ...`; their function type is
 `func(this: T, A)->R`. Invoke them as object members or with

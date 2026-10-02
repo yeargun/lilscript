@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-call-transport-4/lilscript",
+    "sha256": "b5241c1582767868940b302ae85c8ed48d76a0eb6fcf59b1d4fcf3567e55c584"
+  },
+  "fixtures": [
+    {
+      "path": "tests/native/runtime-ownership.c",
+      "sha256": "c6c4efd6fa5e611d8f8c77c8d74337ee3af7c710291e4db93b4c99d0cc0c6dae"
+    },
+    {
+      "path": "tests/native/arrays.lil",
+      "sha256": "493122058d3c0b114db3a921995cf51f57dc507837ae939275a35e09da207825"
+    },
+    {
+      "path": "tests/native/arrays.host.c",
+      "sha256": "eece0c784c33b16f9a6318c6d4685f527aa312698e0aebb85c3d9a76c63df84f"
+    },
+    {
+      "path": "tests/native/arrays.toml",
+      "sha256": "ee863918e82105d819ab7812b4c63b39dfb1eafe2d6cc1c7d6482f57a5ecc34f"
+    },
+    {
+      "path": "tests/native/arrays.out",
+      "sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    }
+  ],
+  "rows": [
+    {
+      "name": "source",
+      "command": "/home/azureuser/lilscript-work/bin/n2-call-transport-4/lilscript",
+      "args": [
+        "tests/native/arrays.lil",
+        "--config",
+        "tests/native/arrays.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-4-arrays/ownership.c"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 13.024530000000002,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-build",
+      "command": "/usr/bin/cc",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-call-transport-4-arrays/ownership.c",
+        "/tmp/lilscript-n2-call-transport-4-arrays/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-4-arrays/ownership-gcc"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 2909.657473,
+      "passed": true
+    },
+    {
+      "name": "ownership-gcc-run",
+      "command": "/tmp/lilscript-n2-call-transport-4-arrays/ownership-gcc",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 2.7838369999999486,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-call-transport-4-arrays/ownership.c",
+        "/tmp/lilscript-n2-call-transport-4-arrays/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-4-arrays/ownership-clang"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 1968.1965669999995,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-run",
+      "command": "/tmp/lilscript-n2-call-transport-4-arrays/ownership-clang",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 2.609519000000546,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-sanitize-build",
+      "command": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+      "args": [
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-call-transport-4-arrays/ownership.c",
+        "/tmp/lilscript-n2-call-transport-4-arrays/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-4-arrays/ownership-clang-sanitize"
+      ],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 4600.830905,
+      "passed": true
+    },
+    {
+      "name": "ownership-clang-sanitize-run",
+      "command": "/tmp/lilscript-n2-call-transport-4-arrays/ownership-clang-sanitize",
+      "args": [],
+      "exit": 0,
+      "signal": null,
+      "elapsed_ms": 12.644586999998864,
+      "passed": true
+    }
+  ]
+}

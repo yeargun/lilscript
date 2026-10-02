@@ -270,7 +270,7 @@ fn fixture_artifacts(
     let render_before = compilation.ledger().work_by_kind(WorkKind::Render);
     let (c, header) = emit_pair(compilation, source, hosts);
     let native_work = compilation.ledger().work_by_kind(WorkKind::Render) - render_before;
-    assert!(header.contains("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 2"));
+    assert!(header.contains("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 3"));
     assert!(header.contains("host_keep_arg1_retain"));
     assert!(header.contains("host_keep_arg1_release"));
     assert!(header.contains("host_keep_arg1_call"));
@@ -437,7 +437,7 @@ fn public_qualified_pair(
             assert_eq!(view.header.len(), receipt.header_bytes());
             assert!(view
                 .header
-                .contains("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 2"));
+                .contains("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 3"));
             assert!(view.header.contains("host_keep_arg1_retain"));
             assert!(view.header.contains("host_keep_arg1_release"));
             assert!(view.header.contains("host_keep_arg1_call"));

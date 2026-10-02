@@ -86,8 +86,8 @@ Typed forms should remove avoidable representation and runtime costs, and declar
   identity and normalize optional storage on writes; different storage pins
   require a copy. Defaults retain the same contract through functions, generic
   calls, constructors and `super`. `legacy` remains the migration default until
-  qualified port adoption in D3/V2. Native absent-to-default transport has a
-  source diagnostic pending N2. General erased product/union/callable transport
+  qualified port adoption in D3/V2. Native callback ABI 3 transports presence
+  per argument, including absence before later supplied values. General erased product/union/callable transport
   follows the [public ABI contract](migration/s4-public-abi.md); the absence
   selector does not imply unrestricted erased ABI support.
 

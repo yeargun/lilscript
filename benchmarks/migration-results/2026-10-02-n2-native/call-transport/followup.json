@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-call-transport-3/lilscript",
+    "sha256": "2be2e24d0342f6f55a9205aaf78b5b1c5e3818b001eceeefd13916d3be89eb38"
+  },
+  "rows": [
+    {
+      "name": "defaults-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-call-transport-final/defaults.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 32,
+      "passed": true
+    },
+    {
+      "name": "formation-defaults-js-build",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-call-transport-3/lilscript",
+        "/tmp/lilscript-n2-call-transport-final/defaults.lil",
+        "--config",
+        "tests/native/call-transport.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-final/formation-defaults.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "formation-defaults-js-run",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "--input-type=module",
+        "-e",
+        "globalThis.assertNativeCount=()=>{};globalThis.assertMaxNativeCount=()=>{};globalThis.collectNative=()=>{};await import(\"/tmp/lilscript-n2-call-transport-final/formation-defaults.mjs\");"
+      ],
+      "exit": 0,
+      "elapsed_ms": 31,
+      "passed": true
+    },
+    {
+      "name": "production-defaults-js-build",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-call-transport-3/lilscript",
+        "/tmp/lilscript-n2-call-transport-final/defaults.lil",
+        "--config",
+        "/tmp/lilscript-n2-call-transport-final/production.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-final/production-defaults.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 960,
+      "passed": true
+    },
+    {
+      "name": "production-defaults-js-run",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "--input-type=module",
+        "-e",
+        "globalThis.assertNativeCount=()=>{};globalThis.assertMaxNativeCount=()=>{};globalThis.collectNative=()=>{};await import(\"/tmp/lilscript-n2-call-transport-final/production-defaults.mjs\");"
+      ],
+      "exit": 0,
+      "elapsed_ms": 28,
+      "passed": true
+    },
+    {
+      "name": "production-c-build",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-call-transport-3/lilscript",
+        "tests/native/call-transport.lil",
+        "--config",
+        "/tmp/lilscript-n2-call-transport-final/production.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-final/production.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 24,
+      "passed": true
+    },
+    {
+      "name": "production-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-call-transport-final/production.c",
+        "/tmp/lilscript-n2-call-transport-final/production-host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-final/production"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1077,
+      "passed": true
+    },
+    {
+      "name": "production-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-call-transport-final/production"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    }
+  ],
+  "full_source": "58626647c6a8282250bdcce84dcc9ce617e5336b0f79274f058582652a47f07b",
+  "subset": "6eacf654af4932f51347ed62124bff0d53c9eaa65872ed7aa991a41f6b2892d7",
+  "subset_oracle": "24ece7329b14de2586e7218fd5df002b70973b2082fa877a1067596d5959f211"
+}

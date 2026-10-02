@@ -20,6 +20,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         callback: ValueId,
         arguments: &[(&str, NativeType)],
     ) -> Result<(), NativeError> {
+        self.callback_call_absence(unit,callback,arguments,None)
+    }
+    fn callback_call_absence(&mut self,unit:UnitId,callback:ValueId,arguments:&[(&str,NativeType)],forced:Option<&str>) -> Result<(),NativeError> {
         let storage = self.plan.units[unit.index()].values[callback.index()];
         let NativeType::Callable(signature) = self.plan.value_type(storage) else {
             unreachable!("native plan admits only callable callbacks")
@@ -47,13 +50,19 @@ impl Emitter<'_, '_, '_, '_, '_> {
             if index != 0 || leading {
                 self.text(",")?;
             }
-            let (prefix, suffix) = Self::conversion(from, self.plan.signatures[signature].parameters[index]);
-            self.text(&prefix)?;
-            self.text(argument)?;
-            self.text(suffix)?;
+            let missing=self.absent_argument(argument,from);
+            let missing=if index==0 {forced.map_or(missing.clone(),|forced|format!("({forced} || {missing})"))} else {missing};
+            self.physical_argument(argument,from,self.plan.signatures[signature].parameters[index],
+                self.plan.signatures[signature].source.params[index].optional.then_some(missing.as_str()))?;
         }
         if self.plan.signatures[signature].has_optional() {
-            self.write(format_args!(",{}", arguments.len()))?;
+            let missing=arguments.iter().enumerate().map(|(index,&(value,ty))| {
+                if self.plan.signatures[signature].source.params[index].optional {
+                    let missing=self.absent_argument(value,ty);
+                    if index==0 {forced.map_or(missing.clone(),|forced|format!("({forced} || {missing})"))} else {missing}
+                } else {"false".to_owned()}
+            }).collect::<Vec<_>>();
+            self.argument_presence(arguments.len(),&missing)?;
         }
         self.text(")")?;
         if floating {
@@ -79,10 +88,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.clear_temporaries()?;
         self.text("if (ls_native_raised) break;\n")
     }
-    fn array_predicate(&mut self, unit: UnitId, callback: ValueId, element: NativeType) -> Result<(), NativeError> {
+    fn array_predicate(&mut self, unit: UnitId, callback: ValueId, element: NativeType,absent:Option<&str>) -> Result<(), NativeError> {
         let returned=self.callback_result(unit,callback);
         self.write(format_args!("{returned} ls_predicate_result = "))?;
-        self.callback_call(unit,callback,&[("ls_item",element)])?;
+        self.callback_call_absence(unit,callback,&[("ls_item",element)],absent)?;
         let (prefix,suffix)=Self::conversion(returned,NativeType::Bool);
         self.write(format_args!(";\nbool ls_predicate = !ls_native_raised && {prefix}ls_predicate_result{suffix};\n"))?;
         if let Some(drop)=returned.release("ls_predicate_result") { self.text(&drop)?; }
@@ -124,7 +133,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.text("continue;}\n")?;
                 self.array_callback_item(s,false)?;
                 if method==Intrinsic::ArrayFilter {
-                    self.array_predicate(unit,callback,e)?;
+                    self.array_predicate(unit,callback,e,None)?;
                     self.write(format_args!("if(ls_predicate) ls_array{out}_push(ls_out,ls_item);\n"))?;
                 } else {
                     self.write(format_args!("{returned} ls_mapped = "))?;
@@ -174,9 +183,17 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 else { self.write(format_args!("bool ls_found={every};\n"))?; }
                 self.text("for(size_t ls_k=0;ls_k<ls_len;++ls_k) {\n")?;
                 if !find { self.text("if(!ls_array_has(ls_src,ls_k)) continue;\n")?; }
-                self.array_callback_item(s,find)?;
-                self.array_predicate(unit,value(0).unwrap(),e)?;
-                self.array_callback_cleanup(e)?;
+                let callback=value(0).unwrap();
+                let NativeType::Callable(signature)=self.plan.value_type(self.plan.units[unit.index()].values[callback.index()]) else {unreachable!("admitted callback")};
+                let item=if find && (matches!(self.plan.signatures[signature].parameters[0],NativeType::Dynamic(_))
+                    || self.plan.signatures[signature].source.params[0].optional) {
+                    // findIndex observes deleted positions. Preserve absence
+                    // before a typed read can erase it or reject its payload.
+                    self.text("ls_value ls_item=ls_array_read(ls_src,ls_k,&ls_temps);\nls_value_retain(ls_item);\n")?;
+                    NativeType::Dynamic(Tagged::ANY)
+                } else {self.array_callback_item(s,find)?;e};
+                self.array_predicate(unit,callback,item,find.then_some("!ls_array_has(ls_src,ls_k)"))?;
+                self.array_callback_cleanup(item)?;
                 if find { self.text("if(ls_predicate) { ls_found=(int32_t)ls_k; break; }\n")?; }
                 else { self.write(format_args!("if({}ls_predicate) {{ ls_found={}; break; }}\n",if every {"!"} else {""},!every))?; }
                 self.write(format_args!("}}\nls_v{}=ls_found;\n}}\n",result.index()))

@@ -47,6 +47,11 @@ void arrays() {
     print(JSON.stringify(sparse)); print(sparse.get(2)==null);
     print(sparse.indexOf(0)); print(sparse.includes(0));
     int visits=0; sparse.forEach((int value)=>{visits+=1;}); print(visits);
+    // A removed findIndex position is undefined even in legacy absence mode.
+    float[] trimmed=[1.5,2.5];
+    print(trimmed.findIndex((float value=9.0)=>{trimmed.pop();return value==9.0;}));
+    float?[] nullable=[null,2.5];
+    print(nullable.findIndex((float? value=9.0)=>{nullable.pop();return value==null;}));
 }
 void stress() {
     Point[] points=[]; for(int i=0;i<1000;i++){points.push(Point{i});}

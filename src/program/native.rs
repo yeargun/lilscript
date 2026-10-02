@@ -32,6 +32,8 @@ mod enums;
 mod interface;
 #[path = "native_ownership.rs"]
 mod ownership;
+#[path = "native_arguments.rs"]
+mod arguments;
 #[path = "native_strings.rs"]
 mod strings;
 use super::publication::PublicationError;
@@ -99,7 +101,7 @@ pub struct NativeHostBinding<'a> {
     pub link_name: &'a str,
 }
 
-/// Callback ABI v2 supports synchronous entry/reentry on the originating
+/// Callback ABI v3 supports synchronous entry/reentry on the originating
 /// thread. Input handles are borrowed; retaining them acquires an owner.
 /// A returned handle transfers an owner. Hosts release retained callbacks
 /// before execution ends; concurrent calls and foreign unwinding are excluded.
@@ -539,11 +541,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.write(format_args!(
                 "{} {}ls_{}{} LS_NATIVE_UNUSED",
                 ty,
-                if self.plan.reference_parameter(cell) {
-                    "*"
-                } else {
-                    ""
-                },
+                if self.plan.reference_parameter(cell) { "*" } else { "" },
                 if self.plan.boxed_cell(cell) { "p" } else { "c" },
                 cell.index()
             ))?;
@@ -551,7 +549,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if unit.kind != UnitKind::ModuleInitialization
             && self.plan.signatures[self.plan.signature_for_unit(id)].has_optional()
         {
-            self.text(",size_t ls_argc LS_NATIVE_UNUSED")?;
+            self.text(",ls_native_arguments ls_args LS_NATIVE_UNUSED")?;
         }
         self.text(")")
     }
@@ -625,7 +623,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             for (position, argument) in unit.arguments(call.arguments).unwrap().iter().enumerate() {
                 self.budget.work(WorkKind::Render, 1)?;
                 if let CallArgument::Reference(place) = *argument {
-                    let ty = self.plan.place_type(id, place);
+                    let ty=self.plan.place_type(id,place);
                     self.write(format_args!("{ty} *ls_a{call_index}_{position};\n"))?;
                 }
             }
@@ -848,7 +846,16 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
             }
             OperationKind::Store(place) => {
-                if matches!(self.plan.units[id.index()].places[place.index()].recipe, PlaceRecipe::Field { .. }) {
+                let captured=match self.plan.units[id.index()].places[place.index()].recipe {
+                    PlaceRecipe::Cell(cell) if self.plan.boxed_cell(cell) && !self.plan.reference_parameter(cell)=>Some(cell),
+                    _=>None,
+                };
+                if let Some(cell)=captured {
+                    self.write(format_args!("ls_box_initialize{}(",cell.index()))?;
+                    self.box_pointer(id,cell)?; self.text(",")?;
+                    self.converted(id,args[0],self.plan.value_type(self.plan.cell_storage(cell)))?;
+                    self.text(");\n")?;
+                } else if matches!(self.plan.units[id.index()].places[place.index()].recipe, PlaceRecipe::Field { .. }) {
                     self.store_product_field(id, *place, args[0])?;
                 } else if let PlaceRecipe::Record { receiver, key, omit_absent } = self.plan.units[id.index()].places[place.index()].recipe {
                     self.write(format_args!("ls_shape_set(ls_v{},", receiver.index()))?;
@@ -913,6 +920,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     )?;
                 } else {
                     self.copy_value(id, Destination::Place(*place), args[0])?;
+                }
+                if let PlaceRecipe::Cell(cell)=self.plan.units[id.index()].places[place.index()].recipe {
+                    if self.plan.cells[cell.index()].global_guard {
+                        self.write(format_args!("ls_ready{} = true;\n",cell.index()))?;
+                    }
                 }
                 if let Some(result) = stored_result {
                     self.copy_value(id, Destination::Value(result), args[0])?;
@@ -1156,13 +1168,16 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     self.type_test(id, result.unwrap(), args[0], test)?;
                 }
             }
-            OperationKind::IsUndefined { parameter, .. } => {
+            OperationKind::IsUndefined { parameter, nullish } => {
                 let result = result.unwrap().index();
                 if let Some(position) = parameter {
-                    self.write(format_args!("ls_v{result} = ls_argc <= {position};\n"))?;
+                    self.write(format_args!("ls_v{result} = ls_args.count <= {position} || (ls_args.absent && ls_args.absent[{position}]);\n"))?;
                     return Ok(());
                 }
                 match self.plan.units[id.index()].values[args[0].index()] {
+                    ValueStorage::Value(NativeType::Dynamic(_)) if *nullish => self.write(format_args!(
+                        "ls_v{result} = ls_v{}.tag == LS_NULL;\n",args[0].index()
+                    ))?,
                     ValueStorage::Value(NativeType::Callable(_)) => self.write(format_args!(
                         "ls_v{result} = ls_v{}.code == NULL;\n",
                         args[0].index()
@@ -1512,13 +1527,20 @@ impl Emitter<'_, '_, '_, '_, '_> {
         for (index, &value) in args.iter().enumerate() {
             self.budget.work(WorkKind::Render, 1)?;
             self.text(",")?;
-            self.converted(unit, value, parameters[index + 1])?;
+            self.converted_argument(unit, value, signature, index+1)?;
         }
         for parameter in &parameters[args.len() + 1..] {
             self.write(format_args!(",({parameter}){{0}}"))?;
         }
         if self.plan.signatures[signature].has_optional() {
-            self.write(format_args!(",{}", args.len() + 1))?;
+            let mut missing=vec!["false".to_owned()];
+            for (index,value) in args.iter().enumerate() {
+                let ty=self.plan.value_type(self.plan.units[unit.index()].values[value.index()]);
+                missing.push(if self.plan.signatures[signature].source.params[index+1].optional {
+                    self.absent_argument(&format!("ls_v{}",value.index()),ty)
+                } else {"false".to_owned()});
+            }
+            self.argument_presence(args.len()+1,&missing)?;
         }
         self.text(
             ");
@@ -1806,7 +1828,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             match *value {
                 CallArgument::Value(value) => match parameter {
-                    Some(parameter) => self.converted(unit, value, parameter)?,
+                    Some(parameter) => if let Some(signature)=signature.filter(|_| !matches!(target,PreparedTarget::Host {..})) {
+                        self.converted_argument(unit,value,signature,index)?;
+                    } else { self.converted(unit,value,parameter)?; },
                     None => self.value(unit, value)?,
                 },
                 CallArgument::Reference(_) => {
@@ -1815,8 +1839,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 CallArgument::Spread(_) => unreachable!("the native plan refuses spread arguments"),
             }
         }
-        // Omitted arrow defaults: the empty callable, which the callee's
-        // guard replaces.
+        // Omitted physical slots are inert sentinels. The presence descriptor
+        // makes the selected callee evaluate its own source default.
         if let (Some(signature), false) = (signature, matches!(target, PreparedTarget::Host { .. }))
         {
             let parameters = self.plan.signatures[signature].parameters.len();
@@ -1834,7 +1858,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
             signature.filter(|_| !matches!(target, PreparedTarget::Host { .. }))
         {
             if self.plan.signatures[signature].has_optional() {
-                self.write(format_args!(",{}", args.len()))?;
+                let missing=args.iter().enumerate().map(|(index,argument)| match argument {
+                    CallArgument::Value(value) if self.plan.signatures[signature].source.params[index].optional=>self.absent_argument(&format!("ls_v{}",value.index()),self.plan.value_type(self.plan.units[unit.index()].values[value.index()])),
+                    _=>"false".to_owned(),
+                }).collect::<Vec<_>>();
+                self.argument_presence(args.len(),&missing)?;
             }
         }
         if floating {

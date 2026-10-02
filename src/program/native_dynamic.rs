@@ -165,22 +165,21 @@ static LS_NATIVE_UNUSED {} {name}_code(void *environment",
                 self.write(format_args!("{inner} ls_inner = "))?;
             }
             self.text("adapter->inner.code(adapter->inner.environment")?;
+            let mut missing=Vec::new();
             for position in 0..self.plan.signatures[to].parameters.len() {
-                let (prefix, suffix) = Self::conversion(
-                    self.plan.signatures[to].parameters[position],
-                    self.plan.signatures[from].parameters[position],
-                );
-                self.write(format_args!(",{prefix}ls_p{position}{suffix}"))?;
+                let actual=self.plan.signatures[to].parameters[position];
+                let argument=format!("ls_p{position}");
+                let absent=self.absent_argument(&argument,actual);
+                let absent=if self.plan.signatures[to].has_optional() {
+                    format!("(ls_args.count<={position} || (ls_args.absent && ls_args.absent[{position}]) || {absent})")
+                } else {absent};
+                self.text(",")?;
+                self.physical_argument(&argument,actual,self.plan.signatures[from].parameters[position],
+                    self.plan.signatures[from].source.params[position].optional.then_some(absent.as_str()))?;
+                missing.push(if self.plan.signatures[from].source.params[position].optional {absent} else {"false".to_owned()});
             }
             if self.plan.signatures[from].has_optional() {
-                if self.plan.signatures[to].has_optional() {
-                    self.text(",ls_argc")?;
-                } else {
-                    self.write(format_args!(
-                        ",{}",
-                        self.plan.signatures[to].parameters.len()
-                    ))?;
-                }
+                self.argument_presence(self.plan.signatures[to].parameters.len(),&missing)?;
             }
             self.text(");\nif (ls_native_raised) {\n")?;
             if let Some(drop)=inner.release("ls_inner") { self.text(&drop)?; }

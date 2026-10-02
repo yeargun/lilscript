@@ -1006,7 +1006,7 @@ fn reference_parameter(program: &Program<'_>, cell: CellId) -> bool {
         return false;
     };
     let data = program.unit(source.owner).unwrap();
-    let Type::Function(signature) = &program.types[data.callable_type.unwrap().index()] else {
+    let Some(signature) = signatures::signature_of(&program.types[data.callable_type.unwrap().index()]) else {
         return false;
     };
     signature.params[position as usize].passing
@@ -1325,7 +1325,6 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 Initialization::Missing
             };
             let mut captured = false;
-            let mut declared = false;
             let sites = uses.cell(id).unwrap().sites();
             for site in sites {
                 work(budget, 1)?;
@@ -1340,7 +1339,6 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         {
                             return Err(error("native unique cell initialization"));
                         }
-                        declared |= matches!(usage, CellUse::Declare(_));
                         initialization = Initialization::Operation(operation);
                     }
                     CellUse::Parameter(_) => {
@@ -1388,13 +1386,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             if global {
                 captured = false;
             }
-            if captured && declared {
-                return Err(error("native captured local declared without a value"));
-            }
-            if captured {
-                if reference_parameter(program, id) {
-                    return Err(error("native captured reference parameter lifetime"));
-                }
+            if captured && reference_parameter(program,id) {
+                // The shared language forbids escaping reference parameters.
+                return Err(error("native captured reference parameter lifetime"));
             }
             if matches!(storage, ValueStorage::Function(_)) {
                 function_initializations = function_initializations
@@ -2069,7 +2063,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         }
     }
     /// A constructor's explicit operands after its instance: each compatible
-    /// with its parameter; omitted trailing ones are arrow defaults.
+    /// with its parameter; omitted trailing ones have callee-owned defaults.
     fn constructor_arguments(
         &self,
         constructor: UnitId,
@@ -2525,8 +2519,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             ),
             OperationKind::Declare(cell) => expect(
                 matches!(initializations[cell.index()], Initialization::Operation(found) if found == at)
-                    && self.program.cells[cell.index()].owner == unit
-                    && !self.boxed_cell(*cell),
+                    && self.program.cells[cell.index()].owner == unit,
                 "native declaration representation",
             ),
             OperationKind::CheckPlace(place) => {
@@ -3483,8 +3476,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     "native super construction arguments",
                 )
             }
-            // Only an omitted arrow default arrives as the empty callable;
-            // every other default was evaluated by the caller.
+            // Parameter guards consume independent per-argument presence;
+            // inlined guards inspect the retained source absence operation.
             OperationKind::IsUndefined { .. } => expect(
                 operands.len() == 1 && result == Some(Stored(Bool)),
                 "native undefined test",

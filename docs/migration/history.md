@@ -1972,3 +1972,32 @@ amalgamation correction now cover those cases; the original vendor files retain
 their immutable hashes. Initial implementation failures and their corrections
 are retained. No broad suite or runtime/size performance claim; remaining N2
 work is still open. [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#json-and-binary64-decimal-conversion).
+
+## 2026-10-02 — N2 call presence and managed references (implementation)
+
+1. Carry presence per supplied argument in callback ABI 3, preserving internal
+   unified-absence defaults before later supplied arguments, through direct,
+   indirect, generic and constructor calls. Defaults execute in the selected
+   callee; no fixed-width presence mask limits arity.
+2. Implement captured declarations followed by assignment and managed/callable
+   reference payloads. References borrow caller storage without retaining or
+   releasing the pointee as an independent callee owner. Preserve the shared
+   ban on captured reference parameters; that is a language rule, not missing
+   native lifetime support. Correct the N2 acceptance interpretation explicitly.
+3. Preserve absent positions before typed reads for nullable/generic findIndex
+   callbacks. Qualify default effects, alias writes, closures and bounded owner
+   counts with independent JavaScript behavior after this implementation batch.
+
+Expected effect: formerly refused legal calls gain native recipes without extra
+heap ownership for ordinary reference arguments. Optional calls gain a borrowed
+presence descriptor; callback headers require regeneration. Performance effects
+remain unmeasured until the N2 workload qualification.
+
+**Call transport result.** Algorithm78, pins `n2-call-transport-3/4`, passes
+28 final focused GCC/Clang/sanitizer steps across call transport, arrays, products
+and exceptions. The defaults subset agrees with emitted JavaScript at effort0
+and13; full native production agrees with the independent oracle. Legacy
+findIndex distinguishes deleted positions from explicit nullable null. Full
+JavaScript formation exposes a reference-callable proof refusal now owned by V1.
+No broad suite or performance claim; remaining N2 work stays open.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#call-presence-and-managed-references).

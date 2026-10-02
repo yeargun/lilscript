@@ -7,7 +7,6 @@ use crate::check::type_admission::TypeQueryAdmission;
 use crate::check::type_relation::type_equal_with;
 use crate::check::{FunctionSignature, Type};
 use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
-use crate::primitive::ParameterPassing;
 use crate::program::Program;
 use std::mem::size_of;
 
@@ -104,18 +103,6 @@ pub(super) fn register<'program, 'src>(
             &source.return_type
         };
         if matches!(child, Type::Function(_) | Type::GenericFunction(_)) {
-            if source
-                .params
-                .get(frame.values.len())
-                .is_some_and(|parameter| parameter.passing == ParameterPassing::MutableReference)
-            {
-                return Err(NativeError::unsupported(
-                    None,
-                    None,
-                    Default::default(),
-                    "native mutable-reference callable payload",
-                ));
-            }
             if let Some(index) = lookup(&tables.signatures, child, budget)? {
                 stack
                     .last_mut()
@@ -168,8 +155,8 @@ fn push_frame<'program, 'src>(
             "native callable type",
         ));
     };
-    // Defaults need no physical ABI: callers evaluate them, except an arrow
-    // default, whose omission is an empty callable the callee's guard sees.
+    // Each optional signature carries presence metadata. Source defaults run
+    // in the callee, independently of zero-valued physical argument sentinels.
     work(budget, signature.params.len())?;
     let capacity = signature
         .params

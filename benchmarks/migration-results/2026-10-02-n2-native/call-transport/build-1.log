@@ -1,0 +1,146 @@
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+error: let chains are only allowed in Rust 2024 or later
+   --> src/program/native.rs:849:20
+    |
+849 |                 if let PlaceRecipe::Cell(cell)=self.plan.units[id.index()].places[place.index()].recipe
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: let chains are only allowed in Rust 2024 or later
+   --> src/program/native.rs:921:20
+    |
+921 |                 if let PlaceRecipe::Cell(cell)=self.plan.units[id.index()].places[place.index()].recipe
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: let chains are only allowed in Rust 2024 or later
+   --> src/program/native_ownership.rs:300:23
+    |
+300 |             } else if let ValueStorage::Value(ty) = self.plan.cell_storage(cell) && !self.plan.reference_parameter(cell) {
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `with_analyzed_modules`
+  --> src/check.rs:38:26
+   |
+38 | pub(crate) use modules::{with_analyzed_modules, with_analyzed_modules_with_contract};
+   |                          ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `AdmittedModuleCheckError`
+  --> src/check.rs:39:50
+   |
+39 | pub(crate) use modules::{analyze_modules_cached, AdmittedModuleCheckError, ElaborationCache};
+   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `cycle_entries_admitted`, `lazy_roots_admitted`, and `lazy_roots_from_orders_admitted`
+   --> src/module.rs:156:24
+    |
+156 | pub(crate) use graph::{cycle_entries_admitted, fresh_orders_admitted, lazy_roots_admitted,
+    |                        ^^^^^^^^^^^^^^^^^^^^^^                         ^^^^^^^^^^^^^^^^^^^
+157 |     lazy_roots_from_orders_admitted, static_cycles_admitted};
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/check/modules.rs:593:21
+    |
+593 |                 let mut ty = analyzer.resolve_value_type(decl.ty, "module binding")?;
+    |                     ----^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `span`
+    --> src/check.rs:5387:63
+     |
+5387 |                 kind: ExprKind::ArrowFunction { params, body, span },
+     |                                                               ^^^^ help: try ignoring the field: `span: _`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+    --> src/program/from_source.rs:4424:13
+     |
+4424 |             _ => return self.unsupported(statement.span(), "statement conversion"),
+     |             ^ no value can reach this
+     |
+note: multiple earlier patterns match some of the same values
+    --> src/program/from_source.rs:4424:13
+     |
+4146 | /             Stmt::ArrayDestructure {
+4147 | |                 bindings, value, ..
+4148 | |             } => self.array_destructure(unit, region, bindings, value)?,
+     | |_____________- matches some of the same values
+4149 | /             Stmt::RecordDestructure {
+4150 | |                 bindings,
+4151 | |                 rest,
+4152 | |                 value,
+4153 | |                 span,
+4154 | |                 ..
+4155 | |             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
+     | |_____________- matches some of the same values
+4156 |               Stmt::VarDecl(declaration, ..) => {
+     |               ------------------------------ matches some of the same values
+...
+4193 |               Stmt::Expr(expr, ..) => {
+     |               -------------------- matches some of the same values
+...
+4424 |               _ => return self.unsupported(statement.span(), "statement conversion"),
+     |               ^ ...and 15 other patterns collectively make this unreachable
+     = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `program`
+   --> src/program/javascript_public_structs.rs:714:13
+    |
+714 |         let program = self.program;
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program`
+
+warning: unreachable pattern
+   --> src/program/native_plan.rs:931:13
+    |
+931 |             _ => {
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> src/program/native_plan.rs:931:13
+    |
+706 |             Place::Cell(cell) => PlacePlan {
+    |             ----------------- matches some of the same values
+...
+712 |             Place::Value(value) => PlacePlan {
+    |             ------------------- matches some of the same values
+...
+816 |             Place::Index { receiver, key } => {
+    |             ------------------------------ matches some of the same values
+...
+842 |             Place::Member { .. } => {
+    |             -------------------- matches some of the same values
+...
+931 |             _ => {
+    |             ^ ...and 2 other patterns collectively make this unreachable
+
+warning: variable does not need to be mutable
+  --> src/program/search_independent.rs:22:9
+   |
+22 |         mut observe: impl FnMut(SearchObservation<'_>),
+   |         ----^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/rules/dirty.rs:63:17
+   |
+63 |             let mut run = || {
+   |                 ----^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/verify.rs:559:17
+    |
+559 |             let mut name_work = 1;
+    |                 ----^^^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: `lilscript` (lib) generated 11 warnings
+error: could not compile `lilscript` (lib) due to 3 previous errors; 11 warnings emitted

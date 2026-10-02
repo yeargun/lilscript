@@ -16,7 +16,7 @@
 //! store it once was cost 3.8x on float loops.
 
 /// Common scalar ABI and bounded execution qualification.
-pub(super) const PROLOGUE: &str = concat!(include_str!("runtime/prologue.h"), include_str!("runtime/string.h"));
+pub(super) const PROLOGUE: &str = concat!(include_str!("runtime/prologue.h"), include_str!("runtime/string.h"), include_str!("runtime/call.h"));
 
 /// Declaration order is topological: definitions mention only earlier helpers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

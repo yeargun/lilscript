@@ -19,7 +19,7 @@ pub const GENERATORS: &str = "native generators are not implemented yet (N2)";
 pub const CAPABILITIES: &[Capability] = &[
     Capability { id: "scalars", status: Status::Implemented, boundary: "int32 wrapping arithmetic, strict binary64, bool, UTF-16 strings, null and scalar unions", remaining_owner: None },
     Capability { id: "shared-optimization", status: Status::Implemented, boundary: "shared folding, liveness, inlining, scalar replacement and final-use ownership transfers under the requested tactic permissions", remaining_owner: None },
-    Capability { id: "functions", status: Status::Partial, boundary: "direct and indirect calls, captures, generic tagged values, defaults and references; absent-value transport and mutable-reference callable payloads remain", remaining_owner: Some("N2") },
+    Capability { id: "functions", status: Status::Partial, boundary: "direct and indirect calls, captured declarations, generic tagged values, per-argument absence/defaults and managed/callable references under the shared nonescaping contract; remaining polymorphic callable views and full qualification remain", remaining_owner: Some("N2") },
     Capability { id: "value-structs", status: Status::Partial, boundary: "managed C products, generic tagged fields, nullable/union snapshots, collection payloads and logical field writeback; native specialization and remaining callable transport remain", remaining_owner: Some("N2") },
     Capability { id: "collections", status: Status::Partial, boundary: "shared-identity concrete/generic arrays, owned higher-order callbacks, sparse copies, class objects, maps, sets, symbols, buffers and typed arrays; recipe checking determines supported element/call combinations", remaining_owner: Some("N2") },
     Capability { id: "records-and-shapes", status: Status::Partial, boundary: "traced string-keyed records, Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, declared shape storage/spreads/optional fields/tag tests; remaining callable transport and immutable graph qualification remain", remaining_owner: Some("N2") },
@@ -33,6 +33,6 @@ pub const CAPABILITIES: &[Capability] = &[
     Capability { id: "javascript-host", status: Status::JavaScriptOnly, boundary: "unknown, host-specific JsValue operations, JS namespace (except checked representation views), extern JS classes, object literals, JavaScript module namespaces/dynamic import and ambient JS APIs", remaining_owner: None },
 ];
 pub fn receipt() -> serde_json::Value {
-    serde_json::json!({"schema":1,"callback_abi":2,"string_abi":2,"capabilities":CAPABILITIES,
+    serde_json::json!({"schema":1,"callback_abi":3,"string_abi":2,"capabilities":CAPABILITIES,
         "check":"--check --target native uses the same target admission as compilation"})
 }

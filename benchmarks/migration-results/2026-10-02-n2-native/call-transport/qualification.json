@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-call-transport-3/lilscript",
+    "sha256": "2be2e24d0342f6f55a9205aaf78b5b1c5e3818b001eceeefd13916d3be89eb38"
+  },
+  "rows": [
+    {
+      "name": "products",
+      "args": [
+        "node",
+        "tests/native/qualify-ownership.mjs",
+        "/home/azureuser/lilscript-work/bin/n2-call-transport-3/lilscript",
+        "/tmp/lilscript-n2-call-transport-final/products",
+        "--generated-only",
+        "--fixture=tests/native/products"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8843,
+      "passed": true
+    },
+    {
+      "name": "exceptions",
+      "args": [
+        "node",
+        "tests/native/qualify-ownership.mjs",
+        "/home/azureuser/lilscript-work/bin/n2-call-transport-3/lilscript",
+        "/tmp/lilscript-n2-call-transport-final/exceptions",
+        "--generated-only",
+        "--fixture=tests/native/exceptions"
+      ],
+      "exit": 0,
+      "elapsed_ms": 4929,
+      "passed": true
+    },
+    {
+      "name": "formation-js-build",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-call-transport-3/lilscript",
+        "tests/native/call-transport.lil",
+        "--config",
+        "tests/native/call-transport.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-n2-call-transport-final/formation.mjs"
+      ],
+      "exit": 1,
+      "elapsed_ms": 10,
+      "passed": false
+    }
+  ],
+  "source": "58626647c6a8282250bdcce84dcc9ce617e5336b0f79274f058582652a47f07b",
+  "oracle": "6384c000e990e4e3b5f5d3799cebb38088d4129c90864d8e3bed5e488d87a045",
+  "expected": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+}

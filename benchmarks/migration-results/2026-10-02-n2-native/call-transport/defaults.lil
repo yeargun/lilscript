@@ -1,0 +1,48 @@
+extern void assertNativeCount(int expected);
+extern void assertMaxNativeCount(int expected);
+extern void collectNative();
+struct Pair { string name; int value; }
+int effects=0;
+int effect(int value) { effects=effects*10+value; return value; }
+int defaults(int a=effect(1),int b=effect(2),int c=effect(3)) { return a*100+b*10+c; }
+T choose<T>(T fallback,T value=fallback) { return value; }
+T apply<T>(T value,func(T)->T callback) { return callback(value); }
+int option(int value=6) { return value; }
+class Base { int value; init(int value=7) { this.value=value; } }
+class Derived extends Base { init(int? value) { super(value); } }
+class Box<T> { T value; init(T fallback,T value=fallback) { this.value=value; } }
+func()->string declaration() {
+    string value;
+    value="first".repeat(2);
+    auto read=()=>value;
+    value="second".repeat(2);
+    return read;
+}
+int wide(int p0=1,int p1=2,int p2=3,int p3=4,int p4=5,int p5=6,int p6=7,int p7=8,int p8=9,int p9=10,int p10=11,int p11=12,int p12=13,int p13=14,int p14=15,int p15=16,int p16=17,int p17=18,int p18=19,int p19=20,int p20=21,int p21=22,int p22=23,int p23=24,int p24=25,int p25=26,int p26=27,int p27=28,int p28=29,int p29=30,int p30=31,int p31=32,int p32=33,int p33=34,int p34=35,int p35=36,int p36=37,int p37=38,int p38=39,int p39=40,int p40=41,int p41=42,int p42=43,int p43=44,int p44=45,int p45=46,int p46=47,int p47=48,int p48=49,int p49=50,int p50=51,int p51=52,int p52=53,int p53=54,int p54=55,int p55=56,int p56=57,int p57=58,int p58=59,int p59=60,int p60=61,int p61=62,int p62=63,int p63=64,int p64=65,int p65=66,int p66=67,int p67=68,int p68=69,int p69=70) { return p0+p64+p69; }
+void run() {
+    print(wide(undefined,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,undefined,0,0,0,0,undefined));
+    int? missing=null;
+    print(defaults(missing,effect(8),undefined)); print(effects);
+    effects=0; auto indirect=defaults;
+    print(indirect(undefined,effect(9),null)); print(effects);
+    effects=0; print(defaults(0,0,0)); print(effects);
+    effects=0; print(defaults()); print(effects);
+    print(choose(12,missing)); print(choose(13,JS.undefined()));
+    print(apply(4,option));
+    Pair selected=choose(Pair{"fallback",9},undefined); print(selected.name);
+    string? absent=null; print(choose("owned".repeat(2),absent));
+    Base base=new Base(missing); Derived derived=new Derived(undefined);
+    Box<string> box=new Box<string>("boxed".repeat(2),absent);
+    print(base.value); print(derived.value); print(box.value);
+    float?[] numbers=[1.5,2.5,3.5]; int calls=0;
+    print(numbers.findIndex((float? value)=>{ calls+=1; numbers.pop(); return value==null; })); print(calls);
+    Pair?[] pairs=[Pair{"a",1},Pair{"b",2}];
+    print(pairs.findIndex((Pair? value)=>{pairs.pop();return value==null;}));
+    float[] truncated=[1.5,2.5];
+    print(truncated.findIndex((float value=9.0)=>{truncated.pop();return value==9.0;}));
+    for(int i=0;i<300;i++) {
+        auto reader=declaration(); if(i==299) print(reader());
+        assertMaxNativeCount(128);
+    }
+}
+run(); collectNative(); assertNativeCount(0); print("call transport passed");

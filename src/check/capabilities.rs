@@ -61,7 +61,7 @@ pub(crate) fn native(
                 };
                 if signature.params.iter().any(|p| p.optional || p.receiver || p.passing != crate::primitive::ParameterPassing::Value) {
                     return Err(AdmittedCheckError::new(symbol.span,
-                        "native provider ABI v2 requires value parameters without defaults or an implicit receiver"));
+                        "native provider ABI v3 requires value parameters without defaults or an implicit receiver"));
                 }
                 if !hosts.native.contains_key(symbol.name) {
                     return Err(AdmittedCheckError::new(symbol.span,
@@ -94,10 +94,6 @@ pub(crate) fn native(
         let Some(expression) = info.expression else {
             continue;
         };
-        if info.absent_default_argument {
-            return Err(AdmittedCheckError::new(expression.span(),
-                "native transport of an absent value to a defaulted parameter is not implemented yet (N2)"));
-        }
         if let Some(id) = view.expression_type_id(expression.id) {
             if !seen[id.index()] {
                 check_type(view, view.checked_type(id), expression.span(), budget)?;

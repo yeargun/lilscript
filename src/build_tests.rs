@@ -3946,8 +3946,8 @@ fn s4_absence_config_types_and_native_omission_share_the_contract() {
             &settings,ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap();
         assert_eq!(execute_native(result.native_c().unwrap()),"13\n");
     }
-    let error=compile_source("int f(int x=1){return x;}int? x=null;print(f(x));",&unified,ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap_err();
-    assert_eq!(error.phase,"check");assert!(error.message.contains("N2"),"{error:?}");
+    let result=compile_source("int f(int x=1){return x;}int? x=null;print(f(x));",&unified,ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap();
+    assert_eq!(execute_native(result.native_c().unwrap()),"1\n");
     let source="int? f(int? x){return x;}export int | undefined result(int | null x){return f(x);}export (int | undefined)[] list=[null];";
     let arena=bumpalo::Bump::new();
     let parsed=crate::parser::parse_source(&arena,source).unwrap();
@@ -3990,11 +3990,10 @@ fn s4_absence_default_constructors_super_and_generics_share_the_call_contract() 
         "class C{int value;init(int value=7){this.value=value;}}C c=new C(null);print(c.value);",
         "class C{int value;init(int value=7){this.value=value;}}class D extends C{init(int? value){super(value);}}D d=new D(null);print(d.value);",
     ] {
-        let error = compile_source(source, &config("[language]\nabsence='unified'"), ServiceOptions {
+        let result = compile_source(source, &config("[language]\nabsence='unified'"), ServiceOptions {
             target: ServiceTarget::Native, ..ServiceOptions::default()
-        }).unwrap_err();
-        assert_eq!(error.phase, "check");
-        assert!(error.message.contains("N2"), "{error:?}");
+        }).unwrap();
+        assert_eq!(execute_native(result.native_c().unwrap()),"7\n");
     }
 }
 

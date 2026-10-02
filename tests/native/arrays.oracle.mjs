@@ -24,5 +24,7 @@ const result=copies.reduce((input,value)=>{const acc=clone(input);acc.text+=valu
 print(result.text);print(result.items.length);
 const source=[5,6,7],sparse=source.map(value=>(source.pop(),value));print(JSON.stringify(sparse));print((sparse[2]??null)===null);
 print(sparse.indexOf(0));print(sparse.includes(0));let visits=0;sparse.forEach(()=>visits++);print(visits);
+const trimmed=[1.5,2.5];print(trimmed.findIndex((value=9)=>{trimmed.pop();return value===9;}));
+const nullable=[null,2.5];print(nullable.findIndex((value=9)=>{nullable.pop();return value===null;}));
 const points=Array.from({length:1000},(_,x)=>({x}));print(points.every(()=>true));print(mapped(points)[999].x);
 print('arrays done');

@@ -14,7 +14,7 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 |---|---|---|
 | Scalars and control flow | Wrapping int32, strict binary64, bool, UTF-16, null, scalar unions, structured branches/loops | Further runtime qualification: N2 |
 | Semantic optimization | Shared folding, liveness, calls/inlining, aggregate scalar replacement, and proven final-use ownership transfer; the requested tactic vetoes apply in native and `all` builds | Performance corpus: N2 |
-| Functions | Direct/indirect calls, closures/captures, supported generic tagged values, defaults and references | Absent-value transport and mutable-reference callable payloads: N2 |
+| Functions | Direct/indirect calls, captured declarations, supported generic tagged values, per-argument absence/defaults and managed/callable references | Remaining polymorphic callable views and complete qualification: N2 |
 | Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Native specialization and remaining callable transport: N2 |
 | Collections and classes | Shared-identity concrete/generic arrays, owned callbacks and sparse copies; class objects, maps, sets, symbols, buffers and typed arrays | Remaining recipes and comparisons: N2 |
 | Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join | Remaining callable transport and immutable graph qualification: N2 |
@@ -32,16 +32,31 @@ combinations work. Target-aware checking is the authority for a particular
 program. An unsupported recipe is an error, never a silent fallback to a
 different language or a success counted in native qualification.
 
-Provider callback ABI v2 permits synchronous entry/reentry on the originating
+Provider callback ABI v3 permits synchronous entry/reentry on the originating
 thread. Inputs are borrowed; retaining handles acquires an owner and returned
 handles transfer an owner. Retained callbacks must be released before execution
 ends. Concurrent callbacks and foreign unwinding are outside this ABI. Strings
 carry `{data, length, owner}` under string ABI v2: input strings borrow, retained
 views own their backing allocation, and returned strings transfer one owner.
 Static host storage uses a null owner; `ls_string_from_utf16` copies temporary
-host storage into an owned string. ABI v1 headers must be regenerated. Provider parameters are explicit values, with
+host storage into an owned string. Older callback headers must be regenerated. Provider parameters are explicit values, with
 no defaults or implicit receiver. Native library exports are a separate N2
 contract, not an inferred C ABI for JavaScript exports.
+
+Optional callback signatures carry `ls_native_arguments {count, absent}`.
+`count` is the number of supplied arguments; a non-null borrowed `absent` array
+has one boolean per supplied argument and marks absence at optional positions.
+A null pointer means all supplied values are present. Missing physical slots
+hold inert zero sentinels until the callee evaluates its own defaults; they are
+never a source default. The descriptor has no fixed arity limit and is borrowed
+only during invocation. Ordinary calls without defaults keep their existing ABI.
+
+Legal `ref` parameters borrow the caller's lexical location, including managed
+strings, products and callable slots. Callee assignment updates that owner in
+place; parameter entry/exit does not acquire or release a separate pointee.
+The source language forbids capturing a reference parameter, suspending with
+one or exposing it through an opaque public/foreign callable contract. Native
+preserves those restrictions and does not add heap storage to ordinary references.
 
 The old corpus's lexical native masks are coverage classifications, not a proof
 that the checker/runtime is complete. In particular an `extern` can be supported
