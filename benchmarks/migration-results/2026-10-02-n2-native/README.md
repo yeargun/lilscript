@@ -116,3 +116,29 @@ below the temporary-allocation bound. Initial mismatch receipts and all build
 logs are retained. No broad suite or performance comparison was run. The full
 arrays source has a separate generic-class-field JavaScript formation refusal,
 owned by V1; the independent oracle is not represented as full source parity.
+
+## Exception completions
+
+Algorithm75, pin `n2-exceptions-6`, implements status propagation and structured
+try/catch/finally completion routing with deterministic ownership cleanup. Nested
+finally regions preserve displaced returns and throws, and route break/continue
+through crossed finalizers. Array callbacks and callback adapters propagate
+failure without converting or retaining an invalid result. Checked representation
+and bounds failures become catchable errors. Providers can query, take or raise
+an owned tagged exception through the additive ABI 2 status interface. Shared
+throw-free effects omit call checks only with dead-code-elimination permission.
+
+The [six-fixture batch](exceptions) passes 48 source/build/run cells under GCC,
+Clang 18 and ASan/UBSan, including the standalone ownership runtime. The new
+independent ECMAScript oracle covers nested completion replacement, managed
+payloads and captured catch bindings, callback failure, provider handling and
+bounded allocation loops; emitted JavaScript agrees too. Bounds oracles use the
+explicit development-checks profile. Two maintained throwing-call C cells pass
+in formation and production. No full library suite or performance claim.
+
+Initial strict GCC warnings are retained: string indexing now proves bounds
+before pointer arithmetic, and failed converted-call results receive a typed
+scratch sentinel before propagation. Source fallthrough semantics are unchanged.
+The lexical exceptions mask is removed. Other corpus masks remain conservative;
+portable tagged transport does not implement JavaScript host object operations.
+Remaining ordinary runtime errors, suspension, text, data and interfaces stay N2.

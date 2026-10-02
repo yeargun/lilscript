@@ -12,6 +12,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if self.plan.helpers.contains(Helper::Dynamic) {
             self.text(dynamic::INTERFACE)?;
         }
+        if self.plan.helpers.contains(Helper::Exceptions) {
+            self.text("void ls_native_exception_raise(ls_value value);\nls_value ls_native_exception_take(void);\n")?;
+        }
         self.type_declarations()?;
         self.value_types()?;
         self.text(native_memory::QUALIFICATION_INTERFACE)?;

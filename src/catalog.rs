@@ -565,7 +565,7 @@ pub fn host_kind(name: &str) -> HostKind {
 pub(crate) fn native_type_capability(ty: &crate::check::Type<'_>) -> Option<&'static str> {
     use crate::check::Type;
     match ty {
-        Type::Dynamic | Type::Unknown => Some("JsValue and unknown require a JavaScript target"),
+        Type::Unknown => Some("unknown requires a JavaScript target"),
         Type::Regex => Some(crate::native_capabilities::REGEX),
         Type::Task(_) => Some(crate::native_capabilities::ASYNC),
         Type::Generator(_) => Some(crate::native_capabilities::GENERATORS),

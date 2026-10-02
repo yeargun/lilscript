@@ -1,0 +1,14 @@
+/tmp/lilscript-n2-exceptions-final-arrays/ownership.c: In function ‘ls_fn13’:
+/tmp/lilscript-n2-exceptions-final-arrays/ownership.c:5602:1: error: ‘ls_v19’ may be used uninitialized [-Werror=maybe-uninitialized]
+ 5602 | printf("%ld\n",(long)ls_v19);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-exceptions-final-arrays/ownership.c:3115:9: note: ‘ls_v19’ was declared here
+ 3115 | int32_t ls_v19 LS_NATIVE_UNUSED;
+      |         ^~~~~~
+/tmp/lilscript-n2-exceptions-final-arrays/ownership.c:8045:1: error: ‘ls_v36’ may be used uninitialized [-Werror=maybe-uninitialized]
+ 8045 | printf("%ld\n",(long)ls_v36);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/tmp/lilscript-n2-exceptions-final-arrays/ownership.c:3125:9: note: ‘ls_v36’ was declared here
+ 3125 | int32_t ls_v36 LS_NATIVE_UNUSED;
+      |         ^~~~~~
+cc1: all warnings being treated as errors

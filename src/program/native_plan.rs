@@ -352,6 +352,8 @@ pub(super) struct UnitPlan {
     pub(super) return_type: NativeType,
     pub(super) has_environment: bool,
     pub(super) named_adapter_needed: bool,
+    pub(super) may_throw: bool,
+    pub(super) catch_bindings: Vec<(RegionId,CellId)>,
 }
 
 #[derive(Debug)]
@@ -389,6 +391,7 @@ enum Initialization {
     Missing,
     Parameter,
     Foreign,
+    Catch(RegionId),
     Operation(OpId),
 }
 
@@ -539,7 +542,7 @@ pub(super) fn native_type<'program, 'src>(
             NativeType::Dynamic(tagged)
         }
         // A type parameter may stand for anything the tag can carry.
-        Type::TypeParameter(_) => NativeType::Dynamic(Tagged::ANY),
+        Type::TypeParameter(_) | Type::Dynamic => NativeType::Dynamic(Tagged::ANY),
         _ => return Ok(None),
     }))
 }
@@ -1119,14 +1122,18 @@ impl<'program, 'src> NativePlan<'program, 'src> {
     /// The shared initialization owner includes module order, recursive calls,
     /// escaping callbacks and host reentry. A target-local call scan cannot
     /// substitute for that proof. One uncertain access keeps the cell's guard.
-    pub(super) fn elide_initialized_global_guards(&mut self, uses: &UseIndex,
+    pub(super) fn resolve_effects(&mut self, uses: &UseIndex, elide_guards: bool,
         budget: &mut AllocationBudget<'_>) -> Result<(), NativeError> {
-        if !self.cells.iter().any(|cell| cell.global) { return Ok(()); }
+        if !elide_guards { return Ok(()); }
         let program = self.program;
         budget.with_temporary(
             |budget| Ok::<_, NativeError>(super::effects::ProgramEffects::build_reusing_in(
                 program, super::call_graph::Seal::Module, None, false, budget)?),
             |effects, budget| {
+                for (index, target) in self.units.iter_mut().enumerate() {
+                    work(budget, 1)?;
+                    target.may_throw=effects.summary(UnitId::from_index(index).unwrap()).is_none_or(|summary|summary.effects.may_throw);
+                }
                 for (index, target) in self.cells.iter_mut().enumerate() {
                     work(budget, 1)?;
                     if !target.global { continue; }
@@ -1331,7 +1338,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     {
                         return Err(error("native mutable static callable identity"));
                     }
-                    CellUse::CatchBinding { .. } => return Err(error("native catch storage")),
+                    CellUse::CatchBinding { region, .. } => {
+                        if unit != cell.owner || !matches!(initialization, Initialization::Missing) {
+                            return Err(error("native unique catch initialization"));
+                        }
+                        initialization = Initialization::Catch(region);
+                    },
                     CellUse::Capture if matches!(storage, ValueStorage::Value(_)) => {
                         captured = true
                     }
@@ -1390,6 +1402,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         )?;
         let mut helpers = Helpers::default();
         if !arrays.is_empty() { helpers.require(Helper::Arrays); }
+        if !hosts.bindings.is_empty() { helpers.require(Helper::Exceptions); }
         if signatures.iter().any(|signature| signature.needed)
             || cells.iter().any(|cell| cell.captured)
             || classes
@@ -1837,6 +1850,13 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 };
                 calls.push(target);
             }
+            let mut catch_bindings=Vec::new();
+            for operation in &data.operations {
+                work(budget,1)?;
+                if let OperationKind::Try {catch:Some((Some(cell),region)),..}=operation.kind {
+                    budget.push(Scratch,&mut catch_bindings,(region,cell))?;
+                }
+            }
             let unit_plan = UnitPlan {
                 values,
                 calls,
@@ -1844,6 +1864,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 return_type,
                 has_environment,
                 named_adapter_needed: false,
+                may_throw: true,
+                catch_bindings,
             };
             let parents = budget
                 .filled(Scratch, data.regions.len(), None)
@@ -2357,6 +2379,16 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
             match initializations[cell.index()] {
                 Initialization::Parameter | Initialization::Foreign => Ok(()),
+                Initialization::Catch(region) => {
+                    let mut current=operation.region;
+                    for _ in 0..=data.regions.len() {
+                        work(budget,1)?;
+                        if current==region { return Ok(()); }
+                        let Some(parent)=dominance.parent(current) else {break};
+                        current=data.operations[parent.index()].region;
+                    }
+                    Err(error("native catch access outside its region"))
+                },
                 Initialization::Operation(initialize)
                     if dominance.after(data, initialize, at, |n| work(budget, n))? =>
                 {
@@ -3352,6 +3384,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 region_result(*test).is_none_or(|value| value == Stored(Bool)),
                 "native loop condition",
             ),
+            OperationKind::Try { catch, .. } => {
+                self.helpers.require(Helper::Exceptions);
+                expect(catch.is_none_or(|(cell,_)| cell.is_none_or(|cell| matches!(self.cell_storage(cell),Stored(NativeType::Dynamic(_))))), "native exception binding")
+            }
+            OperationKind::Throw => {
+                self.helpers.require(Helper::Exceptions);
+                expect(operands.len()==1 && self.compatible(Stored(NativeType::Dynamic(Tagged::ANY)),operand(0)), "native thrown representation")
+            }
             OperationKind::Return => expect(
                 match operands {
                     [] => plan.return_type == Void,
@@ -3508,7 +3548,9 @@ fn must_return(data: &UnitData, budget: &mut AllocationBudget<'_>) -> Result<boo
             for &operation in &data.regions[region.index()].operations {
                 work(budget, 1)?;
                 let ends = match data.operations[operation.index()].kind {
-                    OperationKind::Return => true,
+                    OperationKind::Return | OperationKind::Throw => true,
+                    OperationKind::Try {body,catch,finally} => finally.is_some_and(|r|returning[r.index()])
+                        || (returning[body.index()] && catch.is_none_or(|(_,r)|returning[r.index()])) ,
                     OperationKind::Block(child) => returning[child.index()],
                     OperationKind::If { yes, no: Some(no) } => {
                         returning[yes.index()] && returning[no.index()]

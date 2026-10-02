@@ -1,13 +1,11 @@
 typedef struct { ls_native_object owner; size_t length; uint8_t *bytes; } ls_buffer;
 typedef struct { ls_native_object owner; ls_native_object *buffer; size_t offset; size_t length; } ls_typed;
 static LS_NATIVE_UNUSED inline void ls_binary_failure(const char *message) {
-    fputs(message, stderr);
-    fputc('\n', stderr);
-    abort();
+    ls_native_raise_error("RangeError",message);
 }
 static LS_NATIVE_UNUSED inline void ls_buffer_destroy(ls_native_object *owner) { free(((ls_buffer *)owner)->bytes); }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_buffer_new(int32_t length) {
-    if (length < 0) ls_binary_failure("LilScript native buffer length is negative");
+    if (length < 0) { ls_binary_failure("LilScript native buffer length is negative"); return NULL; }
     ls_buffer *buffer = ls_native_allocate(sizeof *buffer, ls_buffer_destroy, NULL);
     buffer->length = (size_t)length;
     buffer->bytes = calloc(length ? (size_t)length : 1, 1);
@@ -38,7 +36,7 @@ static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_view(ls_native_object 
     return &view->owner;
 }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_new(int32_t length, size_t size) {
-    if (length < 0) ls_binary_failure("LilScript native typed array length is negative");
+    if (length < 0) { ls_binary_failure("LilScript native typed array length is negative"); return NULL; }
     if ((size_t)length > (size_t)INT32_MAX / size) ls_native_resource_failure();
     ls_native_object *buffer = ls_buffer_new((int32_t)((size_t)length * size));
     ls_native_object *view = ls_typed_view(buffer, 0, (size_t)length);
@@ -47,7 +45,7 @@ static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_new(int32_t length, si
 }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_typed_over(ls_native_object *buffer, size_t size) {
     size_t length = ((ls_buffer *)buffer)->length;
-    if (length % size) ls_binary_failure("LilScript native buffer length is not a multiple of the element size");
+    if (length % size) { ls_binary_failure("LilScript native buffer length is not a multiple of the element size"); return NULL; }
     return ls_typed_view(buffer, 0, length / size);
 }
 static LS_NATIVE_UNUSED inline int32_t ls_typed_length(ls_native_object *owner) { return (int32_t)((ls_typed *)owner)->length; }
@@ -75,7 +73,7 @@ static LS_NATIVE_UNUSED inline void ls_typed_undefined(void) { ls_binary_failure
 #define LS_TYPED_INT(name, type, read, write) \
 static LS_NATIVE_UNUSED inline int32_t ls_typed_get_##name(ls_native_object *owner, int32_t index) { \
     uint8_t *at = ls_typed_at(owner, index, sizeof(type)); \
-    if (!at) ls_typed_undefined(); \
+    if (!at) { ls_typed_undefined(); return 0; } \
     type value; memcpy(&value, at, sizeof value); return read; \
 } \
 static LS_NATIVE_UNUSED inline void ls_typed_set_##name(ls_native_object *owner, int32_t index, int32_t input) { \
@@ -92,7 +90,7 @@ LS_TYPED_INT(int32, int32_t, value, input)
 LS_TYPED_INT(uint32, uint32_t, ls_from_u32(value), (uint32_t)input)
 static LS_NATIVE_UNUSED inline double ls_typed_get_float32(ls_native_object *owner, int32_t index) {
     uint8_t *at = ls_typed_at(owner, index, sizeof(float));
-    if (!at) ls_typed_undefined();
+    if (!at) { ls_typed_undefined(); return 0; }
     float value; memcpy(&value, at, sizeof value); return (double)value;
 }
 static LS_NATIVE_UNUSED inline void ls_typed_set_float32(ls_native_object *owner, int32_t index, double input) {
@@ -102,7 +100,7 @@ static LS_NATIVE_UNUSED inline void ls_typed_set_float32(ls_native_object *owner
 }
 static LS_NATIVE_UNUSED inline double ls_typed_get_float64(ls_native_object *owner, int32_t index) {
     uint8_t *at = ls_typed_at(owner, index, sizeof(double));
-    if (!at) ls_typed_undefined();
+    if (!at) { ls_typed_undefined(); return 0; }
     double value; memcpy(&value, at, sizeof value); return value;
 }
 static LS_NATIVE_UNUSED inline void ls_typed_set_float64(ls_native_object *owner, int32_t index, double input) {

@@ -18,7 +18,7 @@ typedef struct ls_native_array {
     uint8_t *present;
 } ls_native_array;
 static LS_NATIVE_UNUSED void ls_native_undefined_element(void) {
-    fputs("LilScript native array element is undefined\n",stderr); abort();
+    ls_native_raise_error("RangeError","LilScript native array index out of range");
 }
 static LS_NATIVE_UNUSED inline void *ls_array_item(ls_native_array *array, size_t index) {
     return (unsigned char *)array->items + index*array->ops->width;
@@ -73,7 +73,7 @@ static LS_NATIVE_UNUSED inline void *ls_array_append_slot(ls_native_array *array
     ++array->length; return slot;
 }
 static LS_NATIVE_UNUSED inline void *ls_array_store_slot(ls_native_array *array, int32_t index) {
-    if(index<0 || (size_t)index>array->length) ls_native_undefined_element();
+    if(index<0 || (size_t)index>array->length) { ls_native_undefined_element(); return NULL; }
     if((size_t)index==array->length) return ls_array_append_slot(array);
     if(array->present) array->present[index]=1;
     return ls_array_item(array,(size_t)index);
@@ -86,7 +86,8 @@ static LS_NATIVE_UNUSED inline ls_value ls_array_read(ls_native_array *array, si
     return array->ops->read(temps,ls_array_item(array,index));
 }
 static LS_NATIVE_UNUSED inline void ls_array_write(ls_native_array *array, int32_t index, ls_value value) {
-    array->ops->write(ls_array_store_slot(array,index),value);
+    void *slot=ls_array_store_slot(array,index);
+    if(slot) array->ops->write(slot,value);
 }
 static LS_NATIVE_UNUSED inline void ls_array_drop_last(ls_native_array *array) {
     if(!array->length) return;

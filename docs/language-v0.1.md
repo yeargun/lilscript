@@ -287,7 +287,12 @@ Exception regions are emitted as structured JavaScript `try` statements. Locals
 assigned inside them stay mutable bindings, so a catch observes every
 assignment completed before the exact operation that threw. A catch binding
 with no use is omitted (`catch{…}`) when the syntax floor is ES2019 or later.
-Async, tasks, and exceptions are rejected by the native target rather than
+Native preserves these completions using owned status propagation and lexical
+cleanup. Catch values carry portable tagged payloads; JavaScript host operations
+on them still require JavaScript. C providers use the documented
+[pending/take/raise protocol](native-support.md).
+
+Async and tasks are rejected by the native target rather than
 approximated (**until M11.6**).
 
 ## Generators

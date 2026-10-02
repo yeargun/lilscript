@@ -1,0 +1,121 @@
+extern void assertNativeCount(int expected);
+extern void collectNative();
+extern void assertMaxNativeCount(int maximum);
+extern string relay(func()->string action);
+extern string recover(func()->string action);
+extern void raiseHost();
+string describe(JsValue value) { return (value as? string)??"runtime"; }
+string explode() { throw "boom".repeat(2); }
+T genericFail<T>(T value) { throw value; }
+string choose(int mode) {
+    try {
+        if(mode==1) { return explode(); }
+        if(mode==2) { throw "old".repeat(2); }
+        return "body".repeat(2);
+    } catch(auto error) {
+        print(describe(error));
+        return "catch".repeat(2);
+    } finally {
+        print("finally");
+        if(mode==2) { return "override".repeat(2); }
+    }
+}
+string nested() {
+    try { return "outer".repeat(2); }
+    finally {
+        try { throw "inside".repeat(2); }
+        catch(auto error) { print(describe(error)); }
+        finally { print("inner final"); }
+    }
+}
+string displaced() {
+    try { return "original".repeat(2); }
+    finally {
+        try {
+            try { return "temporary".repeat(2); }
+            finally { throw "caught override".repeat(2); }
+        } catch(auto error) { print(describe(error)); }
+    }
+}
+void replacements() {
+    try {
+        try { return; }
+        finally { throw "replace return".repeat(2); }
+    } catch(auto error) { print(describe(error)); }
+    try {
+        try { throw "discard".repeat(2); }
+        finally { throw "replacement".repeat(2); }
+    } catch(auto error) { print(describe(error)); }
+    try { genericFail("generic".repeat(2)); }
+    catch(auto error) { print(describe(error)); }
+}
+void loops() {
+    for(int i=0;i<4;i++) {
+        try {
+            if(i==0) { continue; }
+            if(i==2) { break; }
+            print(i);
+        } finally { print(i+10); }
+    }
+    int count=0;
+    for(int i=0;i<3;i++) {
+        try { break; }
+        finally { count+=1; if(i<2) { continue; } }
+    }
+    print(count);
+    try { print("inner loop"); }
+    finally { for(int i=0;i<3;i++){if(i==1){break;}print(i);} }
+}
+void bounds() {
+    int[] items=[1];
+    try { print(items[4]); } catch(auto error) { print(describe(error)); }
+    try { print("a".codeUnitAt(-1)); } catch(auto error) { print(describe(error)); }
+    try { print("a"[-1]); } catch(auto error) { print(describe(error)); }
+    try { print("a".repeat(-1)); } catch(auto error) { print(describe(error)); }
+    try { int n=-1; Uint8Array bytes=new Uint8Array(n); print(bytes.length); }
+    catch(auto error) { print(describe(error)); }
+    try { Uint8Array bytes=new Uint8Array(1); print(bytes[2]); }
+    catch(auto error) { print(describe(error)); }
+    try { throw items; }
+    catch(auto error) {
+        int[] caught=JS.assume(error);
+        print(caught==items); caught.push(2);
+    }
+    print(items.length);
+}
+void callbacks() {
+    string[] source=["a".repeat(2),"b".repeat(2),"c".repeat(2)];
+    try { source.map((string v)=>{if(v=="bb"){throw v;}return v.repeat(2);}); }
+    catch(auto error) { print(describe(error)); }
+    try { source.filter((string v)=>{if(v=="bb"){throw v;}return true;}); }
+    catch(auto error) { print(describe(error)); }
+    try { source.reduce((string acc,string v)=>{if(v=="bb"){throw acc;}return acc+v;},"start"); }
+    catch(auto error) { print(describe(error)); }
+    try { source.every((string v)=>{if(v=="aa"){throw v;}return true;}); }
+    catch(auto error) { print(describe(error)); }
+    try { source.forEach((string v)=>{throw v;}); }
+    catch(auto error) { print(describe(error)); }
+}
+void captured() {
+    func()->string saved=()=>"initial";
+    try { explode(); } catch(auto error) { saved=()=>describe(error); }
+    print(saved());
+}
+void stress() {
+    for(int i=0;i<200;i++) {
+        try { genericFail("owned".repeat(3)); }
+        catch(auto error) {
+            if(describe(error)!="ownedownedowned") { print("wrong"); }
+        } finally { assertMaxNativeCount(30); }
+    }
+}
+void providers() {
+    try { print(relay(()=>explode())); } catch(auto error) { print(describe(error)); }
+    print(recover(()=>explode()));
+    try { raiseHost(); } catch(auto error) { print(describe(error)); }
+}
+void run() {
+    print(choose(0)); print(choose(1)); print(choose(2)); print(nested()); print(displaced());
+    replacements(); loops(); bounds(); callbacks(); captured(); stress(); providers();
+}
+run(); collectNative(); assertNativeCount(0); print("exceptions done");

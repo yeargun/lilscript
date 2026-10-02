@@ -93,13 +93,12 @@ The mask is declared once, in `FEATURES` in `scripts/cases.mjs`. Detection is le
 |---|---|---|---|
 | `.host.js` prelude | script, module | defines externs in a JavaScript realm | — |
 | `.module-probe.mjs` | module | imports the ES module's exports | — |
-| `JsValue` | script, module | JavaScript-only (language-v0.1) | — |
+| `JsValue` | script, module | conservative host-operation corpus mask; portable tagged exception transport is implemented natively | N2 case classification |
 | `import extern` | module | a foreign ES module edge needs module syntax; a classic script carries only embedded host modules, which cannot have default exports. The case's folder `X/` is linked beside the artifact, so the output's imports resolve | — |
 | `extern` | script, module | this fixture needs a C provider/host-equivalent boundary; configured native function providers are supported | N2 (M11.3 qualification) |
 | `export` in the entry | script, module | the exports are a module ABI; C has none yet | M11.8 |
 | `JS.` operations | script, module | JavaScript-only | — |
 | `async`, `await`, `Task` | script, module | native rejects them (language-v0.1) | M11.6 |
-| `throw`, `try` | script, module | native rejects exceptions | M11.6 |
 | `Regex` | script, module | native rejects it | M11.6 |
 | `generator` | script, module | native rejects generators | M11.6 |
 | `object { … }` | script, module | JavaScript-only | — |

@@ -1,6 +1,5 @@
 static LS_NATIVE_UNUSED inline void ls_value_mismatch(void) {
-    fputs("LilScript native value has an unexpected type\n", stderr);
-    abort();
+    ls_native_raise_error("TypeError","LilScript native value has an unexpected type");
 }
 static LS_NATIVE_UNUSED inline void ls_value_copy(ls_value *slot, ls_value value) { ls_value_retain(value); ls_value_release(*slot); *slot = value; }
 static LS_NATIVE_UNUSED inline void ls_value_take(ls_value *slot, ls_value value) { ls_value_release(*slot); *slot = value; }
@@ -12,27 +11,27 @@ static LS_NATIVE_UNUSED inline ls_value ls_value_string(ls_string value) { ls_va
 static LS_NATIVE_UNUSED inline ls_value ls_value_object(ls_native_object *value) { ls_value result = {.tag = LS_OBJECT}; result.as.o = value; return result; }
 static LS_NATIVE_UNUSED inline ls_value ls_value_array(ls_native_object *value) { ls_value result = {.tag = LS_ARRAY}; result.as.o = value; return result; }
 static LS_NATIVE_UNUSED inline ls_value ls_value_symbol(ls_native_object *value) { ls_value result = {.tag = LS_SYMBOL}; result.as.o = value; return result; }
-static LS_NATIVE_UNUSED inline int32_t ls_value_to_int(ls_value value) { if (value.tag != LS_INT) ls_value_mismatch(); return value.as.i; }
+static LS_NATIVE_UNUSED inline int32_t ls_value_to_int(ls_value value) { if (value.tag != LS_INT) { ls_value_mismatch(); return 0; } return value.as.i; }
 static LS_NATIVE_UNUSED inline double ls_value_to_number(ls_value value) {
     if (value.tag == LS_INT) return (double)value.as.i;
-    if (value.tag != LS_FLOAT) ls_value_mismatch();
+    if (value.tag != LS_FLOAT) { ls_value_mismatch(); return 0; }
     return value.as.f;
 }
-static LS_NATIVE_UNUSED inline bool ls_value_to_bool(ls_value value) { if (value.tag != LS_BOOL) ls_value_mismatch(); return value.as.b; }
-static LS_NATIVE_UNUSED inline ls_string ls_value_to_string(ls_value value) { if (value.tag != LS_STRING) ls_value_mismatch(); return value.as.s; }
+static LS_NATIVE_UNUSED inline bool ls_value_to_bool(ls_value value) { if (value.tag != LS_BOOL) { ls_value_mismatch(); return false; } return value.as.b; }
+static LS_NATIVE_UNUSED inline ls_string ls_value_to_string(ls_value value) { if (value.tag != LS_STRING) { ls_value_mismatch(); return (ls_string){0}; } return value.as.s; }
 /* A reference slot of a class instance holds null until `init` stores it,
    as in JavaScript: null unboxes to the empty slot there. */
 static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_object(ls_value value) {
     if (value.tag == LS_NULL) return NULL;
-    if (value.tag != LS_OBJECT) ls_value_mismatch();
+    if (value.tag != LS_OBJECT) { ls_value_mismatch(); return NULL; }
     return value.as.o;
 }
 static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_array(ls_value value) {
     if (value.tag == LS_NULL) return NULL;
-    if (value.tag != LS_ARRAY) ls_value_mismatch();
+    if (value.tag != LS_ARRAY) { ls_value_mismatch(); return NULL; }
     return value.as.o;
 }
-static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_symbol(ls_value value) { if (value.tag != LS_SYMBOL) ls_value_mismatch(); return value.as.o; }
+static LS_NATIVE_UNUSED inline ls_native_object *ls_value_to_symbol(ls_value value) { if (value.tag != LS_SYMBOL) { ls_value_mismatch(); return NULL; } return value.as.o; }
 static LS_NATIVE_UNUSED inline bool ls_value_number(ls_value value) { return value.tag == LS_INT || value.tag == LS_FLOAT; }
 /* JavaScript strict equality: numbers by value, strings by code units,
    everything else by identity. */

@@ -76,14 +76,15 @@ impl Emitter<'_, '_, '_, '_, '_> {
     }
     fn array_callback_cleanup(&mut self, element: NativeType) -> Result<(), NativeError> {
         if let Some(drop)=element.release("ls_item") { self.text(&drop)?; }
-        self.clear_temporaries()
+        self.clear_temporaries()?;
+        self.text("if (ls_native_raised) break;\n")
     }
     fn array_predicate(&mut self, unit: UnitId, callback: ValueId, element: NativeType) -> Result<(), NativeError> {
         let returned=self.callback_result(unit,callback);
         self.write(format_args!("{returned} ls_predicate_result = "))?;
         self.callback_call(unit,callback,&[("ls_item",element)])?;
         let (prefix,suffix)=Self::conversion(returned,NativeType::Bool);
-        self.write(format_args!(";\nbool ls_predicate = {prefix}ls_predicate_result{suffix};\n"))?;
+        self.write(format_args!(";\nbool ls_predicate = !ls_native_raised && {prefix}ls_predicate_result{suffix};\n"))?;
         if let Some(drop)=returned.release("ls_predicate_result") { self.text(&drop)?; }
         Ok(())
     }
@@ -128,10 +129,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 } else {
                     self.write(format_args!("{returned} ls_mapped = "))?;
                     self.callback_call(unit,callback,&[("ls_item",e)])?; self.text(";\n")?;
-                    if returned==output { self.write(format_args!("ls_array{out}_push_owned(ls_out,ls_mapped);\n"))?; }
+                    if returned==output {
+                        self.write(format_args!("if (!ls_native_raised) ls_array{out}_push_owned(ls_out,ls_mapped);\n"))?;
+                        if let Some(drop)=returned.release("ls_mapped") { self.text("else {\n")?; self.text(&drop)?; self.text("}\n")?; }
+                    }
                     else {
                         let (prefix,suffix)=Self::conversion(returned,output);
-                        self.write(format_args!("ls_array{out}_push(ls_out,{prefix}ls_mapped{suffix});\n"))?;
+                        self.write(format_args!("if (!ls_native_raised) ls_array{out}_push(ls_out,{prefix}ls_mapped{suffix});\n"))?;
                         if let Some(drop)=returned.release("ls_mapped") { self.text(&drop)?; }
                     }
                 }
@@ -149,6 +153,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.array_callback_item(s,false)?;
                 self.write(format_args!("{returned} ls_next = "))?;
                 self.callback_call(unit,callback,&[("ls_acc",accumulator),("ls_item",e)])?; self.text(";\n")?;
+                self.text("if (ls_native_raised) {\n")?;
+                if let Some(drop)=returned.release("ls_next") {self.text(&drop)?;}
+                self.array_callback_cleanup(e)?;
+                self.text("}\n")?;
                 let (prefix,suffix)=Self::conversion(returned,accumulator);
                 if let Some(owner)=accumulator.owner_prefix() {
                     let operation=if returned==accumulator { "take" } else { "copy" };

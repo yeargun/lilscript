@@ -76,3 +76,28 @@ static int ls_runtime_init(void) {
     }
     return 1;
 }
+
+#ifndef LS_NATIVE_UNUSED
+#if defined(__GNUC__) || defined(__clang__)
+#define LS_NATIVE_UNUSED __attribute__((unused))
+#else
+#define LS_NATIVE_UNUSED
+#endif
+#endif
+
+/* Ordinary language failures propagate as status. Resource exhaustion and
+   violated runtime ownership invariants remain fatal. The payload owner is
+   supplied only when this program needs exception values. */
+static _Thread_local bool ls_native_raised;
+static _Thread_local const char *ls_native_error_name, *ls_native_error_message;
+static LS_NATIVE_UNUSED inline void ls_native_raise_error(const char *name, const char *message) {
+    if (!ls_native_raised) { ls_native_raised=true; ls_native_error_name=name; ls_native_error_message=message; }
+}
+static LS_NATIVE_UNUSED inline void ls_native_report_error(void) {
+    if (ls_native_error_message) fprintf(stderr,"%s: %s\n",ls_native_error_name,ls_native_error_message);
+    else fputs("Uncaught LilScript exception\n",stderr);
+}
+
+/* C providers return immediately when a callback sets this status, or take
+   the owned exception explicitly before continuing. */
+bool ls_native_exception_pending(void) { return ls_native_raised; }

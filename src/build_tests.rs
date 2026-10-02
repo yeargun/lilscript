@@ -3105,11 +3105,7 @@ fn an_application_scripts_roots_are_the_programs_own() {
 #[test]
 fn s4_native_capabilities_are_reported_before_lowering_with_source_spans() {
     for (source, part) in [
-        ("int prefix=1;JsValue value=3;print(value);", "JsValue"),
-        (
-            "int prefix=1;try{print(prefix);}finally{print(2);}",
-            "native exceptions",
-        ),
+        ("int prefix=1;unknown value=3;", "unknown"),
         (
             "int prefix=1;export int answer(){return prefix;}",
             "native exported ABI",

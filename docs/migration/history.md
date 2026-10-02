@@ -1893,3 +1893,16 @@ affected fixtures pass GCC, Clang and ASan/UBSan, including bounded allocation
 and zero-live-object assertions. No broad suite or performance claim. N2 remains
 active; V1 owns the separately recorded JavaScript generic-class-field refusal.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#polymorphic-arrays).
+
+
+## 2026-10-02 — N2 exception completions
+
+Native now propagates owned exception status through calls and structured
+try/catch/finally, including replaced returns, break/continue, callback failure
+and provider reentry. Catchable bounds/representation errors replace those fatal
+paths. Shared throw-free effects control removable checks under the existing
+policy permission. Six affected fixtures pass all 48 GCC/Clang/sanitizer steps;
+two maintained formation/production cells and the independent JavaScript oracle
+also pass. Initial warning failures and corrections are retained. N2 remains
+active; this is a runtime batch, not native completion or a performance claim.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#exception-completions).

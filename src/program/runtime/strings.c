@@ -67,7 +67,7 @@ static LS_NATIVE_UNUSED inline ls_string ls_bool_to_string(bool value) {
     return value ? (ls_string){ls_true_units, 4, NULL} : (ls_string){ls_false_units, 5, NULL};
 }
 static LS_NATIVE_UNUSED inline ls_string ls_uint_to_radix(uint32_t magnitude, bool negative, int32_t radix) {
-    if (radix < 2 || radix > 36) ls_string_failure("LilScript native toString radix must be between 2 and 36");
+    if (radix < 2 || radix > 36) { ls_native_raise_error("RangeError","LilScript native toString radix must be between 2 and 36"); return (ls_string){0}; }
     char digits[40];
     size_t length = 0;
     do {
@@ -267,7 +267,7 @@ static LS_NATIVE_UNUSED inline ls_string ls_string_trim(ls_string text, bool sta
     return ls_string_view(text, from, to);
 }
 static LS_NATIVE_UNUSED inline ls_string ls_string_repeat(ls_string text, int32_t count) {
-    if (count < 0) ls_string_failure("LilScript native repeat count must not be negative");
+    if (count < 0) { ls_native_raise_error("RangeError","LilScript native repeat count must not be negative"); return (ls_string){0}; }
     if (count == 0 || text.length == 0) return (ls_string){0};
     if (text.length > (size_t)INT32_MAX / (size_t)count)
         ls_string_failure("LilScript native string length exceeds the runtime limit");

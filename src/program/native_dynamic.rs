@@ -28,7 +28,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
 static LS_NATIVE_UNUSED ls_value ls_value_callable{index}(ls_callable{index} value) {{ ls_value result = {{.tag = LS_CALLABLE, .signature = {index}}}; memcpy(&result.as.c, &value, sizeof value); return result; }}\n\
 static LS_NATIVE_UNUSED ls_callable{index} ls_value_to_callable{index}(ls_value value) {{\n\
 if (value.tag == LS_NULL) return (ls_callable{index}){{0}};\n\
-if (value.tag != LS_CALLABLE || value.signature != {index}) ls_value_mismatch();\n\
+if (value.tag != LS_CALLABLE || value.signature != {index}) {{ ls_value_mismatch(); return (ls_callable{index}){{0}}; }}\n\
 ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return result;\n}}\n"
             ))?;
         }
@@ -182,7 +182,12 @@ static LS_NATIVE_UNUSED {} {name}_code(void *environment",
                     ))?;
                 }
             }
-            self.text(");\n")?;
+            self.text(");\nif (ls_native_raised) {\n")?;
+            if let Some(drop)=inner.release("ls_inner") { self.text(&drop)?; }
+            self.clear_temporaries()?;
+            if outer==NativeType::Void { self.text("return;\n")?; }
+            else { self.write(format_args!("return ({outer}){{0}};\n"))?; }
+            self.text("}\n")?;
             if outer != NativeType::Void {
                 self.write(format_args!("{outer} ls_outer = {prefix}ls_inner{suffix};\n"))?;
                 if Self::product_conversion(inner, outer) {

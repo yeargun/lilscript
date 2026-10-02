@@ -1,0 +1,10 @@
+In function ‘ls_string_index’,
+    inlined from ‘ls_fn9’ at /tmp/lilscript-n2-exceptions-qualified-exceptions/ownership.c:3894:1:
+/tmp/lilscript-n2-exceptions-qualified-exceptions/ownership.c:306:35: error: array subscript -1 is outside array bounds of ‘const uint16_t[1]’ {aka ‘const short unsigned int[1]’} [-Werror=array-bounds=]
+  306 |     return (ls_string){value.data + (size_t)index, 1, value.owner};
+      |                        ~~~~~~~~~~~^~~~~~~~~~~~~~~
+/tmp/lilscript-n2-exceptions-qualified-exceptions/ownership.c: In function ‘ls_fn9’:
+/tmp/lilscript-n2-exceptions-qualified-exceptions/ownership.c:1889:40: note: at offset -2 into object ‘ls_s32’ of size 2
+ 1889 | static LS_NATIVE_UNUSED const uint16_t ls_s32[] = {97,};
+      |                                        ^~~~~~
+cc1: all warnings being treated as errors

@@ -48,11 +48,12 @@ pub(super) enum Helper {
     Collections,
     Records,
     Json,
+    Exceptions,
     Binary,
 }
 
 impl Helper {
-    pub(super) const ALL: [Self; 27] = [
+    pub(super) const ALL: [Self; 28] = [
         Self::FromU32,
         Self::ToInt32,
         Self::RoundBinary64,
@@ -79,6 +80,7 @@ impl Helper {
         Self::Collections,
         Self::Records,
         Self::Json,
+        Self::Exceptions,
         Self::Binary,
     ];
 
@@ -109,6 +111,7 @@ impl Helper {
             Self::Collections => "ls_map_new",
             Self::Records => "ls_record_get",
             Self::Json => "ls_json_scalar",
+            Self::Exceptions => "ls_native_throw",
             Self::Binary => "ls_buffer_new",
             Self::ClosureRuntime => "ls_native_retain",
         }
@@ -131,6 +134,7 @@ impl Helper {
             Self::Collections => &[Self::Dynamic],
             Self::Records => &[Self::Collections],
             Self::Json => &[Self::Records],
+            Self::Exceptions => &[Self::Records, Self::Products],
             Self::Binary => &[Self::ClosureRuntime, Self::FromU32],
             _ => &[],
         }
@@ -146,6 +150,7 @@ impl Helper {
             Self::Collections => super::native::COLLECTIONS_RUNTIME,
             Self::Records => include_str!("runtime/records.c"),
             Self::Json => include_str!("runtime/json.c"),
+            Self::Exceptions => include_str!("runtime/exceptions.c"),
             Self::Binary => super::native::BINARY_RUNTIME,
             Self::FromU32 => {
                 include_str!("runtime/from_u32.c")

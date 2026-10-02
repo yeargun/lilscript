@@ -18,14 +18,14 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 | Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Native specialization and remaining callable transport: N2 |
 | Collections and classes | Shared-identity concrete/generic arrays, owned callbacks and sparse copies; class objects, maps, sets, symbols, buffers and typed arrays | Remaining recipes and comparisons: N2 |
 | Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, checked JSON stringify, shape fields/spreads/optional writes/tag narrowing, scalar array join | Typed parsing and immutable graph qualification: N2 |
-| Exceptions | Source-qualified refusal | Status propagation, catch/finally, throwing calls: N2 |
+| Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | Remaining native error recipes and full corpus qualification: N2 |
 | Generators, async/tasks | Source-qualified refusal | Region state machines and microtask queue: N2 |
 | Regular expressions | Source-qualified refusal | Pinned ECMAScript-compatible engine: N2 |
 | Strings | Reference-counted UTF-16 ABI v2, owned views and temporary-conversion cleanup | Complete Unicode/runtime support: N2 |
 | Memory | Reference counting, traced closures/objects/containers, final-use transfer and synchronous trial deletion | Broad cycle/performance qualification: N2 |
 | Extern providers | Explicit `host_` functions and generated C headers, mapped from checked identities | Remaining extern/C library ABI and portable process/file/clock API: N2 |
 | Toolchain | One library owner; strict C11 flags, explicit TOML controls, source/output receipts | Native objective measurements, sanitizer matrix and cross-target profiles: N2 |
-| JavaScript host facilities | `JsValue`, `unknown`, `JS.*`, extern JS classes, `object {}`, JS module namespaces/dynamic import and ambient JS APIs | Declared JavaScript-only |
+| JavaScript host facilities | `unknown`, host-specific `JsValue`/`JS.*` operations, extern JS classes, `object {}`, JS module namespaces/dynamic import and ambient JS APIs | Declared JavaScript-only; portable tagged value transport and checked representation views also support native catches |
 
 An implemented family is not a blanket claim that all representation
 combinations work. Target-aware checking is the authority for a particular
@@ -57,3 +57,20 @@ Sparse callback results keep a separate presence bitmap, allocated only when
 needed. Callbacks retain the current element across source mutation and release
 per-iteration conversion temporaries; managed reduce accumulators own their
 current value. These are semantic guarantees, not measured performance wins.
+
+Native exceptions use a status on the originating thread and an owned tagged
+payload. Calls return through ordinary C frames; generated callers branch to
+their lexical handler and release exited owners. Each `finally` saves both its
+exception and return value, so nested completion replacement preserves the
+outer pending completion. Shared throw-free function summaries can omit call
+checks under the dead-code-elimination control; disabling it retains checks.
+
+A C provider that calls a source callback must inspect
+`ls_native_exception_pending()` before continuing. It can return immediately
+to propagate the status, or use `ls_native_exception_take()` to clear it and
+receive an owned `ls_value`. `ls_native_exception_raise(value)` retains its
+borrowed argument and replaces the pending exception. These additive ABI 2
+functions never unwind a foreign C frame. Resource exhaustion and violated
+runtime ownership invariants remain fatal. Runtime type/bounds/range failures
+are ordinary catchable failures; source precondition checks on JavaScript are
+selected independently with `[javascript] checks="development"`.

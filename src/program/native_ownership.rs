@@ -138,7 +138,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             let retain = ty.retain("value").unwrap_or_default();
             self.write(format_args!("static LS_NATIVE_UNUSED ls_box{index} *ls_box_allocate{index}(void) {{ return ls_native_allocate(sizeof(ls_box{index}),{destroy},{trace}); }}\nstatic LS_NATIVE_UNUSED void ls_box_initialize{index}(ls_box{index} *box, {ty} value) {{\n{retain}"))?;
             if let Some(drop) = ty.release("box->value") { self.text(&drop)?; }
-            self.write(format_args!("box->value = value; box->ready = true;\n}}\nstatic LS_NATIVE_UNUSED ls_box{index} *ls_box_new{index}({ty} value) {{ ls_box{index} *box = ls_box_allocate{index}(); ls_box_initialize{index}(box, value); return box; }}\nstatic LS_NATIVE_UNUSED {ty} *ls_box_value{index}(ls_box{index} *box) {{ if (!box || !box->ready) {{ fputs(\"LilScript native captured binding used before initialization\\n\", stderr); abort(); }} return &box->value; }}\n"))?;
+            self.write(format_args!("box->value = value; box->ready = true;\n}}\nstatic LS_NATIVE_UNUSED ls_box{index} *ls_box_new{index}({ty} value) {{ ls_box{index} *box = ls_box_allocate{index}(); ls_box_initialize{index}(box, value); return box; }}\nstatic LS_NATIVE_UNUSED {ty} *ls_box_value{index}(ls_box{index} *box) {{ static {ty} empty; if (!box || !box->ready) {{ ls_native_raise_error(\"ReferenceError\",\"LilScript native captured binding used before initialization\"); return &empty; }} return &box->value; }}\n"))?;
         }
         for frozen in &self.plan.program.units {
             let unit = frozen.id();
@@ -346,6 +346,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
             if let OperationKind::Initialize(cell) | OperationKind::Declare(cell) = operation.kind {
                 self.cleanup_cell(cell)?;
             }
+            if let OperationKind::PrepareCall(call)=operation.kind {
+                if let PreparedTarget::Placed {signature,..}=self.plan.units[unit.index()].calls[call.index()] {
+                    self.write(format_args!("ls_callable{signature}_clear(&ls_pc{});\n",call.index()))?;
+                }
+            }
+        }
+        for &(binding_region,cell) in &self.plan.units[unit.index()].catch_bindings {
+            if binding_region == region { self.cleanup_cell(cell)?; }
         }
         if region == data.entry {
             for &cell in data.parameters.iter().rev() {

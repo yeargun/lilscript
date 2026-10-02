@@ -134,7 +134,9 @@ GCC/Clang qualification profiles retain their deliberately independent flags.
 removal. When enabled, the shared initialization/effects analysis must prove
 every cross-unit access follows initialization; one uncertain callback/reentry
 keeps the guard. `off` retains guards. The native delivery receipt reports
-`initialization_guards_removed`. This saves native source/runtime checks and
+`initialization_guards_removed`. The same dead-code-elimination permission lets
+shared throw-free function summaries omit native call-status checks; `off`
+retains those checks. Exception behavior is never configurable. This saves native source/runtime checks and
 adds one shared analysis when global storage needs it; it changes no JavaScript
 size objective or source semantics. Escaping storage and unproved ownership
 continue to use the existing RC representation.

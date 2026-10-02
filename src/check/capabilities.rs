@@ -117,9 +117,6 @@ pub(crate) fn native(
             return;
         }
         let unsupported = match statement {
-            Stmt::Try { span, .. } | Stmt::Throw { span, .. } => {
-                Some((*span, crate::native_capabilities::EXCEPTIONS))
-            }
             Stmt::Yield { span, .. } => Some((*span, crate::native_capabilities::GENERATORS)),
             _ => None,
         };

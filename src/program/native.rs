@@ -7,6 +7,9 @@ use super::native_plan::{
     NativePlan, NativeType, PlaceRecipe, PreparedTarget, RecordKey, Tagged, ValueStorage,
 };
 use super::native_runtime::{self, Helper};
+#[path = "native_control.rs"]
+mod control;
+use control::{Completion, TryFrame};
 #[path = "native_arrays.rs"]
 mod arrays;
 #[path = "native_array_types.rs"]
@@ -247,7 +250,7 @@ pub(super) fn form(
         size_of::<NativePlan<'_, '_>>() as u64 + size_of::<Emitter<'_, '_, '_, '_, '_>>() as u64,
     )?;
     let mut plan = NativePlan::build_with_hosts(program, uses, hosts, &mut phase)?;
-    if dead_code { plan.elide_initialized_global_guards(uses, &mut phase)?; }
+    plan.resolve_effects(uses, dead_code, &mut phase)?;
     let initialization_guards_removed = plan.cells.iter().filter(|cell| cell.global && !cell.global_guard).count() as u32;
     let storage = if scalar {
         super::physical_storage::StorageProofs::build(
@@ -271,6 +274,9 @@ pub(super) fn form(
         stack: Vec::new(),
         field_path: Vec::new(),
         active_regions: Vec::new(),
+        try_frames: Vec::new(),
+        error_exit: false,
+        return_exit: false,
     };
     // Both artifacts use the same borrowed physical signature and presentation
     // owner. Nothing is recovered from printed C or a second source graph.
@@ -322,6 +328,9 @@ enum Task {
     },
     LoopUpdate(OpId),
     LoopEnd(OpId),
+    TryBodyEnd(OpId),
+    TryCatchEnd(OpId),
+    TryFinallyEnd(OpId),
 }
 
 struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
@@ -336,6 +345,9 @@ struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     field_path: Vec<(usize, Option<usize>)>,
     // The current lexical path in the original region tree, not a cleanup CFG.
     active_regions: Vec<RegionId>,
+    try_frames: Vec<TryFrame>,
+    error_exit: bool,
+    return_exit: bool,
 }
 impl Emitter<'_, '_, '_, '_, '_> {
     fn write(&mut self, arguments: fmt::Arguments<'_>) -> Result<(), NativeError> {
@@ -442,12 +454,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
             ))?;
         }
         for unit in program.initialization.iter() {
-            self.write(format_args!("ls_init{}();\n", unit.index()))?;
+            self.write(format_args!("ls_init{}();\nif (ls_native_raised) goto ls_shutdown;\n", unit.index()))?;
         }
         if self.plan.helpers.contains(Helper::Strings) {
             self.text("fflush(stdout);\n")?;
         }
         // Module bindings outlive their initializers; execution ends here.
+        self.text("ls_shutdown: LS_NATIVE_UNUSED;\nint ls_exit_code = ls_native_raised ? 1 : 0;\nif (ls_native_raised) ls_native_report_error();\n")?;
+        if self.plan.helpers.contains(Helper::Exceptions) { self.text("ls_value_clear(&ls_native_thrown);\n")?; }
         for (index, cell) in self.plan.cells.iter().enumerate() {
             self.budget.work(WorkKind::Render, 1)?;
             if !cell.global {
@@ -462,7 +476,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if self.plan.needs_callable_runtime() {
             self.text("ls_native_collect_cycles();\n")?;
         }
-        self.text("return 0;\n}\n")
+        self.text("return ls_exit_code;\n}\n")
     }
     /// File-scope slots for module bindings that functions use. A function
     /// reaches one through its guard, since JavaScript throws when a binding
@@ -481,7 +495,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.write(format_args!("static LS_NATIVE_UNUSED {ty} ls_c{index}{};\n", ty.empty_slot()))?;
             if !cell.global_guard { continue; }
             if first {
-                self.text("#include <stdlib.h>\nstatic LS_NATIVE_UNUSED void ls_native_unbound(void) {\nfputs(\"LilScript native module binding used before initialization\\n\", stderr);\nabort();\n}\n")?;
+                self.text("#include <stdlib.h>\nstatic LS_NATIVE_UNUSED void ls_native_unbound(void) {\nls_native_raise_error(\"ReferenceError\",\"LilScript native module binding used before initialization\");\n}\n")?;
                 first = false;
             }
             self.write(format_args!(
@@ -533,11 +547,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.text(")")
     }
     fn unit(&mut self, id: UnitId) -> Result<(), NativeError> {
-        debug_assert!(self.active_regions.is_empty());
+        debug_assert!(self.active_regions.is_empty() && self.try_frames.is_empty());
+        self.error_exit=false; self.return_exit=false;
         self.signature(id)?;
         self.text(" {\n")?;
         self.temporary_declaration()?;
         let unit = self.plan.program.unit(id).unwrap();
+        self.control_declarations(id)?;
         if self.plan.needs_callable_runtime() {
             self.parameter_owners(id)?;
         }
@@ -655,6 +671,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                             destination,
                         })?;
                         self.operation(id, operation, enclosing_loop)?;
+                        if self.operation_can_raise(id,operation) { self.check_exception(id)?; }
                         self.clear_temporaries()?;
                     } else {
                         if let Some(destination) = destination {
@@ -671,6 +688,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     }
                 }
                 Task::Text(text) => self.text(text)?,
+                Task::TryBodyEnd(op) => self.try_body_end(id,op)?,
+                Task::TryCatchEnd(op) => self.try_catch_end(id,op)?,
+                Task::TryFinallyEnd(op) => self.try_finally_end(id,op)?,
                 Task::LoopTest {
                     operation,
                     condition,
@@ -692,8 +712,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
         }
         debug_assert!(self.active_regions.is_empty());
-        // The plan proves totality for nonvoid functions; there is no invented
-        // default value, legacy fallback or undefined nonvoid fallthrough.
+        self.control_exits(id)?;
         self.text("}\n")
     }
     fn operation(
@@ -1227,6 +1246,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
                 self.region(*test, Some(op))?;
             }
+            OperationKind::Try {body,catch,finally} => self.start_try(id,op,*body,*catch,*finally,enclosing_loop)?,
+            OperationKind::Throw => {
+                self.text("ls_native_throw(")?;
+                self.converted(id,args[0],NativeType::Dynamic(Tagged::ANY))?;
+                self.text(");\n")?;
+                self.complete(id,Completion::Throw)?;
+            }
+            OperationKind::Return if !self.try_frames.is_empty() => self.defer_return(id,args.first().copied())?,
             OperationKind::Return if self.plan.needs_callable_runtime() => {
                 self.return_value(id, args.first().copied())?;
             }
@@ -1241,18 +1268,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             OperationKind::Break | OperationKind::Continue => {
                 let enclosing = enclosing_loop.expect("verified loop completion");
-                if self.plan.needs_callable_runtime() {
-                    self.cleanup_path(id, Some(unit.operations[enclosing.index()].region))?;
-                }
-                self.write(format_args!(
-                    "goto ls_{}{};\n",
-                    if matches!(operation.kind, OperationKind::Break) {
-                        "end"
-                    } else {
-                        "update"
-                    },
-                    enclosing.index()
-                ))?;
+                self.complete(id,if matches!(operation.kind,OperationKind::Break) {Completion::Break(enclosing)} else {Completion::Continue(enclosing)})?;
             }
             _ => unreachable!("native plan validates every supported recipe before emission"),
         }
@@ -1569,6 +1585,15 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if let PreparedTarget::CollectionMethod { receiver, method } = target {
             return self.collection_method(unit, call, result.unwrap(), receiver, method);
         }
+        let checked_callable=match target {
+            PreparedTarget::Callable {callee,..}=>Some(format!("ls_v{}",callee.index())),
+            PreparedTarget::Placed {..}=>Some(format!("ls_pc{}",call.index())),
+            _=>None,
+        };
+        if let Some(name)=checked_callable {
+            self.write(format_args!("if (!{name}.code) ls_native_raise_error(\"TypeError\",\"value is not callable\");\n"))?;
+            self.check_exception(unit)?;
+        }
         let storage = result.map(|value| self.plan.units[unit.index()].values[value.index()]);
         // What the callee produces and what each of its parameters takes.
         let signature = match target {
@@ -1583,7 +1608,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             _ => signature.map(|signature| self.plan.signatures[signature].result),
         };
         let product_result = match (produced, storage) {
-            (Some(from), Some(ValueStorage::Value(to))) if Self::product_conversion(from, to) => Some((from,to)),
+            (Some(from), Some(ValueStorage::Value(to))) if to!=NativeType::Void && from!=to => Some((from,to)),
             _ => None,
         };
         let (prefix, suffix) = match (produced, storage) {
@@ -1789,13 +1814,20 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         self.text(")")?;
         if let Some((from, to)) = product_result {
-            self.text(";\n")?;
+            self.text(";\nif (!ls_native_raised) {\n")?;
             self.assignment_start(unit, Destination::Value(result.unwrap()), false)?;
             self.write(format_args!("{prefix}ls_call_result{suffix}"))?;
             self.assignment_end(unit, Destination::Value(result.unwrap()))?;
+            // Make the failed path explicit to C definite-assignment analysis.
+            // This sentinel is ignored while status is set; it is not a
+            // source-language default or a successful call result.
+            self.text("} else {\n")?;
+            self.assignment_start(unit, Destination::Value(result.unwrap()), true)?;
+            self.write(format_args!("({to}){{0}}"))?;
+            self.assignment_end(unit, Destination::Value(result.unwrap()))?;
+            self.text("}\n")?;
             if let Some(drop) = from.release("ls_call_result") { self.text(&drop)?; }
             self.text("}\n")?;
-            debug_assert!(to.managed());
         } else {
         self.text(suffix)?;
         let mut ended = false;

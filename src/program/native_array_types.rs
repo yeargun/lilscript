@@ -43,7 +43,7 @@ static LS_NATIVE_UNUSED ls_array{s} *ls_array{s}_new(size_t capacity) {{ return 
 static LS_NATIVE_UNUSED void ls_array{s}_hole(ls_array{s} *array) {{ ls_array_hole(array); }}
 static LS_NATIVE_UNUSED {e} ls_array{s}_absent(void) {{ {absent} }}
 static LS_NATIVE_UNUSED {e} ls_array{s}_get(ls_array{s} *array, int32_t index, ls_native_temporary **temps) {{
-if(index<0 || (size_t)index>=array->length) ls_native_undefined_element();
+if(index<0 || (size_t)index>=array->length) {{ ls_native_undefined_element(); return ({e}){{0}}; }}
 if(!ls_array_has(array,(size_t)index)) return ls_array{s}_absent();
 if(array->ops==&ls_array{s}_ops) return (({e} *)array->items)[index];
 return {unbox}ls_array_read(array,(size_t)index,temps){unbox_end};
@@ -67,7 +67,8 @@ ls_array{s}_acquire(value); return ls_array{s}_push_owned(array,value);
 }}
 static LS_NATIVE_UNUSED void ls_array{s}_set(ls_array{s} *array, int32_t index, {e} value) {{
 if(array->ops==&ls_array{s}_ops) {{
-ls_array{s}_acquire(value); {e} *slot=ls_array_store_slot(array,index); ls_array{s}_drop(*slot); *slot=value;
+{e} *slot=ls_array_store_slot(array,index); if(!slot) return;
+ls_array{s}_acquire(value); ls_array{s}_drop(*slot); *slot=value;
 }} else {{
 ls_native_temporary *ls_temps=NULL; ls_value boxed=ls_array{s}_read_slot(&ls_temps,&value);
 ls_array_write(array,index,boxed); ls_native_temporaries_clear(&ls_temps);

@@ -35,7 +35,7 @@ ls_t{index}_retain(value); box->value=value;\n\
 ls_native_temporary_push(temps,&box->temporary,&box->owner);\n\
 ls_value result={{.tag=LS_PRODUCT}}; result.as.o=&box->owner; return result;\n}}\n\
 static LS_NATIVE_UNUSED ls_t{index} ls_value_to_t{index}(ls_value value) {{\n\
-if (value.tag!=LS_PRODUCT || !value.as.o || value.as.o->destroy!=ls_product{index}_destroy) ls_value_mismatch();\n\
+if (value.tag!=LS_PRODUCT || !value.as.o || value.as.o->destroy!=ls_product{index}_destroy) {{ ls_value_mismatch(); return (ls_t{index}){{0}}; }}\n\
 return ((ls_product{index} *)value.as.o)->value;\n}}\n"))?;
         }
         Ok(())
