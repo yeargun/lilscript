@@ -23,7 +23,7 @@ fn nested_builtin_types_preserve_every_resolved_argument() {
                 expected = match name {
                     "Map" => Type::Map(Box::new(Type::String), Box::new(expected)),
                     "Set" => Type::Set(Box::new(expected)),
-                    "Task" => Type::Task(Box::new(expected)),
+                    "Task" => if matches!(expected,Type::Task(_)) {expected} else {Type::Task(Box::new(expected))},
                     "Generator" => Type::Generator(Box::new(expected)),
                     "Record" => Type::Record(Box::new(expected)),
                     _ => unreachable!(),

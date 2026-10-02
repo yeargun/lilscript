@@ -20,7 +20,7 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 | Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join and once-created immutable static graphs | Full capability/ABI qualification: N2 |
 | Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | Remaining native error recipes and full corpus qualification: N2 |
 | Generators | Owned typed region frames, lazy body, call-time defaults, array/typed-array/generator delegation, for-of completion and Set mutation | Complete corpus/performance qualification: N2 |
-| Async/tasks | Source-qualified refusal | Region state machines and microtask queue: N2 |
+| Async/tasks | Typed region frames, owned tasks, FIFO microtasks, adoption, then/catch/finally and ordered Task.all | Complete corpus/performance and embedding ABI qualification: N2 |
 | Regular expressions | Pinned QuickJS libregexp; typed construction/test/search/string replacement, metadata and shared lastIndex; catchable syntax/resource errors | Broad corpus qualification: N2; JsValue match objects use the JavaScript host ABI |
 | Strings | Reference-counted UTF-16 ABI v2, owned views, temporary-conversion cleanup and Unicode 17 case conversion | Broad runtime qualification: N2 |
 | Memory | Reference counting, traced closures/objects/containers, final-use transfer and synchronous trial deletion | Broad cycle/performance qualification: N2 |
@@ -150,3 +150,14 @@ over a failing iterator close. Garbage collection releases unreachable frames
 without executing user finalizers. These semantics are fixed by the language,
 independent of effort or native profile; code and frame size depend on the live
 slots in each generator.
+
+Async frames use the same typed slot and structured completion writer as
+generators. Queued jobs retain their continuation and payload; pending task
+observers are traced edges, so unreachable adoption cycles are collectable.
+A handled rejection leaves the unhandled list immediately, keeping repeated
+catch/await loops bounded. Native applications drain jobs before releasing
+module globals. An unhandled rejection at the drained checkpoint causes a
+nonzero exit; shutdown releases remaining queue owners without invoking user
+callbacks. Task ordering and type canonicalization are language semantics, not
+optimization switches. The existing cycle threshold/profile controls retain
+their documented memory and CPU tradeoffs.

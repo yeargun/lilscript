@@ -242,7 +242,7 @@ fn old_substitute_type<'src>(
             Box::new(old_substitute_type(value, substitutions)),
         ),
         Type::Set(element) => Type::Set(Box::new(old_substitute_type(element, substitutions))),
-        Type::Task(value) => Type::Task(Box::new(old_substitute_type(value, substitutions))),
+        Type::Task(value) => Type::Task(Box::new(old_settled(old_substitute_type(value, substitutions)))),
         Type::Generator(value) => {
             Type::Generator(Box::new(old_substitute_type(value, substitutions)))
         }
@@ -308,5 +308,15 @@ fn old_substitute_type<'src>(
             }),
         }),
         _ => ty.clone(),
+    }
+}
+
+// Independent structural oracle for task resolution after substitution.
+fn old_settled(value:Type<'_>)->Type<'_> {
+    match value {
+        Type::Task(inner)=>old_settled(*inner),
+        Type::Union(members)=>normalize_union(members.into_iter().map(old_settled).collect()),
+        Type::Nullable(inner)=>{let boundary=inner.boundary;Type::pinned_nullable(Box::new(old_settled(inner.into_inner())),boundary)},
+        other=>other,
     }
 }

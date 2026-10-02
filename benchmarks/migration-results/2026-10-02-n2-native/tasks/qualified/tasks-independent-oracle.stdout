@@ -1,0 +1,52 @@
+default
+immediate
+1
+after call
+delay 2
+scheduled
+then 6
+ready 2
+tick
+6
+delay 3
+delayed then 2
+ready 3
+3
+default rejected
+throw finally
+saved throw
+return finally
+savedsaved
+finally result
+finally rejected
+iterable closed
+loop 1
+failure
+9
+delay 11
+parallel 1
+ready 11
+parallel 2
+finally chain
+11
+delay 13
+ready 13
+11
+12
+delay 14
+ready 14
+original
+failure
+delay 2
+delay 3
+ready 2
+ready 3
+2,4,3
+0
+all rejected
+originaloriginal
+2
+closureclosure
+3
+changed
+tasks done

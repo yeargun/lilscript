@@ -1,0 +1,12 @@
+node:internal/process/promises:392
+      new UnhandledPromiseRejection(reason);
+      ^
+
+UnhandledPromiseRejection: This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason "unhandled".
+    at throwUnhandledRejectionsMode (node:internal/process/promises:392:7)
+    at processPromiseRejections (node:internal/process/promises:475:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:106:37) {
+  code: 'ERR_UNHANDLED_REJECTION'
+}
+
+Node.js v24.20.0

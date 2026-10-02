@@ -15,6 +15,7 @@ pub(in crate::program) struct NativeSignature<'program, 'src> {
     pub(in crate::program) source: &'program FunctionSignature<'src>,
     pub(in crate::program) parameters: Vec<NativeType>,
     pub(in crate::program) result: NativeType,
+    pub(in crate::program) task_result: Option<NativeType>,
     pub(in crate::program) needed: bool,
     ty: &'program Type<'src>,
 }
@@ -76,6 +77,10 @@ pub(super) fn register<'program, 'src>(
         if frame.values.len() > source.params.len() {
             let mut frame = stack.pop().unwrap();
             let result = frame.values.pop().unwrap();
+            let task_result=if let Type::Task(inner)=source.return_type.as_ref() {
+                Some(if matches!(inner.as_ref(),Type::Function(_)|Type::GenericFunction(_)) {NativeType::Callable(register(program,tables,inner,budget)?)}
+                    else {native_type(program,inner,tables,budget)?.ok_or_else(||NativeError::unsupported(None,None,Default::default(),"native task payload type"))?})
+            } else {None};
             let index = tables.signatures.len();
             budget.push(
                 Scratch,
@@ -83,7 +88,7 @@ pub(super) fn register<'program, 'src>(
                 NativeSignature {
                     source,
                     parameters: frame.values,
-                    result,
+                    result, task_result,
                     needed: false,
                     ty: frame.ty,
                 },

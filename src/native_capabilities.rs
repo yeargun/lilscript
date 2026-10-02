@@ -13,7 +13,6 @@ pub struct Capability {
     pub boundary: &'static str,
     pub remaining_owner: Option<&'static str>,
 }
-pub const ASYNC: &str = "native tasks and async functions are not implemented yet (N2)";
 
 pub const CAPABILITIES: &[Capability] = &[
     Capability { id: "scalars", status: Status::Implemented, boundary: "int32 wrapping arithmetic, strict binary64, bool, UTF-16 strings, null and scalar unions", remaining_owner: None },
@@ -23,7 +22,7 @@ pub const CAPABILITIES: &[Capability] = &[
     Capability { id: "collections", status: Status::Partial, boundary: "shared-identity concrete/generic arrays, owned higher-order callbacks, sparse copies, class objects, maps, sets, symbols, buffers and typed arrays; recipe checking determines supported element/call combinations", remaining_owner: Some("N2") },
     Capability { id: "records-and-shapes", status: Status::Partial, boundary: "traced string-keyed records, Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, declared shape storage/spreads/optional fields/tag tests; callable transport and configurable immutable static graphs implemented; full qualification remains", remaining_owner: Some("N2") },
     Capability { id: "exceptions", status: Status::Partial, boundary: "owned status propagation through calls and callbacks, catch/rethrow, finally completion overrides and checked runtime failures and allocation-witness views, explicit provider pending/take/raise; remaining runtime recipes and complete corpus qualification remain", remaining_owner: Some("N2") },
-    Capability { id: "suspension", status: Status::Partial, boundary: "owned generator region frames, call-time defaults, lazy bodies, delegation and iterator completion; async state machines, task ownership and microtask queue remain", remaining_owner: Some("N2") },
+    Capability { id: "suspension", status: Status::Partial, boundary: "owned generator and async region frames, call-time defaults, lazy generator bodies, delegation and iterator completion; task adoption, typed continuations and owned FIFO microtasks implemented; full qualification remains", remaining_owner: Some("N2") },
     Capability { id: "regex", status: Status::Partial, boundary: "pinned QuickJS libregexp, typed construction/test/search/replacement, metadata and shared lastIndex, configurable stack/work limits; JsValue match objects remain a JavaScript host boundary", remaining_owner: Some("N2") },
     Capability { id: "strings", status: Status::Partial, boundary: "ABI v2 reference-counted UTF-16 with owned slices and host copy/return operations; Unicode 17 default case conversion including contextual sigma; broad runtime qualification remains", remaining_owner: Some("N2") },
     Capability { id: "host-abi", status: Status::Partial, boundary: "explicit host_ function providers; synchronous same-thread callbacks, borrowed inputs and owned returned handles; C library exports and portable process/file/clock API remain", remaining_owner: Some("N2") },

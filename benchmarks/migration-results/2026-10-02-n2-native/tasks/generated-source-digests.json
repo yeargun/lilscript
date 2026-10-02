@@ -1,0 +1,82 @@
+[
+  {
+    "path": "first/tasks.h",
+    "bytes": 13435,
+    "sha256": "d474833164f8a3a267a2b855463b1990022c501ebe70de176d86168d7f15bbfd"
+  },
+  {
+    "path": "first/tasks.c",
+    "bytes": 419391,
+    "sha256": "89eb96df089e10c7a6fa5df382e8223aed627196bbc4712264b23550decde5b1"
+  },
+  {
+    "path": "qualified/formation.h",
+    "bytes": 8954,
+    "sha256": "f914656d56b6bde437a58274e16e20c185dc9604d8fd21045c26d08af3fc8aff"
+  },
+  {
+    "path": "qualified/formation.c",
+    "bytes": 264753,
+    "sha256": "3a63f40d912055c793713f524f202d7ff4c55f7514aee729edcd4581325cc237"
+  },
+  {
+    "path": "qualified/tasks-13/tasks.h",
+    "bytes": 13435,
+    "sha256": "d474833164f8a3a267a2b855463b1990022c501ebe70de176d86168d7f15bbfd"
+  },
+  {
+    "path": "qualified/tasks-13/tasks.c",
+    "bytes": 419079,
+    "sha256": "75542e4ef46145a2997f0f39a4875894eed66b21fee5be9bdc4bea8abff0200c"
+  },
+  {
+    "path": "qualified/task-unhandled/tasks.h",
+    "bytes": 6414,
+    "sha256": "2abe42f71ea5e9d0aafaa35b99b83a1862a104beb92d1f00a257d85bd7af536b"
+  },
+  {
+    "path": "qualified/task-unhandled/tasks.c",
+    "bytes": 165774,
+    "sha256": "3550878fac4fdbbb7b5bf7e7a20c3ae2df548ab091064ca3e64247eaef68e41b"
+  },
+  {
+    "path": "qualified/task-contracts-0/tasks.h",
+    "bytes": 8954,
+    "sha256": "f914656d56b6bde437a58274e16e20c185dc9604d8fd21045c26d08af3fc8aff"
+  },
+  {
+    "path": "qualified/task-contracts-0/tasks.c",
+    "bytes": 264753,
+    "sha256": "3a63f40d912055c793713f524f202d7ff4c55f7514aee729edcd4581325cc237"
+  },
+  {
+    "path": "qualified/tasks-0/tasks.h",
+    "bytes": 13435,
+    "sha256": "d474833164f8a3a267a2b855463b1990022c501ebe70de176d86168d7f15bbfd"
+  },
+  {
+    "path": "qualified/tasks-0/tasks.c",
+    "bytes": 418916,
+    "sha256": "e39d30148154897505974b305b5c5b9a02ce4af0e458a8973ef6b50a92148b52"
+  },
+  {
+    "path": "qualified/task-contracts-13/tasks.h",
+    "bytes": 8954,
+    "sha256": "f914656d56b6bde437a58274e16e20c185dc9604d8fd21045c26d08af3fc8aff"
+  },
+  {
+    "path": "qualified/task-contracts-13/tasks.c",
+    "bytes": 263700,
+    "sha256": "d5541971a5449f09e9ca95990b2abb81a38ba88e214319f752d65f56723b8bec"
+  },
+  {
+    "path": "qualified/generator-completions/tasks.h",
+    "bytes": 6537,
+    "sha256": "bda2c313ab698ed74f94ba5f679bc7558d3de87ff80632175102263f141af3f7"
+  },
+  {
+    "path": "qualified/generator-completions/tasks.c",
+    "bytes": 197282,
+    "sha256": "db3545e12d2067515820a1f8e94df6b8798ff242e5b4bb17c6e59fe72f64c340"
+  }
+]

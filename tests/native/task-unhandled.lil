@@ -1,0 +1,2 @@
+extern void watchNativeExit();
+watchNativeExit();Task<int> rejected=Task.reject("unhandled");Task.resolve(0).then((int n)=>print("queued"));print("sync");

@@ -56,7 +56,7 @@ static LS_NATIVE_UNUSED ls_value ls_value_callable{index}(ls_callable{index} val
             (String, Dynamic(_)) => ("ls_value_string(".into(), ")"),
             (Struct(index), Dynamic(_)) => (format!("ls_t{index}_box(&ls_temps,"), ")"),
             (Dynamic(_), Struct(index)) => (format!("ls_value_to_t{index}("), ")"),
-            (Object(_) | Shape | Record | Map | Set | Regex | Generator | Buffer | Typed(_), Dynamic(_)) => {
+            (Object(_) | Shape | Record | Map | Set | Regex | Generator | Task | Buffer | Typed(_), Dynamic(_)) => {
                 ("ls_value_object(".into(), ")")
             }
             (Symbol, Dynamic(_)) => ("ls_value_symbol(".into(), ")"),
@@ -69,6 +69,7 @@ static LS_NATIVE_UNUSED ls_value ls_value_callable{index}(ls_callable{index} val
             (Dynamic(_), Object(target)) => (format!("ls_value_to_object{target}("), ")"),
             (Dynamic(_), Shape|Record) => ("ls_value_to_record(".into(), ")"),
             (Dynamic(_), Map|Set) => ("ls_value_to_map(".into(), ")"),
+            (Dynamic(_), Task) => ("ls_value_to_task(".into(), ")"),
             (Dynamic(_), Generator) => ("ls_value_to_generator(".into(), ")"),
             (Dynamic(_), Regex) => ("ls_value_to_regex(".into(), ")"),
             (Dynamic(_), Buffer) => ("ls_value_to_buffer(".into(), ")"),

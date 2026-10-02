@@ -174,6 +174,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
     }
     pub(super) fn control_exits(&mut self,unit:UnitId)->Result<(),NativeError> {
         let ty=self.plan.units[unit.index()].return_type;
+        if self.plan.program.unit(unit).unwrap().suspension==Suspension::Async {return self.async_exits(unit);}
         if self.plan.program.unit(unit).unwrap().suspension==Suspension::Generator {
             self.text("ls_generator_finish(base);return;\n")?;
             if self.return_exit {self.text("ls_return:;ls_generator_finish(base);return;\n")?;}

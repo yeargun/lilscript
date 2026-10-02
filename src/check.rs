@@ -35,6 +35,7 @@ pub use type_pool::CheckedTypeId;
 pub(crate) mod type_payload;
 pub(crate) mod type_relation;
 pub(crate) mod type_substitution;
+pub(crate) mod task_types;
 pub(crate) use modules::{with_analyzed_modules, with_analyzed_modules_with_contract};
 pub(crate) use modules::{analyze_modules_cached, AdmittedModuleCheckError, ElaborationCache};
 pub use modules::{
@@ -3568,7 +3569,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         mark_rest_parameter(function.params, &mut params)?;
         let declared_return = self.resolve_type(function.return_type, true, "return type")?;
         let return_type = if function.is_async {
-            Type::Task(Box::new(declared_return))
+            task_types::task(declared_return)
         } else if function.is_generator {
             if declared_return == Type::Void {
                 return Err(AdmittedCheckError::new(
@@ -3810,10 +3811,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             None
         };
         let body_return_type = if function.is_async {
-            match signature.return_type.as_ref() {
-                Type::Task(value) => (**value).clone(),
-                _ => unreachable!("async signatures return Task<T>"),
-            }
+            // The declaration describes what the body may return; task
+            // resolution canonicalizes only the callable's settled result.
+            self.resolve_type(function.return_type,true,"return type")?
         } else if function.is_generator {
             Type::Void
         } else {
@@ -7841,7 +7841,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let value = self.analyze_value_argument(value, expected_value)?;
                 Ok(Some((
                     BuiltinCall::TaskResolve,
-                    Type::Task(Box::new(value)),
+                    task_types::task(value),
                 )))
             }
             ("Task", "reject") => {
@@ -8362,6 +8362,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             ));
         }
         let parameters = match method {
+            "then" if value.is_void() => Vec::new(),
             "then" => vec![FunctionParameter::value(value.clone())],
             "catch" => vec![FunctionParameter::value(Type::Dynamic)],
             "finally" => Vec::new(),
@@ -8403,11 +8404,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Type::Task(inner) => inner.as_ref().clone(),
             returned => returned.clone(),
         };
-        Ok(Type::Task(Box::new(if method == "catch" {
+        Ok(task_types::task(if method == "catch" {
             normalize_union(vec![value, returned])
         } else {
             returned
-        })))
+        }))
     }
 
     fn analyze_generic_call(
@@ -8445,6 +8446,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 span,
             )?;
         }
+        // Task<T> resolves T: an expected Task<int> cannot distinguish
+        // T=int from T=Task<int>. Keep its contextual hints, but let actual
+        // arguments own substitutions once they constrain that parameter.
+        let task_result=matches!(function.signature.return_type.as_ref(),Type::Task(_));
+        let mut argument_substitutions=AHashMap::default();
         let mut actual_args = Vec::with_capacity(args.len());
         let pattern = |index: usize, spread: bool| {
             let fixed = function.signature.fixed_params();
@@ -8476,7 +8482,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             };
             let present = match &actual { Type::Nullable(inner) if optional => inner.as_ref(), _ => &actual };
             if !optional || !matches!(present, Type::Null) {
-                infer_type_arguments(pattern, present, &parameters, &mut substitutions, arg.span)?;
+                if task_result {
+                    infer_type_arguments(pattern,present,&parameters,&mut argument_substitutions,arg.span)?;
+                    for (&name,value) in &argument_substitutions {substitutions.insert(name,value.clone());}
+                } else {infer_type_arguments(pattern, present, &parameters, &mut substitutions, arg.span)?;}
             }
             let mut resolved = substitute_type(pattern, &substitutions);
             if optional { resolved = Type::nullable(Box::new(resolved)); }
@@ -8976,7 +8985,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     .resolve_type_arguments("Task", args, 1, ty.span)?
                     .try_into()
                     .expect("Task arity was checked");
-                Ok(Type::Task(Box::new(value)))
+                Ok(task_types::task(value))
             }
             TypeKind::Named {
                 name: "Generator",

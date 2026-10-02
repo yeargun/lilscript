@@ -71,6 +71,17 @@ impl NativePlan<'_, '_> {
 
     pub(super) fn finish_conversions(&mut self,budget:&mut AllocationBudget<'_>) -> Result<(),NativeError> {
         let tagged=NativeType::Dynamic(Tagged::ANY);
+        for index in 0..self.units.len() {
+            if self.program.units[index].data().suspension==Suspension::Async && self.units[index].return_type!=NativeType::Void {
+                self.demand_conversion(self.units[index].return_type,tagged,budget)?;
+            }
+        }
+        for index in 0..self.task_callbacks.len() {
+            let callback=self.task_callbacks[index];
+            self.demand_conversion(NativeType::Callable(callback),tagged,budget)?;
+            for p in 0..self.signatures[callback].parameters.len() {self.demand_conversion(tagged,self.signatures[callback].parameters[p],budget)?;}
+            if self.signatures[callback].result!=NativeType::Void {self.demand_conversion(self.signatures[callback].result,tagged,budget)?;}
+        }
         // Every emitted array descriptor has a tagged read/write interface.
         for array in 0..self.arrays.len() {
             self.demand_conversion(self.arrays[array],tagged,budget)?;
@@ -105,6 +116,7 @@ impl NativePlan<'_, '_> {
         let mut pairs=Vec::new();
         let mut add=|from,to|budget.push(Scratch,&mut pairs,(from,to));
         match &operation.kind {
+            OperationKind::Await if result!=Some(NativeType::Void)=>add(tagged,result.unwrap())?,
             OperationKind::Yield {delegate:false}=>add(value(operands[0]),tagged)?,
             OperationKind::ForOf {item,..}=>add(tagged,self.value_type(self.cell_storage(*item)))?,
             OperationKind::Initialize(cell)=>add(value(operands[0]),self.value_type(self.cell_storage(*cell)))?,
@@ -143,6 +155,9 @@ impl NativePlan<'_, '_> {
                     },
                     PreparedTarget::ArrayPush {array,..}=>for argument in args { if let CallArgument::Value(v)=argument { add(value(*v),self.arrays[array])?; } },
                     PreparedTarget::ArrayPop {array,..}=>if let Some(to)=result { add(self.arrays[array],to)?; },
+                    PreparedTarget::TaskBuiltin(_)|PreparedTarget::TaskMethod {..}=>{
+                        for argument in args {if let CallArgument::Value(v)=argument {if value(*v)!=NativeType::Void {add(value(*v),tagged)?;}}}
+                    },
                     PreparedTarget::CollectionMethod {..}|PreparedTarget::RecordBuiltin(_)=>{
                         for argument in args { if let CallArgument::Value(v)=argument { add(value(*v),tagged)?; } }
                         if let Some(to)=result { add(tagged,to)?; }

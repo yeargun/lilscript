@@ -1,0 +1,5 @@
+effort.level=13
+[host.native]
+watchNativeExit="host_watchNativeExit"
+[target.native]
+cycle_collection_threshold=1

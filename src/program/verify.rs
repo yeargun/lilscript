@@ -2774,7 +2774,11 @@ fn verify_types(
                 (Suspension::None, declared) => declared,
                 _ => return Err(error()),
             };
-            expect(class_assignable(program, expected, actual, &mut query)?)
+            if unit.suspension==Suspension::Async {
+                let actual=crate::check::binary_types::TypeConstructionAdmission::clone_type(&mut query,actual)?;
+                let settled=crate::check::task_types::settled_with(actual,&mut query)?;
+                expect(class_assignable(program,expected,&settled,&mut query)?)
+            } else {expect(class_assignable(program, expected, actual, &mut query)?)}
         }
         OperationKind::PrepareReference { .. }
         | OperationKind::CheckPlace(_)

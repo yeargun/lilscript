@@ -5,6 +5,8 @@ use super::*;
 
 #[derive(Clone, Copy)]
 enum SlotName {
+    PendingReturn,
+    SavedReturn(usize),
     Cell(usize),
     Value(usize),
     Callee(usize),
@@ -16,6 +18,8 @@ enum SlotName {
 impl fmt::Display for SlotName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (prefix, index) = match *self {
+            Self::PendingReturn => return f.write_str("ls_pending_return"),
+            Self::SavedReturn(n) => ("ls_saved_return", n),
             Self::Cell(n) => ("ls_c", n),
             Self::Value(n) => ("ls_v", n),
             Self::Callee(n) => ("ls_pc", n),
@@ -107,6 +111,17 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 )?;
             }
         }
+        let return_type = self.plan.units[unit.index()].return_type;
+        if return_type != NativeType::Void {
+            self.budget.push(
+                AllocationClass::Scratch,
+                &mut slots,
+                Slot {
+                    name: SlotName::PendingReturn,
+                    ty: SlotType::Value(return_type),
+                },
+            )?;
+        }
         for (index, op) in data.operations.iter().enumerate() {
             if matches!(
                 op.kind,
@@ -115,6 +130,16 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     ..
                 }
             ) {
+                if return_type != NativeType::Void {
+                    self.budget.push(
+                        AllocationClass::Scratch,
+                        &mut slots,
+                        Slot {
+                            name: SlotName::SavedReturn(index),
+                            ty: SlotType::Value(return_type),
+                        },
+                    )?;
+                }
                 self.budget.push(
                     AllocationClass::Scratch,
                     &mut slots,
@@ -169,7 +194,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             .release(AllocationClass::Scratch, bytes as u64)?;
         Ok(())
     }
-    pub(super) fn generator_frames(&mut self) -> Result<(), NativeError> {
+    pub(super) fn suspension_frames(&mut self) -> Result<(), NativeError> {
         if self.plan.helpers.contains(Helper::Iterators)
             && self.plan.helpers.contains(Helper::Binary)
         {
@@ -184,16 +209,23 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
         }
         for frozen in &self.plan.program.units {
-            if frozen.data().suspension != Suspension::Generator
+            if frozen.data().suspension == Suspension::None
                 || !self.plan.created[frozen.id().index()]
             {
                 continue;
             }
             let unit = frozen.id();
             let index = unit.index();
+            let generator = frozen.data().suspension == Suspension::Generator;
+            let base = if generator {
+                "ls_generator"
+            } else {
+                "ls_async_frame"
+            };
+            let close = if generator { ",bool" } else { "" };
             let slots = self.frame_slots(unit)?;
             self.write(format_args!(
-                "typedef struct {{ls_generator base;ls_native_arguments arguments;\n"
+                "typedef struct {{{base} base;ls_native_arguments arguments;\n"
             ))?;
             if !frozen.data().parameters.is_empty() {
                 self.write(format_args!(
@@ -211,7 +243,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
                 self.write(format_args!("{};\n", slot.name))?;
             }
-            self.write(format_args!("}} ls_frame{index};\nstatic void ls_step{index}(ls_generator *,bool);\nstatic void ls_frame_clear{index}(ls_generator *base) {{\nls_frame{index} *frame=(ls_frame{index} *)base;(void)frame;\n"))?;
+            self.write(format_args!("}} ls_frame{index};\nstatic void ls_step{index}({base} *{close});\nstatic void ls_frame_clear{index}({base} *base) {{\nls_frame{index} *frame=(ls_frame{index} *)base;(void)frame;\n"))?;
             for slot in &slots {
                 let name = slot.name;
                 match slot.ty {
@@ -232,7 +264,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     _ => {}
                 }
             }
-            self.write(format_args!("}}\nstatic void ls_frame_trace{index}(ls_generator *base,ls_native_visit visit,void *context) {{\nls_frame{index} *frame=(ls_frame{index} *)base;(void)frame;(void)visit;(void)context;\n"))?;
+            self.write(format_args!("}}\nstatic void ls_frame_trace{index}({base} *base,ls_native_visit visit,void *context) {{\nls_frame{index} *frame=(ls_frame{index} *)base;(void)frame;(void)visit;(void)context;\n"))?;
             for slot in &slots {
                 let name = slot.name;
                 match slot.ty {
@@ -258,7 +290,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         Ok(())
     }
-    pub(super) fn generator_begin(&mut self, unit: UnitId) -> Result<(), NativeError> {
+    pub(super) fn suspension_begin(&mut self, unit: UnitId) -> Result<(), NativeError> {
         let index = unit.index();
         let slots = self.frame_slots(unit)?;
         for slot in &slots {
@@ -267,7 +299,18 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.text(
             "#define ls_env (ls_frame->base.environment)\n#define ls_args (ls_frame->arguments)\n",
         )?;
-        self.write(format_args!("static void ls_step{index}(ls_generator *base,bool ls_closing) {{\nls_frame{index} *ls_frame=(ls_frame{index} *)base;(void)ls_closing;\n"))?;
+        let generator = self.plan.program.unit(unit).unwrap().suspension == Suspension::Generator;
+        let base = if generator {
+            "ls_generator"
+        } else {
+            "ls_async_frame"
+        };
+        let close = if generator {
+            ",bool ls_closing LS_NATIVE_UNUSED"
+        } else {
+            ""
+        };
+        self.write(format_args!("static void ls_step{index}({base} *base{close}) {{\nls_frame{index} *ls_frame=(ls_frame{index} *)base;\n"))?;
         self.temporary_declaration()?;
         self.text("switch(base->pc) {case 0:break;\n")?;
         for (op, operation) in self
@@ -279,7 +322,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
             .iter()
             .enumerate()
         {
-            if matches!(operation.kind, OperationKind::Yield { .. }) {
+            if matches!(
+                operation.kind,
+                OperationKind::Yield { .. } | OperationKind::Await
+            ) {
                 self.write(format_args!("case {}:goto ls_resume{op};\n", op + 1))?;
             }
         }
@@ -289,7 +335,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.text("default:ls_native_resource_failure();}\n")?;
         self.release_frame_slots(slots)
     }
-    pub(super) fn generator_factory(&mut self, unit: UnitId) -> Result<(), NativeError> {
+    pub(super) fn suspension_factory(&mut self, unit: UnitId) -> Result<(), NativeError> {
         let index = unit.index();
         let slots = self.frame_slots(unit)?;
         for slot in &slots {
@@ -299,7 +345,16 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.release_frame_slots(slots)?;
         self.signature(unit)?;
         self.text(" {\n")?;
-        self.write(format_args!("ls_frame{index} *frame=ls_native_allocate(sizeof *frame,ls_generator_destroy,ls_generator_trace);\nframe->base.step=ls_step{index};frame->base.clear=ls_frame_clear{index};frame->base.trace_slots=ls_frame_trace{index};\n"))?;
+        let generator = self.plan.program.unit(unit).unwrap().suspension == Suspension::Generator;
+        let runtime = if generator {
+            "ls_generator"
+        } else {
+            "ls_async"
+        };
+        self.write(format_args!("ls_frame{index} *frame=ls_native_allocate(sizeof *frame,{runtime}_destroy,{runtime}_trace);\nframe->base.step=ls_step{index};frame->base.clear=ls_frame_clear{index};frame->base.trace_slots=ls_frame_trace{index};\n"))?;
+        if !generator {
+            self.text("ls_task *result=ls_task_new();frame->base.result=result;ls_native_retain(result);\n")?;
+        }
         let data = self.plan.program.unit(unit).unwrap();
         if self.plan.units[index].has_environment {
             self.text("frame->base.environment=ls_env;ls_native_retain(ls_env);\n")?;
@@ -326,7 +381,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if self.generator_parameters(unit).is_some() {
             self.write(format_args!("ls_step{index}(&frame->base,false);\nif(ls_native_raised) {{ls_native_release(frame);return NULL;}}\n"))?;
         }
-        self.text("return &frame->base.owner;\n}\n")
+        if generator {
+            self.text("return &frame->base.owner;\n}\n")
+        } else {
+            self.write(format_args!("ls_step{index}(&frame->base);ls_native_release(frame);return &result->owner;\n}}\n"))
+        }
     }
     pub(super) fn iteration_declarations(&mut self, unit: UnitId) -> Result<(), NativeError> {
         for (index, operation) in self

@@ -1,0 +1,56 @@
+extern void collectNative();
+extern void assertMaxNativeCount(int expected);
+extern void watchNativeExit();
+int defaults=0;
+int choose(){defaults+=1;print("default");return 6;}
+int failDefault(){throw "default rejected";}
+async int immediate(int value=choose()){print("immediate");return value;}
+async int invalid(int value=failDefault()){return value;}
+async int delayed(int value){print("delay "+value);await Task.resolve(0);print("ready "+value);return value;}
+async int fail(){await Task.resolve(0);throw "failure";}
+async int throwingFinally(){try{return 7;}finally{await Task.resolve(0);throw "finally rejected";}}
+async string returningFinally(){try{throw "discarded";}finally{await Task.resolve(0);return "finally result";}}
+async string savedReturn(){try{return "saved".repeat(2);}finally{await Task.resolve(0);print("return finally");}}
+async int savedThrow(){try{throw "saved throw";}finally{await Task.resolve(0);print("throw finally");}}
+struct Payload{string text;int[] values;}
+async T roundTrip<T>(T value){await Task.resolve(0);return value;}
+async func()->string makeClosure(){string text="closure".repeat(2);await Task.resolve(0);return ()=>text;}
+class Counter{int value;init(int value){this.value=value;}async int next(){await Task.resolve(0);this.value+=1;return this.value;}}
+generator int values(){try{yield 1;yield 2;}finally{print("iterable closed");}}
+async string loop(){for(int value of values()){await Task.resolve(value);return "loop "+value;}return "empty";}
+async void ordering(){
+    Task<int> one=immediate();print(defaults);print("after call");
+    one.then((int value)=>print("then "+value));
+    delayed(2).then((int value)=>print("delayed then "+value));
+    Task.resolve(0).then((int value)=>print("tick"));
+    print(await one);
+    print(await delayed(3));
+}
+async void run(){
+    await ordering();
+    try{print(await invalid());}catch(auto error){string text=JS.assume(error);print(text);}
+    try{print(await savedThrow());}catch(auto error){string text=JS.assume(error);print(text);}
+    print(await savedReturn());print(await returningFinally());
+    try{print(await throwingFinally());}catch(auto error){string text=JS.assume(error);print(text);}
+    print(await loop());
+    Task<int> recovered=fail().catch((JsValue error)=>{string text=JS.assume(error);print(text);return 9;});print(await recovered);
+    Task<int> chained=Task.resolve(10).then((int value)=>delayed(value+1));
+    chained.finally(()=>print("finally chain")).then((int value)=>print(value));
+    Task.resolve(0).then((int n)=>{print("parallel 1");return n;}).then((int n)=>print("parallel 2"));
+    print(await chained);
+    Task<int> fin=Task.resolve(12).finally(()=>delayed(13));print(await fin);
+    Task<int> rejected=Task.reject("original");
+    try{print(await rejected.finally(()=>delayed(14)));}catch(auto error){string text=JS.assume(error);print(text);}
+    try{print(await Task.resolve(0).finally(()=>fail()));}catch(auto error){string text=JS.assume(error);print(text);}
+    Task<int>[] tasks=[delayed(2),Task.resolve(4),delayed(3)];int[] all=await Task.all(tasks);print(all.join(","));
+    Task<int>[] none=[];int[] empty=await Task.all(none);print(empty.length);
+    Task<int> bad=Task.reject("all rejected");
+    try{int[] failed=await Task.all([Task.resolve(1),bad]);print("missing rejection");}catch(auto error){string text=JS.assume(error);print(text);}
+    Payload original=Payload{"original".repeat(2),[1]};Task<Payload> product=roundTrip(original);original.text="changed";
+    Payload first=await product;first.text="local";first.values.push(2);Payload second=await product;print(second.text);print(original.values.length);
+    func()->string callback=await makeClosure();print(callback());
+    Counter counter=new Counter(2);print(await counter.next());
+    for(int i=0;i<50;i++){Payload value=await roundTrip(original);if(i==49){print(value.text);}collectNative();assertMaxNativeCount(140);}
+    print("tasks done");
+}
+watchNativeExit();run();print("scheduled");

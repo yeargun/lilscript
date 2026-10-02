@@ -95,7 +95,7 @@ compatibility default remains `legacy` during port migration.
 | `Float64Array`      | IEEE-754 double-precision view                                | native `Float64Array`                             | typed-array view handle                     |
 | `Symbol`            | unique opaque identity value                                  | native `Symbol`                                   | unique symbol handle                        |
 | `Regex`             | exact ECMAScript regular expression                           | native `RegExp`                                   | unsupported                                 |
-| `Task<T>`           | typed asynchronous result                                     | native `Promise`                                  | unsupported                                 |
+| `Task<T>`           | typed asynchronous result                                     | native `Promise`                                  | owned task and FIFO microtask queue          |
 | `Generator<T>`      | typed synchronous iterable yielding `T`                       | native generator object                           | owned typed region frame                    |
 | `JsValue`           | raw dynamically typed JavaScript boundary value               | unchanged host value                              | unsupported                                 |
 | `T?`                | either a `T` value or `null`                                  | `T` or raw `null`                                 | tagged `LilScriptOptional`                  |
@@ -261,7 +261,7 @@ diagnostics and may regress.
 
 ## Async tasks and exceptions
 
-JavaScript-target functions and methods may be declared `async`; their body
+Functions and methods may be declared `async`; their body
 retains the declared inner return type while calls have type `Task<T>`:
 
 ```lilscript
@@ -280,10 +280,22 @@ async int loadCount() {
 `await` is legal only inside an async body and accepts only `Task<T>`.
 `Task.resolve(value)` returns `Task<T>`, `Task.reject(reason)` obtains `T` from
 its expected task context, and `Task.all(Task<T>[])` returns `Task<T[]>`.
-Tasks expose typed `then`, `catch`, and `finally` chains and lower directly to
-native promises without a Lilscript scheduler or wrapper. General rejection
+Tasks expose typed `then`, `catch`, and `finally` chains. JavaScript uses native
+promises; native C uses owned region frames and a FIFO microtask queue. The async
+body runs immediately until its first await. Every await continuation is queued,
+even for an already fulfilled task. Native applications drain the queue after
+module initialization and before releasing globals. Unhandled rejections fail
+that checkpoint and give the application a nonzero exit status. General rejection
 reasons are `JsValue`, not assumed error records; their `message` and
 `specifier` reads are nullable and use null-safe JavaScript access.
+
+Task resolution adopts another task. `Task.resolve(task)` preserves its identity;
+`Task<Task<T>>` denotes the same settled task type as `Task<T>`, including after
+generic substitution. Adoption also applies to task-valued union/optional members.
+An async declaration still checks body returns against its declared inner type;
+its callable result reflects the settled type. A `Task<void>.then` continuation
+has no parameter. Finally waits for its callback's returned task, then preserves
+the original completion unless the callback throws or rejects.
 
 `throw` accepts any non-`void` value. A try statement requires `catch`,
 `finally`, or both. Catch may use `catch (auto error)`,

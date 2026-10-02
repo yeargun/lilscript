@@ -1,12 +1,6 @@
 /* Strict JSON into the ordinary tagged collection ABI. Frames are heap-backed;
    source nesting does not consume the native call stack. All partial values
    have explicit owners and are released when parsing fails. */
-static LS_NATIVE_UNUSED void ls_json_item_retain(const void *slot) { ls_value_retain(*(const ls_value *)slot); }
-static LS_NATIVE_UNUSED void ls_json_item_drop(void *slot) { ls_value_clear(slot); }
-static LS_NATIVE_UNUSED void ls_json_item_trace(const void *slot,ls_native_visit visit,void *context) { ls_value_trace(*(const ls_value *)slot,visit,context); }
-static LS_NATIVE_UNUSED ls_value ls_json_item_read(ls_native_temporary **temps,const void *slot) { (void)temps; return *(const ls_value *)slot; }
-static LS_NATIVE_UNUSED void ls_json_item_write(void *slot,ls_value value) { ls_value_copy(slot,value); }
-static const ls_array_ops ls_json_array_ops={sizeof(ls_value),ls_json_item_retain,ls_json_item_drop,ls_json_item_trace,ls_json_item_read,ls_json_item_write};
 typedef struct { ls_string source; size_t at; } ls_json_reader;
 typedef struct { ls_value value; ls_string key; unsigned state; } ls_json_frame;
 static LS_NATIVE_UNUSED void ls_json_syntax(void) {
@@ -109,7 +103,7 @@ static LS_NATIVE_UNUSED ls_value ls_json_parse(ls_string source) {
                     frames=grown; capacity=next;
                 }
                 reader.at++;
-                current=c=='{'?ls_value_object(ls_record_new()):ls_value_array((ls_native_object *)ls_array_new(&ls_json_array_ops,0));
+                current=c=='{'?ls_value_object(ls_record_new()):ls_value_array((ls_native_object *)ls_array_new(&ls_tagged_array_ops,0));
                 frames[depth++]=(ls_json_frame){current,{0},0}; current=(ls_value){0};
                 need_value=false; continue;
             }

@@ -1,0 +1,5 @@
+error: conflicting inferences for `T`: `int` and `Task<int>`
+ --> /home/azureuser/lilscript/tests/native/task-contracts.lil:21:32
+  |
+21 |     Task<int> generic=resolved(base);print(base==generic);print(await generic);
+  |                                ^^^^

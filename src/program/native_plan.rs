@@ -43,6 +43,7 @@ pub(super) enum NativeType {
     Symbol,
     Regex,
     Generator,
+    Task,
     /// An `ArrayBuffer` or `SharedArrayBuffer` (one thread: the same thing).
     Buffer,
     /// A typed array view of a buffer.
@@ -86,7 +87,7 @@ impl fmt::Display for NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex | Self::Generator
+            | Self::Regex | Self::Generator | Self::Task
             | Self::Buffer
             | Self::Typed(_) => f.write_str("ls_native_object *"),
         }
@@ -108,7 +109,7 @@ impl NativeType {
             | Self::Map
                 | Self::Set
                 | Self::Symbol
-                | Self::Regex | Self::Generator
+                | Self::Regex | Self::Generator | Self::Task
                 | Self::Buffer
                 | Self::Typed(_)
                 | Self::Dynamic(Tagged { owns: true, .. })
@@ -126,7 +127,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex | Self::Generator
+            | Self::Regex | Self::Generator | Self::Task
             | Self::Buffer
             | Self::Typed(_) => Some(format!("ls_native_retain({value});\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => {
@@ -147,7 +148,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex | Self::Generator
+            | Self::Regex | Self::Generator | Self::Task
             | Self::Buffer
             | Self::Typed(_) => Some(format!("ls_native_release({value});\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => {
@@ -168,7 +169,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex | Self::Generator
+            | Self::Regex | Self::Generator | Self::Task
             | Self::Buffer
             | Self::Typed(_) => Some("ls_object".to_owned()),
             Self::Dynamic(Tagged { owns: true, .. }) => Some("ls_value".to_owned()),
@@ -181,7 +182,7 @@ impl NativeType {
             Self::Struct(index) => Some(format!("ls_t{index}_trace({value}, visit, context);\n")),
             Self::Callable(_) => Some(format!("visit({value}.environment, context);\n")),
             Self::Array(_) | Self::Object(_) | Self::Shape | Self::Record
-            | Self::Map | Self::Set | Self::Symbol | Self::Regex | Self::Generator
+            | Self::Map | Self::Set | Self::Symbol | Self::Regex | Self::Generator | Self::Task
             | Self::Buffer | Self::Typed(_) => Some(format!("visit({value}, context);\n")),
             Self::Dynamic(Tagged { owns: true, .. }) => Some(format!("ls_value_trace({value}, visit, context);\n")),
             _ => None,
@@ -197,7 +198,7 @@ impl NativeType {
             | Self::Map
             | Self::Set
             | Self::Symbol
-            | Self::Regex | Self::Generator
+            | Self::Regex | Self::Generator | Self::Task
             | Self::Buffer
             | Self::Typed(_) => " = NULL",
             Self::Dynamic(_) => " = {0}",
@@ -247,6 +248,8 @@ pub(super) enum PreparedTarget {
     Print,
     MathImul,
     RecordBuiltin(BuiltinCall),
+    TaskBuiltin(BuiltinCall),
+    TaskMethod {receiver:ValueId, kind:TaskMethod, callback:usize},
     CharCodeAt {
         receiver: ValueId,
     },
@@ -292,11 +295,15 @@ pub(super) enum PreparedTarget {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum TaskMethod {Then, Catch, Finally}
+
 #[derive(Debug, Clone, Copy)]
 pub(super) enum PlaceRecipe {
     Cell(CellId),
     Value(ValueId),
     RegexLastIndex { receiver: ValueId },
+    TaskMethod {receiver:ValueId,kind:TaskMethod},
     Record {
         receiver: ValueId,
         key: RecordKey,
@@ -396,6 +403,7 @@ pub(super) struct NativePlan<'program, 'src> {
     /// Units something creates. A body nothing creates never runs (the
     /// program rules empty it) and is not written.
     pub(super) created: Vec<bool>,
+    pub(super) task_callbacks: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -535,6 +543,7 @@ pub(super) fn native_type<'program, 'src>(
         Type::Symbol => NativeType::Symbol,
         Type::Regex => NativeType::Regex,
         Type::Generator(_) => NativeType::Generator,
+        Type::Task(_) => NativeType::Task,
         Type::ArrayBuffer | Type::SharedArrayBuffer => NativeType::Buffer,
         ty if crate::typed_array::TypedArrayKind::from_type(ty).is_some() => {
             NativeType::Typed(crate::typed_array::TypedArrayKind::from_type(ty).unwrap())
@@ -848,6 +857,11 @@ fn plan_places(
                 PlacePlan { recipe: PlaceRecipe::RegexLastIndex { receiver },
                     storage: ValueStorage::Value(NativeType::F64), root_cell: None, writable: true }
             }
+            Place::Member {receiver,key} if values[receiver.index()]==ValueStorage::Value(NativeType::Task) => {
+                let kind=match program.strings[key.index()].as_unicode() {Some("then")=>TaskMethod::Then,Some("catch")=>TaskMethod::Catch,Some("finally")=>TaskMethod::Finally,_=>return Err(error("native task method"))};
+                helpers.require(Helper::Tasks);
+                PlacePlan {recipe:PlaceRecipe::TaskMethod {receiver,kind},storage:ValueStorage::Value(NativeType::Void),root_cell:None,writable:false}
+            }
             Place::Member { .. } => {
                 return Err(error("native host member place"));
             }
@@ -1158,7 +1172,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             |effects, budget| {
                 for (index, target) in self.units.iter_mut().enumerate() {
                     work(budget, 1)?;
-                    target.may_throw=program.unit(UnitId::from_index(index).unwrap()).unwrap().parameter_region.is_some() || target.conversion_checks.iter().any(|&checked|checked) || effects.summary(UnitId::from_index(index).unwrap()).is_none_or(|summary|summary.effects.may_throw);
+                    let data=program.unit(UnitId::from_index(index).unwrap()).unwrap();
+                    target.may_throw=data.suspension!=Suspension::Async && (data.parameter_region.is_some() || target.conversion_checks.iter().any(|&checked|checked) || effects.summary(UnitId::from_index(index).unwrap()).is_none_or(|summary|summary.effects.may_throw));
                 }
                 // Physical checks add native failures to the common call graph;
                 // propagate only this target fact, never build another graph.
@@ -1169,7 +1184,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 while let Some(callee)=pending.pop() {
                     for edge in effects.graph().callers_of(callee) {
                         work(budget,1)?;
-                        if !self.units[edge.caller.index()].may_throw {
+                        if program.unit(edge.caller).unwrap().suspension!=Suspension::Async && !self.units[edge.caller.index()].may_throw {
                             self.units[edge.caller.index()].may_throw=true;
                             budget.push(Scratch,&mut pending,edge.caller)?;
                         }
@@ -1439,6 +1454,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         let mut helpers = Helpers::default();
         if !arrays.is_empty() { helpers.require(Helper::Arrays); }
         if classes.iter().any(|c|matches!(c,TypeClass::Value(NativeType::Generator))) {helpers.require(Helper::Iterators);}
+        if classes.iter().any(|c|matches!(c,TypeClass::Value(NativeType::Task))) {helpers.require(Helper::Tasks);}
         if !hosts.bindings.is_empty() { helpers.require(Helper::Exceptions); }
         if signatures.iter().any(|signature| signature.needed)
             || cells.iter().any(|cell| cell.captured)
@@ -1476,7 +1492,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             class_tests: budget.filled(Scratch, program.classes.len(), false)?,
             adapters: Vec::new(),
             conversions: Vec::new(), boxed_callables: Vec::new(), unboxed_callables: Vec::new(),
-            created,
+            created, task_callbacks:Vec::new(),
         };
         for frozen in &program.units {
             work(budget, 1)?;
@@ -1504,9 +1520,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 else {
                     return Err(unit_error("native function signature"));
                 };
-                plan.signatures[signature].result
+                if data.suspension==Suspension::Async {plan.signatures[signature].task_result.ok_or_else(||unit_error("native async result schema"))?} else {plan.signatures[signature].result}
             };
             if data.suspension==Suspension::Generator { plan.helpers.require(Helper::Iterators); }
+            if data.suspension==Suspension::Async { plan.helpers.require(Helper::Tasks); }
             let mut has_environment = data.kind == UnitKind::Closure;
             for &capture in &data.captures {
                 work(budget, 1)?;
@@ -1633,6 +1650,15 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         },
                         _ => return Err(error("native dynamic value call")),
                     },
+                    CallTarget::Reference {place} if matches!(places[place.index()].recipe,PlaceRecipe::TaskMethod {..}) => {
+                        let PlaceRecipe::TaskMethod {receiver,kind}=places[place.index()].recipe else {unreachable!()};
+                        let [CallArgument::Value(value)]=data.arguments(call.arguments).unwrap() else {return Err(error("native task callback"));};
+                        let NativeType::Callable(callback)=plan.value_type(values[value.index()]) else {return Err(error("native task callback representation"));};
+                        work(budget,plan.task_callbacks.len())?;
+                        if !plan.task_callbacks.contains(&callback) {budget.push(Scratch,&mut plan.task_callbacks,callback)?;}
+                        signatures::require(&mut plan.signatures,callback,budget)?;
+                        PreparedTarget::TaskMethod {receiver,kind,callback}
+                    }
                     CallTarget::Reference { place } => match data.places[place.index()] {
                         Place::Cell(cell)
                             if matches!(plan.cell_storage(cell), ValueStorage::Function(_)) =>
@@ -1653,6 +1679,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         | BuiltinCall::ObjectHasOwn | BuiltinCall::ObjectAssign | BuiltinCall::JsonStringify | BuiltinCall::JsonParse)) => {
                         plan.helpers.require(match builtin { BuiltinCall::JsonStringify => Helper::Json, BuiltinCall::JsonParse => Helper::JsonParse, _ => Helper::Records });
                         PreparedTarget::RecordBuiltin(builtin)
+                    }
+                    CallTarget::Builtin(builtin @ (BuiltinCall::TaskResolve|BuiltinCall::TaskReject|BuiltinCall::TaskAll)) => {
+                        plan.helpers.require(Helper::Tasks);PreparedTarget::TaskBuiltin(builtin)
                     }
                     CallTarget::Builtin(BuiltinCall::Print) => PreparedTarget::Print,
                     CallTarget::Builtin(BuiltinCall::JsAssume) => PreparedTarget::Assume,
@@ -1910,6 +1939,20 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 }
                 if let OperationKind::ForOf {body,..}=operation.kind {budget.push(Scratch,&mut iterators,(body,OpId::from_index(index).unwrap()))?;}
             }
+            // The callable result is settled. A body may return another task
+            // (including through a generic/union value), which resolution adopts.
+            // Keep ordinary typed results; widen only a differing physical return.
+            let mut return_type=return_type;
+            if data.suspension==Suspension::Async {
+                for operation in &data.operations {
+                    work(budget,1)?;
+                    if matches!(operation.kind,OperationKind::Return) {
+                        if let Some(&value)=data.operands(operation.operands).unwrap().first() {
+                            if !plan.compatible(ValueStorage::Value(return_type),values[value.index()]) || matches!(plan.value_type(values[value.index()]),NativeType::Dynamic(_)) && !matches!(return_type,NativeType::Dynamic(_)) {return_type=NativeType::Dynamic(Tagged::ANY);}
+                        }
+                    }
+                }
+            }
             let mut unit_plan = UnitPlan {
                 values,
                 calls,
@@ -2160,7 +2203,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Map
                     | NativeType::Set
                     | NativeType::Symbol
-                    | NativeType::Regex | NativeType::Generator
+                    | NativeType::Regex | NativeType::Generator | NativeType::Task
                     | NativeType::Buffer
                     | NativeType::Typed(_)
             )
@@ -2324,7 +2367,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Map
                         | NativeType::Set
                         | NativeType::Symbol
-                        | NativeType::Regex | NativeType::Generator
+                        | NativeType::Regex | NativeType::Generator | NativeType::Task
                         | NativeType::Buffer
                         | NativeType::Typed(_)
                 )
@@ -2824,7 +2867,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                     NativeType::Shape | NativeType::Record | NativeType::Map
                                         | NativeType::Set
                                         | NativeType::Symbol
-                                        | NativeType::Regex | NativeType::Generator
+                                        | NativeType::Regex | NativeType::Generator | NativeType::Task
                                         | NativeType::Buffer
                                         | NativeType::Typed(_)
                                 )
@@ -3032,6 +3075,18 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             result.is_some_and(|result| self.compatible(result, Stored(produced))),
                             "native callable result representation",
                         )
+                    }
+                    PreparedTarget::TaskBuiltin(builtin) => {
+                        expect(arguments.len()==1 && result==Some(Stored(NativeType::Task)) && match builtin {
+                            BuiltinCall::TaskAll=>matches!(argument(0),Some(Stored(NativeType::Array(a))) if self.arrays[a]==NativeType::Task),
+                            _=>argument(0).is_some_and(|ty|ty==Stored(Void) || self.compatible(Stored(NativeType::Dynamic(Tagged::ANY)),ty)),
+                        },"native task builtin representation")
+                    }
+                    PreparedTarget::TaskMethod {receiver,kind,callback} => {
+                        let signature=&self.signatures[callback];
+                        expect(arguments.len()==1 && result==Some(Stored(NativeType::Task)) && value(receiver)==Stored(NativeType::Task)
+                            && signature.parameters.len()<=1 && (kind!=TaskMethod::Finally || signature.parameters.is_empty())
+                            && signature.source.params.iter().all(|p|p.passing==crate::primitive::ParameterPassing::Value),"native task continuation")
                     }
                     PreparedTarget::RecordBuiltin(builtin) => {
                         let record = Some(Stored(NativeType::Record));
@@ -3427,6 +3482,11 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             OperationKind::ForOf {item,..} => {
                 self.helpers.require(Helper::Iterators);
                 expect(matches!(operand(0),Stored(NativeType::Generator|NativeType::Set)) && self.compatible(self.cell_storage(*item),Stored(NativeType::Dynamic(Tagged::ANY))),"native iterable binding")
+            }
+            OperationKind::Await => {
+                self.helpers.require(Helper::Tasks);
+                expect(data.suspension==Suspension::Async && operands.len()==1 && operand(0)==Stored(NativeType::Task)
+                    && result.is_some_and(|ty|ty==Stored(Void) || self.compatible(ty,Stored(NativeType::Dynamic(Tagged::ANY)))),"native awaited representation")
             }
             OperationKind::Yield {delegate} => {
                 self.helpers.require(Helper::Iterators);

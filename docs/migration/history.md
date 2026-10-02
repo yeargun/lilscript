@@ -2105,3 +2105,30 @@ reentry, Set mutation and unreachable cycles. Existing exception completion
 checks also pass. No full suite or performance claim. Emitted JavaScript has
 a separately recorded V1 default-timing defect; it is not counted as parity.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#generator-frames-and-iterable-completions).
+
+## 2026-10-02 — N2 async frames and task queue (implementation)
+
+Implement async bodies with the generator batch's common typed-frame slot and
+structured completion writer, including pending return/throw state across await.
+Add owned tasks, FIFO microtasks, typed continuation bridges, resolution/adoption,
+then/catch/finally and ordered Task.all. Execute an async body synchronously until
+await and resume only through the queue. Trace queued/pending ownership and release
+abandoned cycles; drain jobs before application shutdown. Qualify complete ordering,
+managed payloads, callbacks, completion overrides and errors against independent
+ECMAScript after the batch. No performance claim precedes that qualification.
+
+**Async/task result.** Algorithm83, pin `n2-tasks-3`, passes all46 focused
+checks: independent ECMAScript, source/build/runtime under strict GCC/Clang and
+ASan/UBSan at efforts0/13, emitted JavaScript parity at both efforts, unhandled
+rejection exit/cleanup, and the shared generator completion fixture. Managed
+payloads, saved return/throw across await, prepared callees, class methods,
+then/catch/finally ordering, ordered all, self-resolution rejection, unreachable
+adoption cycles and bounded repeated catches agree with the independent oracle.
+
+The shared type contract now canonicalizes task resolution, including generic
+substitution: resolving a task preserves its identity and settled type. Async
+body returns keep their declaration's inner contract while callable results
+reflect adoption; Task<void>.then takes a zero-argument continuation. Actual
+arguments resolve the ambiguity of contextual Task<T> inference. No broad suite
+or performance win claimed; changed Rust expectations await consolidated N2.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#async-frames-and-task-queue).

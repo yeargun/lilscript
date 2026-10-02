@@ -26,8 +26,10 @@ mod records;
 mod products;
 #[path = "native_static.rs"]
 mod static_data;
-#[path = "native_generators.rs"]
-mod generators;
+#[path = "native_frames.rs"]
+mod frames;
+#[path = "native_tasks.rs"]
+mod tasks;
 #[path = "native_dynamic.rs"]
 mod dynamic;
 #[path = "native_enums.rs"]
@@ -464,7 +466,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if self.plan.needs_callable_runtime() {
             self.closure_recipes()?;
         }
-        self.generator_frames()?;
+        self.task_callbacks()?;
+        self.suspension_frames()?;
         for frozen in &program.units {
             if !self.plan.created[frozen.id().index()] {
                 continue;
@@ -481,11 +484,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
         for unit in program.initialization.iter() {
             self.write(format_args!("ls_init{}();\nif (ls_native_raised) goto ls_shutdown;\n", unit.index()))?;
         }
+        if self.plan.helpers.contains(Helper::Tasks) {self.text("ls_task_drain();\n")?;}
         if self.plan.helpers.contains(Helper::Strings) {
             self.text("fflush(stdout);\n")?;
         }
         // Module bindings outlive their initializers; execution ends here.
         self.text("ls_shutdown: LS_NATIVE_UNUSED;\nint ls_exit_code = ls_native_raised ? 1 : 0;\nif (ls_native_raised) ls_native_report_error();\n")?;
+        if self.plan.helpers.contains(Helper::Tasks) {self.text("ls_task_discard_jobs();\n")?;}
         if self.plan.helpers.contains(Helper::Exceptions) { self.text("ls_value_clear(&ls_native_thrown);\n")?; }
         for (index, cell) in self.plan.cells.iter().enumerate() {
             self.budget.work(WorkKind::Render, 1)?;
@@ -531,7 +536,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
     }
     fn signature(&mut self, id: UnitId) -> Result<(), NativeError> {
         let unit = self.plan.program.unit(id).unwrap();
-        let result = if unit.suspension==Suspension::Generator {NativeType::Generator} else {self.plan.units[id.index()].return_type};
+        let result = match unit.suspension {Suspension::Generator=>NativeType::Generator,Suspension::Async=>NativeType::Task,Suspension::None=>self.plan.units[id.index()].return_type};
         let name = if unit.kind == UnitKind::ModuleInitialization {
             "ls_init"
         } else {
@@ -571,14 +576,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
         debug_assert!(self.active_regions.is_empty() && self.try_frames.is_empty());
         self.error_exit=false; self.return_exit=false;
         let unit = self.plan.program.unit(id).unwrap();
-        let generator=unit.suspension==Suspension::Generator;
-        if generator {self.generator_begin(id)?;}
+        let suspended=unit.suspension!=Suspension::None;
+        if suspended {self.suspension_begin(id)?;}
         else {self.signature(id)?;self.text(" {\n")?;self.temporary_declaration()?;}
         self.exception_regions.clear();
         for _ in &unit.regions {
             self.budget.push(AllocationClass::Scratch, &mut self.exception_regions, false)?;
         }
-        if !generator {
+        if !suspended {
         self.control_declarations(id)?;
         self.iteration_declarations(id)?;
         if self.plan.needs_callable_runtime() {
@@ -715,7 +720,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                             let completed = self.active_regions.pop();
                             debug_assert_eq!(completed, Some(region));
                         }
-                        if generator && self.generator_parameters(id)==Some(region) {
+                        if suspended && self.generator_parameters(id)==Some(region) {
                             self.text("base->pc=SIZE_MAX;return;\nls_body:;\n")?;
                         }
                     }
@@ -749,7 +754,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         debug_assert!(self.active_regions.is_empty());
         self.control_exits(id)?;
         self.text("}\n")?;
-        if generator {self.generator_factory(id)?;}
+        if suspended {self.suspension_factory(id)?;}
         Ok(())
     }
     fn operation(
@@ -1321,6 +1326,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.region(*test, Some(op))?;
             }
             OperationKind::ForOf {item,body}=>self.for_of(id,op,*item,*body,args[0])?,
+            OperationKind::Await=>self.await_value(id,op,args[0],result.unwrap())?,
             OperationKind::Yield {delegate}=>self.yield_value(id,op,args[0],*delegate)?,
             OperationKind::Try {body,catch,finally} => self.start_try(id,op,*body,*catch,*finally,enclosing_loop)?,
             OperationKind::Throw => {
@@ -1329,7 +1335,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.text(");\n")?;
                 self.complete(id,Completion::Throw)?;
             }
-            OperationKind::Return if !self.try_frames.is_empty() || unit.suspension==Suspension::Generator || !self.plan.units[id.index()].iterators.is_empty() => self.defer_return(id,args.first().copied())?,
+            OperationKind::Return if !self.try_frames.is_empty() || unit.suspension!=Suspension::None || !self.plan.units[id.index()].iterators.is_empty() => self.defer_return(id,args.first().copied())?,
             OperationKind::Return if self.plan.needs_callable_runtime() => {
                 self.return_value(id, args.first().copied())?;
             }
@@ -1372,6 +1378,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     self.text(")")?;
                     break;
                 }
+                PlaceRecipe::TaskMethod {..}=>unreachable!("task methods are only prepared call targets"),
                 PlaceRecipe::RegexLastIndex { receiver } => {
                     self.write(format_args!("((ls_regex *)ls_v{})->last_index", receiver.index()))?;
                     break;
@@ -1605,6 +1612,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let data = self.plan.program.unit(unit).unwrap();
         let args = data.arguments(data.calls[call.index()].arguments).unwrap();
         let target = self.plan.units[unit.index()].calls[call.index()];
+        if matches!(target,PreparedTarget::TaskBuiltin(_)|PreparedTarget::TaskMethod {..}) {return self.task_call(unit,call,result.unwrap(),target);}
         if let PreparedTarget::RecordBuiltin(builtin) = target {
             return self.record_builtin(unit, call, result.unwrap(), builtin);
         }
@@ -1811,6 +1819,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             PreparedTarget::Print
             | PreparedTarget::RecordBuiltin(_)
+            | PreparedTarget::TaskBuiltin(_) | PreparedTarget::TaskMethod {..}
             | PreparedTarget::Assume
             | PreparedTarget::ArrayMethod { .. }
             | PreparedTarget::ScalarMethod { .. }

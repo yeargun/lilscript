@@ -84,7 +84,7 @@ pub(crate) fn substitute_type_with<'types, 'src: 'types, A: SubstitutionAdmissio
         }
         Type::Task(inner) => {
             let inner = substitute_type_with(inner, lookup, admission)?;
-            Ok(Type::Task(admission.box_type(inner)?))
+            super::task_types::task_with(inner,admission)
         }
         Type::Generator(inner) => {
             let inner = substitute_type_with(inner, lookup, admission)?;

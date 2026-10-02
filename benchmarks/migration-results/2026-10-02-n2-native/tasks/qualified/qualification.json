@@ -1,0 +1,697 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+    "sha256": "efee78552a9154f2ba1bcb7d154a184719a07e3e722eac8f942cc4aaf6471540"
+  },
+  "rows": [
+    {
+      "name": "tasks-independent-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/tasks.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 36,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/tasks.lil",
+        "--config",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/tasks.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/tasks-0",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/tasks.c",
+        "tests/native/tasks.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2884,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/tasks-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/tasks-0",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/tasks.c",
+        "tests/native/tasks.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2123,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/tasks-0/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/tasks-0",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/tasks.c",
+        "tests/native/tasks.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10365,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/tasks-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/tasks.lil",
+        "--config",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/tasks.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 12,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/tasks-13",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/tasks.c",
+        "tests/native/tasks.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2901,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/tasks-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/tasks-13",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/tasks.c",
+        "tests/native/tasks.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2112,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/tasks-13/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/tasks-13",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/tasks.c",
+        "tests/native/tasks.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10421,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/tasks-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-independent-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/task-contracts.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 31,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/task-contracts.lil",
+        "--config",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/tasks.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/tasks.c",
+        "tests/native/task-contracts.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1274,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/tasks.c",
+        "tests/native/task-contracts.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 968,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/tasks.c",
+        "tests/native/task-contracts.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 4993,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/task-contracts.lil",
+        "--config",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/tasks.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/tasks.c",
+        "tests/native/task-contracts.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1259,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/tasks.c",
+        "tests/native/task-contracts.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 972,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/tasks.c",
+        "tests/native/task-contracts.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5062,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "task-unhandled-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/task-unhandled.oracle.mjs"
+      ],
+      "exit": 1,
+      "elapsed_ms": 29,
+      "passed": true
+    },
+    {
+      "name": "task-unhandled-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/task-unhandled.lil",
+        "--config",
+        "tests/native/task-unhandled.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-unhandled/tasks.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5,
+      "passed": true
+    },
+    {
+      "name": "task-unhandled-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-tasks-3/task-unhandled/tasks.c",
+        "/tmp/lilscript-n2-tasks-3/task-unhandled/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-unhandled/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1052,
+      "passed": true
+    },
+    {
+      "name": "task-unhandled-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/task-unhandled/sanitize"
+      ],
+      "exit": 1,
+      "elapsed_ms": 8,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/generator-completions.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 30,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/generator-completions.lil",
+        "--config",
+        "tests/native/generator-completions.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/generator-completions/tasks.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 6,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-tasks-3/generator-completions/tasks.c",
+        "/tmp/lilscript-n2-tasks-3/generator-completions/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/generator-completions/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1674,
+      "passed": true
+    },
+    {
+      "name": "generator-completions-run",
+      "args": [
+        "/tmp/lilscript-n2-tasks-3/generator-completions/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-javascript-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/tasks.lil",
+        "--config",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/js.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/output.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "tasks-0-javascript-run",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-tasks-3/tasks-0/run.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 36,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-javascript-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/tasks.lil",
+        "--config",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/js.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/output.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 266,
+      "passed": true
+    },
+    {
+      "name": "tasks-13-javascript-run",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-tasks-3/tasks-13/run.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 34,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-javascript-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/task-contracts.lil",
+        "--config",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/js.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/output.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-0-javascript-run",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-0/run.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 31,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-javascript-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-tasks-3/lilscript",
+        "tests/native/task-contracts.lil",
+        "--config",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/js.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/output.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 101,
+      "passed": true
+    },
+    {
+      "name": "task-contracts-13-javascript-run",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-tasks-3/task-contracts-13/run.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 31,
+      "passed": true
+    }
+  ]
+}

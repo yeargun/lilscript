@@ -1,0 +1,5 @@
+error: expected `;` after statement
+ --> /home/azureuser/lilscript/tests/native/task-contracts.lil:7:54
+  |
+ 7 | async int|Task<int> choice(bool direct){return direct?31:Task.resolve(32);}
+  |                                                      ^

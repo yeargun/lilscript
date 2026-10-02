@@ -174,3 +174,11 @@ static LS_NATIVE_UNUSED inline ls_native_array *ls_array_copy_within(ls_native_a
     }
     return array;
 }
+
+/* Shared tagged descriptor for runtime-produced arrays. */
+static LS_NATIVE_UNUSED void ls_tagged_item_retain(const void *slot) { ls_value_retain(*(const ls_value *)slot); }
+static LS_NATIVE_UNUSED void ls_tagged_item_drop(void *slot) { ls_value_clear(slot); }
+static LS_NATIVE_UNUSED void ls_tagged_item_trace(const void *slot,ls_native_visit visit,void *context) { ls_value_trace(*(const ls_value *)slot,visit,context); }
+static LS_NATIVE_UNUSED ls_value ls_tagged_item_read(ls_native_temporary **temps,const void *slot) { (void)temps; return *(const ls_value *)slot; }
+static LS_NATIVE_UNUSED void ls_tagged_item_write(void *slot,ls_value value) { ls_value_copy(slot,value); }
+static const LS_NATIVE_UNUSED ls_array_ops ls_tagged_array_ops={sizeof(ls_value),ls_tagged_item_retain,ls_tagged_item_drop,ls_tagged_item_trace,ls_tagged_item_read,ls_tagged_item_write};

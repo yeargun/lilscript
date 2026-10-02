@@ -1,0 +1,32 @@
+extern void collectNative();
+extern void assertMaxNativeCount(int expected);
+extern void watchNativeExit();
+Task<T> resolved<T>(T value){return Task.resolve(value);}
+async T returned<T>(T value){return value;}
+async Task<int> adopted(){return Task.resolve(23);}
+async int|Task<int> choice(bool direct){if(direct){return 31;}return Task.resolve(32);}
+func(int)->string selected=(int n)=>"old "+n;
+async int change(){selected=(int n)=>"new "+n;await Task.resolve(0);return 4;}
+async string prepared(){return selected(await change());}
+async void noop(){await Task.resolve(0);}
+async void cycles(){
+    Task<int>? left=null;Task<int>? right=null;
+    left=Task.resolve(0).then((int n)=>right??Task.resolve(1));
+    right=Task.resolve(0).then((int n)=>left??Task.resolve(2));
+    await Task.resolve(0);await Task.resolve(0);print("cycles abandoned");
+}
+async void run(){
+    Task<int> base=Task.resolve(21);Task<int> same=Task.resolve(base);print(base==same);print(await same);
+    Task<Task<int>> canonical=base;print(await canonical);
+    Task<int> generic=resolved(base);print(base==generic);print(await generic);
+    print(await returned(base));print(await adopted());print(await choice(true));print(await choice(false));
+    int|Task<int> variant=base;Task<int> union=Task.resolve(variant);print(await union);
+    await noop().then(()=>print("void then"));
+    print(await prepared());print(selected(4));
+    Task<int>? self=null;self=Task.resolve(0).then((int n)=>self??Task.resolve(0));
+    try{print(await (self??Task.resolve(0)));}catch(auto error){Record<string> info=JS.assume(error);print(info.name??"missing");}self=null;
+    await cycles();collectNative();
+    for(int i=0;i<100;i++){Task<int> failed=Task.reject("handled");try{print(await failed);}catch{}collectNative();assertMaxNativeCount(100);}
+    print("contracts done");
+}
+watchNativeExit();run();

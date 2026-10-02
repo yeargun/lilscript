@@ -55,7 +55,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [ ] | [V1](plan.md#v1) Qualification | Maintained/held-out size and runtime gaps, independently per objective |
 | [ ] | [V2](plan.md#v2) Release | Reproducible packages, sites and current receipts |
 | [x] | [N1](plan.md#n1) Native integration | Shared optimized input, initialization proofs, toolchain/configuration owner and source-qualified capabilities complete |
-| [~] | [N2](plan.md#n2) Native completion | Ownership, portable data/JSON batches, polymorphic arrays, exception completions and Unicode/typed regex implemented; call presence and managed references complete; callable containers complete; immutable graph storage complete; generator frames and iterator completions complete; remaining async/tasks, host ABI and performance qualification |
+| [~] | [N2](plan.md#n2) Native completion | Ownership, portable data/JSON batches, polymorphic arrays, exception completions and Unicode/typed regex implemented; call presence and managed references complete; callable containers complete; immutable graph storage complete; generator frames and iterator completions complete; async/task frames and queue complete; remaining host/library ABI and performance qualification |
 
 ## Working rules
 

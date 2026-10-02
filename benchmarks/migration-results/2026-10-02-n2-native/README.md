@@ -391,3 +391,35 @@ V1 owns that correction. This batch claims independent native correctness, not
 full source parity. Initial fixture parse and stale provider-configuration
 errors are retained. No broad library suite, speed or executable-size win is
 claimed; frame and helper overhead require the final N2 profile qualification.
+
+## Async frames and task queue
+
+Algorithm83, pin `n2-tasks-3`, passes all46 steps in
+`tasks/qualified/qualification.json`. The two full fixtures pass independent
+ECMAScript, strict GCC and Clang18, ASan/UBSan and emitted JavaScript at efforts0
+and13. The separate unhandled-rejection fixture fails with status1 after queued
+work on both runtimes, while native shutdown leaves zero owners. The existing
+generator completion fixture also passes the shared frame writer under sanitizers.
+
+Frames retain typed parameters, locals, captures, prepared callees and displaced
+finally completions. Async entry runs synchronously, await always queues, and
+continuation/task adoption follows FIFO promise ordering. Finally preserves the
+additional jobs of a returned task; Task.all preserves input order. Queued jobs
+own their context/payload; task observers are traced edges. Repeated handled
+rejections leave the unhandled list immediately. Tests cover managed product
+snapshots/shared children, callable results, async methods, iterator cleanup
+across await, generic and union adoption, self-resolution rejection and unreachable
+mutual-adoption cycles. A host atexit assertion observes zero owners after normal
+and exceptional shutdown.
+
+Shared task types now describe settled values, canonicalizing nested task, union
+and optional resolutions after generic substitution. Actual argument constraints
+can supersede ambiguous expected Task<T> hints. The source body still checks its
+declared inner return type; native widens a differing physical return only when
+resolution requires adoption. Task<void>.then accepts a zero-argument callback.
+The corrected type contracts agree on both output targets.
+
+The initial contract fixture exposed the shared contextual-inference conflict;
+its logs and the preceding syntax correction are retained. Generated C/header
+hashes are retained instead of duplicating runtime sources. No full Rust/library
+suite or performance claim; the final N2 capability/profile qualification remains.
