@@ -385,6 +385,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
         }
         self.cleanup_path(unit, None)?;
+        self.clear_temporaries()?;
         self.text(if ty == NativeType::Void {
             "return;\n}\n"
         } else {

@@ -2,8 +2,8 @@
 //! class embeds its base as its first member, so the flattened field list
 //! (base fields first) is laid out once and an upcast needs no conversion.
 //! Every class slot has type `ls_native_object *`; a member access casts to
-//! the class that declares the field. Reference counting does not collect
-//! cycles, so an instance reachable from itself is never freed.
+//! the class that declares the field. Retained fields are traced by the
+//! shared cycle collector.
 use super::*;
 
 impl Emitter<'_, '_, '_, '_, '_> {

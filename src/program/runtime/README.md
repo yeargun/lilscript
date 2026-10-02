@@ -33,3 +33,12 @@ containers follow the same ownership rules.
 of source optimization. `tests/native/qualify-ownership.mjs` also compiles real
 source into C and runs it with GCC, Clang and ASan/UBSan, under `-Werror`.
 The tests are a focused gate, not a claim of complete native coverage.
+
+Products remain C values in ordinary typed storage. Generic fields use the
+checked tagged representation; nullable/union/erased product boundaries hold a
+traced immutable snapshot. `temporaries.c` links each new box into the current
+activation without another allocation. Statements drop temporary owners after
+escaping destinations retain them. Call/adaptor result conversion explicitly
+replaces box ownership with owned inline fields, or vice versa. Logical product
+locations use typed copy/writeback when a C address could move or a boxed value
+must be replaced; direct addressable product fields keep their simple C store.

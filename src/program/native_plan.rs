@@ -293,6 +293,7 @@ pub(super) enum PlaceRecipe {
     Field {
         base: PlaceId,
         slot: usize,
+        unbox: Option<usize>,
     },
     /// A field of a class instance, by its flattened slot, spelled through
     /// the class that declares it.
@@ -452,7 +453,7 @@ pub(super) fn native_type<'program, 'src>(
         Type::Bool => NativeType::Bool,
         Type::String => NativeType::String,
         Type::Void => NativeType::Void,
-        Type::Struct(declaration) => {
+        Type::Struct(declaration) | Type::StructInstance { declaration, .. } => {
             // The common declaration owner supplies identity. Diagnostic names
             // may collide across original modules and never select a layout.
             work(budget, 1)?;
@@ -460,7 +461,7 @@ pub(super) fn native_type<'program, 'src>(
             let Some(definition) = program.structs.get(index) else {
                 return Ok(None);
             };
-            if definition.identity != declaration.identity || !definition.type_parameters.is_empty()
+            if definition.identity != declaration.identity
             {
                 return Ok(None);
             }
@@ -544,7 +545,7 @@ pub(super) fn native_type<'program, 'src>(
 }
 
 /// What a nullable or union member adds to a tagged value, if it fits one.
-/// A product would need a heap box: not native yet.
+/// Products use a traced immutable box when they cross a tagged boundary.
 fn dynamic_member<'program, 'src>(
     program: &'program Program<'src>,
     ty: &'program Type<'src>,
@@ -559,7 +560,7 @@ fn dynamic_member<'program, 'src>(
         }));
     }
     Ok(match native_type(program, ty, tables, budget)? {
-        Some(NativeType::Void | NativeType::Struct(_)) | None => None,
+        Some(NativeType::Void) | None => None,
         Some(NativeType::Dynamic(tagged)) => Some(tagged),
         Some(ty) => Some(Tagged {
             owns: ty.managed(),
@@ -624,14 +625,6 @@ fn struct_layouts(
             work(budget, 1)?;
             let definition = &program.structs[*index];
             let site = Some(program.modules[definition.module.index()].initializer);
-            if !definition.type_parameters.is_empty() {
-                return Err(fail(
-                    site,
-                    None,
-                    definition.span,
-                    "native generic struct layout",
-                ));
-            }
             if *next == definition.fields.end {
                 states[*index] = 2;
                 order.push(*index);
@@ -873,8 +866,19 @@ fn plan_places(
             Place::Field { base, field } => {
                 // The shared verifier proves the canonical, earlier-base DAG.
                 let parent = places[base.index()];
-                let ValueStorage::Value(NativeType::Struct(index)) = parent.storage else {
-                    return Err(error("native field receiver representation"));
+                let (index, unbox) = match parent.storage {
+                    ValueStorage::Value(NativeType::Struct(index)) => (index, None),
+                    ValueStorage::Value(NativeType::Dynamic(_)) => {
+                        let declared = super::schema::place_type(program, unit, base, budget)?
+                            .ok_or_else(|| error("native product field schema"))?;
+                        let (Type::Struct(declaration) | Type::StructInstance { declaration, .. }) = declared.as_ref() else {
+                            return Err(error("native field receiver representation"));
+                        };
+                        let index = declaration.identity.index();
+                        helpers.require(Helper::Products);
+                        (index, Some(index))
+                    }
+                    _ => return Err(error("native field receiver representation")),
                 };
                 let mut found = None;
                 for slot in program.structs[index].fields.clone() {
@@ -895,12 +899,13 @@ fn plan_places(
                     recipe: PlaceRecipe::Field {
                         base,
                         slot: field.index,
+                        unbox,
                     },
                     storage: ValueStorage::Value(ty),
                     root_cell: parent.root_cell,
-                    // An element is read by value, so a field of one is no C
-                    // lvalue: updating it is not native yet.
-                    writable: parent.writable && !element_rooted(&places, base),
+                    // Non-addressable aggregate locations use typed copy/writeback;
+                    // reference calls separately require a stable address.
+                    writable: parent.writable,
                 }
             }
             _ => {
@@ -965,13 +970,11 @@ pub(super) fn declaring_class(program: &Program<'_>, mut class: usize, slot: usi
     }
 }
 
-fn element_rooted(places: &[PlacePlan], mut place: PlaceId) -> bool {
+fn addressable(places: &[PlacePlan], mut place: PlaceId) -> bool {
     loop {
         match places[place.index()].recipe {
-            PlaceRecipe::Element { .. }
-            | PlaceRecipe::TypedElement { .. }
-            | PlaceRecipe::IndexedUnion { .. } => return true,
-            PlaceRecipe::Field { base, .. } => place = base,
+            PlaceRecipe::Field { base, unbox: None, .. } => place = base,
+            PlaceRecipe::Cell(_) | PlaceRecipe::Member { .. } => return true,
             _ => return false,
         }
     }
@@ -1972,6 +1975,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
         }
         release(initializations, budget)?;
+        if plan.helpers.contains(Helper::Dynamic) && !plan.struct_order.is_empty() { plan.helpers.require(Helper::Products); }
         Ok(plan)
     }
 
@@ -2067,6 +2071,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | NativeType::Bool
                     | NativeType::String
                     | NativeType::Array(_)
+                    | NativeType::Struct(_)
                     | NativeType::Object(_)
                     | NativeType::Callable(_)
                     | NativeType::Shape | NativeType::Record
@@ -2287,6 +2292,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             .flatten()
     }
 
+    pub(super) fn place_addressable(&self, unit: UnitId, place: PlaceId) -> bool {
+        addressable(&self.units[unit.index()].places, place)
+    }
     pub(super) fn place_type(&self, unit: UnitId, place: PlaceId) -> NativeType {
         let ValueStorage::Value(ty) = self.units[unit.index()].places[place.index()].storage else {
             unreachable!("native reference places have a concrete value type")
@@ -2885,6 +2893,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                 CallArgument::Reference(place) => {
                                     self.reference_parameter(parameter)
                                         && plan.places[place.index()].writable
+                                        && addressable(&plan.places, place)
                                         && expected == plan.places[place.index()].storage
                                 }
                                 // A spread reaches only JavaScript.
@@ -2939,6 +2948,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                 CallArgument::Reference(place) => {
                                     passing == crate::primitive::ParameterPassing::MutableReference
                                         && plan.places[place.index()].writable
+                                        && addressable(&plan.places, *place)
                                         && expected == plan.places[place.index()].storage
                                 }
                                 CallArgument::Spread(_) => false,

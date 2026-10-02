@@ -1,9 +1,10 @@
 //! Tagged values: nullables, unions and type parameters share one C type,
 //! `ls_value`. A value moves between a tagged slot and a typed one through
-//! a representation conversion, which never changes ownership: boxing a
-//! borrowed payload yields a borrowed tagged value, and unboxing an owned
-//! one yields the owned payload. Unboxing checks the tag and stops the
-//! program on a mismatch, which checked narrowing never produces.
+//! a borrowed representation conversion. Product boxing owns an immutable
+//! snapshot through the activation's statement-temporary chain; consumers
+//! retain escaping results. Calls and adapters explicitly replace ownership
+//! when moving between a product box and inline fields. Checked unboxing
+//! validates the tag and the product layout witness.
 use super::*;
 
 /// Tags follow JavaScript's runtime categories where a type test reads them.
@@ -48,6 +49,8 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
             (F64, Dynamic(_)) => ("ls_value_float(".into(), ")"),
             (Bool, Dynamic(_)) => ("ls_value_bool(".into(), ")"),
             (String, Dynamic(_)) => ("ls_value_string(".into(), ")"),
+            (Struct(index), Dynamic(_)) => (format!("ls_t{index}_box(&ls_temps,"), ")"),
+            (Dynamic(_), Struct(index)) => (format!("ls_value_to_t{index}("), ")"),
             (Object(_) | Shape | Record | Map | Set | Buffer | Typed(_), Dynamic(_)) => {
                 ("ls_value_object(".into(), ")")
             }
@@ -156,11 +159,11 @@ static LS_NATIVE_UNUSED {} {name}_code(void *environment",
                 self.plan.signatures[from].result,
                 self.plan.signatures[to].result,
             );
+            self.temporary_declaration()?;
             let (prefix, suffix) = Self::conversion(inner, outer);
-            if outer != NativeType::Void {
-                self.text("return ")?;
+            if inner != NativeType::Void {
+                self.write(format_args!("{inner} ls_inner = "))?;
             }
-            self.text(&prefix)?;
             self.text("adapter->inner.code(adapter->inner.environment")?;
             for position in 0..self.plan.signatures[to].parameters.len() {
                 let (prefix, suffix) = Self::conversion(
@@ -179,8 +182,18 @@ static LS_NATIVE_UNUSED {} {name}_code(void *environment",
                     ))?;
                 }
             }
+            self.text(");\n")?;
+            if outer != NativeType::Void {
+                self.write(format_args!("{outer} ls_outer = {prefix}ls_inner{suffix};\n"))?;
+                if Self::product_conversion(inner, outer) {
+                    if let Some(retain) = outer.retain("ls_outer") { self.text(&retain)?; }
+                    if let Some(drop) = inner.release("ls_inner") { self.text(&drop)?; }
+                }
+            }
+            self.clear_temporaries()?;
+            if outer != NativeType::Void { self.text("return ls_outer;\n")?; }
             self.write(format_args!(
-                "){suffix};\n}}\n\
+                "}}\n\
 static LS_NATIVE_UNUSED ls_callable{to} ls_adapt{from}_{to}(ls_callable{from} inner) {{\n\
 {name} *adapter = ls_native_allocate(sizeof *adapter, {name}_destroy, {name}_trace);\n\
 ls_native_retain(inner.environment);\n\

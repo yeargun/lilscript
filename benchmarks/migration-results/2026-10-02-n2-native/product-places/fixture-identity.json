@@ -1,0 +1,18 @@
+[
+  {
+    "path": "tests/native/product-places.lil",
+    "sha256": "28c97147b95c215a247bd29b6b0d530f096ce7cdedeff4f5ed38929107a985d7"
+  },
+  {
+    "path": "tests/native/product-places.toml",
+    "sha256": "687108cd7f98cc7365cf25f983f2ddc1cd679d790b83865ef83b816ea0acf53e"
+  },
+  {
+    "path": "tests/native/product-places.host.c",
+    "sha256": "ca482ec6cc77618495e8d55fe1c9a2672afb759439068a7ad0d8cc308edf8199"
+  },
+  {
+    "path": "tests/native/product-places.out",
+    "sha256": "86f70afe1c476b8ee4402f810ca8aaf0881c2c7b17edd92fbb78cad82d513923"
+  }
+]

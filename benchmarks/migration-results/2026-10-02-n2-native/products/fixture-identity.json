@@ -1,0 +1,22 @@
+[
+  {
+    "path": "tests/native/products.lil",
+    "sha256": "cb3947a7c8564df7b9261b97ed41a9e7309287f5dd0d43a81b0bd4d21d7fa4ec"
+  },
+  {
+    "path": "tests/native/products.toml",
+    "sha256": "ee863918e82105d819ab7812b4c63b39dfb1eafe2d6cc1c7d6482f57a5ecc34f"
+  },
+  {
+    "path": "tests/native/products.host.c",
+    "sha256": "eece0c784c33b16f9a6318c6d4685f527aa312698e0aebb85c3d9a76c63df84f"
+  },
+  {
+    "path": "tests/native/products.out",
+    "sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+  },
+  {
+    "path": "tests/native/products.oracle.mjs",
+    "sha256": "18fd75b17975ca411fc61d142d51c6218ac159043999259fed3bb39c57fdd15d"
+  }
+]

@@ -1,5 +1,6 @@
 //! Native arrays: one reference-counted, growable C array per element kind.
-//! An element is plain value storage, so element copies carry no ownership.
+//! Typed element recipes own and trace managed fields; callbacks preserve
+//! the ownership of values they keep across source-array mutation.
 //! Index reads trap outside the array, as required by R11. Checked `get`
 //! becomes guarded shared control flow; `pop` retains its existing contract.
 //! Setting one past the end appends; further would leave holes, which native
@@ -143,11 +144,14 @@ static LS_NATIVE_UNUSED void ls_array{s}_clear(ls_array{s} **slot) {{ ls_native_
             ))?;
             // An optional read, past the end null, boxes a present element.
             if self.plan.helpers.contains(Helper::Dynamic)
-                && !matches!(element, NativeType::Struct(_) | NativeType::Dynamic(_))
+                && !matches!(element, NativeType::Dynamic(_))
             {
                 let (prefix, suffix) = Self::conversion(element, NativeType::Dynamic(Tagged::ANY));
+                let (parameter, prefix) = if let NativeType::Struct(index) = element {
+                    (", ls_native_temporary **ls_temps", format!("ls_t{index}_box(ls_temps,"))
+                } else { ("", prefix) };
                 self.write(format_args!(
-                    "static LS_NATIVE_UNUSED ls_value ls_array{s}_optional(ls_array{s} *array, int32_t index) {{\n\
+                    "static LS_NATIVE_UNUSED ls_value ls_array{s}_optional(ls_array{s} *array, int32_t index{parameter}) {{\n\
 if (index < 0 || (size_t)index >= array->length) return (ls_value){{0}};\n\
 return {prefix}array->items[index]{suffix};\n}}\n"
                 ))?;
@@ -196,7 +200,7 @@ return false;\n}}\n"
         &mut self,
         unit: UnitId,
         callback: ValueId,
-        arguments: &[&str],
+        arguments: &[(&str, NativeType)],
     ) -> Result<(), NativeError> {
         let storage = self.plan.units[unit.index()].values[callback.index()];
         let NativeType::Callable(signature) = self.plan.value_type(storage) else {
@@ -221,11 +225,14 @@ return false;\n}}\n"
                 leading = true;
             }
         }
-        for (index, argument) in arguments.iter().enumerate() {
+        for (index, &(argument, from)) in arguments.iter().enumerate() {
             if index != 0 || leading {
                 self.text(",")?;
             }
+            let (prefix, suffix) = Self::conversion(from, self.plan.signatures[signature].parameters[index]);
+            self.text(&prefix)?;
             self.text(argument)?;
+            self.text(suffix)?;
         }
         if self.plan.signatures[signature].has_optional() {
             self.write(format_args!(",{}", arguments.len()))?;
@@ -281,8 +288,14 @@ return false;\n}}\n"
             Intrinsic::ArrayForEach => {
                 self.text(&head)?;
                 self.text("if (ls_k >= ls_src->length) continue;\n")?;
-                self.callback_call(unit, value(0).unwrap(), &["ls_src->items[ls_k]"])?;
-                self.text(";\n}\n}\n")
+                let NativeType::Callable(signature) = self.plan.value_type(self.plan.units[unit.index()].values[value(0).unwrap().index()]) else { unreachable!() };
+                let returned = self.plan.signatures[signature].result;
+                if returned != NativeType::Void { self.write(format_args!("{returned} ls_ignored LS_NATIVE_UNUSED = "))?; }
+                self.callback_call(unit, value(0).unwrap(), &[("ls_src->items[ls_k]", e)])?;
+                self.text(";\n")?;
+                if let Some(drop) = returned.release("ls_ignored") { self.text(&drop)?; }
+                self.clear_temporaries()?;
+                self.text("}\n}\n")
             }
             Intrinsic::ArrayMap => {
                 let ValueStorage::Value(NativeType::Array(o)) =
@@ -294,7 +307,7 @@ return false;\n}}\n"
                 self.write(format_args!(
                     "{{\nls_array{s} *ls_src = ls_v{r};\nsize_t ls_len = ls_src->length;\nls_array{o} *ls_out = ls_array{o}_new(ls_len);\nfor (size_t ls_k = 0; ls_k < ls_len; ls_k++) {{\nif (ls_k >= ls_src->length) {{ ls_array{o}_hole(ls_out); continue; }}\nls_array{o}_push_owned(ls_out,"
                 ))?;
-                self.callback_call(unit, value(0).unwrap(), &["ls_src->items[ls_k]"])?;
+                self.callback_call(unit, value(0).unwrap(), &[("ls_src->items[ls_k]", e)])?;
                 self.text(");\n}\n")?;
                 self.assignment_start(unit, destination, true)?;
                 self.text("ls_out")?;
@@ -303,10 +316,15 @@ return false;\n}}\n"
             }
             Intrinsic::ArrayFilter => {
                 self.write(format_args!(
-                    "{{\nls_array{s} *ls_src = ls_v{r};\nsize_t ls_len = ls_src->length;\nls_array{s} *ls_out = ls_array{s}_new(0);\nfor (size_t ls_k = 0; ls_k < ls_len; ls_k++) {{\nif (ls_k >= ls_src->length) continue;\n{e} ls_item = ls_src->items[ls_k];\nif ("
+                    "{{\nls_array{s} *ls_src = ls_v{r};\nsize_t ls_len = ls_src->length;\nls_array{s} *ls_out = ls_array{s}_new(0);\nfor (size_t ls_k = 0; ls_k < ls_len; ls_k++) {{\nif (ls_k >= ls_src->length) continue;\n{e} ls_item = ls_src->items[ls_k];\n"
                 ))?;
-                self.callback_call(unit, value(0).unwrap(), &["ls_item"])?;
-                self.write(format_args!(") ls_array{s}_push(ls_out, ls_item);\n}}\n"))?;
+                if let Some(retain) = e.retain("ls_item") { self.text(&retain)?; }
+                self.text("if (")?;
+                self.callback_call(unit, value(0).unwrap(), &[("ls_item", e)])?;
+                self.write(format_args!(") ls_array{s}_push(ls_out, ls_item);\n"))?;
+                if let Some(drop) = e.release("ls_item") { self.text(&drop)?; }
+                self.clear_temporaries()?;
+                self.text("}\n")?;
                 self.assignment_start(unit, destination, true)?;
                 self.text("ls_out")?;
                 self.assignment_end(unit, destination)?;
@@ -324,7 +342,7 @@ return false;\n}}\n"
                 ))?;
                 self.text(&head)?;
                 self.text("if (ls_k >= ls_src->length) continue;\nls_acc = ")?;
-                self.callback_call(unit, value(0).unwrap(), &["ls_acc", "ls_src->items[ls_k]"])?;
+                self.callback_call(unit, value(0).unwrap(), &[("ls_acc", accumulator), ("ls_src->items[ls_k]", e)])?;
                 self.write(format_args!(
                     ";\n}}\n}}\nls_v{} = ls_acc;\n}}\n",
                     result_value.index()
@@ -341,7 +359,7 @@ return false;\n}}\n"
                     "if (ls_k >= ls_src->length) continue;\nif ({}",
                     if some { "" } else { "!" }
                 ))?;
-                self.callback_call(unit, value(0).unwrap(), &["ls_src->items[ls_k]"])?;
+                self.callback_call(unit, value(0).unwrap(), &[("ls_src->items[ls_k]", e)])?;
                 self.write(format_args!(
                     ") {{ ls_found = {}; break; }}\n}}\n}}\nls_v{} = ls_found;\n}}\n",
                     if some { "true" } else { "false" },
@@ -355,7 +373,7 @@ return false;\n}}\n"
                 self.callback_call(
                     unit,
                     value(0).unwrap(),
-                    &[&format!("ls_array{s}_get(ls_src, (int32_t)ls_k)")],
+                    &[(&format!("ls_array{s}_get(ls_src, (int32_t)ls_k)"), e)],
                 )?;
                 self.write(format_args!(
                     ") {{ ls_found = (int32_t)ls_k; break; }}\n}}\n}}\nls_v{} = ls_found;\n}}\n",

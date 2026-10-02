@@ -73,3 +73,27 @@ Only those three verified case IDs were removed from the multi-case native mask.
 No library suite or fleet benchmark ran. Updated Rust capability expectations
 remain for the consolidated N2 Rust batch. Generic/product payloads and typed JSON
 parsing remain open; this is implementation evidence for a batch, not N2 closure.
+
+## Tagged and generic products
+
+`products/qualification.json` and `product-places/qualification.json` record two
+focused fixtures on `/home/azureuser/lilscript-work/bin/n2-products-1/lilscript`.
+All 14 source/build/run steps pass GCC, Clang 18 and ASan/UBSan, with strict warnings.
+`products.oracle.mjs` supplies an independent value-copy model. The 2,000-iteration
+loop must stay below 40 live allocations, every group returns to zero owners, and
+200 shape/product cycles must be collected. Managed return conversion through a
+generic callback adapter, record/map/array payloads, nullable/union returns and
+nested generic field updates are included.
+
+`product-places.lil` separately agrees with emitted JavaScript on a right-hand side
+that reallocates/replaces its selected array element or replaces a shape field.
+The native writer uses logical-location writeback and preserves copy independence.
+The complete products fixture has a JavaScript formation refusal at Object.values
+of a product record, now explicitly carried by V1; its native output matches the
+independent oracle. This is not claimed as full cross-target fixture parity.
+
+Products keep direct C value layouts. Tagged transport uses traced immutable
+snapshots and statement-scoped temporary owners, with explicit call/adaptor
+ownership conversion. Generic fields use the checked tagged ABI. Polymorphic
+array fields/calls and hot specialization remain N2 work, along with the existing
+control/runtime/interface/performance commitments. No broad library suite ran.

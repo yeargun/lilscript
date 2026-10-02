@@ -17,6 +17,8 @@ mod classes;
 mod collections;
 #[path = "native_records.rs"]
 mod records;
+#[path = "native_products.rs"]
+mod products;
 #[path = "native_dynamic.rs"]
 mod dynamic;
 #[path = "native_enums.rs"]
@@ -329,7 +331,7 @@ struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     budget: &'budget mut AllocationBudget<'ledger>,
     text: String,
     stack: Vec<Task>,
-    field_path: Vec<usize>,
+    field_path: Vec<(usize, Option<usize>)>,
     // The current lexical path in the original region tree, not a cleanup CFG.
     active_regions: Vec<RegionId>,
 }
@@ -379,6 +381,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let program = self.plan.program;
         self.type_declarations()?;
         self.value_types()?;
+        self.product_boxes()?;
         if self.plan.needs_callable_runtime() {
             self.text(native_memory::INTERFACE)?;
             self.text(native_memory::QUALIFICATION_IMPLEMENTATION)?;
@@ -531,6 +534,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         debug_assert!(self.active_regions.is_empty());
         self.signature(id)?;
         self.text(" {\n")?;
+        self.temporary_declaration()?;
         let unit = self.plan.program.unit(id).unwrap();
         if self.plan.needs_callable_runtime() {
             self.parameter_owners(id)?;
@@ -649,11 +653,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
                             destination,
                         })?;
                         self.operation(id, operation, enclosing_loop)?;
+                        self.clear_temporaries()?;
                     } else {
                         if let Some(destination) = destination {
                             let source = unit.regions[region.index()].result.unwrap();
                             self.operation = None;
                             self.copy_value(id, Destination::Value(destination), source)?;
+                            self.clear_temporaries()?;
                         }
                         if self.plan.needs_callable_runtime() {
                             self.cleanup_region(id, region)?;
@@ -793,9 +799,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     ) {
                         self.assignment_start(id, destination, false)?;
                         self.write(format_args!(
-                            "ls_array{array}_optional(ls_v{},ls_v{})",
-                            receiver.index(),
-                            index.index()
+                            "ls_array{array}_optional(ls_v{},ls_v{}{})",
+                            receiver.index(), index.index(),
+                            if matches!(from, NativeType::Struct(_)) { ",&ls_temps" } else { "" }
                         ))?;
                         return self.assignment_end(id, destination);
                     }
@@ -808,7 +814,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
             }
             OperationKind::Store(place) => {
-                if let PlaceRecipe::Record { receiver, key, omit_absent } = self.plan.units[id.index()].places[place.index()].recipe {
+                if matches!(self.plan.units[id.index()].places[place.index()].recipe, PlaceRecipe::Field { .. }) {
+                    self.store_product_field(id, *place, args[0])?;
+                } else if let PlaceRecipe::Record { receiver, key, omit_absent } = self.plan.units[id.index()].places[place.index()].recipe {
                     self.write(format_args!("ls_shape_set(ls_v{},", receiver.index()))?;
                     self.record_key(key)?;
                     self.text(",")?;
@@ -1133,7 +1141,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             // The native plan proves initialization and static addressability
             // at this exact schedule position. No leaf read/coercion is needed.
-            OperationKind::CheckPlace(_) => {}
+            OperationKind::CheckPlace(place) => {
+                if let PlaceRecipe::Field { base, .. } = self.plan.units[id.index()].places[place.index()].recipe {
+                    self.text("(void)(")?; self.place(id, base)?; self.text(");\n")?;
+                }
+            }
             OperationKind::PrepareCall(call) => {
                 // An argument may replace the stored callable: hold our own.
                 if let PreparedTarget::Placed { place, signature } =
@@ -1327,14 +1339,16 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     ))?;
                     break;
                 }
-                PlaceRecipe::Field { base, slot } => {
+                PlaceRecipe::Field { base, slot, unbox } => {
+                    if let Some(index) = unbox { self.write(format_args!("ls_value_to_t{index}("))?; }
                     self.budget
-                        .push(AllocationClass::Scratch, &mut self.field_path, slot)?;
+                        .push(AllocationClass::Scratch, &mut self.field_path, (slot, unbox))?;
                     place = base;
                 }
             }
         }
-        while let Some(slot) = self.field_path.pop() {
+        while let Some((slot, unbox)) = self.field_path.pop() {
+            if unbox.is_some() { self.text(")")?; }
             self.write(format_args!(".ls_f{slot}"))?;
         }
         Ok(())
@@ -1567,6 +1581,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
             PreparedTarget::ArrayPop { array, .. } => Some(self.plan.arrays[array]),
             _ => signature.map(|signature| self.plan.signatures[signature].result),
         };
+        let product_result = match (produced, storage) {
+            (Some(from), Some(ValueStorage::Value(to))) if Self::product_conversion(from, to) => Some((from,to)),
+            _ => None,
+        };
         let (prefix, suffix) = match (produced, storage) {
             (Some(from), Some(ValueStorage::Value(to))) if to != NativeType::Void => {
                 Self::conversion(from, to)
@@ -1630,12 +1648,16 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
             }
         }
-        if let Some(ValueStorage::Value(ty)) = storage {
-            if ty != NativeType::Void {
-                self.assignment_start(unit, Destination::Value(result.unwrap()), true)?;
+        if let Some((from, _)) = product_result {
+            self.write(format_args!("{{\n{from} ls_call_result = "))?;
+        } else {
+            if let Some(ValueStorage::Value(ty)) = storage {
+                if ty != NativeType::Void {
+                    self.assignment_start(unit, Destination::Value(result.unwrap()), true)?;
+                }
             }
+            self.text(&prefix)?;
         }
-        self.text(&prefix)?;
         let floating = produced.unwrap_or(match storage {
             Some(ValueStorage::Value(ty)) => ty,
             _ => NativeType::Void,
@@ -1765,6 +1787,15 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.text(")")?;
         }
         self.text(")")?;
+        if let Some((from, to)) = product_result {
+            self.text(";\n")?;
+            self.assignment_start(unit, Destination::Value(result.unwrap()), false)?;
+            self.write(format_args!("{prefix}ls_call_result{suffix}"))?;
+            self.assignment_end(unit, Destination::Value(result.unwrap()))?;
+            if let Some(drop) = from.release("ls_call_result") { self.text(&drop)?; }
+            self.text("}\n")?;
+            debug_assert!(to.managed());
+        } else {
         self.text(suffix)?;
         let mut ended = false;
         if let Some(ValueStorage::Value(ty)) = storage {
@@ -1775,6 +1806,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         if !ended {
             self.text(";\n")?;
+        }
         }
         if let PreparedTarget::Placed { signature, .. } = target {
             self.write(format_args!(

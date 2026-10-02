@@ -59,7 +59,7 @@ static LS_NATIVE_UNUSED inline uint64_t ls_map_hash(ls_value key) {
     }
     case LS_BOOL: return key.as.b ? 2 : 1;
     case LS_CALLABLE: return ls_map_mix(key.as.c.identity);
-    case LS_OBJECT: case LS_ARRAY: case LS_SYMBOL: return ls_map_mix((uint64_t)(uintptr_t)key.as.o);
+    case LS_OBJECT: case LS_ARRAY: case LS_SYMBOL: case LS_PRODUCT: return ls_map_mix((uint64_t)(uintptr_t)key.as.o);
     default: return 0;
     }
 }

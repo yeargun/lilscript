@@ -1,0 +1,62 @@
+extern void assertNativeCount(int expected);
+extern void collectNative();
+extern void assertMaxNativeCount(int maximum);
+struct Payload { string name; int[] items; }
+struct Box<T> { T value; int stamp; }
+struct Pair<A,B> { A left; B right; }
+shape Holder { data Payload value; }
+T identity<T>(T value) { return value; }
+T apply<T>(T value, func(T)->T callback) { return callback(value); }
+Payload change(Payload value) { value.name += "!"; value.items.push(8); return value; }
+Payload? optional(Payload value, bool take) { if (take) { return value; } return null; }
+Payload|string unionValue(Payload|string value) {
+    if (value is string) { return value + "?"; }
+    Payload copy = value; copy.name += "+"; return copy;
+}
+void products() {
+    Payload original = Payload{"base".repeat(2),[1,2]};
+    Payload copy = change(identity(original));
+    print(original.name); print(copy.name); print(original.items.length);
+    Payload? saved = original; original.name="new";
+    Payload found = saved ?? original; print(found.name);
+    Payload again = optional(found,true) ?? original; print(again.name);
+    print(optional(found,false) == null);
+    Box<string> text = Box{"generic".repeat(2),3};
+    Box<int> integer = Box{42,4}; print(text.value); print(integer.value);
+    Box<Payload> box = Box{found,7};
+    Box<Payload> other = box; other.value.name = "other";
+    print(box.value.name); print(other.value.name);
+    Pair<Payload,Box<string>> pair = Pair{found,text};
+    pair.right.value = "pair"; print(pair.right.value); print(text.value);
+    Payload mapped = apply(found,change); print(mapped.name); print(found.items.length);
+    Payload|string changed=unionValue(found);
+    if(changed is string) { print(changed); } else { Payload value=changed; print(value.name); }
+    Record<Payload> records=record{one:found};
+    Payload recordValue=records.one??original; recordValue.name="local";
+    Payload still=records.one??original; print(still.name);
+    print(Object.values(records)[0].name);
+    Map<int,Payload> map=new Map(); map.set(1,found);
+    Payload mapValue=map.get(1)??original; print(mapValue.name);
+    Payload[] array=[found,original];
+    Payload? missing=array.get(9); print(missing==null);
+    Payload present=array.get(0)??original; print(present.name);
+    array[0].name="array"; print(array[0].name); print(found.name);
+    Holder holder=Holder{value:found}; holder.value.name="holder";
+    print(holder.value.name); print(found.name);
+    Payload[] filtered=array.filter((Payload value)=>{array[0]=original;return true;});
+    print(filtered[0].name);
+}
+shape Link { data Box<Link>? edge; }
+void productCycle() { Link node=Link{}; node.edge=Box{node,1}; }
+void stress() {
+    int sum=0;
+    for(int i=0;i<2000;i++) {
+        Payload value=identity(Payload{"heap".repeat(2),[i]});
+        sum+=value.items[0]; assertMaxNativeCount(40);
+    }
+    print(sum);
+}
+products(); collectNative(); assertNativeCount(0);
+stress(); collectNative(); assertNativeCount(0);
+for(int i=0;i<200;i++) { productCycle(); }
+collectNative(); assertNativeCount(0); print("products done");

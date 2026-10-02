@@ -43,7 +43,7 @@ static LS_NATIVE_UNUSED inline bool ls_value_equal(ls_value left, ls_value right
     case LS_NULL: return true;
     case LS_BOOL: return left.as.b == right.as.b;
     case LS_STRING: return ls_string_equal(left.as.s, right.as.s);
-    case LS_OBJECT: case LS_ARRAY: case LS_SYMBOL: return left.as.o == right.as.o;
+    case LS_OBJECT: case LS_ARRAY: case LS_SYMBOL: case LS_PRODUCT: return left.as.o == right.as.o;
     case LS_CALLABLE: return left.as.c.identity == right.as.c.identity;
     default: return false;
     }

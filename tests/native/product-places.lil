@@ -1,0 +1,22 @@
+extern void assertNativeCount(int expected);
+extern void collectNative();
+struct Item { string text; int[] parts; }
+struct Box<T> { T value; }
+shape Holder { data Box<Item> boxed; }
+void places() {
+    Item[] items=[Item{"old".repeat(2),[1]}];
+    auto moveArray = () => {
+        for(int i=0;i<80;i++) { items.push(Item{"extra",[i]}); }
+        items[0]=Item{"replacement",[4,5]}; return "rhs";
+    };
+    items[0].text=moveArray();
+    print(items[0].text); print(items[0].parts.length); print(items.length);
+    Holder holder=Holder{boxed:Box{Item{"first",[1]}}};
+    auto replaceHolder = () => { holder.boxed=Box{Item{"second",[6,7,8]}}; return "changed"; };
+    holder.boxed.value.text=replaceHolder();
+    print(holder.boxed.value.text); print(holder.boxed.value.parts.length);
+    Box<Item> snapshot=holder.boxed;
+    holder.boxed.value.text="later";
+    print(snapshot.value.text); print(holder.boxed.value.text);
+}
+places(); collectNative(); assertNativeCount(0); print("places done");

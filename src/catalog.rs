@@ -572,9 +572,6 @@ pub(crate) fn native_type_capability(ty: &crate::check::Type<'_>) -> Option<&'st
         Type::ModuleNamespace(_) | Type::ModuleLoadError => {
             Some("dynamic module loading requires a JavaScript target")
         }
-        Type::StructInstance { .. } => {
-            Some(crate::native_capabilities::GENERIC_STRUCTS)
-        }
         _ => None,
     }
 }

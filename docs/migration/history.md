@@ -1868,3 +1868,16 @@ GCC, Clang 18 and ASan/UBSan match the independent ECMAScript oracle; six
 selected maintained formation/production C cells pass. No broad suite rerun
 or performance win is claimed. Generic/tagged products are the next batch.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#portable-records-and-shapes).
+
+
+## 2026-10-02 — N2 tagged products and logical field updates
+
+Native now carries managed products through generic fields, nullable/union values,
+collections and callback adapters. Plain storage stays a C value; traced boxes
+own tagged snapshots, and statement temporary owners release nonescaping boxes.
+Nested product updates rebuild logical aggregate locations when needed, including
+reallocation or replacement during the right-hand side. Two focused fixtures pass
+GCC, Clang and ASan/UBSan; bounded-loop allocation counts and product cycles pass.
+Polymorphic arrays and the remaining N2 contracts stay active. A JavaScript
+Object.values/product-argument refusal is explicitly assigned to V1.
+[Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#tagged-and-generic-products).

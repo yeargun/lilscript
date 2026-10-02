@@ -196,3 +196,14 @@ public ABI while preserving their independent setter/default observations.
 The [N1 inventory](../../benchmarks/migration-results/2026-10-02-n1-native/capability-census.json)
 records each refusal and the separate masks; neither masks nor admission are
 runtime qualification. N2 owns the portable implementation gaps.
+
+
+## Portable product qualification discovery (2026-10-02)
+
+**V1** owns the JavaScript primitive-argument adaptation refusal reproduced by
+`Object.values(Record<Payload>)` in `tests/native/products.lil` under its effort-zero
+configuration. The native fixture and independent value-copy oracle pass; the
+JavaScript target currently reports `value-struct primitive argument ABI adaptation`.
+The separate `product-places.lil` fixture does compile to JavaScript and agrees with
+native reallocation/replacement and nested copy semantics. Do not label the full
+products fixture as a JavaScript/native parity pass before closing this refusal.
