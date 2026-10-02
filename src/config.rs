@@ -1137,7 +1137,7 @@ impl ProjectConfig {
             policy.resources.restricted_by(ceilings),
             policy.constraints,
             diagnostics,
-        ).with_native_interface(self.target.native.artifact,self.target.native.symbol_prefix.clone()).with_native_static_data(self.target.native.static_data).with_native_cycle_threshold(self.target.native.cycle_collection_threshold).with_native_regex_limits(self.target.native.regex_stack_limit, self.target.native.regex_poll_limit).with_defines(self.defines.clone()).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?)
+        ).with_native_interface(self.target.native.artifact,self.target.native.symbol_prefix.clone()).with_native_static_data(self.target.native.static_data).with_native_stack_storage(self.target.native.stack_storage).with_native_generic_specialization(self.target.native.generic_specialization).with_native_cycle_threshold(self.target.native.cycle_collection_threshold).with_native_regex_limits(self.target.native.regex_stack_limit, self.target.native.regex_poll_limit).with_defines(self.defines.clone()).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?)
             .with_execution({ self.language.const_evaluation.validated()?; self.execution.validated()? })
             .with_effort_overrides([self.javascript.candidate_proposal_limit,
                 self.javascript.terminal_codec_probe_limit, self.javascript.candidate_limit,

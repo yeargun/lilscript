@@ -187,7 +187,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
             if inner!=NativeType::Void {self.write(format_args!("{inner} ls_inner = "))?;}
             self.text("inner.code(inner.environment")?;
             for position in 0..self.plan.signatures[from].parameters.len() {self.write(format_args!(",ls_argument{position}"))?;}
-            if self.plan.signatures[from].has_optional() {self.argument_presence(missing.len(),&missing)?;}
+            if self.plan.signatures[from].has_optional() {
+                // A bridge supplies every C slot, but must preserve how many
+                // source arguments were supplied. Rest-array defaults also
+                // inspect count even when their source parameter is not optional.
+                if self.plan.signatures[to].has_optional() {
+                    self.argument_presence_expression("ls_args.count", &missing)?;
+                } else { self.argument_presence(missing.len(), &missing)?; }
+            }
             self.text(");\nif (ls_native_raised) {\n")?;
             if let Some(drop)=inner.release("ls_inner") {self.text(&drop)?;}
             self.clear_temporaries()?;

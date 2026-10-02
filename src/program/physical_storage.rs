@@ -19,8 +19,65 @@ pub(super) enum StorageDemand {
 pub(super) struct StorageProofs {
     unique: Vec<CellId>,
     transfers: Vec<(UnitId, OpId, ValueId)>,
+    borrowed: Vec<UnitId>,
+    stack_cells: Vec<CellId>,
 }
 impl StorageProofs {
+    pub fn borrowed(&self, body: UnitId) -> bool {
+        self.borrowed.binary_search(&body).is_ok()
+    }
+    pub fn stack_cell(&self, cell: CellId) -> bool {
+        self.stack_cells.binary_search(&cell).is_ok()
+    }
+    pub fn has_borrowed(&self) -> bool {
+        !self.borrowed.is_empty()
+    }
+    /// An address-taken bit alone is insufficient: another closure can keep
+    /// a callable alive while only invoking it directly. Follow every semantic
+    /// occurrence, and require all aliases and calls to stay in the creation
+    /// region of one synchronous activation. Unknown uses keep heap ownership.
+    pub fn borrow_closures(
+        &mut self,
+        program: &Program<'_>,
+        uses: &UseIndex,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        for body in &program.units {
+            budget.work(WorkKind::Analysis, 1)?;
+            if body.data().suspension != Suspension::None { continue; }
+            let sites = uses.creators(body.id()).unwrap().sites();
+            if sites.is_empty() { continue; }
+            let mut valid = true;
+            for site in sites {
+                let data = program.unit(site.unit).unwrap();
+                let op = &data.operations[site.operation.index()];
+                if data.suspension != Suspension::None || !borrowed_value(
+                    program, uses, site.unit, op.region, op.result.unwrap(), 0, budget,
+                )? { valid = false; break; }
+            }
+            if valid { budget.push(AllocationClass::Scratch, &mut self.borrowed, body.id())?; }
+        }
+        for (index, cell) in program.cells.iter().enumerate() {
+            budget.work(WorkKind::Analysis, 1)?;
+            if program.unit(cell.owner).unwrap().suspension != Suspension::None { continue; }
+            let id = CellId::from_index(index).unwrap();
+            let mut captured = false;
+            let mut valid = true;
+            for site in uses.cell(id).unwrap().sites() {
+                budget.work(WorkKind::Analysis, 1)?;
+                match *site {
+                    CellUseSite::Unit { unit, usage: CellUse::Capture } => {
+                        captured = true;
+                        valid &= self.borrowed(unit);
+                    }
+                    CellUseSite::Export { .. } => valid = false,
+                    _ => {}
+                }
+            }
+            if valid && captured { budget.push(AllocationClass::Scratch, &mut self.stack_cells, id)?; }
+        }
+        Ok(())
+    }
     pub fn unique(&self, cell: CellId) -> bool {
         self.unique.binary_search(&cell).is_ok()
     }
@@ -184,6 +241,74 @@ impl StorageProofs {
         }
         Ok(result)
     }
+}
+
+fn borrowed_value(
+    program: &Program<'_>, uses: &UseIndex, unit: UnitId, region: RegionId,
+    value: ValueId, depth: usize, budget: &mut AllocationBudget<'_>,
+) -> Result<bool, AllocationError> {
+    budget.work(WorkKind::Analysis, 1)?;
+    if depth >= 64 { return Ok(false); }
+    let data = program.unit(unit).unwrap();
+    for usage in uses.unit(unit).unwrap().value_uses(value).unwrap() {
+        budget.work(WorkKind::Analysis, 1)?;
+        let at = match *usage {
+            ValueUse::CallCallee { prepare, call } => {
+                let invoke = uses.unit(unit).unwrap().call_operation(call).unwrap();
+                if data.operations[invoke.index()].region != region { return Ok(false); }
+                prepare
+            }
+            ValueUse::Operand { operation, .. } => {
+                let op = &data.operations[operation.index()];
+                match op.kind {
+                    OperationKind::CopyValue => {
+                        if !borrowed_value(program, uses, unit, region, op.result.unwrap(), depth+1, budget)? { return Ok(false); }
+                    }
+                    OperationKind::Initialize(cell) => {
+                        if !borrowed_cell(program, uses, unit, region, cell, operation, depth+1, budget)? { return Ok(false); }
+                    }
+                    _ => return Ok(false),
+                }
+                operation
+            }
+            _ => return Ok(false),
+        };
+        if data.operations[at.index()].region != region { return Ok(false); }
+    }
+    Ok(true)
+}
+
+fn borrowed_cell(
+    program: &Program<'_>, uses: &UseIndex, unit: UnitId, region: RegionId,
+    cell: CellId, initialize: OpId, depth: usize, budget: &mut AllocationBudget<'_>,
+) -> Result<bool, AllocationError> {
+    if depth >= 64 || program.cells[cell.index()].binding != CellBinding::Local { return Ok(false); }
+    let data = program.unit(unit).unwrap();
+    for usage in uses.cell(cell).unwrap().sites() {
+        budget.work(WorkKind::Analysis, 1)?;
+        let CellUseSite::Unit { unit: owner, usage } = *usage else { return Ok(false); };
+        if owner != unit { return Ok(false); }
+        match usage {
+            CellUse::Initialize(at) if at == initialize => {}
+            CellUse::Read { operation, place } => {
+                let op = &data.operations[operation.index()];
+                if op.region != region || !matches!(data.places[place.index()], Place::Cell(id) if id == cell) { return Ok(false); }
+                match op.kind {
+                    OperationKind::Load(_) => {
+                        if !borrowed_value(program, uses, unit, region, op.result.unwrap(), depth+1, budget)? { return Ok(false); }
+                    }
+                    OperationKind::PrepareCall(call) => {
+                        let invoke = uses.unit(unit).unwrap().call_operation(call).unwrap();
+                        if data.operations[invoke.index()].region != region { return Ok(false); }
+                    }
+                    OperationKind::CheckPlace(_) => {}
+                    _ => return Ok(false),
+                }
+            }
+            _ => return Ok(false),
+        }
+    }
+    Ok(true)
 }
 fn root(data: &UnitData, mut place: PlaceId) -> PlaceId {
     while let Place::Field { base, .. } = data.places[place.index()] {

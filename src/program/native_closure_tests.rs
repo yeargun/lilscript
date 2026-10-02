@@ -1,4 +1,4 @@
-//! Callback ABI v1 qualification through real public output owners. This is a
+//! Callback ABI v3 qualification through real public output owners. This is a
 //! child of native_tests so compiler discovery, bounded execution and temporary
 //! directory cleanup remain owned by the existing native harness.
 use super::*;
@@ -480,7 +480,10 @@ fn public_qualified_pair(
 }
 
 fn qualify_public_factory(name: &str, source_text: &str, expected: &str, path_factory: bool) {
-    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
+    let mut config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
+    for (name, link) in HOSTS {
+        config.host.native.insert(name.into(), link.into());
+    }
     let options = ServiceOptions {
         target: ServiceTarget::Native,
         logical_work: WORK,

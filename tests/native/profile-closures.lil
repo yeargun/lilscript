@@ -1,0 +1,14 @@
+extern int profileIterations();
+int run(int count) {
+    int sum=0;
+    for(int round=0;round<count;round++) {
+        int captured=round^73471;
+        func(int)->int calculate=(int value)=>{
+            for(int step=0;step<4+(value&7);step++) {captured=captured*33+step;}
+            captured+=value;return captured;
+        };
+        sum^=calculate(round)+calculate(3);
+    }
+    return sum;
+}
+print(run(profileIterations()));

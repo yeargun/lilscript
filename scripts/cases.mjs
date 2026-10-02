@@ -17,7 +17,7 @@
 //
 // Each (case, lane) ends in exactly one state:
 //   pass          compiled, ran, exit 0, stdout identical to the `.out` file
-//   masked        the case uses a feature the target does not have (below)
+//   masked        an explicit format/host-fixture exclusion (never a runtime pass)
 //   refused       the compiler exited with a diagnostic
 //   compiler-crash  the compiler panicked or was killed
 //   cc-rejected   the C compiler rejected the emitted C
@@ -51,9 +51,17 @@ export const LANES = MODES.flatMap((mode) => CODECS.flatMap((codec) => Object.ke
   id: `${mode}/${codec}/${target}`, mode, codec, target, parts: [mode, codec, target],
 }))));
 const JAVASCRIPT = ["script", "module", "cjs", "bare"];
+const nativeExclusionsPath = join(repository, "tests/native/corpus-exclusions.json");
+const nativeExclusions = new Map(JSON.parse(readFileSync(nativeExclusionsPath, "utf8")).cases.map(row => [row.id, row]));
+const NATIVE_EXCLUSIONS = [
+  {id:"native-provider-setup",why:"The fixture has no configured C equivalent for its declared host provider; this is not a native runtime pass."},
+  {id:"native-javascript-host",why:"The checked source uses a declared JavaScript host facility; see the per-case source diagnostic."},
+  {id:"native-javascript-observation",why:"Expected output observes the JavaScript prototype/module boundary through a JS prelude or probe."},
+  {id:"native-obsolete-config",why:"The fixture still requests the retired positional JavaScript ABI; tracked in V1."},
+];
 
-// The per-target feature mask, declared once. A case using a feature is run
-// only on the listed targets and reported as masked on the others. Detection is
+// JavaScript format eligibility and descriptive source feature tags. Native
+// exclusions are separately bound to individual case digests. Detection is
 // lexical, on source with comments and string text removed. `export` counts
 // only in the entry module (an imported module's exports are internal
 // linkage); every other feature counts in any module the entry imports.
@@ -63,10 +71,10 @@ export const FEATURES = [
   { id: "JsValue", targets: JAVASCRIPT, pattern: /\bJsValue\b/, why: "conservative corpus classification: native tagged transport is supported; host object operations require separate recipes" },
   { id: "import extern", targets: ["module"], pattern: /\bimport\s+extern\b/, why: "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports" },
   { id: "extern", targets: JAVASCRIPT, pattern: /\bextern\b/, why: "this corpus fixture needs a C provider/host-equivalent boundary; configured native function providers are supported", lifts: "N2 (M11.3 provider-backed corpus qualification)" },
-  { id: "export", targets: JAVASCRIPT, pattern: /\bexport\b/, entryOnly: true, why: "the entry's exports are a module ABI; C has none yet", lifts: "M11.8 (a C library ABI)" },
-  { id: "JS namespace", targets: JAVASCRIPT, pattern: /\bJS\./, why: "language-v0.1: C rejects the JS.* operations" },
-  { id: "async", targets: JAVASCRIPT, pattern: /\b(?:async|await|Task)\b/, why: "language-v0.1: native rejects async functions and tasks", lifts: "M11.6 (portable subset)" },
-  { id: "generator", targets: JAVASCRIPT, pattern: /\bgenerator\b/, why: "language-v0.1: native rejects generators", lifts: "M11.6 (portable subset)" },
+  { id: "export", targets: JAVASCRIPT, pattern: /\bexport\b/, entryOnly: true, why: "entry exports require a format with a library boundary; native uses its generated C interface", lifts: "M11.8 (a C library ABI)" },
+  { id: "JS namespace", targets: JAVASCRIPT, pattern: /\bJS\./, why: "JavaScript host operations; portable checked views are classified per native case" },
+  { id: "async", targets: JAVASCRIPT, pattern: /\b(?:async|await|Task)\b/, why: "portable async/tasks; native eligibility is classified per case", lifts: "M11.6 (portable subset)" },
+  { id: "generator", targets: JAVASCRIPT, pattern: /\bgenerator\b/, why: "portable generators; native eligibility is classified per case", lifts: "M11.6 (portable subset)" },
   { id: "object literal", targets: JAVASCRIPT, pattern: /\bobject\s*\{/, why: "language-v0.1: object {} is JavaScript-only" },
 ];
 
@@ -193,6 +201,13 @@ function describeCase(base) {
 }
 
 export function maskFor(item, target) {
+  if (target === "c") {
+    // Lexical `JsValue`, `export`, `async` or `generator` occurrences no
+    // longer mask portable native programs. Only individually accounted,
+    // unchanged fixtures may be excluded. New/changed cases run the target.
+    const row=nativeExclusions.get(item.id);
+    return row?.input_digest===item.digest ? [`native-${row.category}`] : [];
+  }
   return item.features.filter((id) => !FEATURES.find((feature) => feature.id === id).targets.includes(target));
 }
 
@@ -578,7 +593,9 @@ export async function runCases(options) {
     scrubbedEnvironment: scrubbed,
     tactics: { source: tacticSource, ids: tactics },
     ledger: { path: ledger.path ? relative(repository, ledger.path) : null, sha256: ledger.sha256, entries: ledger.entries.length },
-    masks: FEATURES.map(({ id, targets, why, lifts }) => ({ id, targets, why, lifts: lifts ?? null })),
+    masks: [...FEATURES.map(({ id, targets, why, lifts }) => ({ id, targets, why, lifts: lifts ?? null })),
+      ...NATIVE_EXCLUSIONS.map(row=>({...row,targets:JAVASCRIPT,lifts:null}))],
+    nativeExclusions: {path:relative(repository,nativeExclusionsPath),sha256:sha256File(nativeExclusionsPath)},
     lanes: laneRecords,
     cases: cases.map(({ id, digest, features }) => ({ id, digest, features })),
     summary,

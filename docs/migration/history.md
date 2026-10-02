@@ -2150,3 +2150,55 @@ and independent/emitted JavaScript override observations at efforts0/13.
 The shared publication owner now retains overrides on internal descendants of a
 published base. Updated Rust expectations await consolidated N2; no broad suite
 or performance claim. [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#native-libraries-and-providers).
+
+## 2026-10-02 — N2 profiles and physical storage (implementation)
+
+Measure generic calls and nonescaping closures before changing physical storage.
+Consume shared occurrence/lifetime facts for borrowed closure environments and
+captured cells; retain owned storage for escaping or suspended activations.
+Expose controls and actual tradeoffs in TOML, preserve final-use transfers and
+shared throw-free effects, and qualify native speed/size/balanced against emitted
+JavaScript and independent oracles. Exercise portable parser/algorithm cores and
+an actual WASI artifact with pinned compiler/runtime identities before closure.
+
+## 2026-10-02 — N2 complete: profiles and corpus closure
+
+Algorithm 85 completes the final N2 batch. Complete shared use sets justify
+borrowed closure environments and captured stack cells; complete private call
+sets justify concrete generic function storage and fixed callback calls.
+Nominal layout binders remain general. Both optimizations have independent,
+native-only TOML permissions. Shared effects/storage facts omit exception checks
+without suppressing checks for fallible physical conversions. WASI uses the
+configured SDK/triple and stack size; the pinned numeric amalgamation omits an
+unused setjmp header that otherwise requests unsupported exception extensions.
+
+The [profile record](../../benchmarks/migration-results/2026-10-02-n2-native/profiles/README.md)
+retains independent checksums, strict GCC/Clang, sanitizer/WASI results, five
+process samples and allocation counts. Isolated closure allocations fall from
+2,000,002 to zero; generic allocations fall from 1,000,002 to one. Native generic
+CPU improves substantially but remains slower than emitted JavaScript in that
+workload; both portable KaTeX/Marked cores are also slower natively. GCC's size
+profile is sometimes slower and larger than balanced. All eleven unchanged
+algorithm graphs pass 571 source/build/oracle/profile steps, including exact
+ordered host access. Short process timings include startup and are not claims
+about steady-state performance.
+
+The complete native corpus now has 161 executable cases, all passing both
+formation and production under Clang ASan/UBSan. Its other 242 cases have
+individually digest-bound boundaries: missing C test providers, JavaScript host
+facilities/observations or four obsolete configurations assigned to V1. The old
+lexical native masks and seven stale native Record failure-ledger entries are
+removed. The consolidated 138-test Rust selection plus focused repairs and one
+new shared-checker regression pass; the full library suite was not repeated.
+
+Qualification fixed nominal binder specialization, omitted rest presence through
+callable bridges and legacy empty class-field initialization. Other failures
+were stale refusal/ABI expectations and a closure fixture that counted its new
+TDZ slot as a leak. Array identity searches now share Map/Set's existing refusal
+of value structs and unconstrained type parameters; explicit field predicates
+remain supported. This repairs an inconsistent source contract, not a native
+coverage win.
+
+N2's six acceptance packages are complete. V1 now owns the remaining JavaScript
+formation/default-timing discoveries, independent raw/gzip/Brotli competition,
+maintained/held-out runtime and compile-cost evidence. V2 follows qualification.

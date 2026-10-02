@@ -1,0 +1,1061 @@
+{
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+    "sha256": "eda57d993559dabd50d009be24c311526f952a9e1a144acbe66dfe88b530763c"
+  },
+  "scope": "end-to-end serial process samples, Node/Wasm startup included; portable cores only, not full library parsers/renderers",
+  "rows": [
+    {
+      "name": "katex-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/cores/oracle.mjs",
+        "katex"
+      ],
+      "exit": 0,
+      "wall_ms": 44.84749800758436,
+      "cpu_ms": 53.083,
+      "passed": true
+    },
+    {
+      "name": "katex-source-c",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/profile-katex.lil",
+        "--config",
+        "/tmp/lilscript-n2-cores-3/katex/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/katex/profile.c"
+      ],
+      "exit": 0,
+      "wall_ms": 7.854488008888438,
+      "cpu_ms": 7.590000000000002,
+      "passed": true
+    },
+    {
+      "name": "katex-source-js",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/profile-katex.lil",
+        "--config",
+        "/tmp/lilscript-n2-cores-3/katex/source.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/katex/profile.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 74.52317597926594,
+      "cpu_ms": 74.255,
+      "passed": true
+    },
+    {
+      "name": "katex-speed-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-O3",
+        "-I",
+        "/tmp/lilscript-n2-cores-3/katex",
+        "/tmp/lilscript-n2-cores-3/katex/profile.c",
+        "tests/native/profile.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/katex/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 981.3341060071252,
+      "cpu_ms": 980.9760000000001,
+      "passed": true
+    },
+    {
+      "name": "katex-size-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Os",
+        "-I",
+        "/tmp/lilscript-n2-cores-3/katex",
+        "/tmp/lilscript-n2-cores-3/katex/profile.c",
+        "tests/native/profile.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/katex/size"
+      ],
+      "exit": 0,
+      "wall_ms": 533.1775020167697,
+      "cpu_ms": 532.7889999999998,
+      "passed": true
+    },
+    {
+      "name": "katex-balanced-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-O2",
+        "-I",
+        "/tmp/lilscript-n2-cores-3/katex",
+        "/tmp/lilscript-n2-cores-3/katex/profile.c",
+        "tests/native/profile.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/katex/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 702.0229650079273,
+      "cpu_ms": 701.6670000000004,
+      "passed": true
+    },
+    {
+      "name": "katex-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-O2",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-cores-3/katex",
+        "/tmp/lilscript-n2-cores-3/katex/profile.c",
+        "tests/native/profile.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/katex/sanitize"
+      ],
+      "exit": 0,
+      "wall_ms": 1420.3125219792128,
+      "cpu_ms": 1419.889,
+      "passed": true
+    },
+    {
+      "name": "katex-speed-0",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 90.57418297743425,
+      "cpu_ms": 90.26299999999992,
+      "passed": true
+    },
+    {
+      "name": "katex-speed-1",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 90.24538798257709,
+      "cpu_ms": 89.94500000000033,
+      "passed": true
+    },
+    {
+      "name": "katex-speed-2",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 89.85707999090664,
+      "cpu_ms": 89.56699999999978,
+      "passed": true
+    },
+    {
+      "name": "katex-speed-3",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 91.97149297688156,
+      "cpu_ms": 91.64099999999969,
+      "passed": true
+    },
+    {
+      "name": "katex-speed-4",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 91.16311799152754,
+      "cpu_ms": 90.88400000000001,
+      "passed": true
+    },
+    {
+      "name": "katex-size-0",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/size"
+      ],
+      "exit": 0,
+      "wall_ms": 310.0975510024,
+      "cpu_ms": 309.6349999999999,
+      "passed": true
+    },
+    {
+      "name": "katex-size-1",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/size"
+      ],
+      "exit": 0,
+      "wall_ms": 312.64183201710694,
+      "cpu_ms": 312.2689999999999,
+      "passed": true
+    },
+    {
+      "name": "katex-size-2",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/size"
+      ],
+      "exit": 0,
+      "wall_ms": 327.88804001756944,
+      "cpu_ms": 327.4449999999998,
+      "passed": true
+    },
+    {
+      "name": "katex-size-3",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/size"
+      ],
+      "exit": 0,
+      "wall_ms": 310.4365690087434,
+      "cpu_ms": 310.01900000000035,
+      "passed": true
+    },
+    {
+      "name": "katex-size-4",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/size"
+      ],
+      "exit": 0,
+      "wall_ms": 308.76630000420846,
+      "cpu_ms": 308.3799999999998,
+      "passed": true
+    },
+    {
+      "name": "katex-balanced-0",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 77.29187299264595,
+      "cpu_ms": 76.93900000000048,
+      "passed": true
+    },
+    {
+      "name": "katex-balanced-1",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 77.07780200871639,
+      "cpu_ms": 76.7860000000006,
+      "passed": true
+    },
+    {
+      "name": "katex-balanced-2",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 76.29802101291716,
+      "cpu_ms": 75.98399999999944,
+      "passed": true
+    },
+    {
+      "name": "katex-balanced-3",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 78.61564398626797,
+      "cpu_ms": 78.3259999999994,
+      "passed": true
+    },
+    {
+      "name": "katex-balanced-4",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 76.95322801009752,
+      "cpu_ms": 76.6090000000001,
+      "passed": true
+    },
+    {
+      "name": "katex-sanitize-0",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/katex/sanitize"
+      ],
+      "exit": 0,
+      "wall_ms": 446.8610079784412,
+      "cpu_ms": 446.64899999999955,
+      "passed": true
+    },
+    {
+      "name": "katex-javascript-0",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/katex/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 43.050170002970845,
+      "cpu_ms": 55.14399999999991,
+      "passed": true
+    },
+    {
+      "name": "katex-javascript-1",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/katex/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 43.43759501352906,
+      "cpu_ms": 57.21000000000015,
+      "passed": true
+    },
+    {
+      "name": "katex-javascript-2",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/katex/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 40.48875000444241,
+      "cpu_ms": 52.41600000000041,
+      "passed": true
+    },
+    {
+      "name": "katex-javascript-3",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/katex/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 43.49293900304474,
+      "cpu_ms": 56.163999999999994,
+      "passed": true
+    },
+    {
+      "name": "katex-javascript-4",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/katex/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 41.49669801699929,
+      "cpu_ms": 53.75199999999963,
+      "passed": true
+    },
+    {
+      "name": "katex-wasi-cli",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/profile-katex.lil",
+        "--config",
+        "/tmp/lilscript-n2-cores-3/katex/wasi.toml",
+        "--target",
+        "native",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/katex/profile.wasm"
+      ],
+      "exit": 0,
+      "wall_ms": 820.1054490054958,
+      "cpu_ms": 821.0950000000004,
+      "passed": true
+    },
+    {
+      "name": "katex-wasi-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "run",
+        "--env",
+        "LILSCRIPT_N2_ITERATIONS=131072",
+        "/tmp/lilscript-n2-cores-3/katex/profile.wasm"
+      ],
+      "exit": 0,
+      "wall_ms": 161.27551498357207,
+      "cpu_ms": 237.9090000000006,
+      "passed": true
+    },
+    {
+      "name": "marked-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/cores/oracle.mjs",
+        "marked"
+      ],
+      "exit": 0,
+      "wall_ms": 98.9143009937834,
+      "cpu_ms": 103.82300000000045,
+      "passed": true
+    },
+    {
+      "name": "marked-source-c",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/profile-marked.lil",
+        "--config",
+        "/tmp/lilscript-n2-cores-3/marked/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/marked/profile.c"
+      ],
+      "exit": 0,
+      "wall_ms": 14.939543994842097,
+      "cpu_ms": 14.626000000000417,
+      "passed": true
+    },
+    {
+      "name": "marked-source-js",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/profile-marked.lil",
+        "--config",
+        "/tmp/lilscript-n2-cores-3/marked/source.toml",
+        "--target",
+        "js",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/marked/profile.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 89.55111500108615,
+      "cpu_ms": 89.04599999999974,
+      "passed": true
+    },
+    {
+      "name": "marked-speed-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-O3",
+        "-I",
+        "/tmp/lilscript-n2-cores-3/marked",
+        "/tmp/lilscript-n2-cores-3/marked/profile.c",
+        "tests/native/profile.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/marked/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 4196.336325025186,
+      "cpu_ms": 4195.616000000001,
+      "passed": true
+    },
+    {
+      "name": "marked-size-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Os",
+        "-I",
+        "/tmp/lilscript-n2-cores-3/marked",
+        "/tmp/lilscript-n2-cores-3/marked/profile.c",
+        "tests/native/profile.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/marked/size"
+      ],
+      "exit": 0,
+      "wall_ms": 2238.8281190069392,
+      "cpu_ms": 2238.383,
+      "passed": true
+    },
+    {
+      "name": "marked-balanced-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-O2",
+        "-I",
+        "/tmp/lilscript-n2-cores-3/marked",
+        "/tmp/lilscript-n2-cores-3/marked/profile.c",
+        "tests/native/profile.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/marked/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 3541.3017259852495,
+      "cpu_ms": 3540.4649999999974,
+      "passed": true
+    },
+    {
+      "name": "marked-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-O2",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-cores-3/marked",
+        "/tmp/lilscript-n2-cores-3/marked/profile.c",
+        "tests/native/profile.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/marked/sanitize"
+      ],
+      "exit": 0,
+      "wall_ms": 6371.6860709828325,
+      "cpu_ms": 6370.954000000001,
+      "passed": true
+    },
+    {
+      "name": "marked-speed-0",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 143.72807400650345,
+      "cpu_ms": 143.3719999999984,
+      "passed": true
+    },
+    {
+      "name": "marked-speed-1",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 137.86676101153716,
+      "cpu_ms": 137.56400000000403,
+      "passed": true
+    },
+    {
+      "name": "marked-speed-2",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 137.9750730120577,
+      "cpu_ms": 137.6289999999979,
+      "passed": true
+    },
+    {
+      "name": "marked-speed-3",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 136.61833098740317,
+      "cpu_ms": 136.30799999999965,
+      "passed": true
+    },
+    {
+      "name": "marked-speed-4",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/speed"
+      ],
+      "exit": 0,
+      "wall_ms": 135.84331900347024,
+      "cpu_ms": 135.51499999999805,
+      "passed": true
+    },
+    {
+      "name": "marked-size-0",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/size"
+      ],
+      "exit": 0,
+      "wall_ms": 217.5901390146464,
+      "cpu_ms": 217.26200000000395,
+      "passed": true
+    },
+    {
+      "name": "marked-size-1",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/size"
+      ],
+      "exit": 0,
+      "wall_ms": 214.7412209887989,
+      "cpu_ms": 214.36400000000089,
+      "passed": true
+    },
+    {
+      "name": "marked-size-2",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/size"
+      ],
+      "exit": 0,
+      "wall_ms": 215.16089799115434,
+      "cpu_ms": 214.78900000000067,
+      "passed": true
+    },
+    {
+      "name": "marked-size-3",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/size"
+      ],
+      "exit": 0,
+      "wall_ms": 219.1995260072872,
+      "cpu_ms": 218.7969999999999,
+      "passed": true
+    },
+    {
+      "name": "marked-size-4",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/size"
+      ],
+      "exit": 0,
+      "wall_ms": 216.94065298652276,
+      "cpu_ms": 216.5749999999984,
+      "passed": true
+    },
+    {
+      "name": "marked-balanced-0",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 137.54193199565634,
+      "cpu_ms": 137.18199999999803,
+      "passed": true
+    },
+    {
+      "name": "marked-balanced-1",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 141.37245900928974,
+      "cpu_ms": 141.03500000000201,
+      "passed": true
+    },
+    {
+      "name": "marked-balanced-2",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 138.65147100295871,
+      "cpu_ms": 138.20799999999844,
+      "passed": true
+    },
+    {
+      "name": "marked-balanced-3",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 137.1751750120893,
+      "cpu_ms": 136.7049999999975,
+      "passed": true
+    },
+    {
+      "name": "marked-balanced-4",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/balanced"
+      ],
+      "exit": 0,
+      "wall_ms": 138.0123129929416,
+      "cpu_ms": 137.61300000000008,
+      "passed": true
+    },
+    {
+      "name": "marked-sanitize-0",
+      "args": [
+        "/tmp/lilscript-n2-cores-3/marked/sanitize"
+      ],
+      "exit": 0,
+      "wall_ms": 647.4078299943358,
+      "cpu_ms": 647.0419999999982,
+      "passed": true
+    },
+    {
+      "name": "marked-javascript-0",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/marked/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 104.17754200170748,
+      "cpu_ms": 109.33200000000286,
+      "passed": true
+    },
+    {
+      "name": "marked-javascript-1",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/marked/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 105.04155099624768,
+      "cpu_ms": 110.17300000000097,
+      "passed": true
+    },
+    {
+      "name": "marked-javascript-2",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/marked/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 106.25651699956506,
+      "cpu_ms": 111.33800000000038,
+      "passed": true
+    },
+    {
+      "name": "marked-javascript-3",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/marked/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 104.7013929928653,
+      "cpu_ms": 109.53599999999875,
+      "passed": true
+    },
+    {
+      "name": "marked-javascript-4",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "/tmp/lilscript-n2-cores-3/marked/run.mjs"
+      ],
+      "exit": 0,
+      "wall_ms": 105.29417399084195,
+      "cpu_ms": 109.76899999999823,
+      "passed": true
+    },
+    {
+      "name": "marked-wasi-cli",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/profile-marked.lil",
+        "--config",
+        "/tmp/lilscript-n2-cores-3/marked/wasi.toml",
+        "--target",
+        "native",
+        "-o",
+        "/tmp/lilscript-n2-cores-3/marked/profile.wasm"
+      ],
+      "exit": 0,
+      "wall_ms": 4553.295946010621,
+      "cpu_ms": 4555.038000000003,
+      "passed": true
+    },
+    {
+      "name": "marked-wasi-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "run",
+        "--env",
+        "LILSCRIPT_N2_ITERATIONS=128",
+        "/tmp/lilscript-n2-cores-3/marked/profile.wasm"
+      ],
+      "exit": 0,
+      "wall_ms": 341.70558999176137,
+      "cpu_ms": 557.8329999999964,
+      "passed": true
+    }
+  ],
+  "measurements": [
+    {
+      "name": "katex",
+      "iterations": 131072,
+      "lane": "speed",
+      "samples": [
+        {
+          "wall_ms": 90.57418297743425,
+          "cpu_ms": 90.26299999999992
+        },
+        {
+          "wall_ms": 90.24538798257709,
+          "cpu_ms": 89.94500000000033
+        },
+        {
+          "wall_ms": 89.85707999090664,
+          "cpu_ms": 89.56699999999978
+        },
+        {
+          "wall_ms": 91.97149297688156,
+          "cpu_ms": 91.64099999999969
+        },
+        {
+          "wall_ms": 91.16311799152754,
+          "cpu_ms": 90.88400000000001
+        }
+      ],
+      "median_cpu_ms": 90.26299999999992,
+      "median_wall_ms": 90.57418297743425,
+      "artifact_bytes": 57808
+    },
+    {
+      "name": "katex",
+      "iterations": 131072,
+      "lane": "size",
+      "samples": [
+        {
+          "wall_ms": 310.0975510024,
+          "cpu_ms": 309.6349999999999
+        },
+        {
+          "wall_ms": 312.64183201710694,
+          "cpu_ms": 312.2689999999999
+        },
+        {
+          "wall_ms": 327.88804001756944,
+          "cpu_ms": 327.4449999999998
+        },
+        {
+          "wall_ms": 310.4365690087434,
+          "cpu_ms": 310.01900000000035
+        },
+        {
+          "wall_ms": 308.76630000420846,
+          "cpu_ms": 308.3799999999998
+        }
+      ],
+      "median_cpu_ms": 310.01900000000035,
+      "median_wall_ms": 310.4365690087434,
+      "artifact_bytes": 46432
+    },
+    {
+      "name": "katex",
+      "iterations": 131072,
+      "lane": "balanced",
+      "samples": [
+        {
+          "wall_ms": 77.29187299264595,
+          "cpu_ms": 76.93900000000048
+        },
+        {
+          "wall_ms": 77.07780200871639,
+          "cpu_ms": 76.7860000000006
+        },
+        {
+          "wall_ms": 76.29802101291716,
+          "cpu_ms": 75.98399999999944
+        },
+        {
+          "wall_ms": 78.61564398626797,
+          "cpu_ms": 78.3259999999994
+        },
+        {
+          "wall_ms": 76.95322801009752,
+          "cpu_ms": 76.6090000000001
+        }
+      ],
+      "median_cpu_ms": 76.7860000000006,
+      "median_wall_ms": 77.07780200871639,
+      "artifact_bytes": 49656
+    },
+    {
+      "name": "katex",
+      "iterations": 131072,
+      "lane": "sanitize",
+      "samples": [
+        {
+          "wall_ms": 446.8610079784412,
+          "cpu_ms": 446.64899999999955
+        }
+      ],
+      "median_cpu_ms": 446.64899999999955,
+      "median_wall_ms": 446.8610079784412,
+      "artifact_bytes": 1940928
+    },
+    {
+      "name": "katex",
+      "iterations": 131072,
+      "lane": "javascript",
+      "samples": [
+        {
+          "wall_ms": 43.050170002970845,
+          "cpu_ms": 55.14399999999991
+        },
+        {
+          "wall_ms": 43.43759501352906,
+          "cpu_ms": 57.21000000000015
+        },
+        {
+          "wall_ms": 40.48875000444241,
+          "cpu_ms": 52.41600000000041
+        },
+        {
+          "wall_ms": 43.49293900304474,
+          "cpu_ms": 56.163999999999994
+        },
+        {
+          "wall_ms": 41.49669801699929,
+          "cpu_ms": 53.75199999999963
+        }
+      ],
+      "median_cpu_ms": 55.14399999999991,
+      "median_wall_ms": 43.050170002970845,
+      "artifact_bytes": 777
+    },
+    {
+      "name": "marked",
+      "iterations": 128,
+      "lane": "speed",
+      "samples": [
+        {
+          "wall_ms": 143.72807400650345,
+          "cpu_ms": 143.3719999999984
+        },
+        {
+          "wall_ms": 137.86676101153716,
+          "cpu_ms": 137.56400000000403
+        },
+        {
+          "wall_ms": 137.9750730120577,
+          "cpu_ms": 137.6289999999979
+        },
+        {
+          "wall_ms": 136.61833098740317,
+          "cpu_ms": 136.30799999999965
+        },
+        {
+          "wall_ms": 135.84331900347024,
+          "cpu_ms": 135.51499999999805
+        }
+      ],
+      "median_cpu_ms": 137.56400000000403,
+      "median_wall_ms": 137.86676101153716,
+      "artifact_bytes": 318816
+    },
+    {
+      "name": "marked",
+      "iterations": 128,
+      "lane": "size",
+      "samples": [
+        {
+          "wall_ms": 217.5901390146464,
+          "cpu_ms": 217.26200000000395
+        },
+        {
+          "wall_ms": 214.7412209887989,
+          "cpu_ms": 214.36400000000089
+        },
+        {
+          "wall_ms": 215.16089799115434,
+          "cpu_ms": 214.78900000000067
+        },
+        {
+          "wall_ms": 219.1995260072872,
+          "cpu_ms": 218.7969999999999
+        },
+        {
+          "wall_ms": 216.94065298652276,
+          "cpu_ms": 216.5749999999984
+        }
+      ],
+      "median_cpu_ms": 216.5749999999984,
+      "median_wall_ms": 216.94065298652276,
+      "artifact_bytes": 201952
+    },
+    {
+      "name": "marked",
+      "iterations": 128,
+      "lane": "balanced",
+      "samples": [
+        {
+          "wall_ms": 137.54193199565634,
+          "cpu_ms": 137.18199999999803
+        },
+        {
+          "wall_ms": 141.37245900928974,
+          "cpu_ms": 141.03500000000201
+        },
+        {
+          "wall_ms": 138.65147100295871,
+          "cpu_ms": 138.20799999999844
+        },
+        {
+          "wall_ms": 137.1751750120893,
+          "cpu_ms": 136.7049999999975
+        },
+        {
+          "wall_ms": 138.0123129929416,
+          "cpu_ms": 137.61300000000008
+        }
+      ],
+      "median_cpu_ms": 137.61300000000008,
+      "median_wall_ms": 138.0123129929416,
+      "artifact_bytes": 302936
+    },
+    {
+      "name": "marked",
+      "iterations": 128,
+      "lane": "sanitize",
+      "samples": [
+        {
+          "wall_ms": 647.4078299943358,
+          "cpu_ms": 647.0419999999982
+        }
+      ],
+      "median_cpu_ms": 647.0419999999982,
+      "median_wall_ms": 647.4078299943358,
+      "artifact_bytes": 2933936
+    },
+    {
+      "name": "marked",
+      "iterations": 128,
+      "lane": "javascript",
+      "samples": [
+        {
+          "wall_ms": 104.17754200170748,
+          "cpu_ms": 109.33200000000286
+        },
+        {
+          "wall_ms": 105.04155099624768,
+          "cpu_ms": 110.17300000000097
+        },
+        {
+          "wall_ms": 106.25651699956506,
+          "cpu_ms": 111.33800000000038
+        },
+        {
+          "wall_ms": 104.7013929928653,
+          "cpu_ms": 109.53599999999875
+        },
+        {
+          "wall_ms": 105.29417399084195,
+          "cpu_ms": 109.76899999999823
+        }
+      ],
+      "median_cpu_ms": 109.76899999999823,
+      "median_wall_ms": 105.04155099624768,
+      "artifact_bytes": 13548
+    }
+  ]
+}

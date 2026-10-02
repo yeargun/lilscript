@@ -1,0 +1,34 @@
+// Typed adaptation of KaTeX unicodeScripts.js; see origin.json and KATEX-LICENSE.
+struct Script {string name;int[][] blocks;}
+Script[] scriptData=[
+    Script{"latin",[[0x0100,0x024f],[0x0300,0x036f]]},
+    Script{"cyrillic",[[0x0400,0x04ff]]},
+    Script{"armenian",[[0x0530,0x058f]]},
+    Script{"brahmic",[[0x0900,0x109f]]},
+    Script{"georgian",[[0x10a0,0x10ff]]},
+    Script{"cjk",[[0x3000,0x30ff],[0x4e00,0x9faf],[0xff00,0xff60]]},
+    Script{"hangul",[[0xac00,0xd7af]]}
+];
+export string? scriptFromCodepoint(int codepoint) {
+    for(int i=0;i<scriptData.length;i++) {
+        Script script=scriptData[i];
+        for(int i=0;i<script.blocks.length;i++) {
+            int[] block=script.blocks[i];
+            if(codepoint>=block[0] && codepoint<=block[1]) {return script.name;}
+        }
+    }
+    return null;
+}
+int[] allBlocks=[];
+for(int i=0;i<scriptData.length;i++) {
+    for(int j=0;j<scriptData[i].blocks.length;j++) {
+        int[] block=scriptData[i].blocks[j];
+        for(int k=0;k<block.length;k++) {allBlocks.push(block[k]);}
+    }
+}
+export bool supportedCodepoint(int codepoint) {
+    for(int i=0;i<allBlocks.length;i+=2) {
+        if(codepoint>=allBlocks[i] && codepoint<=allBlocks[i+1]) {return true;}
+    }
+    return false;
+}

@@ -25,7 +25,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
         if ty!=NativeType::Void { self.write(format_args!("{ty} ls_pending_return LS_NATIVE_UNUSED{};\n",ty.empty_slot()))?; }
         for &(region,cell) in &self.plan.units[unit.index()].catch_bindings {
             let _=region;
-            if self.plan.boxed_cell(cell) { self.write(format_args!("ls_box{0} *ls_c{0} = NULL;\n",cell.index()))?; }
+            if self.plan.boxed_cell(cell) {
+                if self.storage.stack_cell(cell) {self.write(format_args!("ls_box{0} ls_sb{0} = {{0}};\n",cell.index()))?;}
+                self.write(format_args!("ls_box{0} *ls_c{0} = NULL;\n",cell.index()))?;
+            }
             else { let ty=self.plan.value_type(self.plan.cell_storage(cell));self.write(format_args!("{ty} ls_c{} LS_NATIVE_UNUSED = {{0}};\n",cell.index()))?; }
         }
         for (index,operation) in data.operations.iter().enumerate() {
@@ -40,6 +43,28 @@ impl Emitter<'_, '_, '_, '_, '_> {
     pub(super) fn operation_can_raise(&self,unit:UnitId,op:OpId)->bool {
         let data=self.plan.program.unit(unit).unwrap();
         if self.plan.units[unit.index()].conversion_checks[op.index()] {return true;}
+        if self.elide_exception_checks {
+            let place_can_raise=|place:PlaceId| match self.plan.units[unit.index()].places[place.index()].recipe {
+                PlaceRecipe::Cell(cell)=>self.plan.boxed_cell(cell) || (self.plan.cells[cell.index()].global_guard && self.plan.program.cells[cell.index()].owner!=unit),
+                PlaceRecipe::Value(_)=>false,
+                _=>true,
+            };
+            match data.operations[op.index()].kind {
+                OperationKind::Load(place)|OperationKind::Store(place)=>return place_can_raise(place),
+                OperationKind::CheckPlace(place)=>return match self.plan.units[unit.index()].places[place.index()].recipe {
+                    PlaceRecipe::Field {base,..}=>place_can_raise(base),_=>false,
+                },
+                OperationKind::PrepareCall(call)=>return match self.plan.units[unit.index()].calls[call.index()] {
+                    PreparedTarget::Placed {place,..}=>place_can_raise(place),_=>false,
+                },
+                OperationKind::PrepareReference {call,position}=>{
+                    let CallArgument::Reference(place)=data.arguments(data.calls[call.index()].arguments).unwrap()[position as usize] else {unreachable!()};
+                    return place_can_raise(place);
+                }
+                OperationKind::Intrinsic(ResolvedIntrinsic::Property(crate::primitive::Intrinsic::ArrayLength))=>return false,
+                _=>{}
+            }
+        }
         match data.operations[op.index()].kind {
             OperationKind::Call(call)=>match self.plan.units[unit.index()].calls[call.index()] {
                 PreparedTarget::Function(body)=>self.plan.units[body.index()].may_throw,
@@ -141,7 +166,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.write(format_args!("goto ls_{}{};\nls_catch{}: LS_NATIVE_UNUSED;\n",if finally.is_some(){"finally"}else{"try_end"},op.index(),op.index()))?;
             if let Some(cell)=cell {
                 if self.plan.boxed_cell(cell) {
-                    self.write(format_args!("{{ ls_value ls_caught=ls_exception_catch(); ls_c{0}=ls_box_new{0}(ls_caught); ls_value_release(ls_caught); }}\n",cell.index()))?;
+                    if self.storage.stack_cell(cell) {
+                        self.write(format_args!("{{ ls_value ls_caught=ls_exception_catch(); ls_sb{0}=(ls_box{0}){{.owner={{.references=SIZE_MAX-1}}}}; ls_c{0}=&ls_sb{0}; ls_box_initialize{0}(ls_c{0},ls_caught); ls_value_release(ls_caught); }}\n",cell.index()))?;
+                    } else {
+                        self.write(format_args!("{{ ls_value ls_caught=ls_exception_catch(); ls_c{0}=ls_box_new{0}(ls_caught); ls_value_release(ls_caught); }}\n",cell.index()))?;
+                    }
                 } else { self.write(format_args!("ls_value_take(&ls_c{},ls_exception_catch());\n",cell.index()))?; }
             } else { self.text("ls_value_release(ls_exception_catch());\n")?; }
             self.push(Task::TryCatchEnd(op))?;self.region(region,enclosing)

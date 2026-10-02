@@ -85,32 +85,30 @@ A (case, lane) passes when the program exits 0 and its stdout equals the `.out` 
 
 For every failure the report gives the first differing line, or the diagnostic's first lines.
 
-### Per-target feature masks
+### Per-target exclusions
 
-The mask is declared once, in `FEATURES` in `scripts/cases.mjs`. Detection is lexical, on source with comments and string text removed. `export` counts only in the entry module, because an imported module's exports are internal linkage. Every other feature counts in any module the entry imports.
+JavaScript format eligibility uses the lexical `FEATURES` table in
+`scripts/cases.mjs`: a foreign ESM import needs module syntax, and a module
+probe needs an importable artifact. Detection ignores comments and string text.
 
-| Feature | Runs on | Why | Lifted by |
-|---|---|---|---|
-| `.host.js` prelude | script, module | defines externs in a JavaScript realm | — |
-| `.module-probe.mjs` | module | imports the ES module's exports | — |
-| `JsValue` | script, module | conservative host-operation corpus mask; portable tagged exception transport is implemented natively | N2 case classification |
-| `import extern` | module | a foreign ES module edge needs module syntax; a classic script carries only embedded host modules, which cannot have default exports. The case's folder `X/` is linked beside the artifact, so the output's imports resolve | — |
-| `extern` | script, module | this fixture needs a C provider/host-equivalent boundary; configured native function providers are supported | N2 (M11.3 qualification) |
-| `export` in the entry | script, module | the exports are a module ABI; C has none yet | M11.8 |
-| `JS.` operations | script, module | JavaScript-only | — |
-| `async`, `await`, `Task` | script, module | native rejects them (language-v0.1) | M11.6 |
-| `Regex` | script, module | native rejects it | M11.6 |
-| `generator` | script, module | native rejects generators | M11.6 |
-| `object { … }` | script, module | JavaScript-only | — |
-| `JSON.parse` | script, module | returns `JsValue` | — |
+Native eligibility uses [individual source-bound exclusions](../tests/native/corpus-exclusions.json),
+not a lexical `JsValue`, `export`, `async` or `generator` mask. Each row names
+its concrete boundary and the digest of the source, imported modules, oracle,
+configuration and host/probe files. New or changed cases run native unless a
+new explicit classification is recorded. An exclusion is never a runtime pass.
 
-These are corpus harness exclusions, not a claim that every excluded source is
-JavaScript-only. The [native matrix](native-support.md) distinguishes native
-implementation gaps, provider/ABI boundaries and declared JavaScript-only
-facilities. N2 owns the portable omissions and their unmasking. Native records
-remain a visible ledgered failure, not a newly masked success. N1's
-[inventory](../benchmarks/migration-results/2026-10-02-n1-native/masked-cases.json)
-classifies all 260 currently masked cases, including overlapping reasons.
+The N2 census accounts for all 403 cases: 161 have native execution oracles;
+147 first require a configured C provider; 84 use a declared JavaScript host
+facility; seven observe JavaScript prototypes/modules through host scripts;
+and four still request an obsolete positional JavaScript ABI (V1).
+Missing-provider classification describes the first blocking test boundary,
+not a proof about later recipes. Native C library interfaces and providers have
+separate executable qualification. The historical N1 inventory remains archived.
+
+The [native matrix](native-support.md) distinguishes source semantics, native
+representations and JavaScript host facilities. Target checking and execution
+are independent evidence: an admitted source still has to compile and match
+its oracle before the runner counts a pass.
 
 Ordinary C lanes link through `lilscript --target native --link-c` and retain its
 native toolchain receipt. Their default native objective is `balanced` (`-O2`);

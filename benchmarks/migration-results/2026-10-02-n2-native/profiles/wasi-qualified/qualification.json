@@ -1,0 +1,425 @@
+{
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+    "sha256": "eda57d993559dabd50d009be24c311526f952a9e1a144acbe66dfe88b530763c"
+  },
+  "toolchains": [
+    {
+      "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz",
+      "sha256": "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4",
+      "bytes": 192383077
+    },
+    {
+      "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.1/wasmtime-v49.0.1-x86_64-linux.tar.xz",
+      "sha256": "c71f7e0d30a92e418f0d17db7c6d8f6664c1ad764340a1278678f4209deab534",
+      "bytes": 11615796
+    }
+  ],
+  "rows": [
+    {
+      "name": "binary64-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "src/program/fixtures/native/binary64.lil",
+        "--config",
+        "/tmp/lilscript-n2-wasi-3/binary64/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/binary64/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5,
+      "passed": true
+    },
+    {
+      "name": "binary64-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/bin/clang",
+        "--target=wasm32-wasip1",
+        "--sysroot=/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/share/wasi-sysroot",
+        "-std=c11",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-Wl,-z,stack-size=1048576",
+        "/tmp/lilscript-n2-wasi-3/binary64/ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/binary64/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 81,
+      "passed": true
+    },
+    {
+      "name": "binary64-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "/tmp/lilscript-n2-wasi-3/binary64/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 14,
+      "passed": true
+    },
+    {
+      "name": "ownership-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/ownership.lil",
+        "--config",
+        "/tmp/lilscript-n2-wasi-3/ownership/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/ownership/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "ownership-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/bin/clang",
+        "--target=wasm32-wasip1",
+        "--sysroot=/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/share/wasi-sysroot",
+        "-std=c11",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-Wl,-z,stack-size=1048576",
+        "/tmp/lilscript-n2-wasi-3/ownership/ownership.c",
+        "/tmp/lilscript-n2-wasi-3/ownership/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/ownership/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1085,
+      "passed": true
+    },
+    {
+      "name": "ownership-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "/tmp/lilscript-n2-wasi-3/ownership/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 37,
+      "passed": true
+    },
+    {
+      "name": "text-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/text.lil",
+        "--config",
+        "/tmp/lilscript-n2-wasi-3/text/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/text/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "text-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/bin/clang",
+        "--target=wasm32-wasip1",
+        "--sysroot=/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/share/wasi-sysroot",
+        "-std=c11",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-Wl,-z,stack-size=1048576",
+        "/tmp/lilscript-n2-wasi-3/text/ownership.c",
+        "/tmp/lilscript-n2-wasi-3/text/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/text/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 3361,
+      "passed": true
+    },
+    {
+      "name": "text-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "/tmp/lilscript-n2-wasi-3/text/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 57,
+      "passed": true
+    },
+    {
+      "name": "json-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/json.lil",
+        "--config",
+        "/tmp/lilscript-n2-wasi-3/json/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/json/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8,
+      "passed": true
+    },
+    {
+      "name": "json-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/bin/clang",
+        "--target=wasm32-wasip1",
+        "--sysroot=/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/share/wasi-sysroot",
+        "-std=c11",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-Wl,-z,stack-size=1048576",
+        "/tmp/lilscript-n2-wasi-3/json/ownership.c",
+        "/tmp/lilscript-n2-wasi-3/json/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/json/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2340,
+      "passed": true
+    },
+    {
+      "name": "json-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "/tmp/lilscript-n2-wasi-3/json/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 68,
+      "passed": true
+    },
+    {
+      "name": "generators-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-n2-wasi-3/generators/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/generators/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "generators-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/bin/clang",
+        "--target=wasm32-wasip1",
+        "--sysroot=/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/share/wasi-sysroot",
+        "-std=c11",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-Wl,-z,stack-size=1048576",
+        "/tmp/lilscript-n2-wasi-3/generators/ownership.c",
+        "/tmp/lilscript-n2-wasi-3/generators/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/generators/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2428,
+      "passed": true
+    },
+    {
+      "name": "generators-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "/tmp/lilscript-n2-wasi-3/generators/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 76,
+      "passed": true
+    },
+    {
+      "name": "tasks-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/tasks.lil",
+        "--config",
+        "/tmp/lilscript-n2-wasi-3/tasks/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/tasks/tasks.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "tasks-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/bin/clang",
+        "--target=wasm32-wasip1",
+        "--sysroot=/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/share/wasi-sysroot",
+        "-std=c11",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-Wl,-z,stack-size=1048576",
+        "/tmp/lilscript-n2-wasi-3/tasks/tasks.c",
+        "/tmp/lilscript-n2-wasi-3/tasks/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/tasks/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2976,
+      "passed": true
+    },
+    {
+      "name": "tasks-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "/tmp/lilscript-n2-wasi-3/tasks/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 143,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-wasi-3/physical-storage/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/physical-storage/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/bin/clang",
+        "--target=wasm32-wasip1",
+        "--sysroot=/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/share/wasi-sysroot",
+        "-std=c11",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-Wl,-z,stack-size=1048576",
+        "/tmp/lilscript-n2-wasi-3/physical-storage/ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/physical-storage/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 997,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "/tmp/lilscript-n2-wasi-3/physical-storage/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 37,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-3/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-wasi-3/generic-storage/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/generic-storage/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/bin/clang",
+        "--target=wasm32-wasip1",
+        "--sysroot=/home/azureuser/lilscript-work/toolchains/wasi-sdk-34.0-x86_64-linux/share/wasi-sysroot",
+        "-std=c11",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-Wl,-z,stack-size=1048576",
+        "/tmp/lilscript-n2-wasi-3/generic-storage/ownership.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-wasi-3/generic-storage/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 590,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-run",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/wasmtime-v49.0.1-x86_64-linux/wasmtime",
+        "/tmp/lilscript-n2-wasi-3/generic-storage/run.wasm"
+      ],
+      "exit": 0,
+      "elapsed_ms": 33,
+      "passed": true
+    }
+  ]
+}

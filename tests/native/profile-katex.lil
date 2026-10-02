@@ -1,0 +1,16 @@
+import {scriptFromCodepoint,supportedCodepoint} from "./cores/katex-unicode.lil";
+extern int profileIterations();
+int run(int count) {
+    int sum=0;
+    for(int round=0;round<count;round++) {
+        // One full BMP sweep per 65536 iterations, with a permuted order.
+        int codepoint=(round*104729)&65535;
+        string name=scriptFromCodepoint(codepoint)??"";
+        sum=sum*33+name.length;
+        if(supportedCodepoint(codepoint)){sum^=codepoint;}
+    }
+    return sum;
+}
+print(run(profileIterations()));
+print(scriptFromCodepoint(0x10000)??"absent");
+print(supportedCodepoint(0x10ffff));

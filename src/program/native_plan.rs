@@ -7,6 +7,8 @@ use super::native::{NativeError, NativeHostBinding, NativeHostBindings};
 mod signatures;
 #[path = "native_conversions.rs"]
 mod conversions;
+#[path = "native_specialization.rs"]
+mod specialization;
 use super::native_runtime::{Helper, Helpers};
 use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
 use super::*;
@@ -453,6 +455,7 @@ fn release<T>(value: Vec<T>, budget: &mut AllocationBudget<'_>) -> Result<(), Na
 pub(super) struct TypeTables<'program, 'src> {
     pub(super) arrays: Vec<NativeType>,
     pub(super) signatures: Vec<NativeSignature<'program, 'src>>,
+    substitutions: Vec<(crate::check::TypeParameterId, Option<TypeId>)>,
 }
 
 fn intern_array(
@@ -570,7 +573,14 @@ pub(super) fn native_type<'program, 'src>(
             NativeType::Dynamic(tagged)
         }
         // A type parameter may stand for anything the tag can carry.
-        Type::TypeParameter(_) | Type::Dynamic => NativeType::Dynamic(Tagged::ANY),
+        Type::TypeParameter(parameter) => {
+            work(budget,tables.substitutions.len())?;
+            if let Some(actual) = tables.substitutions.iter().find_map(|(id,actual)| (*id==parameter.identity).then_some(*actual).flatten()) {
+                return native_type(program,&program.types[actual.index()],tables,budget);
+            }
+            NativeType::Dynamic(Tagged::ANY)
+        }
+        Type::Dynamic => NativeType::Dynamic(Tagged::ANY),
         _ => return Ok(None),
     }))
 }
@@ -1208,6 +1218,13 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         hosts: &'program NativeHostBindings<'program>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, NativeError> {
+        Self::build_with_options(program,uses,hosts,false,budget)
+    }
+    pub(super) fn build_with_options(
+        program: &'program Program<'src>, uses: &UseIndex,
+        hosts: &'program NativeHostBindings<'program>, specialize: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, NativeError> {
         work(budget, 1)?;
         work(budget,program.exports().len())?;
         if uses.tables_revision() != program.tables_revision {
@@ -1223,9 +1240,11 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         }
         validate_hosts(program, hosts.bindings, budget)?;
         let created = super::rules::created_units_in_class(program, Scratch, budget)?;
+        let specialization::Bindings {types:substitutions,callbacks}=if specialize {specialization::bindings(program,uses,budget)?} else {specialization::Bindings::default()};
         let mut tables = TypeTables {
             arrays: Vec::new(),
             signatures: Vec::new(),
+            substitutions,
         };
         let mut classes = budget.vector(Scratch, program.types.len())?;
         for (index, ty) in program.types.iter().enumerate() {
@@ -1246,7 +1265,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         let TypeTables {
             arrays,
             mut signatures,
+            substitutions,
         } = tables;
+        release(substitutions,budget)?;
         let struct_order = struct_layouts(program, &classes, budget)?;
         for element in &arrays {
             if let NativeType::Callable(signature) = *element { signatures::require(&mut signatures, signature, budget)?; }
@@ -1893,6 +1914,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     }
                     _ => return Err(error("native prepared call convention")),
                 };
+                let target=match specialization::callback(data,target,&callbacks,budget)? {
+                    Some(function)=>PreparedTarget::Function(function),
+                    None=>target,
+                };
                 calls.push(target);
             }
             let mut catch_bindings=Vec::new();let mut iterators=Vec::new();
@@ -2097,6 +2122,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
         }
         plan.finish_conversions(budget)?;
+        release(callbacks,budget)?;
         release(initializations, budget)?;
         if plan.helpers.contains(Helper::Dynamic) && !plan.struct_order.is_empty() { plan.helpers.require(Helper::Products); }
         Ok(plan)

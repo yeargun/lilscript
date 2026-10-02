@@ -1,11 +1,11 @@
 /* Authored callback provider, compiled separately against the generated header.
- * Its retained handles and live-object assertions exercise callback ABI v1.
+ * Its retained handles and live-object assertions exercise callback ABI v3.
  * No generated C is parsed, included, or altered by this provider. */
 #include "program.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-#if LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION != 1
+#if LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION != 3
 #error unexpected callback ABI
 #endif
 #ifndef LS_NATIVE_QUALIFICATION

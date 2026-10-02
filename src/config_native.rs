@@ -48,6 +48,9 @@ pub struct TargetNativeConfig {
     pub triple: Option<String>,
     /// Optional target SDK root, relative to the TOML file; never auto-downloaded.
     pub sysroot: Option<PathBuf>,
+    /// Optional linked WebAssembly stack reservation, in bytes (16-byte
+    /// aligned). Requires an explicit wasm target triple; SDK default otherwise.
+    pub wasm_stack_size: Option<u32>,
     /// False by default. Add debug information; larger artifacts, easier debugging.
     pub debug_info: bool,
     /// False by default. Enable -Wall -Wextra -Werror for generated and provider C.
@@ -63,6 +66,13 @@ pub struct TargetNativeConfig {
     /// True: eligible once-created immutable graphs use static C storage.
     /// False retains ordinary owned initialization, useful for size/startup comparisons.
     pub static_data: bool,
+    /// True: synchronous closures whose complete use set stays in their
+    /// creation region borrow stack environments and eligible captured cells.
+    /// Saves allocation/RC work at the cost of activation stack storage.
+    pub stack_storage: bool,
+    /// True: closed generic bodies called with one concrete scalar/handle
+    /// instantiation use typed storage. Public/polymorphic uses keep tagging.
+    pub generic_specialization: bool,
     /// 262144 bytes by default. Bounds libregexp parser stack use; at least
     /// 16384. Smaller values reject deeply nested patterns sooner. Exhaustion
     /// raises RangeError. Reserve this plus the caller stack in a cross profile.
@@ -82,12 +92,15 @@ impl Default for TargetNativeConfig {
             symbol_prefix: "lil".into(),
             triple: None,
             sysroot: None,
+            wasm_stack_size: None,
             debug_info: false,
             warnings_as_errors: false,
             link_time_optimization: false,
             sanitizers: Vec::new(),
             cycle_collection_threshold: 4096,
             static_data: true,
+            stack_storage: true,
+            generic_specialization: true,
             regex_stack_limit: 262144,
             regex_poll_limit: 0,
         }
@@ -95,6 +108,11 @@ impl Default for TargetNativeConfig {
 }
 impl TargetNativeConfig {
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(bytes)=self.wasm_stack_size {
+            if bytes==0 || bytes%16!=0 || !self.triple.as_deref().is_some_and(|t|t.starts_with("wasm32-") || t.starts_with("wasm64-")) || self.artifact==NativeArtifact::Object {
+                return Err("target.native.wasm_stack_size requires a linked wasm32/wasm64 target and a positive, 16-byte-aligned byte count".into());
+            }
+        }
         if !crate::native_symbols::public_prefix(&self.symbol_prefix) {return Err("target.native.symbol_prefix must be an ASCII identifier starting with a letter, outside the reserved ls and host namespaces".into());}
         if self.artifact==NativeArtifact::Object && self.link_time_optimization {return Err("target.native.link_time_optimization requires a linked artifact".into());}
         if self.regex_stack_limit < 16384 {

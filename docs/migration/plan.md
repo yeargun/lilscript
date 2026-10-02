@@ -253,8 +253,8 @@ therefore spans both milestones. Likewise M11.5's shared-input, initialization,
 scalar-storage and ownership-transfer integration is N1; omission of exception
 status checks depends on N2's exception protocol, and native generic/borrowed
 closure specialization depends on the runtime/ABI and native performance
-qualification in N2. These requirements remain open under N2 rather than being
-treated as already implemented by the JavaScript specialization producer.
+qualification in N2. These requirements are qualified independently by N2;
+JavaScript specialization alone does not satisfy the native contract.
 
 ## 8. Working order
 

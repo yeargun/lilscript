@@ -6929,17 +6929,23 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     params: Vec::new(),
                     return_type: element,
                 }))),
-                "indexOf" => Ok(Type::Function(FunctionType::new(FunctionSignature {
-                    params: vec![FunctionParameter::value(*element)],
-                    return_type: Box::new(Type::Int),
-                }))),
-                "includes" => Ok(Type::Function(FunctionType::new(FunctionSignature {
-                    params: vec![
-                        FunctionParameter::value(element.as_ref().clone()),
-                        FunctionParameter::optional(Type::Int),
-                    ],
-                    return_type: Box::new(Type::Bool),
-                }))),
+                "indexOf" => {
+                    validate_collection_key(&element, span, "array search element")?;
+                    Ok(Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![FunctionParameter::value(*element)],
+                        return_type: Box::new(Type::Int),
+                    })))
+                }
+                "includes" => {
+                    validate_collection_key(&element, span, "array search element")?;
+                    Ok(Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![
+                            FunctionParameter::value(element.as_ref().clone()),
+                            FunctionParameter::optional(Type::Int),
+                        ],
+                        return_type: Box::new(Type::Bool),
+                    })))
+                }
                 "join" if is_stringifiable_array_element(&element) => {
                     Ok(Type::Function(FunctionType::new(FunctionSignature {
                         params: vec![FunctionParameter::optional(Type::String)],
@@ -12500,6 +12506,16 @@ mod tests {
         )
         .unwrap_err();
         assert!(struct_error.message.contains("cannot be applied"));
+
+        for source in [
+            "struct Pair{int x;}Pair value=Pair{1};Pair[] values=[value];print(values.includes(value));",
+            "struct Pair{int x;}Pair value=Pair{1};Pair[] values=[value];print(values.indexOf(value));",
+            "bool contains<T>(T[] values,T value){return values.includes(value);}",
+        ] {
+            let error = check(source).unwrap_err();
+            assert!(error.message.contains("no portable identity contract"), "{error}");
+        }
+        check("struct Pair{int x;}Pair[] values=[Pair{1}];print(values.findIndex((Pair value)=>value.x==1));").unwrap();
 
         check("auto a=(int value)=>value;auto b=(int value)=>value;bool same=a==b;").unwrap();
     }

@@ -1,0 +1,13 @@
+extern int profileIterations();
+T fold<T>(T[] values,T start,func(T,T)->T combine) {
+    T result=start;
+    for(T value of values) {result=combine(result,value);}
+    return result;
+}
+int add(int left,int right) {return left+right;}
+int run(int count) {
+    int[] values=[1,2,3,4,5,6,7,8];int sum=0;
+    for(int round=0;round<count;round++) {sum^=fold(values,round,add);}
+    return sum;
+}
+print(run(profileIterations()));

@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "compiler": "/home/azureuser/lilscript-work/bin/n2-complete-1/lilscript",
+  "sha256": "0bc0b2e5a297aefe8cfa5e7277c46b98d3ba55565691502e89a2485f02b364d8",
+  "algorithm": 85,
+  "qualified_implementation_pin": "/home/azureuser/lilscript-work/bin/n2-corpus-2/lilscript",
+  "final_delta": "Native capability inventory changes from pending qualification to implemented; native specialization source formatting. No emitted C semantics changed after the qualified corpus/algorithm pin."
+}

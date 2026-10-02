@@ -7,6 +7,17 @@
 use super::*;
 
 impl Emitter<'_, '_, '_, '_, '_> {
+    pub(super) fn class_field_value(&mut self, unit: UnitId, value: ValueId, ty: NativeType) -> Result<(), NativeError> {
+        // Legacy class initialization places null in nonnullable nominal and
+        // callable fields until init assigns them. That compiler-created null
+        // is an empty storage slot, not a checked view of a source value.
+        // Explicit JS.assume still takes the ordinary validating conversion.
+        let source = self.plan.program.unit(unit).unwrap().values[value.index()].ty;
+        if matches!(self.plan.program.types[source.index()], crate::check::Type::Null)
+            && !matches!(ty, NativeType::Dynamic(_)) {
+            self.write(format_args!("({ty}){{0}}"))
+        } else { self.converted(unit, value, ty) }
+    }
     pub(super) fn object_view_declarations(&mut self)->Result<(),NativeError> {
         for class in 0..self.plan.class_tests.len() {
             if self.plan.class_view_needed(class) {
@@ -183,7 +194,7 @@ static LS_NATIVE_UNUSED void ls_object_clear(ls_native_object **slot) { ls_nativ
             let ty = self.plan.class_fields[declaring][slot];
             let target = format!("((ls_object{declaring} *)ls_o)->ls_m{slot}");
             self.write(format_args!("{target} = "))?;
-            self.converted(unit, value, ty)?;
+            self.class_field_value(unit, value, ty)?;
             self.text(";\n")?;
             if let Some(retain) = ty.retain(&target) {
                 self.text(&retain)?;

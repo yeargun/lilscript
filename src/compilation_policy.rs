@@ -46,7 +46,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // with objective fragments and admits fixed batches of independent file scores.
 // Version69 retains abrupt-exit finalizers and resolves embedded ESM re-exports.
 // Version71 preserves per-module identity for opaque embedded hosts.
-pub const POLICY_ALGORITHM_VERSION: u32 = 84;
+pub const POLICY_ALGORITHM_VERSION: u32 = 85;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -672,6 +672,8 @@ pub fn serialize_bound<S: serde::Serializer>(
 pub struct ResolvedPolicy {
     native_cycle_threshold: u32,
     native_static_data: bool,
+    native_stack_storage: bool,
+    native_generic_specialization: bool,
     native_regex_limits: (u32, u64),
     native_artifact: crate::config::NativeArtifact,
     native_symbol_prefix: String,
@@ -709,6 +711,8 @@ impl ResolvedPolicy {
         let mut policy = Self {
             native_cycle_threshold: 4096,
             native_static_data: true,
+            native_stack_storage: true,
+            native_generic_specialization: true,
             native_regex_limits: (262144, 0),
             native_artifact: crate::config::NativeArtifact::Executable,
             native_symbol_prefix: "lil".into(),
@@ -745,6 +749,22 @@ impl ResolvedPolicy {
         self
     }
     pub fn native_static_data(&self)->bool {self.native_static_data}
+    pub(crate) fn with_native_stack_storage(mut self, enabled: bool) -> Self {
+        if matches!(self.contract, CompilationContract::Native { .. }) {
+            self.native_stack_storage = enabled;
+            self.fingerprint=Sha256::digest(self.receipt().to_string().as_bytes()).into();
+        }
+        self
+    }
+    pub fn native_stack_storage(&self) -> bool {self.native_stack_storage}
+    pub(crate) fn with_native_generic_specialization(mut self, enabled: bool) -> Self {
+        if matches!(self.contract, CompilationContract::Native { .. }) {
+            self.native_generic_specialization=enabled;
+            self.fingerprint=Sha256::digest(self.receipt().to_string().as_bytes()).into();
+        }
+        self
+    }
+    pub fn native_generic_specialization(&self)->bool {self.native_generic_specialization}
     pub(crate) fn with_native_interface(mut self,artifact:crate::config::NativeArtifact,prefix:String)->Self {
         if matches!(self.contract,CompilationContract::Native {..}) {
             self.native_artifact=artifact;self.native_symbol_prefix=prefix;
@@ -1151,7 +1171,7 @@ impl ResolvedPolicy {
         use serde_json::json;
         let contract = match &self.contract {
             CompilationContract::Native { abi_version } => {
-                json!({"target":"native", "abi_version":abi_version, "string_abi":2, "cycle_collection_threshold":self.native_cycle_threshold,"static_data":self.native_static_data,"artifact":self.native_artifact,"symbol_prefix":self.native_symbol_prefix, "regex_stack_limit":self.native_regex_limits.0, "regex_poll_limit":self.native_regex_limits.1})
+                json!({"target":"native", "abi_version":abi_version, "string_abi":2, "cycle_collection_threshold":self.native_cycle_threshold,"static_data":self.native_static_data,"stack_storage":self.native_stack_storage,"generic_specialization":self.native_generic_specialization,"artifact":self.native_artifact,"symbol_prefix":self.native_symbol_prefix, "regex_stack_limit":self.native_regex_limits.0, "regex_poll_limit":self.native_regex_limits.1})
             }
             CompilationContract::JavaScript {
                 language,

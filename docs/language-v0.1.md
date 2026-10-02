@@ -1263,7 +1263,10 @@ Arrays provide typed `length`, `map`, `filter`, `reduce`, `forEach`, `push`,
 elements appended by a callback are not visited by that call. Reads of existing
 future elements remain live, matching JavaScript's dense-array iteration
 behavior. `indexOf` uses strict equality; `includes` uses SameValueZero, so it
-finds `NaN`. Both accept a normalized negative starting index. `some` and
+finds `NaN`. As with Map keys and Set elements, their element type must have a
+portable identity contract: value structs and unconstrained type parameters
+are rejected. Use `findIndex` with an explicit field comparison for structs.
+`includes` accepts a normalized negative starting index. `some` and
 `every` short circuit, while `findIndex` returns the first matching index or
 `-1`. `join(separator = ",")` is portable for integer, string, boolean, null,
 nullable, and matching union elements; float and nominal-element joins are

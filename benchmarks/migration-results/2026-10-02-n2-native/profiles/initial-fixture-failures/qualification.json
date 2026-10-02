@@ -1,0 +1,340 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+    "sha256": "13548a18d2462ed2251d71e8138b98997d9b7403b77ef697daafc93d97e0be56"
+  },
+  "rows": [
+    {
+      "name": "physical-storage-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/physical-storage.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 30,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/physical-storage-0-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/physical-storage-0-0/program.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    },
+    {
+      "name": "physical-storage-0-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/physical-storage-0-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/physical-storage-0-1/program.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    },
+    {
+      "name": "physical-storage-13-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/physical-storage-13-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/physical-storage-13-0/program.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    },
+    {
+      "name": "physical-storage-13-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/physical-storage-13-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/physical-storage-13-1/program.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    },
+    {
+      "name": "generic-storage-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/generic-storage.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 30,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/generic-storage-0-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/generic-storage-0-0/program.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    },
+    {
+      "name": "generic-storage-0-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/generic-storage-0-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/generic-storage-0-1/program.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    },
+    {
+      "name": "generic-storage-13-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/generic-storage-13-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/generic-storage-13-0/program.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    },
+    {
+      "name": "generic-storage-13-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/generic-storage-13-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/generic-storage-13-1/program.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    },
+    {
+      "name": "ownership-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/ownership.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/ownership/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/ownership/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "ownership-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-physical-2/ownership/ownership.c",
+        "/tmp/lilscript-n2-physical-2/ownership/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/ownership/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1883,
+      "passed": true
+    },
+    {
+      "name": "ownership-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2/ownership/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "exceptions-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/exceptions.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/exceptions/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/exceptions/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "exceptions-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-physical-2/exceptions/ownership.c",
+        "/tmp/lilscript-n2-physical-2/exceptions/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/exceptions/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2459,
+      "passed": true
+    },
+    {
+      "name": "exceptions-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2/exceptions/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "generators-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/generators/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/generators/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "generators-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-physical-2/generators/ownership.c",
+        "/tmp/lilscript-n2-physical-2/generators/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/generators/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 4840,
+      "passed": true
+    },
+    {
+      "name": "generators-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2/generators/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "tasks-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/tasks.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2/tasks/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/tasks/ownership.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 10,
+      "passed": true
+    },
+    {
+      "name": "tasks-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-physical-2/tasks/ownership.c",
+        "/tmp/lilscript-n2-physical-2/tasks/host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2/tasks/sanitize"
+      ],
+      "exit": 1,
+      "elapsed_ms": 10682,
+      "passed": false
+    }
+  ]
+}

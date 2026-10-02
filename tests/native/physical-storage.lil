@@ -1,0 +1,43 @@
+// Activation aliases, per-iteration binding identity, managed payload cleanup,
+// finally completion, and indirect escape through another closure.
+func()->int escaping() {
+    int state=0;func()->int step=()=>++state;
+    return ()=>step();
+}
+int local(int state) {
+    func(int)->int step=(int by)=>state+=by;
+    func(int)->int alias=step;
+    return alias(2)+step(3);
+}
+string text(string value) {
+    func(string)->string append=(string tail)=>value+=tail;
+    append("!");return append("?");
+}
+int abrupt(int end) {
+    int sum=0;
+    for(int n=0;n<end;n++) {
+        string held="owned".repeat(n+1);
+        func()->int read=()=>held.length;
+        try {sum+=read();if(n==2){continue;}if(n==3){break;}}
+        finally {sum+=1;}
+    }
+    return sum;
+}
+void run() {
+    print(local(4));print(text("a".repeat(3)));print(abrupt(8));
+    func()->int saved=escaping();print(saved());print(saved());
+    (func()->int)[] closures=[];
+    for(int value of [2,4,6]) {
+        func()->int read=()=>value;
+        print(read());closures.push(()=>value);
+    }
+    for(func()->int read of closures){print(read());}
+    for(int value of [1,3,5]) {func()->int read=()=>value+1;print(read());}
+    try {throw "caught".repeat(2);}
+    catch(auto error) {func()->string read=()=>{string text=JS.assume(error);return text;};print(read());}
+    func(int)->int recursive=(int n)=>{if(n==0){return 0;}return n+recursive(n-1);};
+    print(recursive(5));
+    int captured=9;func()->func()->int outer=()=>()=>captured;
+    func()->int result=outer();print(result());
+}
+run();

@@ -1,0 +1,15 @@
+T first<T>(T[] values,func(T)->T project) {return project(values[0]);}
+T repeat<T>(T value) {return value;}
+U other<U>(U value) {return value;}
+V another<V>(V value) {return value;}
+T recursive<T>(T value,int count) {if(count==0){return value;}return recursive(value,count-1);}
+T mixed<T>(T value) {return value;}
+int update(ref int value,int replacement) {int old=value;value=replacement;return old;}
+int plus(int value) {return value+3;}
+string decorate(string value) {return value+"!";}
+int run() {
+    print(first([7,8],plus));print(repeat(4));print(other("other"));print(another(2.5));
+    print(recursive("recursive",3));print(mixed(8));print(mixed("mixed"));
+    int value=11;print(update(ref value,13));print(value);return value;
+}
+print(run());

@@ -28,33 +28,19 @@
     },
     {
       "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate",
-      "reason": "The test expects the inferred wrapper name 'handle'. The rule is decided (architecture \u00a710.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6), so no lane owes 'handle'; here the struct's positional representation creates the function in an array slot, where JavaScript infers no name. The case asserts an unguaranteed name.",
+      "reason": "The test expects the inferred wrapper name 'handle'. The rule is decided (architecture §10.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6), so no lane owes 'handle'; here the struct's positional representation creates the function in an array slot, where JavaScript infers no name. The case asserts an unguaranteed name.",
       "owner": "M10.14 (R6: rewrite the case to observe only what the reflected-set contract guarantees)"
     },
     {
       "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver",
       "lanes": "formation-only/*/script,formation-only/*/module",
-      "reason": "The test expects a non-empty wrapper name. The rule is decided (architecture \u00a710.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6). Production lanes let the method carry the name JavaScript infers and pass; formation-only lanes keep the callback's exact anonymous name, which the contract also allows.",
+      "reason": "The test expects a non-empty wrapper name. The rule is decided (architecture §10.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6). Production lanes let the method carry the name JavaScript infers and pass; formation-only lanes keep the callback's exact anonymous name, which the contract also allows.",
       "owner": "M10.14 (R6: rewrite the case to observe only what the reflected-set contract guarantees)"
     },
     {
       "case": "cases/regressions/opt-wrapped_and_generic_dynamic_aliases_keep_nominal_object_semantics",
       "reason": "Refused, not miscompiled: a struct union widened to JsValue, a generic function taking a struct (\"generic product transport requires a complete private interface\" on scripts) and a generic body that does not return its parameter (\"generic product body requires closed value forwarding\" on modules).",
       "owner": "M1.9 (the struct-to-host family; the plan does not yet name this gap)"
-    },
-    {
-      "case": [
-        "cases/differential_pinned_regressions",
-        "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_captured_rebind",
-        "cases/regressions/compiler-snapshot_of_a_top_level_record_field_survives_a_captured_rebind",
-        "cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback",
-        "cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback-computed",
-        "cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes",
-        "cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding"
-      ],
-      "lanes": "c",
-      "reason": "Native `Record<T>` is refused (\"native source type\", \"native callable payload type\").",
-      "owner": "M11.4"
     }
   ]
 }

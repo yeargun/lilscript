@@ -9,6 +9,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         } else { "false".to_owned() }
     }
     pub(super) fn argument_presence(&mut self, count: usize, absent: &[String]) -> Result<(), NativeError> {
+        self.argument_presence_expression(&count.to_string(), absent)
+    }
+    pub(super) fn argument_presence_expression(&mut self, count: &str, absent: &[String]) -> Result<(), NativeError> {
         self.write(format_args!(",(ls_native_arguments){{{count},"))?;
         if absent.iter().all(|value| value == "false") { self.text("NULL")?; }
         else {

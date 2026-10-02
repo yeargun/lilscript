@@ -1,0 +1,89 @@
+{
+  "scope": "end-to-end process baseline, discovery only; inlining disabled to isolate physical generic/closure costs",
+  "rows": [
+    {
+      "name": "closures",
+      "lane": "native",
+      "samples": [
+        {
+          "wall_ms": 66.0276539856568,
+          "cpu_ms": 65.757
+        },
+        {
+          "wall_ms": 65.68788801087067,
+          "cpu_ms": 65.4509999999999
+        },
+        {
+          "wall_ms": 66.26304498058744,
+          "cpu_ms": 66.00400000000003
+        }
+      ],
+      "median_cpu_ms": 65.757,
+      "median_wall_ms": 66.0276539856568,
+      "output": "-30916894\n"
+    },
+    {
+      "name": "closures",
+      "lane": "javascript",
+      "samples": [
+        {
+          "wall_ms": 87.98508800100535,
+          "cpu_ms": 94.01599999999996
+        },
+        {
+          "wall_ms": 88.09447402018122,
+          "cpu_ms": 94.18800000000005
+        },
+        {
+          "wall_ms": 87.96303698909469,
+          "cpu_ms": 94.27800000000013
+        }
+      ],
+      "median_cpu_ms": 94.18800000000005,
+      "median_wall_ms": 87.98508800100535,
+      "output": "-30916894\n"
+    },
+    {
+      "name": "generics",
+      "lane": "native",
+      "samples": [
+        {
+          "wall_ms": 550.1368179975543,
+          "cpu_ms": 549.8189999999997
+        },
+        {
+          "wall_ms": 549.6874259843025,
+          "cpu_ms": 549.2639999999998
+        },
+        {
+          "wall_ms": 550.8196769806091,
+          "cpu_ms": 550.4219999999997
+        }
+      ],
+      "median_cpu_ms": 549.8189999999997,
+      "median_wall_ms": 550.1368179975543,
+      "output": "1000036\n"
+    },
+    {
+      "name": "generics",
+      "lane": "javascript",
+      "samples": [
+        {
+          "wall_ms": 37.45377200539224,
+          "cpu_ms": 42.87000000000044
+        },
+        {
+          "wall_ms": 36.28965999814682,
+          "cpu_ms": 41.058999999999735
+        },
+        {
+          "wall_ms": 38.42171499854885,
+          "cpu_ms": 43.38800000000001
+        }
+      ],
+      "median_cpu_ms": 42.87000000000044,
+      "median_wall_ms": 37.45377200539224,
+      "output": "1000036\n"
+    }
+  ]
+}

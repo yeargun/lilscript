@@ -1,0 +1,3 @@
+# Expansion is required by the source pin, including in formation-only lanes.
+[policy.tactics]
+loop-unrolling = "auto"

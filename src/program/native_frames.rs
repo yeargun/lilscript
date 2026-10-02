@@ -453,11 +453,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let ty = self.plan.value_type(self.plan.cell_storage(item));
         let (prefix, suffix) = Self::conversion(NativeType::Dynamic(Tagged::ANY), ty);
         if self.plan.boxed_cell(item) {
-            self.write(format_args!(
-                "ls_c{0}=ls_box_new{0}({prefix}ls_next{1}{suffix});\n",
-                item.index(),
-                op.index()
-            ))?;
+            if self.storage.stack_cell(item) {
+                self.write(format_args!("ls_sb{0}=(ls_box{0}){{.owner={{.references=SIZE_MAX-1}}}}; ls_c{0}=&ls_sb{0}; ls_box_initialize{0}(ls_c{0},{prefix}ls_next{1}{suffix});\n",item.index(),op.index()))?;
+            } else {
+                self.write(format_args!("ls_c{0}=ls_box_new{0}({prefix}ls_next{1}{suffix});\n",item.index(),op.index()))?;
+            }
         } else {
             self.assignment_start(unit, Destination::Cell(item), false)?;
             self.write(format_args!("{prefix}ls_next{}{suffix}", op.index()))?;

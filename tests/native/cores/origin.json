@@ -1,0 +1,17 @@
+{
+  "katex": {
+    "version": "0.16.22",
+    "upstream": "/home/azureuser/katexlil/node_modules/katex/src/unicodeScripts.js",
+    "sha256": "01e4586c3ccf19ac13fd3d8322e5b4b52bc51a3bacdb971890ef27faafe87617",
+    "adaptation": "The complete unicodeScripts lookup algorithms and all seven script groups, expressed with typed products/arrays. Flow annotations and array initializer callbacks become LilScript types and loops. This is a Unicode classification core, not the KaTeX lexer/parser or renderer. Oracle executes the original upstream bodies with only Flow annotations/export keywords removed.",
+    "oracle_source": "./upstream-unicodeScripts.js"
+  },
+  "marked": {
+    "version": "18.0.10",
+    "fixture": "src/program/fixtures/regex-calls/marked-rules-complete.lil",
+    "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+    "patterns": 117,
+    "inputs": 24,
+    "adaptation": "Imports the complete byte-for-byte archived rules module; benchmarks all 117 constant regexes against the same 24 strings, resetting lastIndex. Oracle uses the independently archived upstream pattern table. This is rule matching, not a complete Marked lexer/parser."
+  }
+}

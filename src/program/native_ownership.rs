@@ -75,7 +75,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 .operation
                 .is_some_and(|op| self.storage.transfers(unit, op, source));
         self.assignment_start(unit, destination, moved)?;
-        self.converted(unit, source, to)?;
+        if matches!(destination, Destination::Place(place) if matches!(self.plan.program.unit(unit).unwrap().places[place.index()], Place::ClassField { .. })) {
+            self.class_field_value(unit, source, to)?;
+        } else { self.converted(unit, source, to)?; }
         self.assignment_end(unit, destination)?;
         if moved {
             self.ownership_transfers += 1;
@@ -170,7 +172,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         Ok(())
     }
-    fn has_boxes(&mut self, unit: UnitId) -> Result<bool, NativeError> {
+    pub(super) fn has_boxes(&mut self, unit: UnitId) -> Result<bool, NativeError> {
         let captures = &self.plan.program.unit(unit).unwrap().captures;
         self.budget.work(WorkKind::Render, captures.len() as u64)?;
         Ok(captures.iter().any(|&cell| self.plan.boxed_cell(cell)))
@@ -248,6 +250,21 @@ impl Emitter<'_, '_, '_, '_, '_> {
         result: ValueId,
     ) -> Result<(), NativeError> {
         let destination = Destination::Value(result);
+        if self.plan.units[body.index()].has_environment && self.storage.borrowed(body) && self.has_boxes(body)? {
+            self.write(format_args!("ls_se{}.owner.references = SIZE_MAX-1;\n", result.index()))?;
+            for (slot, &cell) in self.plan.program.unit(body).unwrap().captures.iter().enumerate() {
+                self.budget.work(WorkKind::Render, 1)?;
+                if self.plan.boxed_cell(cell) {
+                    self.write(format_args!("ls_se{}.ls_e{slot} = ",result.index()))?;
+                    self.box_pointer(unit,cell)?;
+                    self.text(";\n")?;
+                }
+            }
+            self.assignment_start(unit,destination,true)?;
+            let signature=self.plan.signature_for_unit(body);
+            self.write(format_args!("(ls_callable{signature}){{ls_fn{},&ls_se{},ls_native_fresh_identity()}}",body.index(),result.index()))?;
+            return self.assignment_end(unit,destination);
+        }
         self.assignment_start(unit, destination, true)?;
         if self.plan.units[body.index()].has_environment {
             self.write(format_args!("ls_closure{}(", body.index()))?;
@@ -283,7 +300,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.budget.work(WorkKind::Render, 1)?;
             if let OperationKind::Initialize(cell) | OperationKind::Declare(cell) = data.operations[op.index()].kind {
                 if self.plan.boxed_cell(cell) {
-                    self.write(format_args!("ls_c{0} = ls_box_allocate{0}();\n", cell.index()))?;
+                    if self.storage.stack_cell(cell) {
+                        self.write(format_args!("ls_sb{0} = (ls_box{0}){{.owner={{.references=SIZE_MAX-1}}}};\nls_c{0} = &ls_sb{0};\n",cell.index()))?;
+                    } else {
+                        self.write(format_args!("ls_c{0} = ls_box_allocate{0}();\n", cell.index()))?;
+                    }
                 }
             }
         }
@@ -293,6 +314,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
         for &cell in &self.plan.program.unit(unit).unwrap().parameters {
             self.budget.work(WorkKind::Render, 1)?;
             if self.plan.boxed_cell(cell) {
+                if self.storage.stack_cell(cell) {
+                    self.write(format_args!("ls_box{0} ls_sb{0} = {{.owner={{.references=SIZE_MAX-1}}}};\nls_box{0} *ls_c{0} = &ls_sb{0};\nls_box_initialize{0}(ls_c{0},ls_p{0});\n",cell.index()))?;
+                    continue;
+                }
                 self.write(format_args!(
                     "ls_box{0} *ls_c{0} = ls_box_new{0}(ls_p{0});\n",
                     cell.index()
@@ -317,10 +342,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
             return Ok(());
         }
         if self.plan.boxed_cell(cell) {
-            self.write(format_args!(
-                "ls_native_release(ls_c{0});\nls_c{0} = NULL;\n",
-                cell.index()
-            ))?;
+            if self.storage.stack_cell(cell) {
+                if let Some(prefix)=self.plan.value_type(self.plan.cell_storage(cell)).owner_prefix() {
+                    self.write(format_args!("if (ls_c{0}) {prefix}_clear(&ls_c{0}->value);\n",cell.index()))?;
+                }
+                self.write(format_args!("ls_c{} = NULL;\n",cell.index()))?;
+            } else {
+                self.write(format_args!("ls_native_release(ls_c{0});\nls_c{0} = NULL;\n",cell.index()))?;
+            }
         } else if let ValueStorage::Value(ty) = self.plan.cell_storage(cell) {
             if let Some(prefix) = ty.owner_prefix() {
                 self.write(format_args!("{prefix}_clear(&ls_c{});\n", cell.index()))?;

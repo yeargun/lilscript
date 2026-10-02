@@ -63,6 +63,7 @@ pub(crate) const ABI_NAMES: &[&str] = &[
     "ls_native_release",
     "ls_native_collect_cycles",
     "ls_native_owned_objects",
+    "ls_native_total_allocations",
     "ls_native_exception_pending",
     "ls_native_exception_raise",
     "ls_native_exception_take",

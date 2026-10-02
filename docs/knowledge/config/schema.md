@@ -141,16 +141,19 @@ External C compiler settings; these never relax checked source semantics.
 |---|---|---|---|
 | `compiler` | `Option<PathBuf>` | `None` | One executable, never a shell fragment. |
 | `objective` | `NativeObjective` | `NativeObjective::Speed` | `speed` (default): -O3; `size`: -Os; `balanced`: -O2. |
-| `artifact` | `NativeArtifact` | `NativeArtifact::Executable` | `executable`, `shared-library`, or `object`; library forms retain exports and have an explicit lifecycle. |
-| `symbol_prefix` | `String` | `"lil"` | Public library namespace; affects native formation and policy identity. |
+| `artifact` | `NativeArtifact` | `NativeArtifact::Executable` | Executable by default; shared-library and object retain public exports and expose explicit initialization/queue/shutdown instead of main. |
+| `symbol_prefix` | `String` | `"lil".into()` | Stable public namespace for library types, runtime API and exports. |
 | `triple` | `Option<String>` | `None` | Clang-compatible target triple and sysroot; omitted means host defaults. |
 | `sysroot` | `Option<PathBuf>` | `None` | Optional target SDK root, relative to the TOML file; never auto-downloaded. |
+| `wasm_stack_size` | `Option<u32>` | `None` | Optional linked WebAssembly stack reservation, in bytes (16-byte aligned). |
 | `debug_info` | `bool` | `false` | False by default. |
 | `warnings_as_errors` | `bool` | `false` | False by default. |
 | `link_time_optimization` | `bool` | `false` | False by default. |
 | `sanitizers` | `Vec<NativeSanitizer>` | `Vec::new()` | Empty by default. |
 | `cycle_collection_threshold` | `u32` | `4096` | 4096 allocations by default, scaled with the live heap. |
-| `static_data` | `bool` | `true` | Eligible once-created immutable graphs use static C storage; false retains owned initialization. |
+| `static_data` | `bool` | `true` | True: eligible once-created immutable graphs use static C storage. |
+| `stack_storage` | `bool` | `true` | True: synchronous closures whose complete use set stays in their creation region borrow stack environments and eligible captured cells. |
+| `generic_specialization` | `bool` | `true` | True: closed generic bodies called with one concrete scalar/handle instantiation use typed storage. |
 | `regex_stack_limit` | `u32` | `262144` | 262144 bytes by default. |
 | `regex_poll_limit` | `u64` | `0` | Zero by default (unlimited). |
 

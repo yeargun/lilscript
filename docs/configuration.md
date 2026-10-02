@@ -94,10 +94,13 @@ link_time_optimization = false
 sanitizers = []
 cycle_collection_threshold = 4096
 static_data = true
+stack_storage = true
+generic_specialization = true
 regex_stack_limit = 262144
 regex_poll_limit = 0
 # triple = "aarch64-linux-gnu"
 # sysroot = "toolchains/aarch64-sysroot"
+# wasm_stack_size = 1048576 # linked wasm target only, bytes
 ```
 
 | Control | Default and use | Tradeoff |
@@ -108,12 +111,15 @@ regex_poll_limit = 0
 | `symbol_prefix` | `lil`; an ASCII identifier beginning with a letter, outside the reserved `ls` and `host` namespaces. | Library runtime names, types and source exports use this prefix so separately generated libraries can coexist. Give libraries distinct prefixes and regenerate their clients when changing it. It does not affect JavaScript mangling or compression. See [the native interface](native-interface.md) for allocated source symbols and ownership. |
 | `triple` | Unset: compiler's host default. An explicit triple passes `--target=...`. | Requires a compiler supporting that option, target libraries and an appropriate SDK. Unsupported toolchains fail explicitly; cross-target qualification remains N2. |
 | `sysroot` | Unset: compiler default. A configured directory is relative to the TOML file. | Selects a target SDK without downloading it. Pin the SDK separately; the receipt is not a content hash of every system header/library. |
+| `wasm_stack_size` | Unset: SDK default. A positive byte count divisible by 16 reserves the linked WebAssembly stack, using `-Wl,-z,stack-size=...`; requires an explicit `wasm32-*`/`wasm64-*` triple. | Larger stacks consume more linear memory but accommodate deeper call chains. Reserve space beyond `regex_stack_limit` for callers and runtime frames. Object artifacts do not link a stack. This toolchain control changes artifact receipts, not JavaScript objectives or emitted C semantics. |
 | `debug_info` | `false`; `true` adds `-g` for debugging/profiling. | Larger artifacts, possibly embedded source paths; no source semantic change. |
 | `warnings_as_errors` | `false`; `true` adds `-Wall -Wextra -Werror`. | Useful for qualifying generated and provider C. A newer compiler can introduce warnings that stop the build. |
 | `link_time_optimization` | `false`; `true` adds `-flto`. | Can optimize across host translation units; costs link time and memory and requires compatible tools. It is not enabled by a JavaScript compression effort. |
 | `sanitizers` | Empty, or a duplicate-free list of `address` and `undefined`. | Diagnostic builds need matching runtimes and cost executable bytes, runtime and memory. They are not production performance measurements. |
 | `cycle_collection_threshold` | `4096` allocations; the interval grows to at least half the live object count. `0` collects cycles only at explicit calls and shutdown. Ordinary zero-count reclamation always runs. | Smaller values reduce garbage-cycle retention but spend more CPU scanning candidate graphs. Larger values favor throughput at higher peak memory. This changes emitted C and its policy identity; it does not alter the JavaScript objectives or waive ownership. `--link-c` uses the threshold already in its caller-owned C. |
 | `static_data` | `true`: checked immutable graphs created once during module initialization can use static C storage. `false`: initialize ordinary runtime owners. | Static storage avoids startup allocation and reference-count updates for those graphs. It can increase data/relocation bytes while reducing initialization code; compare the final executable for the workload. Source evaluation, aliases and value copies are preserved. Repeated function or loop activations retain fresh objects. This control changes native policy identity, independently of JavaScript compression effort. |
+| `stack_storage` | `true`: closures whose complete uses remain in one synchronous creation region borrow activation storage; captured cells use the stack only when all capturing closures meet that lifetime proof. | Removes heap allocations and reference-count work for local closures, while increasing activation stack space. Escaping aliases, host callbacks, recursive closure bindings and suspended lifetimes keep heap ownership. Set false to compare memory/performance or constrain stack use. It changes native policy identity only. |
+| `generic_specialization` | `true`: a private generic body with a complete, uniform set of concrete scalar/handle instantiations uses typed storage; immutable callback parameters supplied the same static function use direct calls. | Avoids tagging, callable bridges and indirect calls without cloning bodies. Public, mixed, unresolved and recursive type instantiations retain the general representation. Nominal class/struct layout parameters remain general even when a constructor has one local instantiation. Analysis costs compile work; false preserves general native storage for comparison. No runtime profile or workload name is assumed, and JavaScript objectives are unaffected. |
 | `regex_stack_limit` | `262144` bytes, at least `16384`. Bounds the pinned libregexp parser's additional stack use. | Smaller limits reject deeply nested patterns earlier with `RangeError`; larger limits require sufficient host stack. Cross profiles must reserve this space plus the caller's stack. |
 | `regex_poll_limit` | `0` (unlimited). A positive value counts libregexp poll callbacks per test/search/replace, across all matches of one replace. The pinned engine polls after 10000 internal polling points; short matches can finish without polling. | Useful for untrusted patterns. Exhaustion raises `RangeError`, never a false match result. It bounds backtracking polls, not every instruction, total memory or wall time. Both limits affect emitted C and its policy identity; they do not change JavaScript objectives. |
 

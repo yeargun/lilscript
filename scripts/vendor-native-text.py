@@ -20,6 +20,12 @@ for name, digest in manifest['files'].items():
 def source(name):
     text = (vendor / name).read_text()
     if name == 'dtoa.c':
+        # The pinned file never uses setjmp/longjmp. Its unused include alone
+        # requires experimental wasm exception handling in modern WASI SDKs.
+        # Keep upstream identity and diagnostic line numbers unchanged.
+        assert text.count('#include <setjmp.h>') == 1
+        assert not re.search(r'\b(?:setjmp|longjmp|jmp_buf)\s*\(', text)
+        text = text.replace('#include <setjmp.h>', '/* unused setjmp.h omitted for WASI portability */')
         # At a normal power of two the lower rounding interval is half the
         # upper one. The nearest decimal at a candidate precision can miss
         # the lower interval while its successor still rounds to the input.

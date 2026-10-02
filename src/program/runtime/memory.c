@@ -17,6 +17,9 @@ struct ls_native_object {
 };
 static uint64_t ls_native_identity_counter;
 static size_t ls_native_live_objects, ls_native_since_collection;
+#ifdef LS_NATIVE_QUALIFICATION
+static size_t ls_native_allocation_count;
+#endif
 static ls_native_object *ls_native_candidates, *ls_native_pending;
 static bool ls_native_collecting, ls_native_destroying;
 #ifndef LS_NATIVE_STATIC_DATA
@@ -24,6 +27,14 @@ static bool ls_native_collecting, ls_native_destroying;
 #endif
 static LS_NATIVE_UNUSED inline bool ls_native_static(const ls_native_object *object) {
     return LS_NATIVE_STATIC_DATA && object && object->references==SIZE_MAX;
+}
+#ifndef LS_NATIVE_STACK_DATA
+#define LS_NATIVE_STACK_DATA 0
+#endif
+/* Borrowed activation storage is mutable, but never a heap graph edge. Its
+   payload's owners are released explicitly by lexical cleanup. */
+static LS_NATIVE_UNUSED inline bool ls_native_unmanaged(const ls_native_object *object) {
+    return ls_native_static(object) || (LS_NATIVE_STACK_DATA && object && object->references==SIZE_MAX-1);
 }
 static LS_NATIVE_UNUSED inline bool ls_native_mutable(ls_native_object *object) {
     if(ls_native_static(object)) {ls_native_raise_error("TypeError","cannot mutate immutable native data");return false;}
@@ -54,13 +65,13 @@ static LS_NATIVE_UNUSED inline void ls_native_buffer(ls_native_object *object) {
 }
 void ls_native_retain(void *handle) {
     ls_native_object *object = handle;
-    if (!object || ls_native_static(object)) return;
-    if (object->references >= SIZE_MAX-1) ls_native_resource_failure();
+    if (!object || ls_native_unmanaged(object)) return;
+    if (object->references >= SIZE_MAX-2) ls_native_resource_failure();
     ++object->references;
 }
 void ls_native_release(void *handle) {
     ls_native_object *object = handle;
-    if (!object || ls_native_static(object) || (ls_native_collecting && object->color == 3)) return;
+    if (!object || ls_native_unmanaged(object) || (ls_native_collecting && object->color == 3)) return;
     if (!object->references) ls_native_resource_failure();
     if (--object->references) { ls_native_buffer(object); return; }
     ls_native_unbuffer(object);
@@ -79,7 +90,7 @@ void ls_native_release(void *handle) {
 }
 typedef struct { ls_native_object *work, *touched; } ls_native_trial;
 static LS_NATIVE_UNUSED inline void ls_native_gray(ls_native_object *object, ls_native_trial *trial) {
-    if (ls_native_static(object) || object->color) return;
+    if (ls_native_unmanaged(object) || object->color) return;
     object->color = 1;
     object->trial = object->references;
     object->scan_next = trial->touched;
@@ -89,7 +100,7 @@ static LS_NATIVE_UNUSED inline void ls_native_gray(ls_native_object *object, ls_
 }
 static LS_NATIVE_UNUSED inline void ls_native_subtract(void *handle, void *context) {
     ls_native_object *object = handle;
-    if (!object || ls_native_static(object)) return;
+    if (!object || ls_native_unmanaged(object)) return;
     ls_native_gray(object, context);
     if (!object->trial) ls_native_resource_failure(); /* invalid trace/owner count */
     --object->trial;
@@ -97,7 +108,7 @@ static LS_NATIVE_UNUSED inline void ls_native_subtract(void *handle, void *conte
 static LS_NATIVE_UNUSED inline void ls_native_black(void *handle, void *context) {
     ls_native_object *object = handle;
     ls_native_trial *trial = context;
-    if (!object || ls_native_static(object) || object->color == 2) return;
+    if (!object || ls_native_unmanaged(object) || object->color == 2) return;
     object->color = 2;
     object->work_next = trial->work;
     trial->work = object;
@@ -165,6 +176,10 @@ static LS_NATIVE_UNUSED inline void *ls_native_allocate(size_t bytes,
     object->trace = trace;
     if (ls_native_live_objects == SIZE_MAX) ls_native_resource_failure();
     ++ls_native_live_objects;
+#ifdef LS_NATIVE_QUALIFICATION
+    if (ls_native_allocation_count==SIZE_MAX) ls_native_resource_failure();
+    ++ls_native_allocation_count;
+#endif
     if (ls_native_since_collection != SIZE_MAX) ++ls_native_since_collection;
     return object;
 }

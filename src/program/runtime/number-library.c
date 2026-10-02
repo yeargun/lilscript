@@ -123,7 +123,7 @@ static LS_NATIVE_UNUSED size_t i64toa_radix(char *buf, int64_t n, unsigned int r
 #include <ctype.h>
 #include <sys/time.h>
 #include <math.h>
-#include <setjmp.h>
+/* unused setjmp.h omitted for WASI portability */
 
 /* supplied by the preceding amalgamated header */
 /* supplied by the preceding amalgamated header */

@@ -500,7 +500,7 @@ fn partial_native_buffer_growth_refusal_releases_output_and_plan() {
     // One large literal keeps the semantic plan small while requiring repeated
     // C buffer growth. The reserved baseline remains able to finish the same
     // source after optional output fails; there is no allocation-failure hook.
-    let source = format!("string text=\"{}\";print(text.length);", "q".repeat(12_000));
+    let source = format!("string text=\"{}\";print(text.length);", "q".repeat(120_000));
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, &source).unwrap();
     let semantics = crate::analyze(&syntax).unwrap();
@@ -511,7 +511,7 @@ fn partial_native_buffer_growth_refusal_releases_output_and_plan() {
             BudgetPlan {
                 baseline_work: WORK,
                 optional_work: WORK,
-                baseline_retained_bytes: MEMORY - 16_384,
+                baseline_retained_bytes: MEMORY - 65_536,
                 retained_bytes: MEMORY,
             },
         )
@@ -551,7 +551,7 @@ fn partial_native_buffer_growth_refusal_releases_output_and_plan() {
         before.work_used(WorkDomain::Baseline)
     );
     let completed = emit_native(&mut compilation, id);
-    assert!(completed.len() > 16_384);
+    assert!(completed.len() > 65_536);
     assert_eq!(compilation.finish().retained_bytes(), 0);
 }
 

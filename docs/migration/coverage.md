@@ -77,9 +77,9 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.11 | [S4](plan.md#s4), [Q4](plan.md#q4) | Q4 implements checked scalar defines and TOML overrides, exact policy identity and bounded required evaluation. Preserve Y4; `inline for` expansion, resource/replay admission and independent TOML permission implemented; `@pool` consumed through formation/replay; `@choose` complete for documented regional families with hard permissions and stable pinned sites |
 | M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
 | M10.14 | [S4](plan.md#s4), complete under current contract | Public adapters preserve constructibility; the Y3 amendment remains unapproved |
-| M10.3 | [Q4](plan.md#q4), complete; [D2](plan.md#d2), complete; [N2](plan.md#n2) | Checked required evaluation and private immutable graphs; supported JS public data freezes exactly. D2 implements graph-preserving public product views; N2 static storage implemented; native library ABI remains |
+| M10.3 | [Q4](plan.md#q4), complete; [D2](plan.md#d2), complete; [N2](plan.md#n2) | Checked required evaluation and private immutable graphs; supported JS public data freezes exactly. D2 implements graph-preserving public product views; N2 static storage and the native library ABI are complete |
 | M10.19 | [Q4](plan.md#q4), complete | Bounded uniform static-schema parameter forwarding, ordinary aggregate folding and existing per-call choices |
-| M10.1 | [S4](plan.md#s4) | Implemented: declared data/accessor shapes, contextual generic literals, tags, development checks and concrete product storage; unrestricted public presence needs the [separate ABI](s4-public-abi.md), native storage remains N2 |
+| M10.1 | [S4](plan.md#s4) | Implemented: declared data/accessor shapes, contextual generic literals, tags, development checks and concrete product storage; unrestricted public presence needs the [separate ABI](s4-public-abi.md), native storage and ABI are complete in N2 |
 | M10.8 | [S4](plan.md#s4) | Implemented: declared-key shape spread, shared-key intersection checks, optional defaults and CreateDataProperty behavior; existing dictionary spread retained |
 | M10.5 | [S4](plan.md#s4) | Implemented: disjoint class/tagged-shape payload matches and sealed virtual/override calls, scopes, defaults/rest and initialization order; erased generic receivers/methods, applied payloads and suspending captured arms also implemented |
 | M10.6 | [S4](plan.md#s4) | Implemented: ABI enums/flags, canonical storage, domain checks and shared/native evaluation (R8); canonical scalar/pooling/table alternatives Q4 (arbitrary enum recoding is not claimed), qualified source-default transition D3/V2 |
@@ -87,16 +87,16 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.10 | [S4](plan.md#s4) | Implemented: internal constructor visibility, root ABI publication, canonical first-class/dynamic observations and zero-use singleton retirement (R16); delivery production remains D1–D3 |
 | M10.17 | [S4](plan.md#s4) | Host catalog, configurable JS/native providers, generic extern schemas and closed private erased product/container/callback transport implemented; supported public codecs and diagnostics complete; wider ABI proposals remain [explicit](s4-public-abi.md) |
 | M11.1 | [N1](plan.md#n1), complete | One library toolchain owner, TOML controls, strict flags, provider/header staging and input/output receipts |
-| M11.3 | [N2](plan.md#n2) | Externs per target |
-| M11.4 | [N2](plan.md#n2) | Portable records |
-| M11.5 | [N1](plan.md#n1), complete; [N2](plan.md#n2) | N1: optimized shared input, initialization guards, scalar storage and final-use transfers. N2: exception-status omission, ABI-dependent generic specialization/borrowed closures and performance qualification |
-| M11.6 | [N2](plan.md#n2) | Exceptions, suspension, regex, strings |
-| M11.7 | [N2](plan.md#n2) | Runtime and symbols |
-| M11.8 | [N2](plan.md#n2) | Native objective and the library ABI |
-| M11.9 | [N2](plan.md#n2) | Profiles |
-| M11.10 | [N2](plan.md#n2) | Host API |
-| M11.11 | [N1](plan.md#n1), complete; [N2](plan.md#n2) | N1: target checks, source diagnostics and explicit matrix/corpus inventory. N2: close portable omissions before claiming native-complete |
-| M11.12 | [N2](plan.md#n2) | Cycles |
+| M11.3 | [N2](plan.md#n2), complete | Externs per target |
+| M11.4 | [N2](plan.md#n2), complete | Portable records |
+| M11.5 | [N1](plan.md#n1), complete; [N2](plan.md#n2), complete | N1: optimized shared input, initialization guards, scalar storage and final-use transfers. N2: exception-status omission, ABI-dependent generic specialization/borrowed closures and performance qualification |
+| M11.6 | [N2](plan.md#n2), complete | Exceptions, suspension, regex, strings |
+| M11.7 | [N2](plan.md#n2), complete | Runtime and symbols |
+| M11.8 | [N2](plan.md#n2), complete | Native objective and the library ABI |
+| M11.9 | [N2](plan.md#n2), complete | Profiles |
+| M11.10 | [N2](plan.md#n2), complete | Host API |
+| M11.11 | [N1](plan.md#n1), complete; [N2](plan.md#n2), complete | N1: target checks, source diagnostics and explicit matrix/corpus inventory. N2: portable families, scoped host boundaries and full executable corpus/sanitizer qualification |
+| M11.12 | [N2](plan.md#n2), complete | Cycles |
 | M12.1 | [D3](plan.md#d3), complete | Source-owned port revisions and controls; compiler patch layer archived; assumptions documented beside their controls |
 | M12.2 | [D3](plan.md#d3), complete | Compiler-written package formats and exact-byte installers; upstream comparison tools remain independent oracles |
 | M12.3 | [V1](plan.md#v1) | Every library wins |
@@ -195,7 +195,9 @@ those historical fixture controls and expectations with the supported named
 public ABI while preserving their independent setter/default observations.
 The [N1 inventory](../../benchmarks/migration-results/2026-10-02-n1-native/capability-census.json)
 records each refusal and the separate masks; neither masks nor admission are
-runtime qualification. N2 owns the portable implementation gaps.
+runtime qualification. N2 closes the portable families and replaces lexical masks
+with explicit digest-bound exclusions; all 161 executable native cases pass
+formation/production under sanitizers. [Closure evidence](../../benchmarks/migration-results/2026-10-02-n2-native/profiles/README.md).
 
 
 ## Portable product qualification discovery (2026-10-02)

@@ -1,7 +1,7 @@
 # N2 native completion
 
-N2 is the sole active milestone after N1 (`62856e0c`). Complete its dependencies
-in the order below before V1. This is one milestone with implementation batches,
+N2 is complete after N1 (`62856e0c`) under the [retained qualification](../../benchmarks/migration-results/2026-10-02-n2-native/README.md). Its dependencies
+were completed in the order below before V1. This is one milestone with implementation batches,
 not permission to mark portable omissions complete by refusing them.
 
 1. **Runtime ownership and ABI.** Move runtime recipes into C source/header
@@ -47,3 +47,11 @@ not permission to mark portable omissions complete by refusing them.
 Native performance and JavaScript compression are separate measured outcomes.
 No runtime interpreter fallback, erased source semantics, workload-name tuning,
 blanket test masks or unmeasured compiler-flag win satisfies these gates.
+
+The closure audit found that array `indexOf`/`includes` had accidentally admitted
+value-struct identity observations, although struct equality, Map keys and Set
+elements already have no such portable contract. The shared checker now applies
+that existing identity rule to array searches, including unconstrained generic
+parameters. Explicit field predicates remain supported through `findIndex`.
+This resolves an inconsistent language boundary; it is not a native size or
+coverage win and does not introduce a structural equality contract.

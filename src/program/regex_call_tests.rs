@@ -255,15 +255,14 @@ fn complete_unchanged_marked_rules_module_preserves_patterns_factories_and_ident
 }
 
 #[test]
-fn regex_constructor_and_new_methods_remain_explicitly_unsupported_by_native() {
+fn native_regex_recipes_are_supported_and_externs_need_providers() {
     let policy = crate::config::ProjectConfig::default()
         .resolve_policy(CompilationRequest::Native)
         .unwrap();
-    for text in [
-        "Regex value=new Regex(\"a\");",
-        "extern Regex opaque();opaque().test(\"a\");",
-        // A string method taking a pattern needs ECMAScript regular expressions.
-        "string value=\"a-b\".replace(new Regex(\"-\"),\"+\");print(value.length);",
+    for (text, supported) in [
+        ("Regex value=new Regex(\"a\");", true),
+        ("extern Regex opaque();opaque().test(\"a\");", false),
+        ("string value=\"a-b\".replace(new Regex(\"-\"),\"+\");print(value.length);", true),
     ] {
         let arena = bumpalo::Bump::new();
         let syntax = crate::parse_source(&arena, text).unwrap();
@@ -274,12 +273,11 @@ fn regex_constructor_and_new_methods_remain_explicitly_unsupported_by_native() {
             .adopt_checked(program, WorkDomain::Baseline)
             .unwrap();
         let retained = compiler.ledger().retained_bytes();
-        assert!(matches!(
-            compiler.with_native_c(source, &policy, WorkDomain::Baseline, |_| panic!(
-                "unsupported regex/string recipe reached native output"
-            )),
-            Err(NativeError::Unsupported { .. })
-        ));
+        let output = compiler.with_native_c(source, &policy, WorkDomain::Baseline, |out| {
+            assert!(!out.as_str().is_empty());
+        });
+        if supported { output.unwrap(); }
+        else { assert!(matches!(output, Err(NativeError::Unsupported { .. }))); }
         assert_eq!(compiler.ledger().retained_bytes(), retained);
         assert_eq!(compiler.finish().retained_bytes(), 0);
     }

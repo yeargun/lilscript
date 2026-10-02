@@ -801,7 +801,7 @@ fn execute_native(c: &str) -> String {
     crate::native_toolchain::NativeToolchain::resolve(&config, None).unwrap()
         .compile(c, None, &executable).unwrap();
     let output = Command::new(&executable).output().unwrap();
-    assert!(output.status.success());
+    assert!(output.status.success(), "native execution failed: {}", String::from_utf8_lossy(&output.stderr));
     String::from_utf8(output.stdout).unwrap()
 }
 
@@ -4757,15 +4757,16 @@ fn n1_native_check_and_compile_share_source_qualified_representation_refusals() 
     let settings: ProjectConfig = toml::from_str("effort.level=0\n[target.native]\ncompiler='/no/compiler/is/needed/to/check'").unwrap();
     check_source_for_target("print(42);", &settings, options).unwrap();
     for source in [
-        "struct Box<T> { T value; }\nBox<int> b=Box<int>{1};print(b.value);",
+        "struct Box<T> { T value; }\nBox<int> b=Box{1};print(b.value);",
         "struct Point { int x; }\nPoint? point=null;print(point==null);",
         "int x=1;\ntry{print(x);}finally{print(2);}",
+        "export int answer(){return 42;}",
     ] {
         check_source_for_target(source, &settings, options).unwrap();
         compile_source(source, &settings, options).unwrap();
     }
     for source in [
-        "export int answer(){return 42;}",
+        "extern int ambient;print(ambient);",
         "extern class Error{string message;init(string message);}class Problem extends Error{init(string message){super(message);}}Problem p=new Problem(\"oops\");print(p.message);",
     ] {
         let checked = check_source_for_target(source, &settings, options).unwrap_err();

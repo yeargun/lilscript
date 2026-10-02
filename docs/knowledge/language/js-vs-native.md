@@ -1,43 +1,42 @@
 # JavaScript vs native
 
-Parent: [Language](README.md). Related: [mission](../mission.md), [current architecture](../compilation/current-architecture.md), [future architecture §11](../../old-history/future-architecture.md#11-native-and-cross-target).
+Parent: [Language](README.md). Related: [mission](../mission.md),
+[current architecture](../compilation/current-architecture.md),
+[native support](../../native-support.md), [configuration](../../configuration.md).
 
-## One checked program, two targets
+`--target all` shares parsing, checking and target-neutral Program rules.
+Folding, liveness, inlining, scalar replacement and ownership facts feed both
+targets. JavaScript then chooses representations and names against its selected
+raw/gzip/Brotli objective. Native admits concrete storage and emits strict C11.
+Neither target may change arithmetic, identity, effects or source lifetimes to
+make a representation cheaper.
 
-`--target all` parses and checks once. The same Program IR then feeds two
-targets: JavaScript formation, target rewrites and codec-scored search, and the
-native plan with its C11 writer. JavaScript choices never change the C output.
-Today native gets none of the JavaScript side's optimizations; the program
-rules of plan phases M6–M7 are target-neutral so both targets get them, and
-M11.5 wires native to the shared facts.
-
-Native object code is produced by emitting C11 and invoking `${CC:-cc} -std=c11
--O3 -fno-fast-math -ffp-contract=off`. The C text is the portable artifact.
-
-## Reject rather than approximate
-
-| Feature | JS | Native |
+| Facility | JavaScript | Native |
 |---|---|---|
-| `extern class` / host objects | Direct property ops | Diagnostic |
-| `JsValue`, `JSON.parse`, `Regex` | Implemented | Diagnostic (regex: M11.6) |
-| `Task`, `async`/`await`, generators, exceptions | Native Promise / `function*` / `try` | Diagnostic (M11.6) |
-| `import extern`, `import()` | ESM / typed task | Diagnostic |
-| `extern` functions (user C ABI) | Host call | Diagnostic until M11.3 |
-| `Record<T>`, `Object.*`, JSON | Null-prototype object | Diagnostic until M11.4 |
-| Strings | JavaScript strings | UTF-16 code units, same semantics |
-| Unions / nullables | Erased / raw `null` | Tags at boundaries |
-| Class inheritance | Static dispatch | Static dispatch through pointer records |
-| Generics | Erased | Box at polymorphic boundaries |
+| Scalars, UTF-16 strings, generic products, arrays and collections | JavaScript values and checked source operations | Owned layouts, typed views and tagged boundaries |
+| Records, shapes, Object operations and typed JSON | Source-owned objects and selected encodings | Owned records/arrays, checked representation views and exact decimal conversion |
+| Exceptions | Structured throw/catch/finally | Owned status with lexical cleanup and completion preservation |
+| Generators and async/tasks | Generators and Promise jobs | Typed frames, iterator completion and an owned FIFO microtask queue |
+| Typed Regex operations and Unicode casing | Engine operations | Pinned QuickJS libregexp and Unicode 17 tables; no interpreter fallback |
+| Extern functions and public libraries | Explicit JavaScript host/module ABI | Explicit function providers and namespaced generated C interfaces |
+| Host-specific JsValue operations, extern JS classes, dynamic import and JS reflection | JavaScript host contract | Source-qualified diagnostic |
 
-This is a **language** rule: a JS size trick that needs a different native meaning is illegal. Compression work belongs in codec-scored JS emission, not in forked semantics.
+Portable tagged values and `JS.assume` views are supported by native; their
+presence alone is not a JavaScript-only classification. Arbitrary JS host
+objects and regex match objects still require a JavaScript host. The detailed
+[capability inventory](../../native-support.md) states the representation and
+interface boundaries; admission of a family does not admit every combination.
 
-## Native knobs
+`[target.native]` controls compiler, strict speed/size/balanced flags, artifacts,
+SDK/triple, WebAssembly stack reservation, diagnostics and runtime resource
+limits. It also controls immutable static data, proven closure stack storage
+and closed generic specialization. Each control documents its compile-time,
+artifact-size and runtime tradeoff. Disabling an optimization keeps the general
+representation; enabling it never bypasses its proof. The retired top-level
+`[native]` table remains ineffective.
 
-None. The old route's `[native]` storage switches and profile-guided
-optimization are retired with it (a `[native]` table warns "no effect in this
-compiler"). Stack and region storage return as a consequence of the escape fact
-(plan M11.5), not as switches.
-
-## Current focus
-
-JS transfer size (gzip/Brotli) is the active race. Native exists to keep the IR honest and to ship `exec` later. Do not add JS-only semantic shortcuts that would make the second target a lie.
+JavaScript compression and native execution are measured separately. Native
+qualification includes GCC/Clang, sanitizers, independent JavaScript oracles
+and an executed WASI profile. A C flag or a smaller C source file is not itself
+evidence of a smaller executable or faster execution. The migration evidence
+records the measured workloads and the limits of each comparison.

@@ -22,6 +22,9 @@ the upstream parser's 38-digit truncation. Both corrections have independent
 Node binary64 boundary oracles in `tests/native/json-numbers*` and
 `json-midpoints.py`; ordinary short decimals retain the pinned integer-arithmetic
 conversion. Neither conversion depends on the host's decimal-point locale.
+The numeric recipe omits the pinned file's unused `setjmp.h` include. No
+setjmp/longjmp operation is present; this avoids requesting experimental
+WebAssembly exception handling merely to include an unused header.
 
 The owned UTF-16 interface, stateful RegExp behavior and resource controls live
 in `src/program/runtime/unicode.c` and `regex.c`. Changes to those adapters must

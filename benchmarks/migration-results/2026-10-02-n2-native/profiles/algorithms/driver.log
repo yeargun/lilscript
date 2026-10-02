@@ -1,0 +1,11 @@
+aggregate-ledger passed
+collection-geometry passed
+dictionary-template-router passed
+helper-sharing passed
+large-event-analytics passed
+policy-specialization passed
+shape-invoice-pipeline passed
+state-machine-parser passed
+stateful-packet-decoder passed
+static-rule-engine passed
+string-dictionary passed

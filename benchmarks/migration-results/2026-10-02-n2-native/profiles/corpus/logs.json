@@ -1,0 +1,32 @@
+[
+  {
+    "path": "consolidated-tests.log",
+    "sha256": "25f7b200e18e96a6be61d89217bc19b30e419cdefe77a8832a46488e9ee732e8",
+    "bytes": 50272
+  },
+  {
+    "path": "corpus-clang-sanitizers.log",
+    "sha256": "e1aee4903821e25b1778de0f9766718e70c9d114fb6b3e2d970d0685c8511094",
+    "bytes": 719
+  },
+  {
+    "path": "corpus-gcc-1.log",
+    "sha256": "c0918eca4f31d0e2aebe38e2bfe4addc748f4bd6c443d57ab28381a323000135",
+    "bytes": 2062
+  },
+  {
+    "path": "corpus-gcc-repair.log",
+    "sha256": "959181836aa11487ce0833ec66b2fccff205cb1447d1838e42f5d8da895288f8",
+    "bytes": 521
+  },
+  {
+    "path": "last-closure-test.log",
+    "sha256": "ae5776ec4a417b510d9c845611d3a49df18d493f229b839e867e1c9c08869e48",
+    "bytes": 23078
+  },
+  {
+    "path": "repair-tests.log",
+    "sha256": "c67f72920dc7a6fb5a81426ac400cf150640239381d25b3fe6ccf09596adcdbc",
+    "bytes": 218569
+  }
+]

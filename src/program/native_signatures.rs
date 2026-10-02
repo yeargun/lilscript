@@ -40,6 +40,13 @@ pub(super) fn lookup(
 ) -> Result<Option<usize>, NativeError> {
     for (index, signature) in signatures.iter().enumerate() {
         work(budget, 1)?;
+        // Source generic equality permits alpha-renaming. Physical bindings
+        // belong to a specific binder, so different declarations cannot reuse
+        // a signature before their concrete storage has been established.
+        if let (Type::GenericFunction(left),Type::GenericFunction(right))=(signature.ty,ty) {
+            work(budget,left.type_params.len()+right.type_params.len())?;
+            if left.type_params!=right.type_params {continue;}
+        }
         let mut query = budget.scope();
         if type_equal_with(signature.ty, ty, &mut TypeQueryAdmission::new(&mut query))? {
             return Ok(Some(index));

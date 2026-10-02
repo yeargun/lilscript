@@ -1,7 +1,9 @@
 # N2 native continuation evidence
 
 Base: N1 `62856e0c`. [Acceptance](../../../docs/migration/n2-acceptance.md).
-N2 remains active. This record does not declare native completion.
+N2 is complete within the declared portable language and ABI boundary.
+The [closure record](profiles/README.md) qualifies the final implementation;
+earlier batch records below retain their original scope and limitations.
 
 ## Runtime ownership batch
 
@@ -463,3 +465,27 @@ receipts are retained; ELF outputs are excluded. Rust refusal/collision/cache
 expectations are updated for the implemented interface and await the consolidated
 N2 run. This batch makes no full-corpus or performance claim. Profile and
 cross-target qualification, then the complete native census, remain N2 work.
+
+## N2 closure: physical storage, profiles and corpus
+
+Algorithm 85 completes configurable borrowed closures/captured stack cells,
+closed generic function storage, fixed callback calls and safe exception-check
+omission. Native nominal layouts remain general. The cross-target profile adds
+an explicit WebAssembly stack reservation and a portable numeric-library include
+recipe. See [the complete profile and corpus record](profiles/README.md) for
+commands, identities, samples, limits and retained failure investigations.
+
+All 161 native-eligible corpus cases pass both formation and production under
+strict Clang with ASan/UBSan (322 case-lanes); GCC initial/repair cohorts cover the
+same cases. All 138 selected native/configuration/cache/timing Rust tests pass
+across the consolidated run and focused corrections, and the additional shared
+identity-contract regression passes. No repeat of the full library suite was
+needed. The eight WASI runtime workloads, two independent library cores and
+all eleven unchanged algorithm graphs pass their scoped qualifications.
+
+Native performance improves sharply on the isolated closure/generic workloads;
+GCC size is not consistently smaller than balanced, and native remains slower
+than JavaScript on the KaTeX Unicode and Marked rule cores. Short algorithm
+process timings include Node startup. None of these measurements imply a
+universal runtime or compressed-size win. JavaScript parity discoveries remain
+explicitly owned by V1; N2 completion does not close those separate gaps.

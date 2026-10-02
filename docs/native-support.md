@@ -10,22 +10,22 @@ The machine-readable inventory is `native_capabilities` in native policy/build
 reports, generated from `src/native_capabilities.rs`. Its states deliberately
 distinguish remaining native work from facilities tied to a JavaScript host.
 
-| Family | Current boundary | Remaining owner |
+| Family | Current boundary | Qualification / boundary |
 |---|---|---|
-| Scalars and control flow | Wrapping int32, strict binary64, bool, UTF-16, null, scalar unions, structured branches/loops | Further runtime qualification: N2 |
-| Semantic optimization | Shared folding, liveness, calls/inlining, aggregate scalar replacement, and proven final-use ownership transfer; the requested tactic vetoes apply in native and `all` builds | Performance corpus: N2 |
-| Functions | Direct/indirect calls, captured declarations, supported generic tagged values, per-argument absence/defaults and managed/callable references | Polymorphic container/callback bridges implemented; complete qualification: N2 |
-| Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | Native specialization and full qualification: N2 |
-| Collections and classes | Shared-identity concrete/generic arrays, owned callbacks and sparse copies; class objects, maps, sets, symbols, buffers and typed arrays | Remaining recipes and comparisons: N2 |
-| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join and once-created immutable static graphs | Full capability/ABI qualification: N2 |
-| Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | Remaining native error recipes and full corpus qualification: N2 |
-| Generators | Owned typed region frames, lazy body, call-time defaults, array/typed-array/generator delegation, for-of completion and Set mutation | Complete corpus/performance qualification: N2 |
-| Async/tasks | Typed region frames, owned tasks, FIFO microtasks, adoption, then/catch/finally and ordered Task.all | Complete corpus/performance qualification: N2 |
-| Regular expressions | Pinned QuickJS libregexp; typed construction/test/search/string replacement, metadata and shared lastIndex; catchable syntax/resource errors | Broad corpus qualification: N2; JsValue match objects use the JavaScript host ABI |
-| Strings | Reference-counted UTF-16 ABI v2, owned views, temporary-conversion cleanup and Unicode 17 case conversion | Broad runtime qualification: N2 |
-| Memory | Reference counting, traced closures/objects/containers, final-use transfer and synchronous trial deletion | Broad cycle/performance qualification: N2 |
-| Native interfaces | Explicit `host_` providers, namespaced library exports/headers, live bindings, explicit lifecycle and typed process/file/clock/exit services | Full capability/performance qualification: N2 |
-| Toolchain | One library owner; strict C11 flags, explicit TOML controls, source/output receipts | Native objective measurements, sanitizer matrix and cross-target profiles: N2 |
+| Scalars and control flow | Wrapping int32, strict binary64, bool, UTF-16, null, scalar unions, structured branches/loops | N2 |
+| Semantic optimization | Shared folding, liveness, calls/inlining, aggregate scalar replacement, and proven final-use ownership transfer; the requested tactic vetoes apply in native and `all` builds | N2 |
+| Functions | Direct/indirect calls, captured declarations, supported generic tagged values, per-argument absence/defaults and managed/callable references | N2 |
+| Value structs | Managed C values, generic tagged fields, nullable/union snapshots, collection payloads, callback conversion and nested logical field writeback | N2 |
+| Collections and classes | Shared-identity concrete/generic arrays, owned callbacks and sparse copies; class objects, maps, sets, symbols, buffers and typed arrays | N2 |
+| Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join and once-created immutable static graphs | N2 |
+| Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | N2 |
+| Generators | Owned typed region frames, lazy body, call-time defaults, array/typed-array/generator delegation, for-of completion and Set mutation | N2 |
+| Async/tasks | Typed region frames, owned tasks, FIFO microtasks, adoption, then/catch/finally and ordered Task.all | N2 |
+| Regular expressions | Pinned QuickJS libregexp; typed construction/test/search/string replacement, metadata and shared lastIndex; catchable syntax/resource errors | N2; JsValue match objects remain JavaScript host facilities |
+| Strings | Reference-counted UTF-16 ABI v2, owned views, temporary-conversion cleanup and Unicode 17 case conversion | N2 |
+| Memory | Reference counting, traced closures/objects/containers, final-use transfer and synchronous trial deletion | N2 |
+| Native interfaces | Explicit `host_` providers, namespaced library exports/headers, live bindings, explicit lifecycle and typed process/file/clock/exit services | N2 |
+| Toolchain | One library owner; strict C11 flags, explicit TOML controls, source/output receipts | N2 |
 | JavaScript host facilities | `unknown`, host-specific `JsValue`/`JS.*` operations, extern JS classes, `object {}`, JS module namespaces/dynamic import and ambient JS APIs | Declared JavaScript-only; portable tagged value transport and checked representation views also support native catches |
 
 An implemented family is not a blanket claim that all representation
@@ -61,12 +61,14 @@ The source language forbids capturing a reference parameter, suspending with
 one or exposing it through an opaque public/foreign callable contract. Native
 preserves those restrictions and does not add heap storage to ordinary references.
 
-The old corpus's lexical native masks are coverage classifications, not a proof
-that the checker/runtime is complete. In particular an `extern` can be supported
-by a configured C provider even though an ordinary `.host.js` fixture cannot.
-N1 inventories those exclusions; N2 must implement/qualify portable cases and
-keep explicitly JavaScript-bound cases visible. Qualification never treats a
-masked or refused case as a pass.
+The [N2 qualification](../benchmarks/migration-results/2026-10-02-n2-native/profiles/README.md)
+covers the portable runtime, physical controls, native corpus, independent
+algorithm/port cores and WASI. The corpus now binds each exclusion to its exact
+source/config/oracle digest: 161 cases execute in both native modes, 147 require
+test-provider setup, 84 use JavaScript host operations, seven observe JavaScript
+prototypes/module exports and four retain obsolete fixture controls. Native C
+providers and library interfaces have their own executable qualification.
+Neither exclusions nor target admission count as runtime passes.
 
 Concrete and generic array views share one traced identity and mutable buffer.
 A storage descriptor preserves typed elements on the direct path and uses checked
@@ -163,3 +165,13 @@ nonzero exit; shutdown releases remaining queue owners without invoking user
 callbacks. Task ordering and type canonicalization are language semantics, not
 optimization switches. The existing cycle threshold/profile controls retain
 their documented memory and CPU tradeoffs.
+
+Native physical optimization uses complete shared use/call facts. A synchronous
+closure with all aliases confined to its creation region may borrow its environment
+and captured cells from the stack. A private generic function with one complete
+concrete instantiation may use scalar storage and fixed callbacks. Nominal layout
+binders, escaping closures, suspended activations and unresolved/polymorphic calls
+retain the general representation. TOML controls independently disable these
+choices; they do not weaken source semantics or change JavaScript objectives.
+Native speed/size/balanced are measured compiler strategies, not universal claims
+of faster execution or smaller artifacts. See the retained per-workload samples.

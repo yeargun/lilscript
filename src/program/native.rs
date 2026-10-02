@@ -254,6 +254,8 @@ pub(super) fn form(
     scalar: bool,
     dead_code: bool,
     static_data: bool,
+    stack_storage: bool,
+    generic_specialization: bool,
     cycle_threshold: u32,
     regex_limits: (u32, u64),
     artifact: crate::config::NativeArtifact,
@@ -265,12 +267,12 @@ pub(super) fn form(
         AllocationClass::Scratch,
         size_of::<NativePlan<'_, '_>>() as u64 + size_of::<Emitter<'_, '_, '_, '_, '_>>() as u64,
     )?;
-    let mut plan = NativePlan::build_with_hosts(program, uses, hosts, &mut phase)?;
+    let mut plan = NativePlan::build_with_options(program, uses, hosts, generic_specialization, &mut phase)?;
     plan.resolve_effects(uses, dead_code, &mut phase)?;
     if artifact.is_library() {plan.helpers.require(Helper::Exceptions);}
     let static_storage=static_data::StaticStorage::build(&mut plan,static_data,&mut phase)?;
     let initialization_guards_removed = plan.cells.iter().filter(|cell| cell.global && !cell.global_guard).count() as u32;
-    let storage = if scalar {
+    let mut storage = if scalar {
         super::physical_storage::StorageProofs::build(
             program,
             uses,
@@ -281,9 +283,11 @@ pub(super) fn form(
     } else {
         super::physical_storage::StorageProofs::default()
     };
+    if stack_storage { storage.borrow_closures(program, uses, &mut phase)?; }
     let mut emitter = Emitter {
         plan: &plan,
         static_storage,
+        elide_exception_checks: dead_code,
         cycle_threshold,
         regex_limits, artifact, symbol_prefix,
         storage,
@@ -359,6 +363,7 @@ enum Task {
 struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     plan: &'plan NativePlan<'program, 'src>,
     static_storage: static_data::StaticStorage,
+    elide_exception_checks: bool,
     cycle_threshold: u32,
     regex_limits: (u32, u64),
     artifact: crate::config::NativeArtifact,
@@ -417,6 +422,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.namespace_macros(true)?;
         self.text(native_runtime::PROLOGUE)?;
         self.write(format_args!("#define LS_NATIVE_STATIC_DATA {}\n",u8::from(self.static_storage.has_objects())))?;
+        self.write(format_args!("#define LS_NATIVE_STACK_DATA {}\n",u8::from(self.storage.has_borrowed())))?;
         let threshold = self.cycle_threshold;
         self.write(format_args!("#define LS_NATIVE_CYCLE_THRESHOLD UINT32_C({threshold})\n"))?;
         if self.plan.helpers.contains(Helper::Regex) {
@@ -610,6 +616,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 }
                 if let ValueStorage::Value(ty) = self.plan.cell_storage(cell) {
                     if self.plan.boxed_cell(cell) {
+                        if self.storage.stack_cell(cell) {
+                            self.write(format_args!("ls_box{0} ls_sb{0} = {{0}};\n", cell.index()))?;
+                        }
                         self.write(format_args!(
                             "ls_box{} *ls_c{} = NULL;\n",
                             cell.index(),
@@ -623,6 +632,13 @@ impl Emitter<'_, '_, '_, '_, '_> {
                             ty.empty_slot()
                         ))?;
                     }
+                }
+            }
+        }
+        for operation in &unit.operations {
+            if let OperationKind::Closure(body) = operation.kind {
+                if self.storage.borrowed(body) && self.plan.units[body.index()].has_environment && self.has_boxes(body)? {
+                    self.write(format_args!("ls_env{} ls_se{} = {{0}};\n", body.index(), operation.result.unwrap().index()))?;
                 }
             }
         }

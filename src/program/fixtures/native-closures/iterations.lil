@@ -10,13 +10,17 @@ func(int)->int counter(int seed){return (int delta)=>{seed+=delta;return seed;};
 void fill() {
     int index=0;
     while(index<4) {
+        // The next captured binding belongs to the nested block, so this
+        // checks only owners surviving earlier iterations, not a TDZ slot.
         expectLive(index*2);
+        {
         int state=index*10;
         keep(index,(int delta)=>{state+=delta;return state;});
         auto scratch=counter(100+index);print(scratch(1));
         index+=1;
         if(index==2){continue;}
         if(index==4){break;}
+        }
     }
 }
 void churn() {

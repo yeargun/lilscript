@@ -1,0 +1,493 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+    "sha256": "13548a18d2462ed2251d71e8138b98997d9b7403b77ef697daafc93d97e0be56"
+  },
+  "rows": [
+    {
+      "name": "physical-storage-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/physical-storage.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 32,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-0/program.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-0/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 931,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-1/program.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-1-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-1/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 905,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-1-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-1-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-1/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1848,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-0-1-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/physical-storage-0-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-13-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-0/program.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-13-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-0/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 928,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-13-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-13-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/physical-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-1/program.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-13-1-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-1/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 908,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-13-1-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-13-1-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-1/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1836,
+      "passed": true
+    },
+    {
+      "name": "physical-storage-13-1-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/physical-storage-13-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-oracle",
+      "args": [
+        "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+        "tests/native/generic-storage.oracle.mjs"
+      ],
+      "exit": 0,
+      "elapsed_ms": 31,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-0/program.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-0/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 463,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-1/program.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-1-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-1/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 390,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-1-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-1-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-1/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1041,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-0-1-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/generic-storage-0-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-13-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-0/program.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-13-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-0/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 453,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-13-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-13-1-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-physical-2/lilscript",
+        "tests/native/generic-storage.lil",
+        "--config",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-1/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-1/program.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-13-1-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-1/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 385,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-13-1-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-1/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-13-1-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-1/wrapper.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1025,
+      "passed": true
+    },
+    {
+      "name": "generic-storage-13-1-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-physical-2c/generic-storage-13-1/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    }
+  ]
+}

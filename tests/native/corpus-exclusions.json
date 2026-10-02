@@ -1,0 +1,1459 @@
+{
+  "schema": 1,
+  "scope": "Explicit source-digest-bound native corpus exclusions. Missing providers identify the first blocking test boundary, not a proof about recipes beyond it. Unknown or changed cases run native and must be classified explicitly; native capability checking and executable qualification remain separate.",
+  "evidence": "benchmarks/migration-results/2026-10-02-n2-native/capability-census.json",
+  "cases": [
+    {
+      "id": "cases/constant_methods_patched",
+      "input_digest": "cc698095668fa4e12073e49cd5a91fbd92a74335e14d76525a1d4f0437339900",
+      "category": "javascript-observation",
+      "reason": "Golden output observes JavaScript prototypes/exports through a JavaScript prelude or module probe."
+    },
+    {
+      "id": "cases/data_tables",
+      "input_digest": "265b3879257fd05a112c5e3ab9b00b702fccab2e65b734fbf61531ff0cc6765b",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/formation/class_bodies",
+      "input_digest": "d44fb213fff20a3e5fd834f15d8e828280f2c1af3009046cd81d286d4d98681c",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/formation/class_bodies_script",
+      "input_digest": "d27f4c118d95d893ab4c9d5c7222e947305d1182e3ddea45009dc6e97d2031ac",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/formation/debug_class",
+      "input_digest": "491171cc6788e71451f3346605051c97c87486f822d1cf7ff5c4a56d4d1e3cd3",
+      "category": "provider-setup",
+      "reason": "extern `invariant` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/formation/imports_by_identity",
+      "input_digest": "9333c69acac5c67b1bd707911b09f1e51e94cbaccccee916c8c8ea2721469488",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/formation/literal_operands",
+      "input_digest": "c0c14fa7a6493b80c3f78c0690839a88fafad2af755df4417dec4d5a9d13529b",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/formation/method_lexical_receivers",
+      "input_digest": "37991868647a57093a0a9689b88250df79a72bf4e2b30881fce2f6e6baafa52e",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/formation/method_names",
+      "input_digest": "1e648158c7d2d567f869e84fb090e30a34387db9fe53f4f3dc2f6bfe89c22bc6",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/formation/method_receivers",
+      "input_digest": "ccc7913b7656fbb36b2e00aeda5cbc7b3af1d4c8da9f2da24c6f0d7ae4e5d44c",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/formation/print_is_kept",
+      "input_digest": "2f6ecb0a802a72e8586920376602b1d948ccd8a37499fb0637862187659a07ab",
+      "category": "provider-setup",
+      "reason": "extern `debugLog` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/formation/shared_decoders",
+      "input_digest": "e646c41cad693fc65dc2eda2e9d22d39473965c9b762465f92a5d29b8e356ad0",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/nominal/export_constructor_boundary",
+      "input_digest": "a9319d6559e7f7c0d71f582fecd0c83ca4514576ce579df0729dc9806665666d",
+      "category": "javascript-observation",
+      "reason": "Golden output observes JavaScript prototypes/exports through a JavaScript prelude or module probe."
+    },
+    {
+      "id": "cases/nominal/extern_class_shadowing",
+      "input_digest": "55d5c54e3471235adbabedf44c72c8ced1504d14fb5522254324fea96bd883dd",
+      "category": "javascript-host",
+      "reason": "extern classes require a JavaScript target"
+    },
+    {
+      "id": "cases/regressions/compiler-a_record_read_tested_for_null_stays_undefined_when_absent",
+      "input_digest": "eef2d36ffc17fdb1a77a02eeac57322e7db629264322e8b93f9206e1c0a48d67",
+      "category": "provider-setup",
+      "reason": "extern `check` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-a_record_read_that_is_never_tested_keeps_its_null_normalization",
+      "input_digest": "40e8e9f1ef604de5fa787716d88db1d17735ca927c9139ad20c2ff7f9c4526a3",
+      "category": "provider-setup",
+      "reason": "extern `check` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-a_string_element_read_compared_against_a_truthy_value_drops_its_hole_guard",
+      "input_digest": "861fd6122f38e29e490fa6ffc151effa6c4da8eb5b257066b36d9f6e4b796e1e",
+      "category": "provider-setup",
+      "reason": "extern `check` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-an_unnormalized_map_get_tests_strictly_for_undefined_unless_truthiness_is_cheaper",
+      "input_digest": "ecfb46f74082fafff78d0660648de0de50ad82f280274209f6abfdca2fd4e6f4",
+      "category": "provider-setup",
+      "reason": "extern `check` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-checked_pure_exports_carry_call_annotations_after_selection",
+      "input_digest": "ffd60858321b97b6204b37facf2cd65d644784f16e0628dd800a8613197a3aca",
+      "category": "provider-setup",
+      "reason": "extern `check` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-constructor_export_preserves_explicit_inheritance",
+      "input_digest": "cb7795bc489b50f5b2b72bb5e5eef2571bb45c2213106565c571d796eb861209",
+      "category": "javascript-observation",
+      "reason": "Golden output observes JavaScript prototypes/exports through a JavaScript prelude or module probe."
+    },
+    {
+      "id": "cases/regressions/compiler-constructor_export_synthesizes_only_the_published_default_constructor",
+      "input_digest": "39b55db71e81531a2edacabd9d90012e68b27eb2ab56d1cd74c2a9153a89c29b",
+      "category": "javascript-observation",
+      "reason": "Golden output observes JavaScript prototypes/exports through a JavaScript prelude or module probe."
+    },
+    {
+      "id": "cases/regressions/compiler-declares_a_loop_carried_binding_before_a_prototype_walk",
+      "input_digest": "a02b5bb6ab4cca58929087e748bbd6d60e414a0b4aa979818b9b1578baabfdd1",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-drops_unread_scheduler_store_and_host_value",
+      "input_digest": "356838fa7b3bf58f90f4dd7095b15cf8f043419360d49ea481f336425141a10a",
+      "category": "provider-setup",
+      "reason": "extern `host` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-explicit_constructor_export_preserves_named_class_identity",
+      "input_digest": "c5416cfbc7970d511d447533a0bf1777017f3a5b9c0eac39c5ef38c6236af6dc",
+      "category": "javascript-observation",
+      "reason": "Golden output observes JavaScript prototypes/exports through a JavaScript prelude or module probe."
+    },
+    {
+      "id": "cases/regressions/compiler-function_scope_wraps_the_module_internals_and_keeps_the_public_api",
+      "input_digest": "d7c0605230452f09a3960afdfc76d143a8d8733a2f8a47cce577add0bfc77204",
+      "category": "javascript-observation",
+      "reason": "Golden output observes JavaScript prototypes/exports through a JavaScript prelude or module probe."
+    },
+    {
+      "id": "cases/regressions/compiler-gzip_search_can_keep_distinct_locals_when_coalescing_adds_syntax",
+      "input_digest": "a2122e8f4e9b1f9d5acafa6432d100c3d3f741380a66dedf0302767be88fdfab",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-inner_temps_do_not_clobber_module_bindings_used_as_exports",
+      "input_digest": "28cdb3ad7606a64e688fdefb808c9f0461ef641889a22bb73506792b2f0ad86b",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-js_construct_emits_new_without_a_host_wrapper",
+      "input_digest": "390ae01493051b6efc48db62af5ea7baf9f94d62a77a6d055f06da66a37b6a7e",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/compiler-keeps_a_captured_changed_flag_across_a_js_track_call",
+      "input_digest": "f8cde05dff618d49397109f3909bb6ee3af31fb9e1ba9722f337d9c9efce3442",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-keeps_a_captured_changed_flag_across_a_known_track_method_in_production",
+      "input_digest": "378e554cdd559d5ffc60b7357ebefc729493b67d69fe7f0579a03feaee3e4441",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-keeps_copied_property_compare_across_a_mutating_call_before_a_branch",
+      "input_digest": "843067978b8ef4cebc693ff38e8bd75d70b5490ebf9641c3bea33056ff126010",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-keeps_copied_property_load_across_a_mutating_method_call",
+      "input_digest": "25d7e6cce0fea6af46da9586699f405d7e464197c5e292ff28af4f395696ff01",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-keeps_toint_property_compare_across_a_js_call",
+      "input_digest": "ab6551aee9288a6c3b76725b3385103df0ab109cfcf981a414f9933fbf67c1d9",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-keeps_toint_property_compare_across_a_js_call_when_used_in_a_later_or",
+      "input_digest": "9539144c6f2a3bf1e774218c39fa9c80f7081936354661393625b721546a2144",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-lowers_javascript_short_circuit_and_strict_comparison_without_helpers",
+      "input_digest": "abfe9e5b6657c039375b7e98ecb3b7123f38689ad18a6f786c189416ee6e6c99",
+      "category": "provider-setup",
+      "reason": "extern `left` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-method_has_temp_does_not_clobber_a_live_value_argument",
+      "input_digest": "fc6f74f80572ac4f369c2b9dd5153df1a0974228ed47353d627c4af5567a2455",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-module_level_assignment_is_not_shadowed_inside_setter",
+      "input_digest": "bf596a6774231260e060c2b9ba7572b5d78080f417b38d43338a64087218f06b",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/compiler-nested_js_closure_keeps_copied_value_after_source_write",
+      "input_digest": "0aac613170bc4aeda13f3a15107f3e170c74a6c26e565468acd9c497d75d36c4",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/compiler-nested_js_closure_stores_captured_outer_binding",
+      "input_digest": "f3820e025a0627655d6ead32b28574addf89f861843c6526d4d0dc644470e2a6",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/compiler-nested_same_receiver_member_calls_keep_javascript_this",
+      "input_digest": "7186023547263eca7a585dfe9d0d56e9e074515d3fa039db193bb79a77afe457",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+      "input_digest": "fd3db23c6ccb2844057beb4ae1fe4216fca7bd0f26beca3ad29c51bd69d850f8",
+      "category": "provider-setup",
+      "reason": "extern `objectHasOwn` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-ordinary_object_literal_preserves_javascript_prototype_semantics",
+      "input_digest": "7781591021261d7a4b1f958b17b3dbe388c401c4c00d43f571935463b8de2c77",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-owned_plain_object_proof_forwards_only_proven_own_reads-escaped",
+      "input_digest": "282467d43bb235537b9c358ca0c1c9ce49dcac0b4bf289ea668a58de87b7471a",
+      "category": "provider-setup",
+      "reason": "extern `escape` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-owned_plain_object_proof_forwards_only_proven_own_reads-missing",
+      "input_digest": "f9d2c780e98bb0685e43f08cc07c2e06a09095c223a4259eb440d86db763bdad",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-owned_plain_object_proof_forwards_only_proven_own_reads-owned",
+      "input_digest": "28bd953343d125e653a9e6a5d3b1ba5772ce845dbdf449d05fcc2c961c8cc888",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-parsed_peephole_applies_without_candidate_search",
+      "input_digest": "75b6a1bc450598e175f47de6323061da0fa16d670054c481255bee0f33808f1b",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-preserves_effectful_calls_before_conditional_returns",
+      "input_digest": "714a075955cfb6a17322193b3b6f10ae31eabb039e6b9346686c6cf4e2c42c83",
+      "category": "provider-setup",
+      "reason": "extern `retain` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-private_global_store_survives_cross_function_conditional_selection-flag_false",
+      "input_digest": "34890681c45d60df20efbd8ca702e2075b19eabf7535c3f949da50a7ababb084",
+      "category": "provider-setup",
+      "reason": "extern `flag` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-private_global_store_survives_cross_function_conditional_selection-flag_true",
+      "input_digest": "50a9f20d9eaf5346b0e0559cc662beafd318aa5f01e124a4cff286af3e727821",
+      "category": "provider-setup",
+      "reason": "extern `flag` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-production_nested_call_temp_does_not_reuse_a_module_callee_register",
+      "input_digest": "15f0df739ae75fc5986c56e51e78e538ec85dc184f94fd6f4ee26210b396275a",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/compiler-rest_argument_alias_keeps_nested_mutation_and_invocation_identity-cleared_reader",
+      "input_digest": "1739e1084e6bccd62eea413b8d5f8b6908d994654919843089b5066e3575d26a",
+      "category": "provider-setup",
+      "reason": "extern `invoke` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-rest_argument_alias_keeps_nested_mutation_and_invocation_identity-retained_reader",
+      "input_digest": "d24c3726fc43a8c89d0c8f9ad8670dc9ccbf5a1c79e65c58e1f9f7c7642dbedc",
+      "category": "provider-setup",
+      "reason": "extern `invoke` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-search_does_not_rank_a_nested_local_that_shadows_an_outer_binding_still_read",
+      "input_digest": "9cb49f68483041674d27db5734d1dba8f57faa0277daf7c4e28b1b613f04006c",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-size_first_search_keeps_js_string_of_a_jsvalue",
+      "input_digest": "6ea0b5636d8de0d26587012678b82d8f5d5061059127152171a6e35152edfbae",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-size_first_search_spreads_a_delimiter_not_the_live_match",
+      "input_digest": "61fb3c4a9288ff07fbb3b9d5ffb9d1426337dad9c73fb799924ac15ca0ec60d9",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/compiler-snapshot_of_a_mutable_capture_survives_production_indirect_store",
+      "input_digest": "0fc873293220963e0471b4d4fc9ad7249c8b5f82e0412b42a1b396aeeaa46baf",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/compiler-uses_imported_constructor_value_inside_exported_function_in_cycle",
+      "input_digest": "af55949fcfe6368e80a145e82a23a3e182d8554ab7a794fbf84fd1ab524221d2",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/effects-a_discarded_pure_call_keeps_its_arguments_host_call",
+      "input_digest": "5f5b42fae5d724255a044a39447e9b8d674846de2463fd64057b8813986356c4",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/effects-exported_function_survives_its_discarded_calls",
+      "input_digest": "bc69c99f53767483f5ef67272d63dbc174554d5e4e1fc6541dfe940a079aaaac",
+      "category": "javascript-observation",
+      "reason": "Golden output observes JavaScript prototypes/exports through a JavaScript prelude or module probe."
+    },
+    {
+      "id": "cases/regressions/effects-jsvalue_getter_and_valueof_in_discarded_calls_still_run",
+      "input_digest": "2695644362131df516e0694d823c5456f13b13bf39212b31761f3c8b82b57662",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/effects-pure_extern_result_unused_still_runs",
+      "input_digest": "1fa7f0b43b5160a97be55cfca8eddaaa140070596aecf752f87a252a0cf6c6e8",
+      "category": "provider-setup",
+      "reason": "extern `measure` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/init-an_exported_function_the_host_calls_early_still_throws",
+      "input_digest": "7342d35a0d3fda2e3b38a9814f0c69c425c764c2cc45c87a67ea86f4bb3307d1",
+      "category": "provider-setup",
+      "reason": "extern `hostCall` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-address_taken_defaults_keep_plain_typed_formals",
+      "input_digest": "24af5c190e82c0a5e0c4c022c478dd56791f287f0e895c7657fb84c44c774280",
+      "category": "provider-setup",
+      "reason": "extern `retain` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-adjacent_binding_merge_ignores_names_inside_nested_initializers",
+      "input_digest": "c60f4cb7220874e03fa00187d7d43946a577185f73b14bfd00e448cdc552ab6f",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-aggregate_operand_fusion_materializes_observable_chained_reads",
+      "input_digest": "3000538f2baeab0f81fd4d699f06555aa5b171241679456ef1dd1be7f735c243",
+      "category": "provider-setup",
+      "reason": "extern `test` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-aggregate_read_helper_stays_before_an_intervening_mutation",
+      "input_digest": "de8dd3f432a07726403685da9e3cc87399e9aa7ba9fb26042bbfe3eb5cb92197",
+      "category": "provider-setup",
+      "reason": "extern `mutate` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-an_internal_class_extending_a_host_class_is_a_real_subclass",
+      "input_digest": "ec02ef3b509a13493a49bbadd6eb872844b05e772b05ba30625632a1c7d80bb0",
+      "category": "javascript-host",
+      "reason": "extern classes require a JavaScript target"
+    },
+    {
+      "id": "cases/regressions/irjs-arrow_locals_do_not_var_hoist_over_parent_global_reads",
+      "input_digest": "6c778902857445715e31811014d8d3a7e55d3eb8306e49702fa210e7e61bbb73",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-assigned_this_methods_keep_named_formals_instead_of_arguments",
+      "input_digest": "4a6f76142cd4722dfebb4d271a89f6e8652d0b4ce14eaee1a63c9a15117a9643",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-assigns_for_in_copy_before_proto_guard",
+      "input_digest": "f927e161854cabc2b54ca2801c95626f7a67d97421e34794c7273f13bcdf7ea8",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-batches_consecutive_property_writes_into_object_assign",
+      "input_digest": "c35e9a71053210dc4407f715d180e4ee0f52d93c379cc5541b3187f5a21ac3c2",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-cached_actuals_support_nested_policy_helper_selection",
+      "input_digest": "774aadbd46e7d065c7fdaa4d5d7e9d6b543fa1085c76fe9c6d1ccbfaa77c28be",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-cached_pure_helper_actuals_are_eager_once_and_in_argument_order-eager_unused",
+      "input_digest": "575dd51013833fd0fd3b0e0e5f49ec19fc28fad633143ae3ca5c2dde68fafd07",
+      "category": "provider-setup",
+      "reason": "extern `flag` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-cached_pure_helper_actuals_are_eager_once_and_in_argument_order-ordered",
+      "input_digest": "c76352b1cd9cbbd473d9e0c232c86a47579474b99654bbd23fd07a8b62566c7f",
+      "category": "provider-setup",
+      "reason": "extern `first` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-cached_pure_helper_actuals_are_eager_once_and_in_argument_order-ordered_throwing",
+      "input_digest": "3855f2ad390c9a94c4929e5ca5fe87a36e4bed1d9b680805bb58cf03db58e846",
+      "category": "provider-setup",
+      "reason": "extern `first` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-cached_pure_helper_actuals_are_eager_once_and_in_argument_order-repeated",
+      "input_digest": "26ac67f4e15109514b81b31a073aeb1c9dd379bd7a2e185ab844ac47e2f0daaa",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-caller_local_must_not_steal_a_name_a_callee_still_calls",
+      "input_digest": "bdea3c128565fe4529b0ff594a3ebef9c321cdc193c1970c679a76adc75cfcad",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-caller_materializes_fresh_array_defaults_for_direct_only_functions",
+      "input_digest": "73d3938629fa749ddfccbf5647d38dc9237cfc6db46410ff932bc1e2ada400ba",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-canonical_inline_values_do_not_erase_or_repeat_computed_coercions",
+      "input_digest": "122175c9747aa90141d1da21162a8747cc10ea2c4aefce864be0fad8e2d09b30",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-canonical_inline_values_do_not_erase_or_repeat_computed_coercions-throwing",
+      "input_digest": "fb0ff67314037330a05facf4355e55fff6bbdc3627a97ce4fc23aa39cb807cea",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-canonical_inline_values_keep_pooled_and_literal_representations",
+      "input_digest": "63f8dead3e75f92700003b741ad1ae06f03ffb835f74c0a8e889a25da28ec9d7",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-canonical_inline_values_survive_generic_callback_emission",
+      "input_digest": "1297214e5057daca2d37c2457300b940b941ca7ae79179c6f1253ab1d20cbcc2",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-captured_closure_wrappers_keep_plain_typed_formals",
+      "input_digest": "ce1774fa59bb2d55c4e1664e0a14c2faf4debaf3f96d31255ecc8f5c143cebfe",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-captured_options_keep_their_name_off_the_closure_dest",
+      "input_digest": "ab241af2824320d93cd291c9fc2c76843d61b7d3a512c0d60785c2a01ef50c83",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-captured_then_body_is_not_overwritten_by_a_later_host_load",
+      "input_digest": "f175f16e88763425661f91fa2a08fa4d909b80eb033fa917a69271e6a7d770e4",
+      "category": "provider-setup",
+      "reason": "extern `report` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-clustered_helpers_of_js_method_binders_keep_emitted_names",
+      "input_digest": "218a49177ef24b0fbef283b9d755936010a5df1c146005ab0d70d75a28dd897c",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-clustered_root_params_do_not_shadow_helpers_captured_by_nested_closures",
+      "input_digest": "b0b1f9bbf79946ac70ac1e1ea474efb40e0f22d77e4c66cef999c41828c07a13",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-collapses_assignment_guard_returns_into_one_if",
+      "input_digest": "7167b1f2e0a342a19323b7178012f7eec38cd70c9fd7451ae0af31fd5223d465",
+      "category": "provider-setup",
+      "reason": "extern `hooksOf` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-collapses_only_a_single_identity_helper_actual_binding-identity",
+      "input_digest": "f7b32fe76ca0bccacb72b8939bf219988d4b154d098a6ab6516e1b7ba9615094",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-collapses_only_a_single_identity_helper_actual_binding-unused",
+      "input_digest": "ef9f632aa90bbc916f2d3f1cb64c50efd092b22c0e40a399dd67142cc95bbe9f",
+      "category": "provider-setup",
+      "reason": "extern `first` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-computed_assignment_keeps_lhs_and_lazy_rhs_evaluation_order-first0",
+      "input_digest": "6d49f77769a82bcaa2e245e09491a609055518f7e5a8659a99c6517bef4c7b95",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-computed_assignment_keeps_lhs_and_lazy_rhs_evaluation_order-first5",
+      "input_digest": "f79fa92dc24110fde275ec52aaf19113fd77ba94aeaf4fef228380025cfad8c0",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-constructor_fusion_survives_rejected_loop_update_probe",
+      "input_digest": "2428b1ac5fffc28cd462942cc1c150c8f7bb8f33af8f606c0532062458a72470",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-decoded_constant_keys_and_regex_patterns_keep_their_values",
+      "input_digest": "af88c769e13d8174b8de06674ab20325791c0575e742fac8bea04f0dd287c034",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-decoded_string_values_survive_folding_templates_and_every_quote_family",
+      "input_digest": "5757da1e20ed53a4fbee2e316c91b9c03226c140e488ce81752d899e2515a62f",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-dense_constructor_literals_ignore_inherited_prototype_setters-named",
+      "input_digest": "7923f3eceed2cdbe42147a201a7cf0fb879b3c954ed9f4fcfa753fcb7e69ca40",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-dense_constructor_literals_ignore_inherited_prototype_setters-positional",
+      "input_digest": "8d4a8723a557327fad7681b1ee9917800575f1bc5eae64f9b92f6afd8c2b3024",
+      "category": "obsolete-config",
+      "reason": "Retired positional JavaScript ABI fixture configuration; owned by V1."
+    },
+    {
+      "id": "cases/regressions/irjs-dense_string_tables_serialize_decoded_values",
+      "input_digest": "7784da7976af349b4e4b24bbda14f6f41547482644b9436a721cc723ae1282f0",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-direct_constructor_fusion_keeps_helpers_with_remaining_super_uses",
+      "input_digest": "ccb5faeee2429b332786ad2cab9a4b177f3cdc2f07993b079c14f4d9cfd24374",
+      "category": "provider-setup",
+      "reason": "extern `baseValue` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-direct_constructor_fusion_refuses_observable_host_defaults",
+      "input_digest": "eb102014ef477a13fe499ee581c519ef65db884e0894ed34b23ffbc4f60d46e6",
+      "category": "obsolete-config",
+      "reason": "Retired positional JavaScript ABI fixture configuration; owned by V1."
+    },
+    {
+      "id": "cases/regressions/irjs-direct_constructor_fusion_refuses_unmapped_host_defaults",
+      "input_digest": "2801621489279f2f061ee0cee60cdd70efc106cf3a3866a22644e46d9c2ac1b3",
+      "category": "obsolete-config",
+      "reason": "Retired positional JavaScript ABI fixture configuration; owned by V1."
+    },
+    {
+      "id": "cases/regressions/irjs-direct_constructor_literals_preserve_named_and_positional_own_properties-named",
+      "input_digest": "86ecb88cf1cccab6390f17c7918012419ae27855b2e2d4bf9207724129d6a1e7",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-direct_constructor_literals_preserve_named_and_positional_own_properties-positional",
+      "input_digest": "266344ea2442521845fa2cbcbb957fb54529e111f89870c4f065759231f898af",
+      "category": "obsolete-config",
+      "reason": "Retired positional JavaScript ABI fixture configuration; owned by V1."
+    },
+    {
+      "id": "cases/regressions/irjs-directly_fuses_constructor_parameters_once_in_left_to_right_order",
+      "input_digest": "d11a4f4f536e277b3b2c65f8d18c5cafb7cff2b7cd358dab98240e77c530407c",
+      "category": "provider-setup",
+      "reason": "extern `first` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-does_not_rematerialize_short_circuit_member_before_receiver_bind",
+      "input_digest": "5faca87671b6f1081f6e7835fea0838dfa4d9495b9c31d788106c350b4e18864",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-does_not_reuse_a_loop_receiver_for_a_nested_counter",
+      "input_digest": "d1a387dc5b9ece29c5867a26e8f4222161bd3f66cbbc1a1129224cefb7f2da7f",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-dynamic_iteration_shapes_remain_observable_when_results_are_unused-for_in",
+      "input_digest": "2fae74593f141a4f85afe44277cfa317a8f87a9f348bb63b4bf84770ea14de1b",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-dynamic_iteration_shapes_remain_observable_when_results_are_unused-for_of",
+      "input_digest": "8cc266d5f4a597ffd1399878cd2471a856350d3f5564b952c58444edb24123df",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-coercion",
+      "input_digest": "24e55c0f55b9fd314c867fe3568b729c9b52ad0e51afec1a079d9e219bd7db96",
+      "category": "provider-setup",
+      "reason": "extern `first` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-is_array",
+      "input_digest": "e2bca9177d37c41477c5a99a162bd51fe33cf70ce7b45af21055c68179dd9fb0",
+      "category": "provider-setup",
+      "reason": "extern `item` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-pre_branch",
+      "input_digest": "904776122e449970150274ae32c8e6a19febdfa6cb483b60355b198ad427fdcc",
+      "category": "provider-setup",
+      "reason": "extern `item` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-read_barrier",
+      "input_digest": "dd75e3607dd72d4ba81ad585444c3f345f6e2c69744c753d0ee4b8b08160e3bd",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-typed_read_barrier",
+      "input_digest": "a59df537fd8d4beb54e815dd367e58729f759808332436ca3c978b1e0a549bdc",
+      "category": "provider-setup",
+      "reason": "extern `item` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-unwrap_barrier",
+      "input_digest": "5b431ad75351c40aa4c0178c80ff0ee2f75f2224a305829b0e45c3917cc54e6d",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-emits_exclusive_recursive_local_called_from_a_nested_closure_as_iife",
+      "input_digest": "b0fb56543219e4640f6f185cd5305d9722f75d7268f788aaf92dbc706a894ca5",
+      "category": "provider-setup",
+      "reason": "extern `each` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emits_negated_empty_else_as_or_statement-keep_false",
+      "input_digest": "e35ceb6617342c5d61eeafad0fc1c06bf1139d4d1a4c464f482edfa6fae17cb6",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emits_negated_empty_else_as_or_statement-keep_true",
+      "input_digest": "d724aead54b0927dfb3e6dfadbf0038f627d476de19f864840f0141c941f4cc1",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emits_scalar_match_as_a_conditional_region",
+      "input_digest": "35c36189a6f2e482f901b603743a7c6598503c17926e50cb13352c4616445f0d",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emits_source_expression_if_as_a_conditional_region",
+      "input_digest": "1adbdd3370bd2d923badc1a4533f649713fd69b43e9ead84f7934a00cae091a9",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emits_statement_if_returns_as_a_conditional_expression",
+      "input_digest": "dfff52a8296fc9471cec6f8b638cc344c42cdbb610d96b94df28d5583eb5a859",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emits_typed_string_and_regex_javascript_members",
+      "input_digest": "d58dda9bc6b0b7d108e7b398129032e48a5774c067eca948225f082cf3420d08",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-emitted_statement_shapes_keep_compound_iteration_bodies",
+      "input_digest": "e479b0fcbebf4f52365af7619ac2febb00f183eb6171471aaffd18826ff46fbe",
+      "category": "provider-setup",
+      "reason": "extern `limit` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emitted_statement_shapes_keep_try_and_following_assignment_in_branch",
+      "input_digest": "6ade2503b19d940ab036200c3dce4a0d5cfd5435adc0790fa959ce8599654728",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emitted_statement_shapes_preserve_catch_finally_and_nested_else",
+      "input_digest": "57f0080f34d6a6f4d8ab807a24a24254fdc41fc84f08dc4aae336f4df1361095",
+      "category": "provider-setup",
+      "reason": "extern `flag` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-emitted_statement_shapes_preserve_declarations_and_captures",
+      "input_digest": "3bcf68624ad8a2e2b8e07f658cda30a3a9960d0191022a19137adeb418054479",
+      "category": "provider-setup",
+      "reason": "extern `flag` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-escaped_arrays_keep_borrowed_builtin_method_calls",
+      "input_digest": "d22bb745ca567d89911c8a9291e57b12036cb3d9a9c7c2aa5c363e7e905a58e5",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-exported_js_undefined_default_uses_host_omission_without_shortening_length",
+      "input_digest": "a76c2464bc28723f2864a23eece5fd958c21196fa8b2b1280adf46175b336451",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-expression_regions_keep_header_effects_eager_and_dynamic_arms_lazy-eager",
+      "input_digest": "f17aa315cf02499ff37793e7f8d4124b32605f6ce115990e0fa2224043559867",
+      "category": "provider-setup",
+      "reason": "extern `effect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-expression_regions_keep_header_effects_eager_and_dynamic_arms_lazy-eager_store",
+      "input_digest": "39a6f0280750327f7ad7308e44e6d1bda750f375a49b2908524fbbbf8dfb0362",
+      "category": "provider-setup",
+      "reason": "extern `flag` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-expression_regions_keep_header_effects_eager_and_dynamic_arms_lazy-lazy_first0",
+      "input_digest": "14c31fff50e0b19d6490a2e7d9d74366ecd04e11c9731316a37ac4c359e7baa0",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-expression_regions_keep_header_effects_eager_and_dynamic_arms_lazy-lazy_first5",
+      "input_digest": "f0f7d3da29b0518525088b138afa05426eff2e79e4b095b06c8f461ca98dea46",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-expression_regions_keep_header_effects_eager_and_dynamic_arms_lazy-nested",
+      "input_digest": "0cce52fae82956f5692e607d181a7881589f013ca501acb6d92565947176cde8",
+      "category": "provider-setup",
+      "reason": "extern `outer` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-extern_property_spelling_does_not_pin_an_unrelated_owned_slot",
+      "input_digest": "2cfb3e4c8cac078bbe71a5e940257146cbe3b00b8cdd4f59f84e93b482d03b15",
+      "category": "javascript-host",
+      "reason": "extern classes require a JavaScript target"
+    },
+    {
+      "id": "cases/regressions/irjs-fallback_adapters_preserve_javascript_function_reflection_and_arguments",
+      "input_digest": "3f6e218c11c844971ff3fe1bc5aac61b724c3f6e3d91f3772faa15168b3d7d10",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-fallback_method10_preserves_receiver_arguments_evaluation_and_reflection",
+      "input_digest": "f3461bb826500a682455730c520b7f89a660b01de3c2cf78e183686b247f9d39",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-folds_fresh_empty_object_writes_into_a_literal",
+      "input_digest": "463975af0a5af4f6103fb00736b7705ca6076e107e4a264d07859d77e3792164",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-folds_fresh_object_writes_across_unrelated_prefix",
+      "input_digest": "0168cec4f0f4a732df92ef1b8cbfc8a94d46fca123af4b87afb8f77f3343b4c3",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-fused_adapters_still_allocate_fresh_constructible_anonymous_functions",
+      "input_digest": "142a4f7316e1688cec2ed43e5d804eb7f44f6dddd88e47397d1b341e103fe2ac",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-fused_method10_preserves_receiver_arity_identity_and_arguments",
+      "input_digest": "d044215bd0ad6ff4384ee1f041f327f65f20ed36d6e0a9b0f8412140df863ca4",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-fused_method2_keeps_named_formals_instead_of_arguments",
+      "input_digest": "6dee5aeffb842463ff9a132a88859713048fcadf6f0866c1c0b94d0e3e2b7b43",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-fused_method3_keeps_named_formals_instead_of_arguments",
+      "input_digest": "03b97d046f47550060c817823a23c943006825ef8f42835df8691fa09b06aaae",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-fuses_apply_index_operands_in_evaluation_order",
+      "input_digest": "67900e97df2098fa7a07f7ff9552ded60417d47e02b0a3eb0813250445252e2b",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-fuses_constructable_method_tables_into_javascript_classes",
+      "input_digest": "48bf0fc6a003d9744f6d2e3311262aadf20b53a77d4da3cd6da0c4a290abfd1b",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-fuses_partial_constant_constructor_initializers_at_named_escape_boundaries",
+      "input_digest": "91e18ee7b474d64168fc56ed5f01e136c72a9f45525e147428ae3f8c34632b97",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-fuses_partial_positional_and_complete_constant_initializers-named",
+      "input_digest": "c31a980ba49e7e5f4a27a294e88027b0e6ebe1b825830254645d25a97fa9508a",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-if_return_regex_choice_emits_a_javascript_ternary",
+      "input_digest": "e4aed332beea2ed0ac3b4e744782f0ec9c00e62b36b6ef80b2f72817882af0d3",
+      "category": "provider-setup",
+      "reason": "extern `flag` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-immediate_dynamic_read_fusion_preserves_dependency_names",
+      "input_digest": "5f3fd29b47cff4c62eec8bf0e9d0bc7247fc07e10f845ff69766bcff4bb59b47",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-immutable_closure_captures_can_use_lifted_scalar_snapshots",
+      "input_digest": "1a224bef715d5c3ab5de02582be2fb3a60a97f3731797f29506443bf34340faa",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-inlines_eraseable_host_getters_at_constant_identifier_keys",
+      "input_digest": "a9a4686b0df7b0314afc69ef13b4cb1fa7985aa9f4cb8538dde7a0f4c0f0e2a4",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-inner_temps_do_not_clobber_module_bindings_used_as_exports",
+      "input_digest": "a90fa510d6623bca27188b02e50b2ffc2022d0986a478c09e4a10c2d3775ba61",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/irjs-js_string_of_a_jsvalue_still_stringifies_under_compression",
+      "input_digest": "f8a49fde54c2da7e9a13155a22c435954d1218eac39945969575ad646d3e8070",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-keeps_module_regex_off_isxmldoc_short_circuit_lhs",
+      "input_digest": "96090f49879c4065b8c823fcac9aad4d4eac3ca1b98974da27e792d2d579207e",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-keeps_shared_short_circuit_lhs_off_its_results",
+      "input_digest": "2899209767752c01f1d29975160f71d1f860f8b49c4bae3a051d7fa37addbaa3",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-keeps_short_circuit_lhs_property_read_before_an_intervening_mutating_call",
+      "input_digest": "6aface6667e3f1574fed5cbce3c22973d51f38a6c20cb350de3520cee2f51081",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/irjs-local_phi_expression_does_not_read_a_coalesced_input_before_its_definition",
+      "input_digest": "c04b93b080bbb0ff3f92c9322ae5d0ed2933323eef47fe050452aa4f1a51fd27",
+      "category": "provider-setup",
+      "reason": "extern `readBool` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-local_phi_expression_keeps_outputless_arm_stores",
+      "input_digest": "dd019b3a5777e982433cd40dc980758143e31d625860b849509d9d3880871f2b",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-loop_capture_wrapper_params_do_not_shadow_mutable_cells",
+      "input_digest": "78d02ca3eb74174bbbd8bec34067f15cfcc138384435fb1ded985c005c71971b",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-materializes_a_reused_value_inside_one_expression_region",
+      "input_digest": "b9bf94ad853a42ffc26f0638b57000c66564af99386886730335846d1c8369ea",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-materializes_a_short_circuit_value_reused_inside_an_expression_region",
+      "input_digest": "28e57a539633f9dc9a4a21e7e7bcac54a4a2f98f60bacc030b2682475cf0592c",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-merge_empty_second_keeps_destination_length",
+      "input_digest": "83e9233299eebe45b7ab1f07db4f62e7949383e1fa5baff97c0118b06739aaa6",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-mutable_closure_captures_remain_shared_lexical_cells",
+      "input_digest": "fbc0bce3f9a3cedef2179448eb03d294d4b845e82d2edaa3c4b07c5a316dd626",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-named_proto_fields_are_own_data_properties-class",
+      "input_digest": "1bcb9c42cc1e32a26ca0851f5705459c531635960996b05dfe8fce7b7d363c3f",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-named_proto_fields_are_own_data_properties-struct",
+      "input_digest": "f16cc1b8b98c92d43695fa26876edf74f70d8d1504d758f9ba9aa527a001f1be",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-nested_body_still_reads_the_array_prototype_alias",
+      "input_digest": "c2dad440d5db94dec060d840bb88bdebfb14c31a6fd66d41e7e780275de2a214",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-nested_body_still_reads_the_host_alias_method_call",
+      "input_digest": "73ab509f6a9e2012b0b8b0503a89c1523de51ced079cc8ae1e8287603f6df2f4",
+      "category": "provider-setup",
+      "reason": "extern `objectToStringTag` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-nested_body_still_reads_the_outer_binding_an_inner_local_must_not_steal",
+      "input_digest": "e585eaa4a8dbc30cd316f413f43390b1521f7beba7e79ed436a6fa833b36b6b2",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-nested_captured_locals_use_reserved_short_names",
+      "input_digest": "9190c7898fdc8d6194875cd2aa2b9a8bf4305aa816e9c3671ed7134fac402578",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-nested_for_init_array_must_not_overwrite_an_outer_function",
+      "input_digest": "f675d743370ce85e930072aceaaddf3d9b739f510631634f798c00c34e00590a",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-nested_lexical_js_bindings_keep_the_callback_context-arguments",
+      "input_digest": "aabf9b4405e033eeb327a5c31c0ff40c04caa34c46e1245db962a2519d2374b0",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-nested_lexical_js_bindings_keep_the_callback_context-this",
+      "input_digest": "6b80fff6491e131d8db34c20e1466ba81f31ea0a260cc9006e0aeb8aea62071b",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-nested_locals_do_not_reuse_an_implicit_capture_name",
+      "input_digest": "7120b19cd20605486bca97520c61bdd72ba57a1223d1bb9353676426d6de0d31",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-nests_address_taken_helpers_private_to_a_once_run_host",
+      "input_digest": "c6ae782fbbb42a89f3297592b1d51a6e2fa6eece544307f6c4a96615ed6d7fde",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-nests_helpers_shared_by_once_run_exclusive_closures",
+      "input_digest": "51782f7b3a43cd200bf015d9483871b10ec5087fc521886d106e6cc30175f27a",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-nests_observable_array_elements_across_inert_literals",
+      "input_digest": "b95e070c407b7fca37d6f8f5ec52732f61e2fb4715f88073ef07754923c8224d",
+      "category": "provider-setup",
+      "reason": "extern `cb` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-omits_exported_trailing_undefined_default_at_internal_calls",
+      "input_digest": "36ef3a3fc7132c6000d596fdf361b1ccd87dd11ed2bfcefbe9831fbf9fd28732",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-overlapping_named_cluster_trees_have_one_final_helper_owner",
+      "input_digest": "3baa78117acedd54f38024d8d65df1824665c4cb933207a7dc44a4dc98b108e2",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-parenthesizes_nullish_and_logical_mixes",
+      "input_digest": "697677378d7d35950308dcc35684b9ac26b692092536371e3ad101256f0d5f92",
+      "category": "provider-setup",
+      "reason": "extern `first` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-precise_shadowing_can_reserve_a_repeated_local_name_prefix",
+      "input_digest": "7da447a22b5da294a2c731174391e4809e9dd20b7d43e76a9f98382fd2e3d92d",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-precise_shadowing_does_not_let_host_locals_steal_nested_helper_names",
+      "input_digest": "69c0b9965418387958389d994615f83aca0a0d6a09ca80dc5d7a351f7f6c60c6",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-precise_shadowing_keeps_helpers_used_by_inlined_module_record_traps",
+      "input_digest": "0d7b781645b01eac8e495e71a0963dbae0d348e784298b8020c140cd85c949e7",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-preserves_adapter_for_stored_or_mutably_captured_replaced_parameters",
+      "input_digest": "36118adf62f9156ea8c364b4ba2eb0908ba79a272f7b7bc27736c7ad92b7c777",
+      "category": "provider-setup",
+      "reason": "extern `collect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-preserves_captured_receiver_by_aliasing_this",
+      "input_digest": "414d6d164ef494b2b837817d439d34c0fe09c171c56103d705ed74b71d247bb0",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-preserves_fresh_object_assignments_without_pristine_builtins",
+      "input_digest": "61e766368389b80310fb3febb20d54ab2f53cd9c77b57c9f4d0cf3f122802f6f",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-promoted_rest_formals_do_not_split_coalesced_default_locals",
+      "input_digest": "06aeaea01197afbac38f1dc67f724ede45bc91c085c6704eec7fbaa525ebba2c",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-property_write_batching_emits_sunk_function_declarations",
+      "input_digest": "12a26c79c8b4c24aac3a460fe041a58ae7aaef6435f8b72c801f214884d9559e",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-public_class_defaults_preserve_omitted_calls_and_method_arity",
+      "input_digest": "43762d2d9c701026b7c99a982a691eee1e610d71fc85f2da9c2ee6292929751e",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-pure_helper_selection_requires_explicit_full_arity_at_every_call_site",
+      "input_digest": "73f7af665eb8d79f15eedad79430d37fb1cb7d781b60250747b2f594da4a36fc",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-reconstructs_effectful_optional_index_with_lazy_fallback",
+      "input_digest": "06f9551c18ccd2458f45df34a0c5697955964009c1b91b4c8e5fcf35be48cd4b",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-reconstructs_nullish_expression_phis",
+      "input_digest": "a7a385e1282e160a549c46146f6ce0a086c3868b335cb7235b24ea04c4213cb9",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-reconstructs_optional_member_with_lazy_fallback",
+      "input_digest": "5335b511a253015e51a53ec1b49dba0b5198d7b47de763c946613978f0aabd56",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-reconstructs_optional_method_reassign_as_ternary",
+      "input_digest": "5a697a050bc209623029bcba9992a415d70ed3957092b1b34030965b943c5ea2",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_keep_constant_only_arms_and_repeated_results-disabled",
+      "input_digest": "d58870fb8ac6c7dd770baf425366dd342fd1596f824c8a63449db8bdcbbb042e",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_keep_constant_only_arms_and_repeated_results-enabled",
+      "input_digest": "b3e9aa5c8de5f19b4fb7f8e42656f368565b36baf21ad9d0d2eabcc1a75b8813",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_preserve_stores_across_reused_constants-seed7",
+      "input_digest": "58f08b6587200094f784d251ba2fbe83121f38c084e82b74b24d356066c53a56",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_preserve_stores_across_reused_constants-seed8",
+      "input_digest": "32c52ddd55f993218d04ef37de970a99dfe68fd8087a57ff775d4e7d0ca4ba04",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_preserve_throw_reentry_and_short_circuit_order-disabled",
+      "input_digest": "650d3041887175a83234873edbb6d562d6326f2d3601dfac7dd79f15af89d82a",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_preserve_throw_reentry_and_short_circuit_order-disabled_failing",
+      "input_digest": "fc93160d8789df15a9180b0155eb23578267a36fec0ceab4e55b2eb1b8d1d685",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_preserve_throw_reentry_and_short_circuit_order-enabled",
+      "input_digest": "8c459506739c068b8139f5e4e094a7011b127f9d6c5be5a5db9bd443dcf53651",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_preserve_throw_reentry_and_short_circuit_order-enabled_failing",
+      "input_digest": "ff0425a051d22b77f7a7418d01beb510fc08e65fc69aa3b4dcbe7c5848253293",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-region_effect_owners_preserve_throw_reentry_and_short_circuit_order-enabled_failing_seed8",
+      "input_digest": "abf8897d28f0f2fe159d3f3f3cc6e23c4c18deaa2439ae7085c2093f330da2b9",
+      "category": "provider-setup",
+      "reason": "extern `observe` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-retains_effectful_and_observed_constructor_field_writes-effectful",
+      "input_digest": "e2fb6fa94827ef17c3a750223aefd986d3e46c6484214b22a5c386f9c037c353",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-retains_effectful_and_observed_constructor_field_writes-observed",
+      "input_digest": "05670d6247b22f7fb214238b2f866ff3f35f1af5383ad9bc4e0c59968f0d646f",
+      "category": "provider-setup",
+      "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-same_block_observable_forwarding_crosses_an_ordinary_closure_gap",
+      "input_digest": "b05628068a30a91b03b71953fb83bc1ded282ed3bcfa69c8d76eebe36b9562e6",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-same_block_observable_forwarding_crosses_only_a_constant_gap",
+      "input_digest": "d50c1f8362bd086d6ebb946608f7607a26e2ddcb90d1293a098e9c0c07410fbd",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-same_block_observable_forwarding_keeps_state_machine_liveness_consistent",
+      "input_digest": "7eb7f3b01245a0bcc5209f859f5681d01f49cf37c0a0143a59e3440dab9c5b14",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-same_block_observable_forwarding_refuses_call_and_read_barriers-call",
+      "input_digest": "9e139c827c28d4212550a018d5df01b836ea003300b1a41873bb5f8c6f2a3510",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-same_block_observable_forwarding_refuses_call_and_read_barriers-read",
+      "input_digest": "31616db249e7aeae73a003764ebfe0d1d3c4de30626eba4c82abec029ac8f4df",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-scans_indexof_results_with_uninitialized_from_index",
+      "input_digest": "baa414260503bd9ed3412b0db273e94f83d925d3a47b18eefa6d45ee7ed81e0e",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-shared_for_in_iterable_is_materialized_before_body_reads",
+      "input_digest": "84382a9afe6774ad218c24fc492058296bbd7bb3eac3be168a0147e83b576953",
+      "category": "provider-setup",
+      "reason": "extern `input` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-short_circuit_and_does_not_overwrite_an_object_used_after",
+      "input_digest": "562b90bb2cc12c61f2e651d5a8433df9592c2facbe5a82b13c09a01288d35a26",
+      "category": "provider-setup",
+      "reason": "extern `defineConfigurable` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-sinks_a_defaulted_factory_into_its_once_run_store",
+      "input_digest": "be4eb3240d9a9a3778aa9085102a4a9e5cf2e65f69a98236f78846f3e3bf955b",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-snapshot_of_a_mutable_capture_survives_a_nested_store",
+      "input_digest": "2e33b355c04a91ddb50518b88e82ca24c2c12e859e6699c389bedf91d981cd0e",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-snapshot_of_a_mutable_capture_survives_an_indirect_nested_store",
+      "input_digest": "1e984ec9ecfc6df20b81782c670868c30a94cc2b757b21002a3a4568463333a6",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-substitutes_private_fresh_empty_array_factories_without_sharing_identity",
+      "input_digest": "a3fd4de0f96d8200488d150bddf7f4646306b7323828bf552b229707b44c21e3",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native prepared call convention"
+    },
+    {
+      "id": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate",
+      "input_digest": "c3e15a75b30c8396ada67399b02a1a5ec26a2ab76f3e70d72512694abd92d316",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-local",
+      "input_digest": "dced41073f532fbcc4b2336123f9f492a90f608f319aa71bf5acc421ce1bde66",
+      "category": "provider-setup",
+      "reason": "extern `barrier` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver",
+      "input_digest": "afb38ec90c8f69d4dce2e01594b9778c4fc9daff5319ce79a880e95f6a4acf69",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-transitive_nested_shadowing_keeps_rest_formals_off_defaulted_locals",
+      "input_digest": "7aa0ab4118c440d08a403da69f2b7846b02275f0681880a28945e11a8bcf3603",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-transitive_nested_shadowing_reuses_only_unreferenced_function_names",
+      "input_digest": "40df598d82665e0edc87494ca91fbe665cca27d2613e294e3942840ff036b757",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-transitive_nested_shadowing_reuses_only_unreferenced_function_names-referenced",
+      "input_digest": "a7264bb2e39f6186c6006a992d14bb3b5115250f2976981ca3364ce9cd5605ce",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-uncoalesced_local_candidate_can_avoid_reassignment_syntax",
+      "input_digest": "bfbf68722b7246adfb825f3d53a48da25c1fb78bb657ee9b42547f5aae9cdee8",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/irjs-unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode",
+      "input_digest": "19ba0b2ae6225caa2c8fc84d4a17e8ddfdfdae08d9cd53e1ad1ae67754c743aa",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode-released_extern_fields",
+      "input_digest": "d6b98065da8ddb9b3e206794d54ca9e6598a357c6345d5b82905c68697d40dc5",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/irjs-unreferenced_module_bindings_can_be_shadowed_by_short_local_names",
+      "input_digest": "bae317701365bc7a229a2d18e0e4213a4dd614fe8cccb94b3b0e62f8b9c63a31",
+      "category": "provider-setup",
+      "reason": "extern `keep` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/irjs-wraps_helpers_reached_only_through_exclusive_nested_closures",
+      "input_digest": "0248440a232bfb8a76ea4568f0846925b6232afaf4f1950864b03466b562d418",
+      "category": "javascript-host",
+      "reason": "Calls a JsValue as a JavaScript dynamic callee. Production can fold this fixture into typed calls; formation retains the JavaScript host call convention."
+    },
+    {
+      "id": "cases/regressions/irjs-writes_a_captured_or_assign_from_a_property_read_back_to_the_cell",
+      "input_digest": "d675dd0d38f6938805eb5f1b7b678084a2cef15c4937b4c8c8ceafca0008af23",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/opt-a_stored_argument_is_observed_with_the_container_it_is_stored_in",
+      "input_digest": "81b4b9e55d3c42743d3e30a336b61911fe210c428a9567f2fcc48eb9abc2de30",
+      "category": "provider-setup",
+      "reason": "extern `consume` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/opt-closed_record_projection_preserves_null_prototype_observations",
+      "input_digest": "3d1c465eca75e302761d1532150ded19785787f4cafcb7cf65ad30c1d2e2912e",
+      "category": "provider-setup",
+      "reason": "extern `pollutePrototype` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/opt-forwards_stable_root_export_aliases_to_one_public_identity",
+      "input_digest": "ce6aba28e9ddc8ac3f2237a86c257045c0511325fae6f28f0096b8f9741431e0",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native operation coverage"
+    },
+    {
+      "id": "cases/regressions/opt-javascript_coercions_keep_js_value_aggregates_named",
+      "input_digest": "e428db7a6b6d59938543f8699aab3da55e35f62b806b9edc2fe68649278f5108",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native template operands"
+    },
+    {
+      "id": "cases/regressions/opt-js_value_bracket_read_keeps_nominal_object_semantics",
+      "input_digest": "f8c94a0abc22d1e4a893e016670379db88b2abe98afd051f42c1c3c035f65545",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/opt-js_value_length_keeps_object_semantics",
+      "input_digest": "66ecd5e7a11090ca53772038b55652356aa0927c0f1a49598dce9fee0f745459",
+      "category": "javascript-host",
+      "reason": "unsupported native capability: native host aggregate place"
+    },
+    {
+      "id": "cases/regressions/opt-keeps_borrowed_array_call_after_extern_can_shadow_method",
+      "input_digest": "a848c005d6911ff5d1bbe55ab63b783478cdeeb03fa77127d14975d8611d4aa4",
+      "category": "provider-setup",
+      "reason": "extern `expose` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/opt-preserves_array_push_inherited_setter_observation",
+      "input_digest": "9ab11138c1f3833dcf596c458e8822f053e1acdde5cc8ca0305319254eec2aa7",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/opt-preserves_plain_object_inherited_setter_observation",
+      "input_digest": "06f9cbc30876a209345f6f413855807dbd82f56a0e0efe2e9d230a2db0c36908",
+      "category": "provider-setup",
+      "reason": "extern `read` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/opt-stringify_elision_crosses_intervening_constants",
+      "input_digest": "7ec00122a6691023c911a8a9a938d03562454fd21077a72c82ff1223961dbc29",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/opt-stringify_elision_does_not_move_dynamic_coercion_across_a_call",
+      "input_digest": "53a68b2b0f09b097075c691d89e7b79c433296e3d13ad2dd1d660f677db5c777",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/opt-stringify_elision_does_not_move_dynamic_coercion_across_a_getter",
+      "input_digest": "7fe1feed49d71c7e9d6f6ac93b2a1a6b6dfd653ab85526dfbe3293797512b7d5",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/opt-stringify_elision_does_not_move_dynamic_coercion_across_a_mutation",
+      "input_digest": "a797bfe52e6b96224b21e2049920473569dc274f0c2ad2ac128d62185293bf2e",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/opt-stringify_elision_does_not_move_dynamic_coercion_across_another_coercion",
+      "input_digest": "dc0e9674ae8cd8e25f5ea76ebf4c1bfd697453a8a07ed57c05dfcd9beb29e8d5",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    },
+    {
+      "id": "cases/regressions/opt-wrapped_and_generic_dynamic_aliases_keep_nominal_object_semantics",
+      "input_digest": "0d2042928de49eb1686bc503c492621b9c764f3a9922272f5dbd0f6ad81dd3e5",
+      "category": "provider-setup",
+      "reason": "extern `coin` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/regressions/s1-common-primitive-host-hooks",
+      "input_digest": "3a98152410062d7f614f8f95a4c1e226e78da1a48acf6f47ec4306cacbcec7fa",
+      "category": "javascript-host",
+      "reason": "native extern globals require a function provider; declare getter/setter functions"
+    }
+  ]
+}

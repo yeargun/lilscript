@@ -79,6 +79,7 @@ impl NativeToolchain {
         if let Some(sysroot) = &native.sysroot {
             let mut flag = OsString::from("--sysroot="); flag.push(absolute(sysroot, base)?); flags.push(flag);
         }
+        if let Some(bytes)=native.wasm_stack_size {flags.push(format!("-Wl,-z,stack-size={bytes}").into());}
         if native.debug_info { flags.push("-g".into()); }
         if native.warnings_as_errors { flags.extend(["-Wall".into(), "-Wextra".into(), "-Werror".into()]); }
         if native.link_time_optimization { flags.push("-flto".into()); }
@@ -211,6 +212,25 @@ mod tests {
         assert!(!owned.native_static_data());
         assert_ne!(native.fingerprint(),owned.fingerprint());
         assert_eq!(javascript.fingerprint(),config.resolve_policy(js_request).unwrap().fingerprint());
+    }
+    #[test]
+    fn n2_physical_controls_preserve_javascript_identity() {
+        use crate::compilation_policy::CompilationRequest;
+        let mut config=ProjectConfig::default();
+        let request=CompilationRequest::JavaScript {preserve_root_exports:false};
+        let javascript=config.resolve_policy(request).unwrap();
+        let native=config.resolve_policy(CompilationRequest::Native).unwrap();
+        assert!(native.native_stack_storage() && native.native_generic_specialization());
+        config.target.native.stack_storage=false;
+        let heap=config.resolve_policy(CompilationRequest::Native).unwrap();
+        assert!(!heap.native_stack_storage());
+        assert_ne!(native.fingerprint(),heap.fingerprint());
+        assert_eq!(javascript.fingerprint(),config.resolve_policy(request).unwrap().fingerprint());
+        config.target.native.generic_specialization=false;
+        let general=config.resolve_policy(CompilationRequest::Native).unwrap();
+        assert!(!general.native_generic_specialization());
+        assert_ne!(heap.fingerprint(),general.fingerprint());
+        assert_eq!(javascript.fingerprint(),config.resolve_policy(request).unwrap().fingerprint());
     }
     #[test]
     fn n2_library_controls_are_native_contracts_and_choose_one_artifact() {

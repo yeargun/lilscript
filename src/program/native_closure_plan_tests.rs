@@ -215,7 +215,7 @@ fn two_creators_of_one_body_keep_separate_creation_recipes() {
 }
 
 #[test]
-fn foreign_callback_binding_is_canonical_versioned_and_direct_only() {
+fn foreign_callback_binding_is_canonical_versioned_and_namespaced() {
     checked(
         "extern void keep(func()->int callback);func()->int make(){int state=1;return ()=>{state+=1;return state;};}keep(make());",
         |program| {
@@ -234,8 +234,8 @@ fn foreign_callback_binding_is_canonical_versioned_and_direct_only() {
             assert_eq!(ledger.retained_bytes(), before);
             for (version, name, feature) in [
                 (1, "host_keep", "native callback ABI version"),
-                (NativeHostBindings::ABI_VERSION, "printf", "native callback provider symbol namespace"),
-                (NativeHostBindings::ABI_VERSION, "host_", "native host link identifier"),
+                (NativeHostBindings::ABI_VERSION, "printf", "native host link identifier or provider namespace"),
+                (NativeHostBindings::ABI_VERSION, "host_", "native host link identifier or provider namespace"),
             ] {
                 let rows = [NativeHostBinding { cell, link_name: name }];
                 let hosts = NativeHostBindings { callback_abi_version: version, bindings: &rows };

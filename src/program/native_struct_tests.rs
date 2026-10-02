@@ -186,9 +186,9 @@ fn refused_native_struct_output_releases_layouts_and_partial_text() {
     // A large immutable string field forces partial C buffer growth after the
     // admitted nested schema/place plan has been built. The baseline allowance
     // must still finish this exact source after the optional attempt fails.
-    let source = format!("struct Text {{ string value; }} struct Box {{ Text text; }} Box value=Box{{Text{{\"{}\"}}}}; print(value.text.value.length);", "q".repeat(12_000));
+    let source = format!("struct Text {{ string value; }} struct Box {{ Text text; }} Box value=Box{{Text{{\"{}\"}}}}; print(value.text.value.length);", "q".repeat(120_000));
     checked(&source, |program| {
-        let mut compilation = compilation(16_384);
+        let mut compilation = compilation(65_536);
         let source = compilation
             .adopt_checked(program, WorkDomain::Baseline)
             .unwrap();
