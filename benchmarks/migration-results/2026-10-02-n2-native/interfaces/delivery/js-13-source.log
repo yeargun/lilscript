@@ -1,0 +1,1 @@
+warning: javascript: legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort

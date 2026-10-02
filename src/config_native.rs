@@ -25,6 +25,11 @@ impl NativeSanitizer {
     }
 }
 
+#[derive(Debug,Clone,Copy,Default,PartialEq,Eq,Deserialize,Serialize)]
+#[serde(rename_all="kebab-case")]
+pub enum NativeArtifact { #[default] Executable, SharedLibrary, Object }
+impl NativeArtifact {pub fn is_library(self)->bool {self!=Self::Executable}}
+
 /// External C compiler settings; these never relax checked source semantics.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -33,6 +38,12 @@ pub struct TargetNativeConfig {
     pub compiler: Option<PathBuf>,
     /// `speed` (default): -O3; `size`: -Os; `balanced`: -O2. No semantic relaxation.
     pub objective: NativeObjective,
+    /// Executable by default; shared-library and object retain public exports
+    /// and expose explicit initialization/queue/shutdown instead of main.
+    pub artifact: NativeArtifact,
+    /// Stable public namespace for library types, runtime API and exports.
+    /// Changing it requires rebuilding native clients; default is `lil`.
+    pub symbol_prefix: String,
     /// Clang-compatible target triple and sysroot; omitted means host defaults.
     pub triple: Option<String>,
     /// Optional target SDK root, relative to the TOML file; never auto-downloaded.
@@ -67,6 +78,8 @@ impl Default for TargetNativeConfig {
         Self {
             compiler: None,
             objective: NativeObjective::Speed,
+            artifact: NativeArtifact::Executable,
+            symbol_prefix: "lil".into(),
             triple: None,
             sysroot: None,
             debug_info: false,
@@ -82,6 +95,8 @@ impl Default for TargetNativeConfig {
 }
 impl TargetNativeConfig {
     pub fn validate(&self) -> Result<(), String> {
+        if !crate::native_symbols::public_prefix(&self.symbol_prefix) {return Err("target.native.symbol_prefix must be an ASCII identifier starting with a letter, outside the reserved ls and host namespaces".into());}
+        if self.artifact==NativeArtifact::Object && self.link_time_optimization {return Err("target.native.link_time_optimization requires a linked artifact".into());}
         if self.regex_stack_limit < 16384 {
             return Err("target.native.regex_stack_limit must be at least 16384 bytes".into());
         }

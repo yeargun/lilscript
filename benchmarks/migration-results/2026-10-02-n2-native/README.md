@@ -423,3 +423,43 @@ The initial contract fixture exposed the shared contextual-inference conflict;
 its logs and the preceding syntax correction are retained. Generated C/header
 hashes are retained instead of duplicating runtime sources. No full Rust/library
 suite or performance claim; the final N2 capability/profile qualification remains.
+
+## Native libraries and providers
+
+Algorithm84, pin `n2-interfaces-3`: all75 focused steps pass across
+`interfaces/qualified`, `interfaces/delivery` and `interfaces/contracts`.
+The library clients run at efforts0/13 under strict GCC and Clang18, including
+ASan/UBSan and zero live owners after shutdown. Qualification covers live
+bindings, absence/defaults, owned strings/products and generic boxing, retained
+C/source callbacks, class constructors/fields/virtual methods, generator close,
+pending host tasks and queue draining, mutable typed/generic array views,
+records, thrown values, reentry and lifecycle errors. A separate generic
+override/enum client passes sanitizers at both efforts.
+
+TOML selects executable/shared-library/object artifacts and a stable public
+symbol prefix. Real CLI shared-library and object deliveries link against C
+clients; two independent library headers and runtimes coexist. Multiple entry
+names with potentially confusable escaped spellings expose distinct symbols.
+The empty library initializes, drains and shuts down. Failed initialization
+replays its saved exception without rerunning side effects; reentry still
+observes temporal-dead-zone checks. Invalid provider signatures/names, reserved
+prefixes and object/LTO combinations are rejected. Native artifact/prefix
+controls change native policy identity while a JavaScript-only policy is stable.
+
+Explicit bundled providers supply copied argv, environment, stdin/stdout/stderr,
+UTF-8 text files, wall/CPU clocks and process exit. Unicode and embedded NUL
+file data, missing files, invalid paths, unpaired surrogates, malformed UTF-8
+stdin and exit status are exercised. Text is validated before file truncation.
+
+The first client exposed a shared publication defect: an internal descendant
+returned through a published base lost its override. The common boundary now
+keeps descendant prototypes, and native exported methods use the existing typed
+callable adapters for generic overrides. Independent Node and emitted JavaScript
+agree at both efforts. Initial failure evidence is retained separately, as is
+the corrected duplicate-entry fixture error. These are not successful checks.
+
+Generated C/header hashes, compiler identity, drivers and complete command/log
+receipts are retained; ELF outputs are excluded. Rust refusal/collision/cache
+expectations are updated for the implemented interface and await the consolidated
+N2 run. This batch makes no full-corpus or performance claim. Profile and
+cross-target qualification, then the complete native census, remain N2 work.

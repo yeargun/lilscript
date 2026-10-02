@@ -1,0 +1,7 @@
+effort.level=13
+[target.native]
+artifact="object"
+symbol_prefix="failed"
+cycle_collection_threshold=1
+[host.native]
+observe="host_observe"

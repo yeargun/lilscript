@@ -1,0 +1,1 @@
+client-gcc: tests/native/interfaces.client.c:61: main: Assertion `demo_e_interfaces__Counter_method_bump(counter,3,(demo_ls_native_arguments){2,NULL})==16' failed.

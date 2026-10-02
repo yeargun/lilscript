@@ -2462,6 +2462,8 @@ impl<'src> Compilation<'src> {
             policy.native_static_data(),
             policy.native_cycle_threshold(),
             policy.native_regex_limits(),
+            policy.native_artifact(),
+            policy.native_symbol_prefix(),
             &mut budget,
         )?;
         budget.work(WorkKind::Render, 0)?;
@@ -2502,6 +2504,8 @@ impl<'src> Compilation<'src> {
             policy.native_static_data(),
             policy.native_cycle_threshold(),
             policy.native_regex_limits(),
+            policy.native_artifact(),
+            policy.native_symbol_prefix(),
             &mut budget,
         )?;
         self.artifacts.retain_native(

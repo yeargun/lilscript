@@ -1,0 +1,3 @@
+effort.level=0
+[host.native]
+read="host_lil_stdin"

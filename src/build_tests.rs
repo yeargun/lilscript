@@ -3107,8 +3107,8 @@ fn s4_native_capabilities_are_reported_before_lowering_with_source_spans() {
     for (source, part) in [
         ("int prefix=1;unknown value=3;", "unknown"),
         (
-            "int prefix=1;export int answer(){return prefix;}",
-            "native exported ABI",
+            "int prefix=1;extern int foreign;print(foreign);",
+            "native extern globals",
         ),
     ] {
         for target in [ServiceTarget::Native, ServiceTarget::All] {

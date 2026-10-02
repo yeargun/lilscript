@@ -1,0 +1,11 @@
+effort.level=13
+objective.codecs="raw"
+[language]
+absence="unified"
+[target.native]
+artifact="shared-library"
+symbol_prefix="demo"
+objective="balanced"
+cycle_collection_threshold=1
+[host.native]
+provider="host_provider"

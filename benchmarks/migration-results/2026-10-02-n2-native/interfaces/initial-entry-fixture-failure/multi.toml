@@ -1,0 +1,7 @@
+effort.level=13
+[target.native]
+artifact="object"
+symbol_prefix="duo"
+[delivery.entries]
+"a-b"="/home/azureuser/lilscript/tests/native/interfaces-peer.lil"
+"a_2db"="/home/azureuser/lilscript/tests/native/interfaces-peer.lil"

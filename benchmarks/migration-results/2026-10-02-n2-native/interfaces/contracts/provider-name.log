@@ -1,0 +1,5 @@
+error: unsupported native capability: native bundled provider name or source signature
+ --> /tmp/lilscript-n2-interfaces-contracts-3/provider.lil:1:12
+  |
+ 1 | extern int read();print(read());
+  |            ^^^^

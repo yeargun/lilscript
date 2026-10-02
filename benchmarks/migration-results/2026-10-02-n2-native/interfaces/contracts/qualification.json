@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+    "sha256": "b4aa046dbb509a0ae4ccb3de3785b0656d9be7494da80fc05f6bcd632f8139b0"
+  },
+  "rows": [
+    {
+      "name": "generic-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/interfaces-generic.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-0/generic.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 6,
+      "passed": true
+    },
+    {
+      "name": "generic-0-sanitizer-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-0",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-0/generic.c",
+        "tests/native/interfaces-generic.client.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-0/run"
+      ],
+      "exit": 0,
+      "elapsed_ms": 914,
+      "passed": true
+    },
+    {
+      "name": "generic-0-sanitizer-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-0/run"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "generic-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/interfaces-generic.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-13/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-13/generic.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 6,
+      "passed": true
+    },
+    {
+      "name": "generic-13-sanitizer-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-13",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-13/generic.c",
+        "tests/native/interfaces-generic.client.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-13/run"
+      ],
+      "exit": 0,
+      "elapsed_ms": 920,
+      "passed": true
+    },
+    {
+      "name": "generic-13-sanitizer-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-contracts-3/generic-13/run"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8,
+      "passed": true
+    },
+    {
+      "name": "provider-type",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "/tmp/lilscript-n2-interfaces-contracts-3/provider.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/provider-type.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/invalid.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": true
+    },
+    {
+      "name": "provider-name",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "/tmp/lilscript-n2-interfaces-contracts-3/provider.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/provider-name.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/invalid.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": true
+    },
+    {
+      "name": "prefix",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "/tmp/lilscript-n2-interfaces-contracts-3/provider.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/prefix.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/invalid.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 2,
+      "passed": true
+    },
+    {
+      "name": "object-lto",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "/tmp/lilscript-n2-interfaces-contracts-3/provider.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/object-lto.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/invalid.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 2,
+      "passed": true
+    },
+    {
+      "name": "policy-executable-js",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/interfaces-peer.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/executable.toml",
+        "--target",
+        "js",
+        "--print-policy"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5,
+      "passed": true
+    },
+    {
+      "name": "policy-executable-c",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/interfaces-peer.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/executable.toml",
+        "--target",
+        "c",
+        "--print-policy"
+      ],
+      "exit": 0,
+      "elapsed_ms": 6,
+      "passed": true
+    },
+    {
+      "name": "policy-object-js",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/interfaces-peer.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/object.toml",
+        "--target",
+        "js",
+        "--print-policy"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5,
+      "passed": true
+    },
+    {
+      "name": "policy-object-c",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/interfaces-peer.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/object.toml",
+        "--target",
+        "c",
+        "--print-policy"
+      ],
+      "exit": 0,
+      "elapsed_ms": 6,
+      "passed": true
+    },
+    {
+      "name": "empty-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "/tmp/lilscript-n2-interfaces-contracts-3/empty.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-contracts-3/empty.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/empty.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5,
+      "passed": true
+    },
+    {
+      "name": "empty-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-interfaces-contracts-3/empty.c",
+        "/tmp/lilscript-n2-interfaces-contracts-3/empty-client.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-contracts-3/empty"
+      ],
+      "exit": 0,
+      "elapsed_ms": 224,
+      "passed": true
+    },
+    {
+      "name": "empty-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-contracts-3/empty"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "stdin-invalid",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-13/sanitize",
+        "run",
+        "utf8",
+        "/tmp/lilscript-n2-interfaces-contracts-3/unused.txt"
+      ],
+      "exit": 1,
+      "elapsed_ms": 9,
+      "passed": true
+    }
+  ]
+}

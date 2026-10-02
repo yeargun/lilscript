@@ -1,0 +1,4 @@
+effort.level=13
+[target.native]
+artifact="object"
+symbol_prefix="empty"

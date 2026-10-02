@@ -1096,6 +1096,9 @@ fn validate_hosts(
         if !crate::catalog::native_link_identifier(host.link_name) {
             return Err(error("native host link identifier or provider namespace"));
         }
+        if !crate::native_providers::signature(host.link_name,signature) {
+            return Err(error("native bundled provider name or source signature"));
+        }
         for old in &hosts[..index] {
             work(
                 budget,
@@ -1113,8 +1116,8 @@ fn validate_hosts(
             else {
                 unreachable!("earlier host row was validated")
             };
-            if generated_host_symbol(old.link_name, old_signature, host.link_name)
-                || generated_host_symbol(host.link_name, signature, old.link_name)
+            if crate::native_symbols::generated_host_symbol(old.link_name, old_signature, host.link_name)
+                || crate::native_symbols::generated_host_symbol(host.link_name, signature, old.link_name)
             {
                 return Err(error("native host generated interface symbol collision"));
             }
@@ -1123,40 +1126,6 @@ fn validate_hosts(
     Ok(())
 }
 
-/// Compare the exact emitted aliases without allocating their spellings or a
-/// second symbol table. Leading-zero argument ordinals are not generated names;
-/// primitive arguments have an alias but no callable retain/release/call API.
-fn generated_host_symbol(
-    provider: &str,
-    signature: &crate::check::FunctionSignature<'_>,
-    name: &str,
-) -> bool {
-    let Some(suffix) = name.strip_prefix(provider) else {
-        return false;
-    };
-    let callable_wrapper = |suffix: &str, ty: &Type<'_>| {
-        matches!(ty, Type::Function(_)) && matches!(suffix, "_retain" | "_release" | "_call")
-    };
-    if let Some(suffix) = suffix.strip_prefix("_result") {
-        return suffix.is_empty() || callable_wrapper(suffix, &signature.return_type);
-    }
-    let Some(argument) = suffix.strip_prefix("_arg") else {
-        return false;
-    };
-    let count = argument.bytes().take_while(u8::is_ascii_digit).count();
-    let (digits, suffix) = argument.split_at(count);
-    if digits.is_empty() || (digits.len() > 1 && digits.starts_with('0')) {
-        return false;
-    }
-    let Some(parameter) = digits
-        .parse::<usize>()
-        .ok()
-        .and_then(|index| signature.params.get(index))
-    else {
-        return false;
-    };
-    suffix.is_empty() || callable_wrapper(suffix, &parameter.ty)
-}
 
 impl<'program, 'src> NativePlan<'program, 'src> {
     /// The shared initialization owner includes module order, recursive calls,
@@ -1240,13 +1209,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, NativeError> {
         work(budget, 1)?;
-        // Type-only exports have no native runtime ABI. Charge the borrowed
-        // interface filter's visits, including entries it does not yield.
-        work(budget, program.exports().len())?;
-        if let Some((_, cell)) = program.value_exports().next() {
-            let cell = &program.cells[cell.index()];
-            return Err(fail(Some(cell.owner), None, cell.declaration, "native exported ABI"));
-        }
+        work(budget,program.exports().len())?;
         if uses.tables_revision() != program.tables_revision {
             return Err(fail(None, None, Span::default(), "stale native use index"));
         }
@@ -1369,7 +1332,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             for site in sites {
                 work(budget, 1)?;
                 let CellUseSite::Unit { unit, usage } = *site else {
-                    return Err(error("native exported cell"));
+                    captured|=matches!(storage,ValueStorage::Value(_));
+                    continue;
                 };
                 match usage {
                     // `let x;` (R3) is where the local begins: its stores and
@@ -1455,7 +1419,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         if !arrays.is_empty() { helpers.require(Helper::Arrays); }
         if classes.iter().any(|c|matches!(c,TypeClass::Value(NativeType::Generator))) {helpers.require(Helper::Iterators);}
         if classes.iter().any(|c|matches!(c,TypeClass::Value(NativeType::Task))) {helpers.require(Helper::Tasks);}
-        if !hosts.bindings.is_empty() { helpers.require(Helper::Exceptions); }
+        if !hosts.bindings.is_empty() || !program.exports().is_empty() { helpers.require(Helper::Exceptions); }
         if signatures.iter().any(|signature| signature.needed)
             || cells.iter().any(|cell| cell.captured)
             || classes
@@ -2006,6 +1970,47 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
             plan.units.push(unit_plan);
         }
+        for (_,cell) in program.value_exports() {
+            work(budget,1)?;
+            if let ValueStorage::Function(function)=plan.cell_storage(cell) {
+                plan.units[function.index()].named_adapter_needed=true;
+                let signature=plan.signature_for_unit(function);
+                signatures::require(&mut plan.signatures,signature,budget)?;
+            }
+        }
+        for export in program.exports() {
+            if let InterfaceTarget::Type(identity)=export.target {
+                if let Some(class)=program.class_index(identity) {
+                    if !program.classes[class].shape {
+                        plan.class_tests[class]=true;
+                        for &(method,cell) in &program.classes[class].prototype {
+                            let to=plan.signature_for_type(program.cells[cell.index()].ty).unwrap();
+                            for actual in 0..program.classes.len() {
+                                work(budget,1)?;
+                                if !plan.class_extends(actual,class) {continue;}
+                                let mut current=Some(actual);
+                                while let Some(index)=current {
+                                    work(budget,program.classes[index].prototype.len()+1)?;
+                                    if let Some((_,cell))=program.classes[index].prototype.iter().find(|(key,_)|*key==method) {
+                                        let from=plan.signature_for_type(program.cells[cell.index()].ty).unwrap();
+                                        if let ValueStorage::Function(unit)=plan.cell_storage(*cell) {plan.units[unit.index()].named_adapter_needed=true;}
+                                        signatures::require(&mut plan.signatures,from,budget)?;
+                                        plan.demand_conversion(NativeType::Callable(from),NativeType::Callable(to),budget)?;
+                                        break;
+                                    }
+                                    current=program.classes[index].base.and_then(|id|program.class_index(id));
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(definition)=program.enum_definition(identity) {
+                    for variant in &definition.variants {
+                        if let Constant::String(id)=variant.value {plan.strings[id.index()]=true;}
+                    }
+                }
+            }
+        }
         // Materialize a named callable only for an actual non-direct use.
         // Existing ordered UseIndex lists, not a second call graph, supply it.
         for unit_index in 0..plan.units.len() {
@@ -2072,14 +2077,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             let signature = plan.signature_for_unit(function);
                             signatures::require(&mut plan.signatures, signature, budget)?;
                         }
-                        ValueStorage::Host(_) => {
-                            return Err(fail(
-                                Some(unit),
-                                None,
-                                Default::default(),
-                                "native host callable value escape",
-                            ))
-                        }
+                        ValueStorage::Host(_) => {plan.helpers.require(Helper::ClosureRuntime);}
                         _ => unreachable!(),
                     }
                 }
@@ -2878,9 +2876,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                 && self.compatible(Stored(NativeType::Dynamic(Tagged::ANY)), operand(0))
                                 && self.compatible(Stored(NativeType::Dynamic(Tagged::ANY)), operand(1)))
                             || (matches!(self.value_type(operand(0)), NativeType::Callable(_))
-                                && self.value_type(operand(0)) == self.value_type(operand(1))
-                                && !matches!(operand(0), ValueStorage::Host(_))
-                                && !matches!(operand(1), ValueStorage::Host(_)))),
+                                && self.value_type(operand(0)) == self.value_type(operand(1)))),
                     "native equality recipe",
                 ),
                 BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq => {

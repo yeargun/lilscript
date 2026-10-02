@@ -1,0 +1,236 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-interfaces-2/lilscript",
+    "sha256": "6a56320a4ef4cac886977fc07b88ff37ec93315af9b8131882aa4b0eb5e82c4f"
+  },
+  "rows": [
+    {
+      "name": "failure-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-2/lilscript",
+        "tests/native/interfaces-init.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-extra-2/failed.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/initialization.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 6,
+      "passed": true
+    },
+    {
+      "name": "failure-sanitizer-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-extra-2",
+        "/tmp/lilscript-n2-interfaces-extra-2/initialization.c",
+        "tests/native/interfaces-init.client.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/failed"
+      ],
+      "exit": 0,
+      "elapsed_ms": 806,
+      "passed": true
+    },
+    {
+      "name": "failure-sanitizer-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-extra-2/failed"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "peer-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-2/lilscript",
+        "tests/native/interfaces-peer.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-extra-2/peer.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/peer.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 5,
+      "passed": true
+    },
+    {
+      "name": "peer-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fPIC",
+        "-shared",
+        "-DLS_NATIVE_QUALIFICATION",
+        "/tmp/lilscript-n2-interfaces-extra-2/peer.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/libpeer.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 327,
+      "passed": true
+    },
+    {
+      "name": "coexist-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-2/interfaces-13",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-extra-2",
+        "tests/native/interfaces-coexist.client.c",
+        "/tmp/lilscript-n2-interfaces-2/interfaces-13/libinterfaces-gcc.so",
+        "/tmp/lilscript-n2-interfaces-extra-2/libpeer.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/coexist"
+      ],
+      "exit": 0,
+      "elapsed_ms": 55,
+      "passed": true
+    },
+    {
+      "name": "coexist-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-extra-2/coexist"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "cli-shared-library",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-2/lilscript",
+        "tests/native/interfaces.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-extra-2/shared-library/source.toml",
+        "--target",
+        "native",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/shared-library/interfaces.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1005,
+      "passed": true
+    },
+    {
+      "name": "cli-shared-library-client-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-extra-2/shared-library",
+        "/tmp/lilscript-n2-interfaces-extra-2/shared-library/main.c",
+        "/tmp/lilscript-n2-interfaces-extra-2/shared-library/interfaces.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/shared-library/client"
+      ],
+      "exit": 0,
+      "elapsed_ms": 39,
+      "passed": true
+    },
+    {
+      "name": "cli-shared-library-client-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-extra-2/shared-library/client"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "cli-object",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-2/lilscript",
+        "tests/native/interfaces.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-extra-2/object/source.toml",
+        "--target",
+        "native",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/object/interfaces.o"
+      ],
+      "exit": 0,
+      "elapsed_ms": 963,
+      "passed": true
+    },
+    {
+      "name": "cli-object-client-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-extra-2/object",
+        "/tmp/lilscript-n2-interfaces-extra-2/object/main.c",
+        "tests/native/interfaces.host.c",
+        "/tmp/lilscript-n2-interfaces-extra-2/object/interfaces.o",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/object/client"
+      ],
+      "exit": 0,
+      "elapsed_ms": 58,
+      "passed": true
+    },
+    {
+      "name": "cli-object-client-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-extra-2/object/client"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "multi-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-2/lilscript",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-extra-2/multi.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-extra-2/multi.c"
+      ],
+      "exit": 1,
+      "elapsed_ms": 4,
+      "passed": false
+    }
+  ]
+}

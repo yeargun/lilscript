@@ -1,0 +1,22 @@
+{
+  "algorithm": 84,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+    "sha256": "b4aa046dbb509a0ae4ccb3de3785b0656d9be7494da80fc05f6bcd632f8139b0"
+  },
+  "inputs": {
+    "tests/native/interfaces-barrel.lil": "0185505950af1c7ee01e185602859ab934fd4c1e6159d95543c2f5153321b91a",
+    "tests/native/interfaces-coexist.client.c": "a5238d0bab2a5726b354c69b54f3cc91683bb10bb1367e713c71f5b748eef35c",
+    "tests/native/interfaces-generic.client.c": "c189459649b58a61638ff89f978f853e449b8f59fb8e0635d89756f54c3eccf4",
+    "tests/native/interfaces-generic.lil": "244dea57d8f59386a8158e6dac43087a86bfbab553ce164004460c9b0b20cd6a",
+    "tests/native/interfaces-init.client.c": "757bb8488d6a7dbc87d0e2eea465871da91d47765664d3230ab6597e69edf3e5",
+    "tests/native/interfaces-init.lil": "e7e58c37af11b48f0aa256ce1d304bfe67c05c6b3a518f47b07c47b60e7bf684",
+    "tests/native/interfaces-peer.lil": "3c427ab61ba84db2cfec7ca4948faa09614f77c864dc5eead02f44a7120ab9a9",
+    "tests/native/interfaces.client.c": "c73eea3d226084d21dc1d68102588c8902925f9766ccae98720217241015858c",
+    "tests/native/interfaces.host.c": "4fcb468663f61c6e93d8185c241079d61d2b248708b452b8b7df047f43374d95",
+    "tests/native/interfaces.lil": "9d24dd0f5ddb06e1a1d0a9aa411d6d01f58ecb7cbd9a9d2ff0b33cdf355d0515",
+    "tests/native/interfaces.toml": "24ec77777635599baede08f753dcb261e7e82368d7d7c5f7d4b61b814d6a413c",
+    "tests/native/providers.lil": "2c5cc12c51d7750f47e82b35b0fb846422b83e758fd9559d872a5e4a5f4e9aa4",
+    "tests/native/providers.toml": "9ca9949f1d02ff2eb46a71eb02685945604825d853d2ef3925813555e80ac308"
+  }
+}

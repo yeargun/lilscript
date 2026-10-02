@@ -86,6 +86,8 @@ top-level `[native]` table still has no effect.
 [target.native]
 compiler = "/opt/llvm/bin/clang"
 objective = "speed"
+artifact = "executable"
+symbol_prefix = "lil"
 debug_info = false
 warnings_as_errors = false
 link_time_optimization = false
@@ -102,6 +104,8 @@ regex_poll_limit = 0
 |---|---|---|
 | `compiler` | Unset: the CLI's `CC` adapter, then `cc` on `PATH`. An explicit TOML executable wins. Paths containing a directory resolve against the TOML directory; a bare name searches `PATH`. Library callers explicitly supply or omit the adapter. | Pin an absolute compiler to reproduce a toolchain. One executable is accepted, without shell parsing or implicit `CFLAGS`; use a wrapper executable if required. |
 | `objective` | `speed` selects `-O3`; `size` selects `-Os`; `balanced` selects `-O2`. | These guide the external compiler, whose results depend on the workload. They neither measure an optimum nor change the independent JavaScript raw/gzip/Brotli objectives. |
+| `artifact` | `executable` supplies `main`. `shared-library` uses `-fPIC -shared`; `object` uses `-fPIC -c`. Both library forms retain public exports and supply explicit initialize/drain/shutdown entry points. | Choose a library for an embedding C host. Object delivery produces one generated object: compile custom provider sources separately; `native_sources` and link-time optimization are rejected for this form. Shared-library support requires a matching C toolchain. This control changes native formation and its policy identity. |
+| `symbol_prefix` | `lil`; an ASCII identifier beginning with a letter, outside the reserved `ls` and `host` namespaces. | Library runtime names, types and source exports use this prefix so separately generated libraries can coexist. Give libraries distinct prefixes and regenerate their clients when changing it. It does not affect JavaScript mangling or compression. See [the native interface](native-interface.md) for allocated source symbols and ownership. |
 | `triple` | Unset: compiler's host default. An explicit triple passes `--target=...`. | Requires a compiler supporting that option, target libraries and an appropriate SDK. Unsupported toolchains fail explicitly; cross-target qualification remains N2. |
 | `sysroot` | Unset: compiler default. A configured directory is relative to the TOML file. | Selects a target SDK without downloading it. Pin the SDK separately; the receipt is not a content hash of every system header/library. |
 | `debug_info` | `false`; `true` adds `-g` for debugging/profiling. | Larger artifacts, possibly embedded source paths; no source semantic change. |

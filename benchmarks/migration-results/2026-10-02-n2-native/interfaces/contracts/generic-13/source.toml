@@ -1,0 +1,7 @@
+effort.level=13
+[language]
+absence="unified"
+[target.native]
+artifact="object"
+symbol_prefix="generic"
+cycle_collection_threshold=1

@@ -40,7 +40,7 @@ fn check_type(
 /// Called only when native is requested, before lowering or optional search.
 /// Module ownership qualifies symbols; source-node IDs qualify occurrences.
 pub(crate) fn native(
-    source: &Program<'_, '_>,
+    _source: &Program<'_, '_>,
     view: CheckedView<'_, '_, '_>,
     module: Option<usize>,
     exports: &[ModuleExport<'_>],
@@ -101,15 +101,9 @@ pub(crate) fn native(
             }
         }
     }
-    for export in exports {
-        budget.work(WorkKind::Analysis, 1)?;
-        if matches!(export.target, InterfaceTarget::Value(_)) {
-            return Err(AdmittedCheckError::new(
-                export.span,
-                "native exported ABI is not implemented yet",
-            ));
-        }
-    }
+    // Public native interfaces consume the same checked identities/types.
+    // The physical ABI planner validates each exported representation.
+    budget.work(WorkKind::Analysis,exports.len() as u64)?;
     Ok(())
 }
 

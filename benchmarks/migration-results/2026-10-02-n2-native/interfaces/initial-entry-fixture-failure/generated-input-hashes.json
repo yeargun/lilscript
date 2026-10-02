@@ -1,0 +1,42 @@
+[
+  {
+    "path": "initialization.c",
+    "sha256": "8ebd9c31ec82932986bf8c997d4b069f31c8825916f4156c4aafd91353fa798b",
+    "bytes": 144958
+  },
+  {
+    "path": "initialization.h",
+    "sha256": "277884026ee7be961dfa32fe5825f224fcf23672cfa8996902ddb3a6baf48cb9",
+    "bytes": 11993
+  },
+  {
+    "path": "object/interfaces.h",
+    "sha256": "72e37d856019a59b7a22328d76830b97ad90acb7f80b9e9eed5c254e3aef57fa",
+    "bytes": 63472
+  },
+  {
+    "path": "object/main.c",
+    "sha256": "fbaf40c15a5fcf07baceba47c613e9b86c9e14823886520333d155ee14332d4e",
+    "bytes": 153
+  },
+  {
+    "path": "peer.c",
+    "sha256": "135579f809f2b67c51bb8a08fbc50197b55d202c27f7ec4853ad766234c9f668",
+    "bytes": 145661
+  },
+  {
+    "path": "peer.h",
+    "sha256": "4e19a196ba48686e705b9404f0c97aa8521dc12ecfd4f0d585bc40ffb2170add",
+    "bytes": 13077
+  },
+  {
+    "path": "shared-library/interfaces.h",
+    "sha256": "72e37d856019a59b7a22328d76830b97ad90acb7f80b9e9eed5c254e3aef57fa",
+    "bytes": 63472
+  },
+  {
+    "path": "shared-library/main.c",
+    "sha256": "fbaf40c15a5fcf07baceba47c613e9b86c9e14823886520333d155ee14332d4e",
+    "bytes": 153
+  }
+]

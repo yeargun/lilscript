@@ -141,6 +141,8 @@ External C compiler settings; these never relax checked source semantics.
 |---|---|---|---|
 | `compiler` | `Option<PathBuf>` | `None` | One executable, never a shell fragment. |
 | `objective` | `NativeObjective` | `NativeObjective::Speed` | `speed` (default): -O3; `size`: -Os; `balanced`: -O2. |
+| `artifact` | `NativeArtifact` | `NativeArtifact::Executable` | `executable`, `shared-library`, or `object`; library forms retain exports and have an explicit lifecycle. |
+| `symbol_prefix` | `String` | `"lil"` | Public library namespace; affects native formation and policy identity. |
 | `triple` | `Option<String>` | `None` | Clang-compatible target triple and sysroot; omitted means host defaults. |
 | `sysroot` | `Option<PathBuf>` | `None` | Optional target SDK root, relative to the TOML file; never auto-downloaded. |
 | `debug_info` | `bool` | `false` | False by default. |

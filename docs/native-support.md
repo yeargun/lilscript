@@ -20,11 +20,11 @@ distinguish remaining native work from facilities tied to a JavaScript host.
 | Records, shapes and static data | Traced records, ordered Object keys/values/hasOwn/assign, scalar/array/record JSON output including floats, owned JSON parsing with typed representation views, shape fields/spreads/optional writes/tag narrowing, scalar array join and once-created immutable static graphs | Full capability/ABI qualification: N2 |
 | Exceptions | Owned status through calls and callbacks, catch/rethrow, finally completion overrides and checked bounds/range failures; explicit C provider pending/take/raise | Remaining native error recipes and full corpus qualification: N2 |
 | Generators | Owned typed region frames, lazy body, call-time defaults, array/typed-array/generator delegation, for-of completion and Set mutation | Complete corpus/performance qualification: N2 |
-| Async/tasks | Typed region frames, owned tasks, FIFO microtasks, adoption, then/catch/finally and ordered Task.all | Complete corpus/performance and embedding ABI qualification: N2 |
+| Async/tasks | Typed region frames, owned tasks, FIFO microtasks, adoption, then/catch/finally and ordered Task.all | Complete corpus/performance qualification: N2 |
 | Regular expressions | Pinned QuickJS libregexp; typed construction/test/search/string replacement, metadata and shared lastIndex; catchable syntax/resource errors | Broad corpus qualification: N2; JsValue match objects use the JavaScript host ABI |
 | Strings | Reference-counted UTF-16 ABI v2, owned views, temporary-conversion cleanup and Unicode 17 case conversion | Broad runtime qualification: N2 |
 | Memory | Reference counting, traced closures/objects/containers, final-use transfer and synchronous trial deletion | Broad cycle/performance qualification: N2 |
-| Extern providers | Explicit `host_` functions and generated C headers, mapped from checked identities | Remaining extern/C library ABI and portable process/file/clock API: N2 |
+| Native interfaces | Explicit `host_` providers, namespaced library exports/headers, live bindings, explicit lifecycle and typed process/file/clock/exit services | Full capability/performance qualification: N2 |
 | Toolchain | One library owner; strict C11 flags, explicit TOML controls, source/output receipts | Native objective measurements, sanitizer matrix and cross-target profiles: N2 |
 | JavaScript host facilities | `unknown`, host-specific `JsValue`/`JS.*` operations, extern JS classes, `object {}`, JS module namespaces/dynamic import and ambient JS APIs | Declared JavaScript-only; portable tagged value transport and checked representation views also support native catches |
 
@@ -41,8 +41,10 @@ carry `{data, length, owner}` under string ABI v2: input strings borrow, retaine
 views own their backing allocation, and returned strings transfer one owner.
 Static host storage uses a null owner; `ls_string_from_utf16` copies temporary
 host storage into an owned string. Older callback headers must be regenerated. Provider parameters are explicit values, with
-no defaults or implicit receiver. Native library exports are a separate N2
-contract, not an inferred C ABI for JavaScript exports.
+no defaults or implicit receiver. Native library exports use the explicit
+[generated C interface](native-interface.md), selected with `target.native.artifact`
+and `symbol_prefix`. Their owned callbacks, handles and lifecycle use the same
+checked program; JavaScript-only host facilities remain separate.
 
 Optional callback signatures carry `ls_native_arguments {count, absent}`.
 `count` is the number of supplied arguments; a non-null borrowed `absent` array

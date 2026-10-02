@@ -1,0 +1,1 @@
+class Counter{constructor(start=4){this.value=start}bump(by=1){return this.value+=by}}class DoubleCounter extends Counter{bump(by=1){return this.value+=by*2}}console.log(new DoubleCounter(10).bump(3));

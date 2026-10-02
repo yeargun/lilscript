@@ -661,12 +661,12 @@ pub struct ClassDefinition {
     /// An internal observed class's constructor, as a value: the cell of its
     /// constructor unit, which `export constructor` publishes.
     pub value: Option<CellId>,
-    /// JavaScript callers reach the class's constructor and prototype: it or
-    /// a class extending it is published. Its constructor and prototype
+    /// Host callers reach this prototype through a published class, ancestor,
+    /// or descendant. Its constructor and prototype
     /// methods are entry points with unknown callers.
     pub published: bool,
     /// The methods a JavaScript caller reaches on the prototype: every method
-    /// the class declares, when it or a class extending it is published.
+    /// the class declares at that shared public boundary.
     /// Each is the spelling and the cell of its (static) method unit.
     pub prototype: Vec<(StringId, CellId)>,
 }

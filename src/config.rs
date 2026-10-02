@@ -19,7 +19,7 @@ mod host;
 pub use host::HostConfig;
 #[path = "config_native.rs"]
 mod native;
-pub use native::{NativeObjective, NativeSanitizer, TargetNativeConfig};
+pub use native::{NativeArtifact, NativeObjective, NativeSanitizer, TargetNativeConfig};
 
 /// What becomes of a configuration key this compiler no longer reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1137,7 +1137,7 @@ impl ProjectConfig {
             policy.resources.restricted_by(ceilings),
             policy.constraints,
             diagnostics,
-        ).with_native_static_data(self.target.native.static_data).with_native_cycle_threshold(self.target.native.cycle_collection_threshold).with_native_regex_limits(self.target.native.regex_stack_limit, self.target.native.regex_poll_limit).with_defines(self.defines.clone()).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?)
+        ).with_native_interface(self.target.native.artifact,self.target.native.symbol_prefix.clone()).with_native_static_data(self.target.native.static_data).with_native_cycle_threshold(self.target.native.cycle_collection_threshold).with_native_regex_limits(self.target.native.regex_stack_limit, self.target.native.regex_poll_limit).with_defines(self.defines.clone()).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?)
             .with_execution({ self.language.const_evaluation.validated()?; self.execution.validated()? })
             .with_effort_overrides([self.javascript.candidate_proposal_limit,
                 self.javascript.terminal_codec_probe_limit, self.javascript.candidate_limit,

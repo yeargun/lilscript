@@ -272,11 +272,9 @@ fn host_symbols_reject_only_aliases_and_wrappers_that_this_interface_emits() {
         ),
         (
             "extern void first(int value);extern void second();first(1);second();",
-            &["host_base_arg0", "host_base_result"][..],
+            &["host_base_arg0", "host_base_result", "host_base_arg0_retain", "host_base_arg0_release"][..],
             &[
                 "host_base_arg0_call",
-                "host_base_arg0_retain",
-                "host_base_arg0_release",
                 "host_base_arg1",
             ][..],
         ),

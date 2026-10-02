@@ -15,7 +15,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 ))
             }
             ValueStorage::Value(_) => self.write(format_args!("ls_v{}", value.index())),
-            ValueStorage::Host(_) => unreachable!("native plan forbids escaping a provider symbol"),
+            ValueStorage::Host(index) => self.host_callable(index),
         }
     }
     fn destination(&mut self, unit: UnitId, destination: Destination) -> Result<(), NativeError> {

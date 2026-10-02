@@ -1,0 +1,4 @@
+effort.level=0
+[target.native]
+artifact="executable"
+symbol_prefix="first"

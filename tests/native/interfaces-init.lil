@@ -1,0 +1,4 @@
+extern void observe();
+observe();
+export int initialized=1;
+throw "init failed";

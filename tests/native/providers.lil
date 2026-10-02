@@ -1,0 +1,28 @@
+extern int argumentCount();
+extern string? argument(int index);
+extern string? environment(string name);
+extern void output(string text);
+extern void errorOutput(string text);
+extern string readInput();
+extern string readText(string path);
+extern void writeText(string path,string text);
+extern float wallTime();
+extern float cpuTime();
+extern void exitProcess(int status);
+void run() {
+    string mode=argument(1)??"missing";
+    if(mode=="exit") {output("exiting\n");exitProcess(7);}
+    print(argumentCount());print(argument(-1)==null);print(argument(999)==null);
+    print(mode);print(argument(2)??"missing");print(environment("LILSCRIPT_N2_TEXT")??"missing");
+    print(environment("LILSCRIPT_N2_MISSING")==null);
+    output("out é 😀\n");errorOutput("err é 😀\n");
+    print(readInput());
+    string path=argument(3)??"missing";
+    writeText(path,"first é\nsecond 😀\u0000end");print(readText(path));
+    print(wallTime()>0.0);print(cpuTime()>=0.0);
+    try {readText(path+".missing");} catch {print("missing caught");}
+    try {readText(path+"\u0000suffix");} catch {print("nul caught");}
+    try {writeText(path,"\ud800");} catch {print("surrogate caught");}
+    print(readText(path));
+}
+run();

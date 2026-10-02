@@ -10,10 +10,10 @@ pub struct HostConfig {
     /// Empty by default. Declared extern name to a JavaScript global/property path. Member reads
     /// remain observable and are evaluated at each original use.
     pub javascript: BTreeMap<String, String>,
-    /// Empty by default. Declared extern function to a callback ABI v1 C provider symbol.
+    /// Empty by default. Declared extern function to a callback ABI v3 C provider symbol.
     pub native: BTreeMap<String, String>,
     /// Empty by default. Provider translation units, relative to the configuration directory.
-    /// These are consumed only by executable delivery, never by optimization.
+    /// These are consumed only by native delivery, never by optimization.
     pub native_sources: Vec<PathBuf>,
 }
 impl HostConfig {
@@ -43,7 +43,7 @@ impl HostConfig {
         let mut links = BTreeSet::new();
         for (name, link) in &self.native {
             if !crate::js::identifier(name) || !crate::catalog::native_link_identifier(link) {
-                return Err(format!("host.native.{name} must name a callback ABI v1 provider in the host_ namespace"));
+                return Err(format!("host.native.{name} must name a callback ABI v3 provider in the host_ namespace"));
             }
             if !links.insert(link) {
                 return Err(format!("duplicate native provider `{link}`"));

@@ -2697,13 +2697,21 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         }
         Ok(())
     }
-    /// Whether a class, or a class extending it, is published.
+    /// A published prototype exposes both inherited methods and overrides on
+    /// internal descendant instances returned through that public base. Keep
+    /// this one common boundary fact for JavaScript and native C interfaces.
     fn published_chain(&mut self, class: NominalId) -> Result<bool, ConversionError> {
         let semantics = self.semantics;
         for candidate in semantics.classes() {
             self.work(1)?;
             if !candidate.published {
                 continue;
+            }
+            let mut descendant=Some(class);
+            while let Some(identity)=descendant {
+                self.work(1)?;
+                if identity==candidate.declaration.identity {return Ok(true);}
+                descendant=semantics.base_class(identity);
             }
             let mut current = Some(candidate.declaration.identity);
             while let Some(identity) = current {

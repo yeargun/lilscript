@@ -1,0 +1,2 @@
+import {add,label} from "./interfaces-peer.lil";
+export {add,label};

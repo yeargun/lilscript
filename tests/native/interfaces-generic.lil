@@ -1,0 +1,14 @@
+export sealed class Base<T> {
+    T stored;
+    init(T value) {this.stored=value;}
+    virtual T pick(T value,bool stored=false) {if(stored){return this.stored;}return value;}
+}
+class Fixed extends Base<int> {
+    init(int value) {super(value);}
+    override int pick(int value,bool stored=true) {return value+this.stored;}
+}
+export constructor Base;
+export Base<int> make() {return new Fixed(40);}
+export enum Mode {First,Last}
+export enum Code:int {Okay=65,Failed=90}
+export enum Kind:string {Text="text",Empty=""}

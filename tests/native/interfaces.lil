@@ -1,0 +1,31 @@
+extern int provider(int value);
+export struct Payload {string text; int count;}
+export int total=3;
+export func(int)->int current=(int value)=>value+1;
+export int add(int value,int by=2) {total+=value+by;return total;}
+export void replace() {current=(int value)=>value+10;}
+export void remember(func(int)->int value) {current=value;}
+export string greeting(string name) {return "hello "+name;}
+export Payload decorate(Payload value) {value.text+="!";value.count++;return value;}
+export T identity<T>(T value) {return value;}
+export int callProvider(int value) {func(int)->int saved=provider;return saved(value);}
+export bool sameProvider() {func(int)->int saved=provider;return saved==provider;}
+export func(int)->int closure(int start) {int counter=start;return (int by)=>counter+=by;}
+export sealed class Counter {
+    int value;
+    init(int start=4) {this.value=start;}
+    virtual int bump(int by=1) {this.value+=by;return this.value;}
+    func()->int reader() {return ()=>this.value;}
+}
+class DoubleCounter extends Counter {
+    init(int start) {super(start);}
+    override int bump(int by=1) {this.value+=by*2;return this.value;}
+}
+export constructor Counter;
+export Counter doubled(int start) {return new DoubleCounter(start);}
+export generator int numbers(int start) {try{yield start;yield start+1;}finally{total+=100;}}
+export async int waitFor(Task<int> task) {return (await task)+5;}
+export int[] values=[2,4];
+export int arrayTotal(int[] items) {int result=0;for(int value of items){result+=value;}return result;}
+export Record<string> labels=record{first:"one"};
+export void fail() {throw "export failure";}

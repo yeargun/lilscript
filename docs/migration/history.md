@@ -2132,3 +2132,21 @@ reflect adoption; Task<void>.then takes a zero-argument continuation. Actual
 arguments resolve the ambiguity of contextual Task<T> inference. No broad suite
 or performance win claimed; changed Rust expectations await consolidated N2.
 [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#async-frames-and-task-queue).
+
+## 2026-10-02 — N2 native interfaces
+
+Implement explicit executable/shared-library/object delivery, stable allocated
+C export names and generated ownership-aware headers. One native namespace owner
+coordinates runtime/interface names and explicit providers. Libraries expose
+initialization, queue draining and shutdown on the originating thread. Preserve
+borrowed inputs, owned results, live exports, absence metadata and source
+initialization failures. Supply typed portable process/file/clock/exit providers.
+
+Algorithm84, pin `n2-interfaces-3`: all75 focused steps pass, including linked
+GCC/Clang clients, sanitizers, live/owned exports, generic virtual overrides,
+tasks/generators, process/text I/O, CLI object/shared-library delivery, multiple
+entries, coexisting libraries, initialization failure replay, negative controls
+and independent/emitted JavaScript override observations at efforts0/13.
+The shared publication owner now retains overrides on internal descendants of a
+published base. Updated Rust expectations await consolidated N2; no broad suite
+or performance claim. [Evidence](../../benchmarks/migration-results/2026-10-02-n2-native/README.md#native-libraries-and-providers).

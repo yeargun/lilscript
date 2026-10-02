@@ -1,0 +1,4 @@
+effort.level=13
+[target.native]
+artifact="shared-library"
+symbol_prefix="peer"

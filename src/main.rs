@@ -328,13 +328,13 @@ fn run() -> Result<(), String> {
                     entries.len()
                 ))
             }
-            Target::C | Target::Native | Target::All => {
+            Target::C | Target::Native | Target::All if !loaded.config.target.native.artifact.is_library() => {
                 return Err(format!(
-                    "a native build has one library ABI (plan M11.8), and this build has {} entries",
+                    "a native executable has one entry; select target.native.artifact=\"shared-library\" or \"object\" for these {} entries",
                     entries.len()
                 ))
             }
-            Target::JsModule => {}
+            Target::JsModule | Target::C | Target::Native | Target::All => {}
         }
     }
     // `-o FILE` writes the one entry at FILE: a delivery of several files
@@ -354,7 +354,7 @@ fn run() -> Result<(), String> {
             loaded.config.delivery.entry_names = Some(name.to_string());
         }
     }
-    let options = service_options(&args)?;
+    let options = service_options(&args)?.for_config(&loaded.config);
     if matches!(args.target, Target::All) && args.out_dir.is_some()
         && options.requested_objectives(&loaded.config)?.iter().count() == 1
         && loaded.config.delivery.also.is_empty() {

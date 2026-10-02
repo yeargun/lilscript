@@ -1,0 +1,5 @@
+error: entries `a-b` and `a_2db` name one module; an entry is a module's public surface once
+ --> /home/azureuser/lilscript/tests/native/interfaces-peer.lil:1:1
+  |
+ 1 | 
+  | ^

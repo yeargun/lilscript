@@ -65,8 +65,16 @@ impl NativeToolchain {
             },
         };
         let compiler = compiler_path(name, compiler_base)?;
+        if native.artifact==crate::config::NativeArtifact::Object && !config.host.native_sources.is_empty() {
+            return Err("object delivery emits one generated object; compile provider sources separately or use shared-library delivery".into());
+        }
         let mut flags = vec!["-x".into(), "c".into(), "-std=c11".into(), native.objective.optimization_flag().into(),
             "-fno-fast-math".into(), "-ffp-contract=off".into()];
+        match native.artifact {
+            crate::config::NativeArtifact::Executable=>{},
+            crate::config::NativeArtifact::SharedLibrary=>flags.extend(["-fPIC".into(),"-shared".into()]),
+            crate::config::NativeArtifact::Object=>flags.extend(["-fPIC".into(),"-c".into()]),
+        }
         if let Some(triple) = &native.triple { flags.push(format!("--target={triple}").into()); }
         if let Some(sysroot) = &native.sysroot {
             let mut flag = OsString::from("--sysroot="); flag.push(absolute(sysroot, base)?); flags.push(flag);
@@ -78,8 +86,8 @@ impl NativeToolchain {
         if !native.sanitizers.is_empty() { flags.push("-fno-omit-frame-pointer".into()); }
         let target = native.triple.as_deref().unwrap_or(std::env::consts::OS);
         let mut libraries = Vec::new();
-        if !target.contains("windows") { libraries.push("-lm".into()); }
-        if target.contains("darwin") || target == "macos" { libraries.push("-Wl,-no_uuid".into()); }
+        if !target.contains("windows") && native.artifact!=crate::config::NativeArtifact::Object { libraries.push("-lm".into()); }
+        if native.artifact!=crate::config::NativeArtifact::Object && (target.contains("darwin") || target == "macos") { libraries.push("-Wl,-no_uuid".into()); }
         let sources = config.host.native_sources.iter().map(|p| absolute(Path::new(p), base)).collect::<Result<_,_>>()?;
         Ok(Self { compiler, provenance, flags, sources, libraries, controls: json!(native) })
     }
@@ -93,8 +101,8 @@ impl NativeToolchain {
             "numeric_contract":"C11; no fast math; floating-point contraction disabled"})
     }
     /// Compile unchanged admitted C. The writer and output drain run together;
-    /// failed compilers cannot publish a partial executable over a previous one.
-    /// The returned receipt measures the linked file, not C-source byte counts.
+    /// failed compilers cannot publish a partial artifact over a previous one.
+    /// The returned receipt measures the produced file, not C-source byte counts.
     pub fn compile(&self, c: &str, header: Option<&str>, output: &Path) -> Result<Value, String> {
         let parent = output.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(|| Path::new("."));
         if output.file_name().is_none() || header.is_some() && output.with_extension("h") == output {
@@ -142,7 +150,7 @@ impl NativeToolchain {
                 String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr)));
         }
         written.map_err(|_| "native source writer panicked")?.map_err(|e| format!("failed to send native C: {e}"))?;
-        let bytes = fs::read(&temporary).map_err(|e| format!("native compiler did not produce an executable: {e}"))?;
+        let bytes = fs::read(&temporary).map_err(|e| format!("native compiler did not produce an artifact: {e}"))?;
         // Reject source edits during the external compile; the receipt must name
         // the same complete inputs on both sides of the invocation.
         for (path, before) in self.sources.iter().zip(&source_identities) {
@@ -153,7 +161,7 @@ impl NativeToolchain {
         if header.is_some() {
             fs::rename(temporary_header.as_ref().unwrap(), &header_path).map_err(|e| format!("failed to publish native header: {e}"))?;
         }
-        fs::rename(&temporary, output).map_err(|e| format!("failed to publish native executable: {e}"))?;
+        fs::rename(&temporary, output).map_err(|e| format!("failed to publish native artifact: {e}"))?;
         let mut receipt = self.receipt();
         receipt["compiler_sha256"] = json!(hash(&identity));
         receipt["compiler_version"] = json!(String::from_utf8_lossy(&version.stdout).trim());
@@ -203,6 +211,34 @@ mod tests {
         assert!(!owned.native_static_data());
         assert_ne!(native.fingerprint(),owned.fingerprint());
         assert_eq!(javascript.fingerprint(),config.resolve_policy(js_request).unwrap().fingerprint());
+    }
+    #[test]
+    fn n2_library_controls_are_native_contracts_and_choose_one_artifact() {
+        use crate::compilation_policy::CompilationRequest;
+        use crate::config::NativeArtifact;
+        let mut config=ProjectConfig::default();
+        let request=CompilationRequest::JavaScript{preserve_root_exports:false};
+        let javascript=config.resolve_policy(request).unwrap();
+        let executable=config.resolve_policy(CompilationRequest::Native).unwrap();
+        config.target.native.artifact=NativeArtifact::SharedLibrary;
+        config.target.native.symbol_prefix="client".into();
+        let library=config.resolve_policy(CompilationRequest::Native).unwrap();
+        assert_ne!(executable.fingerprint(),library.fingerprint());
+        assert_eq!(library.native_symbol_prefix(),"client");
+        assert_eq!(javascript.fingerprint(),config.resolve_policy(request).unwrap().fingerprint());
+        let options=crate::build::ServiceOptions{target:crate::build::ServiceTarget::All,preserve_root_exports:false,..Default::default()}.for_config(&config);
+        assert!(options.preserve_root_exports);
+        let flags=NativeToolchain::resolve(&config,None).unwrap().receipt();
+        assert!(flags["flags"].as_array().unwrap().iter().any(|f|f=="-shared"));
+        config.target.native.artifact=NativeArtifact::Object;
+        let object=config.resolve_policy(CompilationRequest::Native).unwrap();
+        assert_ne!(library.fingerprint(),object.fingerprint());
+        config.target.native.link_time_optimization=true;
+        assert!(config.target.native.validate().is_err());
+        for prefix in ["", "1bad", "ls", "ls_private", "host", "host_provider", "a-b"] {
+            config.target.native.link_time_optimization=false;config.target.native.symbol_prefix=prefix.into();
+            assert!(config.target.native.validate().is_err(),"{prefix}");
+        }
     }
     #[test]
     fn n1_native_toolchain_executes_all_objectives_and_identifies_actual_files() {

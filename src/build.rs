@@ -97,6 +97,12 @@ pub struct ServiceOptions {
 }
 
 impl ServiceOptions {
+    /// Native libraries retain the checked public interface. Resolving this
+    /// before target policies keeps CLI print-policy and service builds equal.
+    pub fn for_config(mut self,config:&ProjectConfig)->Self {
+        if self.native_request().is_some() && config.target.native.artifact.is_library() {self.preserve_root_exports=true;}
+        self
+    }
     /// Resolve the single-objective policy, including an explicit API codec
     /// override and finite caller ceilings. For a set this is the configured
     /// primary codec if requested, otherwise the first requested codec. The
@@ -455,6 +461,7 @@ impl<'src> Frontend<'src> {
 
     fn new(config: &ProjectConfig, options: ServiceOptions) -> Result<Self, ServiceError> {
         let started = Instant::now();
+        let options=options.for_config(config);
         let additional_outputs = options.resolve_additional_outputs(config)
             .map_err(|error| ServiceError::new("policy", error))?;
         let mut options = options;
@@ -1770,15 +1777,15 @@ pub fn with_checked_entries<R>(
     client: impl for<'src> FnOnce(&mut CheckedSourceSession<'src>) -> R,
 ) -> Result<(R, FinishedSourceSession), ServiceError> {
     let entries = sorted_entries(entries)?;
-    if entries.len() > 1 && options.target != ServiceTarget::JavaScript {
+    if entries.len() > 1 && options.target != ServiceTarget::JavaScript && !config.target.native.artifact.is_library() {
         return Err(ServiceError::new(
             "entries",
-            "a native build has one library ABI (plan M11.8); build several entries with a JavaScript target",
+            "a native executable has one entry; select target.native.artifact=\"shared-library\" or \"object\" for a library with several entries",
         ));
     }
     // A script (`bare`, design §4) is one entry: several entries share state
     // only as modules.
-    if entries.len() > 1 && !options.preserve_root_exports {
+    if entries.len() > 1 && !options.preserve_root_exports && !(options.native_request().is_some() && config.target.native.artifact.is_library()) {
         return Err(ServiceError::new(
             "entries",
             "a script build (`--target js`) has one entry; build several entries as modules (`--target js-module`)",

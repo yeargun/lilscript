@@ -31,6 +31,8 @@ pub mod lexer;
 pub mod lint;
 pub mod literal;
 pub mod module;
+mod native_symbols;
+mod native_providers;
 pub mod native_toolchain;
 pub mod native_capabilities;
 #[cfg(test)]

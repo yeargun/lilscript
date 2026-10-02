@@ -1,0 +1,2 @@
+export int add(int value) {return value+1000;}
+export string label="peer";

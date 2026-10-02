@@ -36,6 +36,10 @@ mod dynamic;
 mod enums;
 #[path = "native_interface.rs"]
 mod interface;
+#[path = "native_exports.rs"]
+mod exports;
+#[path = "native_host.rs"]
+mod host;
 #[path = "native_ownership.rs"]
 mod ownership;
 #[path = "native_arguments.rs"]
@@ -252,6 +256,8 @@ pub(super) fn form(
     static_data: bool,
     cycle_threshold: u32,
     regex_limits: (u32, u64),
+    artifact: crate::config::NativeArtifact,
+    symbol_prefix: &str,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<NativeArtifacts, NativeError> {
     let mut phase = budget.scope();
@@ -261,6 +267,7 @@ pub(super) fn form(
     )?;
     let mut plan = NativePlan::build_with_hosts(program, uses, hosts, &mut phase)?;
     plan.resolve_effects(uses, dead_code, &mut phase)?;
+    if artifact.is_library() {plan.helpers.require(Helper::Exceptions);}
     let static_storage=static_data::StaticStorage::build(&mut plan,static_data,&mut phase)?;
     let initialization_guards_removed = plan.cells.iter().filter(|cell| cell.global && !cell.global_guard).count() as u32;
     let storage = if scalar {
@@ -278,7 +285,7 @@ pub(super) fn form(
         plan: &plan,
         static_storage,
         cycle_threshold,
-        regex_limits,
+        regex_limits, artifact, symbol_prefix,
         storage,
         operation: None,
         ownership_transfers: 0,
@@ -294,7 +301,7 @@ pub(super) fn form(
     };
     // Both artifacts use the same borrowed physical signature and presentation
     // owner. Nothing is recovered from printed C or a second source graph.
-    if !hosts.bindings.is_empty() {
+    if !hosts.bindings.is_empty() || artifact.is_library() || !program.exports().is_empty() {
         emitter.header()?;
     }
     let header = mem::take(&mut emitter.text);
@@ -354,6 +361,8 @@ struct Emitter<'plan, 'program, 'src, 'budget, 'ledger> {
     static_storage: static_data::StaticStorage,
     cycle_threshold: u32,
     regex_limits: (u32, u64),
+    artifact: crate::config::NativeArtifact,
+    symbol_prefix: &'plan str,
     storage: super::physical_storage::StorageProofs,
     operation: Option<OpId>,
     ownership_transfers: u32,
@@ -405,6 +414,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
         })
     }
     fn program(&mut self) -> Result<(), NativeError> {
+        self.namespace_macros(true)?;
         self.text(native_runtime::PROLOGUE)?;
         self.write(format_args!("#define LS_NATIVE_STATIC_DATA {}\n",u8::from(self.static_storage.has_objects())))?;
         let threshold = self.cycle_threshold;
@@ -467,6 +477,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.closure_recipes()?;
         }
         self.task_callbacks()?;
+        self.provider_implementations()?;
         self.suspension_frames()?;
         for frozen in &program.units {
             if !self.plan.created[frozen.id().index()] {
@@ -474,11 +485,19 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             self.unit(frozen.id())?;
         }
-        self.text("int main(void) {\nif (!ls_runtime_init()) return 1;\n")?;
+        self.export_implementations()?;
+        if self.artifact.is_library() {return self.library_lifecycle();}
+        if !program.exports().is_empty() {
+            self.library_lifecycle()?;
+            let prefix=self.symbol_prefix;
+            return self.write(format_args!("int main(int argc,char **argv) {{\nif({0}_initialize(argc,(const char *const *)argv)) {0}_drain();\nint status=ls_native_raised?1:0;\nif(ls_native_raised) ls_native_report_error();\n{0}_shutdown();return status;\n}}\n",prefix));
+        }
+        self.text("int main(int argc,char **argv) {\n(void)argc;(void)argv;\nif (!ls_runtime_init()) return 1;\n")?;
+        self.provider_initialize()?;
         if self.plan.needs_callable_runtime() {
             self.write(format_args!(
                 "ls_native_identity_counter = UINT64_C({});\n",
-                program.units.len()
+                program.units.len()+self.plan.hosts.bindings.len()
             ))?;
         }
         for unit in program.initialization.iter() {
@@ -492,17 +511,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.text("ls_shutdown: LS_NATIVE_UNUSED;\nint ls_exit_code = ls_native_raised ? 1 : 0;\nif (ls_native_raised) ls_native_report_error();\n")?;
         if self.plan.helpers.contains(Helper::Tasks) {self.text("ls_task_discard_jobs();\n")?;}
         if self.plan.helpers.contains(Helper::Exceptions) { self.text("ls_value_clear(&ls_native_thrown);\n")?; }
-        for (index, cell) in self.plan.cells.iter().enumerate() {
-            self.budget.work(WorkKind::Render, 1)?;
-            if !cell.global {
-                continue;
-            }
-            if let ValueStorage::Value(ty) = cell.storage {
-                if let Some(prefix) = ty.owner_prefix() {
-                    self.write(format_args!("{prefix}_clear(&ls_c{index});\n"))?;
-                }
-            }
-        }
+        self.release_globals()?;
+        self.provider_shutdown()?;
         if self.plan.needs_callable_runtime() {
             self.text("ls_native_collect_cycles();\n")?;
         }

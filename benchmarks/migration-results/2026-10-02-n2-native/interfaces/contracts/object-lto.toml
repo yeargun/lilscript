@@ -1,0 +1,4 @@
+effort.level=0
+[target.native]
+artifact="object"
+link_time_optimization=true

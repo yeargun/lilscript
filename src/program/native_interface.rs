@@ -5,7 +5,9 @@ use crate::primitive::ParameterPassing;
 
 impl Emitter<'_, '_, '_, '_, '_> {
     pub(super) fn header(&mut self) -> Result<(), NativeError> {
-        self.text("#ifndef LILSCRIPT_NATIVE_CALLBACK_ABI_V3_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_V3_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 3\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\n")?;
+        self.write(format_args!("#ifndef LILSCRIPT_NATIVE_{}_ABI_V3_H\n#define LILSCRIPT_NATIVE_{}_ABI_V3_H\n",crate::native_symbols::Component(self.symbol_prefix),crate::native_symbols::Component(self.symbol_prefix)))?;
+        self.namespace_macros(true)?;
+        self.text("#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 3\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\n")?;
         self.text(include_str!("runtime/call.h"))?;
         self.text(include_str!("runtime/string.h"))?;
         self.text(native_memory::INTERFACE)?;
@@ -21,6 +23,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.text(native_memory::QUALIFICATION_INTERFACE)?;
         self.callable_types()?;
         self.host_interface()?;
+        self.export_declarations()?;
+        self.runtime_interface(false)?;
+        self.namespace_macros(false)?;
         self.text("#endif\n")
     }
 
@@ -145,15 +150,15 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         Ok(())
     }
-    fn alias_name(&mut self, link: &str, position: Option<usize>) -> Result<(), NativeError> {
+    fn alias_name(&mut self, link: impl fmt::Display, position: Option<usize>) -> Result<(), NativeError> {
         match position {
             Some(position) => self.write(format_args!("{link}_arg{position}")),
             None => self.write(format_args!("{link}_result")),
         }
     }
-    fn host_alias(
+    pub(super) fn host_alias(
         &mut self,
-        link: &str,
+        link: impl fmt::Display + Copy,
         position: Option<usize>,
         ty: NativeType,
     ) -> Result<(), NativeError> {
@@ -161,15 +166,19 @@ impl Emitter<'_, '_, '_, '_, '_> {
         self.write(format_args!("typedef {ty} "))?;
         self.alias_name(link, position)?;
         self.text(";\n")?;
-        let NativeType::Callable(index) = ty else {
-            return Ok(());
-        };
+        if ty==NativeType::Void {return Ok(());}
         self.write(format_args!("static LS_NATIVE_UNUSED inline {ty} "))?;
         self.alias_name(link, position)?;
-        self.write(format_args!("_retain({ty} value) {{ return ls_callable{index}_retain(value); }}\nstatic LS_NATIVE_UNUSED inline void "))?;
+        self.write(format_args!("_retain({ty} value) {{\n"))?;
+        if let Some(retain)=ty.retain("value") {self.text(&retain)?;}
+        self.text("return value;\n}\nstatic LS_NATIVE_UNUSED inline void ")?;
         self.alias_name(link, position)?;
+        self.write(format_args!("_release({ty} value) {{\n(void)value;\n"))?;
+        if let Some(release)=ty.release("value") {self.text(&release)?;}
+        self.text("}\n")?;
+        let NativeType::Callable(index)=ty else {return Ok(());};
         self.write(format_args!(
-            "_release({ty} value) {{ ls_callable{index}_release(value); }}\nstatic LS_NATIVE_UNUSED inline {} ",
+            "static LS_NATIVE_UNUSED inline {} ",
             self.plan.signatures[index].result
         ))?;
         self.alias_name(link, position)?;

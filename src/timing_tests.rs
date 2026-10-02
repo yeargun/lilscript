@@ -225,7 +225,7 @@ fn check_refusal_and_native() {
             [0; PHASE_BUCKETS.len()]
         }
     );
-    let refused = compile_source(
+    let exported = compile_source(
         ANSWER,
         &configuration(0, false),
         ServiceOptions {
@@ -233,8 +233,9 @@ fn check_refusal_and_native() {
             ..ServiceOptions::default()
         },
     )
-    .unwrap_err();
-    assert!(refused.message.contains("native exported ABI"));
+    .unwrap();
+    assert!(exported.native_header().is_some());
+    assert_eq!(exported.report()["resources"]["codec_work"],0);
     let native = compile_source(
         "int answer(){return 17;}print(answer());",
         &configuration(0, false),

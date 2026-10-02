@@ -310,9 +310,12 @@ fn q2_build_cache_multi_file_and_native_handoffs_remain_complete() {
     );
     same_output(&cold, &warm);
     assert!(!warm.native_c().unwrap().is_empty());
-    // Native public exports remain an owned language/ABI limitation. A prior
-    // private-program hit cannot turn that diagnostic into cached success.
-    assert!(compile_source("export int plus(int n){return n+1;}", &config, options).is_err());
+    // Exported functions now have an owned C interface. A private-program hit
+    // must not erase its header or replace its initialization/public surface.
+    let public=compile_source("export int plus(int n){return n+1;}", &config, options).unwrap();
+    assert!(!public.native_header().unwrap().is_empty());
+    let again=compile_source("export int plus(int n){return n+1;}", &config, options).unwrap();
+    assert_eq!(again.report["build_cache"]["hit"],true);same_output(&public,&again);
 }
 
 #[test]

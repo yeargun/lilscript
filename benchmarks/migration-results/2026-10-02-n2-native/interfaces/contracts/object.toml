@@ -1,0 +1,4 @@
+effort.level=0
+[target.native]
+artifact="object"
+symbol_prefix="second"

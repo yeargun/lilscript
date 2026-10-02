@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-interfaces-1/lilscript",
+    "sha256": "72a5e6f685edf2e1ed2e1906e0bfed4448c1ac31c5bef8451a023d6348ccee54"
+  },
+  "rows": [
+    {
+      "name": "library-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-1/lilscript",
+        "tests/native/interfaces.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0/interfaces.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "library-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-fPIC",
+        "-shared",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0",
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0/interfaces.c",
+        "tests/native/interfaces.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0/libinterfaces-gcc.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 939,
+      "passed": true
+    },
+    {
+      "name": "client-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0",
+        "tests/native/interfaces.client.c",
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0/libinterfaces-gcc.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0/client-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 102,
+      "passed": true
+    },
+    {
+      "name": "client-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-1/interfaces-0/client-gcc"
+      ],
+      "exit": -6,
+      "elapsed_ms": 1126,
+      "passed": false
+    }
+  ]
+}

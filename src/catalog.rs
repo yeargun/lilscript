@@ -8,10 +8,7 @@ pub(crate) mod platform;
 
 /// Callback ABI v1 reserves a C symbol namespace for explicitly linked hosts.
 pub(crate) fn native_link_identifier(link: &str) -> bool {
-    let Some(suffix) = link.strip_prefix("host_") else { return false; };
-    let mut bytes = suffix.bytes();
-    bytes.next().is_some_and(|b| b.is_ascii_alphabetic() || b == b'_')
-        && bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_')
+    crate::native_symbols::provider(link)
 }
 
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};

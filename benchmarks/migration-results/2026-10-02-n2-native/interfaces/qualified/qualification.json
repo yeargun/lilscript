@@ -1,0 +1,605 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+    "sha256": "b4aa046dbb509a0ae4ccb3de3785b0656d9be7494da80fc05f6bcd632f8139b0"
+  },
+  "rows": [
+    {
+      "name": "library-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/interfaces.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/interfaces.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 9,
+      "passed": true
+    },
+    {
+      "name": "library-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-fPIC",
+        "-shared",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/interfaces.c",
+        "tests/native/interfaces.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/libinterfaces-gcc.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1017,
+      "passed": true
+    },
+    {
+      "name": "client-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0",
+        "tests/native/interfaces.client.c",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/libinterfaces-gcc.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/client-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 115,
+      "passed": true
+    },
+    {
+      "name": "client-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/client-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "library-0-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-fPIC",
+        "-shared",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/interfaces.c",
+        "tests/native/interfaces.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/libinterfaces-clang.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 894,
+      "passed": true
+    },
+    {
+      "name": "client-0-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0",
+        "tests/native/interfaces.client.c",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/libinterfaces-clang.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/client-clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 139,
+      "passed": true
+    },
+    {
+      "name": "client-0-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/client-clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "library-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fPIC",
+        "-shared",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/interfaces.c",
+        "tests/native/interfaces.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/libinterfaces-sanitize.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2337,
+      "passed": true
+    },
+    {
+      "name": "client-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0",
+        "tests/native/interfaces.client.c",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/libinterfaces-sanitize.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/client-sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 246,
+      "passed": true
+    },
+    {
+      "name": "client-0-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/client-sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "library-0-namespace",
+      "args": [
+        "nm",
+        "-D",
+        "--defined-only",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-0/libinterfaces-gcc.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 3,
+      "passed": true
+    },
+    {
+      "name": "library-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/interfaces.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/interfaces.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 8,
+      "passed": true
+    },
+    {
+      "name": "library-13-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-fPIC",
+        "-shared",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/interfaces.c",
+        "tests/native/interfaces.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/libinterfaces-gcc.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1008,
+      "passed": true
+    },
+    {
+      "name": "client-13-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13",
+        "tests/native/interfaces.client.c",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/libinterfaces-gcc.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/client-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 112,
+      "passed": true
+    },
+    {
+      "name": "client-13-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/client-gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "library-13-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-fPIC",
+        "-shared",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/interfaces.c",
+        "tests/native/interfaces.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/libinterfaces-clang.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 873,
+      "passed": true
+    },
+    {
+      "name": "client-13-clang-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13",
+        "tests/native/interfaces.client.c",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/libinterfaces-clang.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/client-clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 137,
+      "passed": true
+    },
+    {
+      "name": "client-13-clang-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/client-clang"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "library-13-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fPIC",
+        "-shared",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/interfaces.c",
+        "tests/native/interfaces.host.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/libinterfaces-sanitize.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2354,
+      "passed": true
+    },
+    {
+      "name": "client-13-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DLS_NATIVE_QUALIFICATION",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13",
+        "tests/native/interfaces.client.c",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/libinterfaces-sanitize.so",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/client-sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 246,
+      "passed": true
+    },
+    {
+      "name": "client-13-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/client-sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "library-13-namespace",
+      "args": [
+        "nm",
+        "-D",
+        "--defined-only",
+        "/tmp/lilscript-n2-interfaces-3/interfaces-13/libinterfaces-gcc.so"
+      ],
+      "exit": 0,
+      "elapsed_ms": 2,
+      "passed": true
+    },
+    {
+      "name": "providers-0-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/providers.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-3/providers-0/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/providers-0/providers.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "providers-0-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-interfaces-3/providers-0/providers.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/providers-0/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 606,
+      "passed": true
+    },
+    {
+      "name": "providers-0-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-0/gcc",
+        "run",
+        "\u00e9\ud83d\ude00",
+        "/tmp/lilscript-n2-interfaces-3/providers-0/text.txt"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "providers-0-gcc-exit",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-0/gcc",
+        "exit"
+      ],
+      "exit": 7,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "providers-0-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-interfaces-3/providers-0/providers.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/providers-0/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1371,
+      "passed": true
+    },
+    {
+      "name": "providers-0-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-0/sanitize",
+        "run",
+        "\u00e9\ud83d\ude00",
+        "/tmp/lilscript-n2-interfaces-3/providers-0/text.txt"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "providers-0-sanitize-exit",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-0/sanitize",
+        "exit"
+      ],
+      "exit": 7,
+      "elapsed_ms": 5,
+      "passed": true
+    },
+    {
+      "name": "providers-13-source",
+      "args": [
+        "/home/azureuser/lilscript-work/bin/n2-interfaces-3/lilscript",
+        "tests/native/providers.lil",
+        "--config",
+        "/tmp/lilscript-n2-interfaces-3/providers-13/source.toml",
+        "--target",
+        "c",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/providers-13/providers.c"
+      ],
+      "exit": 0,
+      "elapsed_ms": 7,
+      "passed": true
+    },
+    {
+      "name": "providers-13-gcc-build",
+      "args": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/lilscript-n2-interfaces-3/providers-13/providers.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/providers-13/gcc"
+      ],
+      "exit": 0,
+      "elapsed_ms": 606,
+      "passed": true
+    },
+    {
+      "name": "providers-13-gcc-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-13/gcc",
+        "run",
+        "\u00e9\ud83d\ude00",
+        "/tmp/lilscript-n2-interfaces-3/providers-13/text.txt"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "providers-13-gcc-exit",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-13/gcc",
+        "exit"
+      ],
+      "exit": 7,
+      "elapsed_ms": 1,
+      "passed": true
+    },
+    {
+      "name": "providers-13-sanitize-build",
+      "args": [
+        "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/tmp/lilscript-n2-interfaces-3/providers-13/providers.c",
+        "-lm",
+        "-o",
+        "/tmp/lilscript-n2-interfaces-3/providers-13/sanitize"
+      ],
+      "exit": 0,
+      "elapsed_ms": 1367,
+      "passed": true
+    },
+    {
+      "name": "providers-13-sanitize-run",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-13/sanitize",
+        "run",
+        "\u00e9\ud83d\ude00",
+        "/tmp/lilscript-n2-interfaces-3/providers-13/text.txt"
+      ],
+      "exit": 0,
+      "elapsed_ms": 11,
+      "passed": true
+    },
+    {
+      "name": "providers-13-sanitize-exit",
+      "args": [
+        "/tmp/lilscript-n2-interfaces-3/providers-13/sanitize",
+        "exit"
+      ],
+      "exit": 7,
+      "elapsed_ms": 5,
+      "passed": true
+    }
+  ]
+}
