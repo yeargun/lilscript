@@ -1,0 +1,51 @@
+{
+  "compiler": "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+  "sha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240",
+  "changes": [
+    {
+      "path": "/config",
+      "before": "/tmp/lilscript-v1-root-config/before.toml",
+      "after": "/home/azureuser/lilscript/lilscript.toml"
+    },
+    {
+      "path": "/diagnostics",
+      "before": [
+        "legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort"
+      ],
+      "after": []
+    },
+    {
+      "path": "/fingerprint",
+      "before": "6ec4a614882243bd731c5eaaee5a906f9a6a8f32c4b95198d36bf4adfcd33d85",
+      "after": "ab2607bb559edebf805daff1fd5cad689a87ca98f714fa4292f30af8f1949a2c"
+    },
+    {
+      "path": "/policy/configuration_version",
+      "before": 2,
+      "after": 3
+    },
+    {
+      "path": "/resolution/configuration_version",
+      "before": 2,
+      "after": 3
+    },
+    {
+      "path": "/resolution/runtime_permissions",
+      "before": "legacy-effort-16-startup",
+      "after": "explicit"
+    },
+    {
+      "path": "/warnings",
+      "before": [
+        "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture \u00a713.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+        "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture \u00a713.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+        "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture \u00a713.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+        "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture \u00a713.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+      ],
+      "after": []
+    }
+  ],
+  "no_warnings": true,
+  "scope": "Resolved policy only. Removes no-op frontier knobs and adopts explicit version 3; retains the authored tactic allowlist and effort 13.",
+  "effective_contract_effort_permissions_objective_and_ceilings_unchanged": true
+}

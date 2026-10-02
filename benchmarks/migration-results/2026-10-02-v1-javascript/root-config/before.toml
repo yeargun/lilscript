@@ -1,0 +1,51 @@
+[optimization]
+preset = "maximum"
+call_site_specialization = true
+
+[javascript]
+priority = "size-first"
+# 13 is the compiler default and the measured effort plateau: level 15 costs
+# roughly 20x the CPU for 1.4% of the Brotli bytes on a large artifact.
+# See docs/configuration.md and finer/hypotheses/007-level-13-sweet-spot.
+candidate_search = "production"
+# Retained whole-artifact frontier count. Omitted proposal work also honors it.
+candidate_limit = 1536
+# Approximate aggregate bytes of whole-artifact candidates retained and scored.
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+# Optional structural plan/emission cap. Omitted also honors candidate_limit;
+# an explicit value is bounded by the level and search tier.
+# candidate_proposal_limit = 384
+# Terminal codec-probe budget. Omitted derives from the level.
+# terminal_codec_probe_limit = 384
+# An exact allowlist: the decisions it omits (property-mangling,
+# length-to-number-elision, parameterized-function-merging) are off. Omit it to
+# use the `priority` defaults.
+compression = [
+  "identifier-mangling",
+  "string-pooling",
+  "string-array-packing",
+]
+
+[delivery]
+mode = "single"
+
+[lint]
+enabled = true
+providers = ["correctness", "effects", "performance", "size", "web"]
+preset = "recommended"
+deny_warnings = false
+exclude = ["**/generated/**"]
+pure_extern_allowlist = []
+
+[format]
+enabled = true
+line_width = 100
+newline = "lf"
+organize_imports = true
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 13
