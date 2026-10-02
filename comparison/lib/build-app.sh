@@ -58,6 +58,7 @@ for objective in raw gzip brotli; do
   "$LILSCRIPT" "$APP/lilscript/main.lil" \
     --config "$COMPARISON/cases/configs/$objective.toml" \
     --target js \
+    --format bare \
     --mode production \
     -o "$BUILD/lilscript-$objective.js"
 done
@@ -80,7 +81,7 @@ node "$BUILD/lilscript-gzip.js" > "$BUILD/lilscript-gzip.stdout"
 node "$BUILD/lilscript-brotli.js" > "$BUILD/lilscript-brotli.stdout"
 node "$BUILD/closure.js" > "$BUILD/closure.stdout"
 "$BUILD/lilscript" > "$BUILD/lilscript-native.stdout"
-"$CC" -std=c11 -O3 "$BUILD/lilscript.c" -o "$BUILD/lilscript-from-c"
+"$CC" -std=c11 -O3 "$BUILD/lilscript.c" -lm -o "$BUILD/lilscript-from-c"
 "$BUILD/lilscript-from-c" > "$BUILD/lilscript-c.stdout"
 
 diff -u "$EXPECTED" "$BUILD/lilscript-js.stdout"

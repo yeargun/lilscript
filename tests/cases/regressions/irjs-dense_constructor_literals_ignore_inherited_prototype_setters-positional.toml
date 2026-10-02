@@ -1,3 +1,3 @@
-# The test compiled with `public_aggregate_fields = false`, the positional public-aggregate ABI.
+# Public aggregates use named own fields. Preserve the original setter/default observations.
 [javascript]
-public_aggregate_abi = "positional"
+public_aggregate_abi = "named"

@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "compiler_sha256": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+  "completed_ports": [
+    "cnlil"
+  ],
+  "interrupted_port": "hast-util-to-htmllil",
+  "reason": "Bound call-location indexing to linear DAG traversal before expensive library qualification. Interrupted compilation is not a test failure or a passing result.",
+  "logs": {
+    "cnlil.build.log": {
+      "sha256": "18cf4bcec366100280afba42c91eb3c722ccb9c049eb8415f11385fefd78711f",
+      "text": "\n> @itslil/cn@0.2.4 build\n> node scripts/build.mjs --compile\n\ngenerated src/tables.lil from pinned upstream tables\nBuilt 6 compiler-written artifacts (public)\n\n"
+    },
+    "cnlil.test.log": {
+      "sha256": "7f77cbf519fac26b4400412cb5c74a7991642270ae84d173eddb271f8ab3f5a8",
+      "text": "\n> @itslil/cn@0.2.4 test\n> npm run build && node scripts/test-upstream.mjs\n\n\n> @itslil/cn@0.2.4 build\n> node scripts/build.mjs --compile\n\ngenerated src/tables.lil from pinned upstream tables\nBuilt 6 compiler-written artifacts (public)\npass: 56353  fail: 0  (100.000%)\nidempotence failures: 0, cached/uncached mismatches: 0, cn-join failures: 0\nfuzz: 300000 cases, 0 mismatches\njoin: pass 60005  fail 0\n\n"
+    }
+  }
+}

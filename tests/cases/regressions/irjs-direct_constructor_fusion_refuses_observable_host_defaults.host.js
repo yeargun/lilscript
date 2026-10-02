@@ -4,6 +4,6 @@
   let calls = 0, seen = false;
   globalThis.Map = class { constructor() { calls++; } };
   globalThis.supplied = function () { return { tag: 7 }; };
-  globalThis.inspect = function (cache) { seen = cache[0].tag === 7; };
+  globalThis.inspect = function (cache) { seen = cache.values.tag === 7; };
   process.on('exit', () => { console.log('TRACE:' + calls + ':' + seen); });
 })();

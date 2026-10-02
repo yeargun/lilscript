@@ -1388,6 +1388,11 @@ for (const entry of selected) {
           lane.config,
           "--target",
           "js",
+          // This corpus supplies the private script root, matching Closure's
+          // assumeFunctionWrapper contract and scripts/ratchet.mjs. Pin the
+          // format instead of inheriting the application's IIFE default.
+          "--format",
+          "bare",
           "--mode",
           "production",
           "-o",
@@ -1536,6 +1541,7 @@ const report = {
       lane.name,
       {
         independentCompilation: true,
+        delivery: "bare private application script",
         gateMetric: lane.metric,
         diagnosticMetrics: metrics.filter((metric) => metric !== lane.metric),
         config: relative(repo, lane.config),

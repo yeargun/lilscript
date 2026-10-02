@@ -1073,14 +1073,21 @@ impl Formation<'_, '_, '_, '_, '_> {
     /// `arguments`, or none.
     pub(super) fn activation_read(
         &mut self,
+        context: ContextId,
         cell: CellId,
     ) -> Result<Option<js::ExprId>, FormationError> {
         if self.this_cells.contains(&cell) {
+            if self.plan(self.plan(context).lexical_owner).generator_entry.is_some() {
+                return Ok(Some(self.ambient(context, Ambient::This, Span::default())?));
+            }
             return Ok(Some(self.expression(js::Expr::This)?));
         }
         if self.arguments_cells.contains(&cell)
             || self.formal_lists.iter().any(|(list, _)| *list == cell)
         {
+            if self.plan(self.plan(context).lexical_owner).generator_entry.is_some() {
+                return Ok(Some(self.ambient(context, Ambient::Arguments, Span::default())?));
+            }
             let arguments = self.text("arguments")?;
             return Ok(Some(
                 self.expression(js::Expr::Host(js::Host::new(arguments)))?,

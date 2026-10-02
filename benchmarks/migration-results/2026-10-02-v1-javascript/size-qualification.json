@@ -1,0 +1,1462 @@
+{
+  "schema": 1,
+  "compiler": {
+    "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-4/lilscript",
+    "sha256": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+    "version": "lilscript 0.1.0",
+    "label": null
+  },
+  "codec": {
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "format": "bare private application script",
+  "comparison": "S1 accepted baseline to V1 candidate 4; same 642 programs, three independent effort-15 objective configurations. This spans all intervening migration milestones, not only V1.",
+  "runtime_lanes": 1926,
+  "runtime_failures": [],
+  "aggregate_acceptance": {
+    "allowed": true,
+    "reason": null,
+    "corpus": [
+      {
+        "set": "cases",
+        "metric": "raw",
+        "before": 52651,
+        "now": 52124,
+        "delta": -527
+      },
+      {
+        "set": "cases",
+        "metric": "gzip9",
+        "before": 49839,
+        "now": 49470,
+        "delta": -369
+      },
+      {
+        "set": "cases",
+        "metric": "brotli11",
+        "before": 40034,
+        "now": 39634,
+        "delta": -400
+      },
+      {
+        "set": "apps",
+        "metric": "raw",
+        "before": 835,
+        "now": 811,
+        "delta": -24
+      },
+      {
+        "set": "apps",
+        "metric": "gzip9",
+        "before": 727,
+        "now": 707,
+        "delta": -20
+      },
+      {
+        "set": "apps",
+        "metric": "brotli11",
+        "before": 576,
+        "now": 557,
+        "delta": -19
+      },
+      {
+        "set": "algorithms",
+        "metric": "raw",
+        "before": 4920,
+        "now": 4565,
+        "delta": -355
+      },
+      {
+        "set": "algorithms",
+        "metric": "gzip9",
+        "before": 3125,
+        "now": 2957,
+        "delta": -168
+      },
+      {
+        "set": "algorithms",
+        "metric": "brotli11",
+        "before": 2844,
+        "now": 2661,
+        "delta": -183
+      }
+    ],
+    "objectives": {},
+    "refusing": []
+  },
+  "objectives": {
+    "raw": {
+      "before": 58406,
+      "now": 57500,
+      "delta": -906,
+      "improved": 58,
+      "grew": 6,
+      "unchanged": 578
+    },
+    "gzip9": {
+      "before": 53691,
+      "now": 53134,
+      "delta": -557,
+      "improved": 65,
+      "grew": 5,
+      "unchanged": 572
+    },
+    "brotli11": {
+      "before": 43454,
+      "now": 42852,
+      "delta": -602,
+      "improved": 67,
+      "grew": 17,
+      "unchanged": 558
+    }
+  },
+  "per_corpus": {
+    "cases": {
+      "raw": {
+        "competitor": {
+          "items": 624,
+          "ours": 52124,
+          "bar": 60614
+        },
+        "old": {
+          "items": 624,
+          "ours": 52124,
+          "bar": 45935
+        }
+      },
+      "gzip9": {
+        "competitor": {
+          "items": 624,
+          "ours": 49470,
+          "bar": 56410
+        },
+        "old": {
+          "items": 622,
+          "ours": 49294,
+          "bar": 46478
+        }
+      },
+      "brotli11": {
+        "competitor": {
+          "items": 624,
+          "ours": 39634,
+          "bar": 44919
+        },
+        "old": {
+          "items": 623,
+          "ours": 39585,
+          "bar": 34677
+        }
+      }
+    },
+    "apps": {
+      "raw": {
+        "competitor": {
+          "items": 7,
+          "ours": 811,
+          "bar": 1527
+        },
+        "closure": {
+          "items": 7,
+          "ours": 811,
+          "bar": 1332
+        },
+        "old": {
+          "items": 7,
+          "ours": 811,
+          "bar": 802
+        }
+      },
+      "gzip9": {
+        "competitor": {
+          "items": 7,
+          "ours": 707,
+          "bar": 1053
+        },
+        "closure": {
+          "items": 7,
+          "ours": 707,
+          "bar": 982
+        },
+        "old": {
+          "items": 7,
+          "ours": 707,
+          "bar": 711
+        }
+      },
+      "brotli11": {
+        "competitor": {
+          "items": 7,
+          "ours": 557,
+          "bar": 870
+        },
+        "closure": {
+          "items": 7,
+          "ours": 557,
+          "bar": 834
+        },
+        "old": {
+          "items": 7,
+          "ours": 557,
+          "bar": 558
+        }
+      }
+    },
+    "algorithms": {
+      "raw": {
+        "competitor": {
+          "items": 11,
+          "ours": 4565,
+          "bar": 6210
+        },
+        "closure": {
+          "items": 11,
+          "ours": 4565,
+          "bar": 4522
+        },
+        "old": {
+          "items": 11,
+          "ours": 4565,
+          "bar": 3995
+        }
+      },
+      "gzip9": {
+        "competitor": {
+          "items": 11,
+          "ours": 2957,
+          "bar": 3440
+        },
+        "closure": {
+          "items": 11,
+          "ours": 2957,
+          "bar": 3031
+        },
+        "old": {
+          "items": 11,
+          "ours": 2957,
+          "bar": 2662
+        }
+      },
+      "brotli11": {
+        "competitor": {
+          "items": 11,
+          "ours": 2661,
+          "bar": 3039
+        },
+        "closure": {
+          "items": 11,
+          "ours": 2661,
+          "bar": 2703
+        },
+        "old": {
+          "items": 11,
+          "ours": 2661,
+          "bar": 2305
+        }
+      }
+    }
+  },
+  "fresh_closure_verification": [
+    {
+      "id": "algorithms/aggregate-ledger",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 221,
+      "sha256": "8be86d14d127692018a89e6cc0415fae534dff8ece9633c1b57b75b35f1edc1a"
+    },
+    {
+      "id": "algorithms/aggregate-ledger",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 182,
+      "sha256": "8be86d14d127692018a89e6cc0415fae534dff8ece9633c1b57b75b35f1edc1a"
+    },
+    {
+      "id": "algorithms/aggregate-ledger",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 160,
+      "sha256": "8be86d14d127692018a89e6cc0415fae534dff8ece9633c1b57b75b35f1edc1a"
+    },
+    {
+      "id": "algorithms/collection-geometry",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 283,
+      "sha256": "e6f5ea6f553c7f425f6fc3cce0bdee445b94569b523f1e55e68e76a956ec44fc"
+    },
+    {
+      "id": "algorithms/collection-geometry",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 210,
+      "sha256": "e6f5ea6f553c7f425f6fc3cce0bdee445b94569b523f1e55e68e76a956ec44fc"
+    },
+    {
+      "id": "algorithms/collection-geometry",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 198,
+      "sha256": "e6f5ea6f553c7f425f6fc3cce0bdee445b94569b523f1e55e68e76a956ec44fc"
+    },
+    {
+      "id": "algorithms/dictionary-template-router",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 594,
+      "sha256": "c080dc9ce9e5a8b15ddfa15e91e7674f7ad8434399fafb18604413120a5d87ba"
+    },
+    {
+      "id": "algorithms/dictionary-template-router",
+      "metric": "gzip9",
+      "tool": "closure-advanced-module-graph",
+      "size": 373,
+      "sha256": "0c70423333a85253890ab15eba1ae1b66cad874fadc83d09590578520a80f5fb"
+    },
+    {
+      "id": "algorithms/dictionary-template-router",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 335,
+      "sha256": "c080dc9ce9e5a8b15ddfa15e91e7674f7ad8434399fafb18604413120a5d87ba"
+    },
+    {
+      "id": "algorithms/helper-sharing",
+      "metric": "raw",
+      "tool": "closure-advanced-module-graph",
+      "size": 208,
+      "sha256": "2a01688f7175af52245d00c378c7c133e924902b769db50423bf85530d531c20"
+    },
+    {
+      "id": "algorithms/helper-sharing",
+      "metric": "gzip9",
+      "tool": "closure-advanced-module-graph",
+      "size": 170,
+      "sha256": "2a01688f7175af52245d00c378c7c133e924902b769db50423bf85530d531c20"
+    },
+    {
+      "id": "algorithms/helper-sharing",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 149,
+      "sha256": "04a2f025d94895dbba31ea159cfc8d0ddd738f64d91d64c2782f8e52821de893"
+    },
+    {
+      "id": "algorithms/large-event-analytics",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 853,
+      "sha256": "751d50c53d6548e23a3da05a25b99e97e54329ebcfe2f4a3251c7eeb1794fffb"
+    },
+    {
+      "id": "algorithms/large-event-analytics",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 489,
+      "sha256": "751d50c53d6548e23a3da05a25b99e97e54329ebcfe2f4a3251c7eeb1794fffb"
+    },
+    {
+      "id": "algorithms/large-event-analytics",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 425,
+      "sha256": "751d50c53d6548e23a3da05a25b99e97e54329ebcfe2f4a3251c7eeb1794fffb"
+    },
+    {
+      "id": "algorithms/policy-specialization",
+      "metric": "raw",
+      "tool": "closure-advanced-module-graph",
+      "size": 290,
+      "sha256": "801de16009e1c55b08707058702d2cebbfc2765defcf33de48bc358a1bd822bb"
+    },
+    {
+      "id": "algorithms/policy-specialization",
+      "metric": "gzip9",
+      "tool": "closure-advanced-module-graph",
+      "size": 204,
+      "sha256": "801de16009e1c55b08707058702d2cebbfc2765defcf33de48bc358a1bd822bb"
+    },
+    {
+      "id": "algorithms/policy-specialization",
+      "metric": "brotli11",
+      "tool": "closure-advanced-module-graph",
+      "size": 179,
+      "sha256": "801de16009e1c55b08707058702d2cebbfc2765defcf33de48bc358a1bd822bb"
+    },
+    {
+      "id": "algorithms/shape-invoice-pipeline",
+      "metric": "raw",
+      "tool": "closure-advanced-module-graph",
+      "size": 452,
+      "sha256": "a0c0b9bc0e221e95e35fc7734502bbad255fb371e1235acd1d6e2ed2c054ac7f"
+    },
+    {
+      "id": "algorithms/shape-invoice-pipeline",
+      "metric": "gzip9",
+      "tool": "closure-advanced-module-graph",
+      "size": 298,
+      "sha256": "a0c0b9bc0e221e95e35fc7734502bbad255fb371e1235acd1d6e2ed2c054ac7f"
+    },
+    {
+      "id": "algorithms/shape-invoice-pipeline",
+      "metric": "brotli11",
+      "tool": "closure-advanced-module-graph",
+      "size": 261,
+      "sha256": "a0c0b9bc0e221e95e35fc7734502bbad255fb371e1235acd1d6e2ed2c054ac7f"
+    },
+    {
+      "id": "algorithms/state-machine-parser",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 352,
+      "sha256": "54c983434474378f383da99ce9681fe023294544faec4bdfcee1bf15c11e9aad"
+    },
+    {
+      "id": "algorithms/state-machine-parser",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 263,
+      "sha256": "54c983434474378f383da99ce9681fe023294544faec4bdfcee1bf15c11e9aad"
+    },
+    {
+      "id": "algorithms/state-machine-parser",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 244,
+      "sha256": "54c983434474378f383da99ce9681fe023294544faec4bdfcee1bf15c11e9aad"
+    },
+    {
+      "id": "algorithms/stateful-packet-decoder",
+      "metric": "raw",
+      "tool": "closure-advanced-module-graph",
+      "size": 540,
+      "sha256": "0b9e05e2df17130ee9fa96015a2d1ec9745dbab616025b99df91804e3dc436f8"
+    },
+    {
+      "id": "algorithms/stateful-packet-decoder",
+      "metric": "gzip9",
+      "tool": "closure-advanced-module-graph",
+      "size": 341,
+      "sha256": "0b9e05e2df17130ee9fa96015a2d1ec9745dbab616025b99df91804e3dc436f8"
+    },
+    {
+      "id": "algorithms/stateful-packet-decoder",
+      "metric": "brotli11",
+      "tool": "closure-advanced-module-graph",
+      "size": 313,
+      "sha256": "0b9e05e2df17130ee9fa96015a2d1ec9745dbab616025b99df91804e3dc436f8"
+    },
+    {
+      "id": "algorithms/static-rule-engine",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 326,
+      "sha256": "9d68c86c94858baf7a1662194c23a61222716303f619f3e2579fadf440870146"
+    },
+    {
+      "id": "algorithms/static-rule-engine",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 215,
+      "sha256": "9d68c86c94858baf7a1662194c23a61222716303f619f3e2579fadf440870146"
+    },
+    {
+      "id": "algorithms/static-rule-engine",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 188,
+      "sha256": "9d68c86c94858baf7a1662194c23a61222716303f619f3e2579fadf440870146"
+    },
+    {
+      "id": "algorithms/string-dictionary",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 403,
+      "sha256": "860b0f6b0d50a620c582b4ae9839f1c749736b89202bf05723b80293bd280fdd"
+    },
+    {
+      "id": "algorithms/string-dictionary",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 286,
+      "sha256": "860b0f6b0d50a620c582b4ae9839f1c749736b89202bf05723b80293bd280fdd"
+    },
+    {
+      "id": "algorithms/string-dictionary",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 251,
+      "sha256": "860b0f6b0d50a620c582b4ae9839f1c749736b89202bf05723b80293bd280fdd"
+    },
+    {
+      "id": "apps/aggregate-model",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 240,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "9a25d2cf01ffc9cef63ae1be6e6427fefa6a580c04b49253a687e8da23a116ee",
+        "sizes": {
+          "raw": 240,
+          "gzip9": 165,
+          "brotli11": 150
+        }
+      }
+    },
+    {
+      "id": "apps/aggregate-model",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 165,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "9a25d2cf01ffc9cef63ae1be6e6427fefa6a580c04b49253a687e8da23a116ee",
+        "sizes": {
+          "raw": 240,
+          "gzip9": 165,
+          "brotli11": 150
+        }
+      }
+    },
+    {
+      "id": "apps/aggregate-model",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 150,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "9a25d2cf01ffc9cef63ae1be6e6427fefa6a580c04b49253a687e8da23a116ee",
+        "sizes": {
+          "raw": 240,
+          "gzip9": 165,
+          "brotli11": 150
+        }
+      }
+    },
+    {
+      "id": "apps/control-flow-engine",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 138,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "0ab4f39f7cbe7bb77dba91ce5cc423d97b4958ba49809bf675685fd7e9ca06b9",
+        "sizes": {
+          "raw": 138,
+          "gzip9": 130,
+          "brotli11": 116
+        }
+      }
+    },
+    {
+      "id": "apps/control-flow-engine",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 130,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "0ab4f39f7cbe7bb77dba91ce5cc423d97b4958ba49809bf675685fd7e9ca06b9",
+        "sizes": {
+          "raw": 138,
+          "gzip9": 130,
+          "brotli11": 116
+        }
+      }
+    },
+    {
+      "id": "apps/control-flow-engine",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 116,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "0ab4f39f7cbe7bb77dba91ce5cc423d97b4958ba49809bf675685fd7e9ca06b9",
+        "sizes": {
+          "raw": 138,
+          "gzip9": 130,
+          "brotli11": 116
+        }
+      }
+    },
+    {
+      "id": "apps/higher-order-pipeline",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 133,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "1cb966bb41ad40f0b306aba6744e6a5e61c01b1949592fc2253cc8daa35eb8c1",
+        "sizes": {
+          "raw": 133,
+          "gzip9": 135,
+          "brotli11": 113
+        }
+      }
+    },
+    {
+      "id": "apps/higher-order-pipeline",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 135,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "1cb966bb41ad40f0b306aba6744e6a5e61c01b1949592fc2253cc8daa35eb8c1",
+        "sizes": {
+          "raw": 133,
+          "gzip9": 135,
+          "brotli11": 113
+        }
+      }
+    },
+    {
+      "id": "apps/higher-order-pipeline",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 113,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "1cb966bb41ad40f0b306aba6744e6a5e61c01b1949592fc2253cc8daa35eb8c1",
+        "sizes": {
+          "raw": 133,
+          "gzip9": 135,
+          "brotli11": 113
+        }
+      }
+    },
+    {
+      "id": "apps/module-graph",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 118,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "e05d4075b43be80f8af2644e51894cc5ee5daf88e8b5b9ca5f01732ae2c0c426",
+        "sizes": {
+          "raw": 118,
+          "gzip9": 127,
+          "brotli11": 114
+        }
+      }
+    },
+    {
+      "id": "apps/module-graph",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 127,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "e05d4075b43be80f8af2644e51894cc5ee5daf88e8b5b9ca5f01732ae2c0c426",
+        "sizes": {
+          "raw": 118,
+          "gzip9": 127,
+          "brotli11": 114
+        }
+      }
+    },
+    {
+      "id": "apps/module-graph",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 114,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "e05d4075b43be80f8af2644e51894cc5ee5daf88e8b5b9ca5f01732ae2c0c426",
+        "sizes": {
+          "raw": 118,
+          "gzip9": 127,
+          "brotli11": 114
+        }
+      }
+    },
+    {
+      "id": "apps/numerical-kernel",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 197,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "7610f93041dcc5dd5ddcde08e0291a58fbdb9a69db8151edeff099f99e863b63",
+        "sizes": {
+          "raw": 197,
+          "gzip9": 163,
+          "brotli11": 138
+        }
+      }
+    },
+    {
+      "id": "apps/numerical-kernel",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 163,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "7610f93041dcc5dd5ddcde08e0291a58fbdb9a69db8151edeff099f99e863b63",
+        "sizes": {
+          "raw": 197,
+          "gzip9": 163,
+          "brotli11": 138
+        }
+      }
+    },
+    {
+      "id": "apps/numerical-kernel",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 138,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "7610f93041dcc5dd5ddcde08e0291a58fbdb9a69db8151edeff099f99e863b63",
+        "sizes": {
+          "raw": 197,
+          "gzip9": 163,
+          "brotli11": 138
+        }
+      }
+    },
+    {
+      "id": "apps/optimizer-pressure",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 240,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "e0250f7dd2f8301ed12529cde9377a179098b6d65a9b85d2b46056077570727d",
+        "sizes": {
+          "raw": 240,
+          "gzip9": 127,
+          "brotli11": 98
+        }
+      }
+    },
+    {
+      "id": "apps/optimizer-pressure",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 127,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "e0250f7dd2f8301ed12529cde9377a179098b6d65a9b85d2b46056077570727d",
+        "sizes": {
+          "raw": 240,
+          "gzip9": 127,
+          "brotli11": 98
+        }
+      }
+    },
+    {
+      "id": "apps/optimizer-pressure",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 98,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "e0250f7dd2f8301ed12529cde9377a179098b6d65a9b85d2b46056077570727d",
+        "sizes": {
+          "raw": 240,
+          "gzip9": 127,
+          "brotli11": 98
+        }
+      }
+    },
+    {
+      "id": "apps/text-report",
+      "metric": "raw",
+      "tool": "closure-advanced",
+      "size": 266,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "4522c81f3cd85f0ecff1ea2aa2a41786df9996b58ca46aa5c1f6d3fe39ed74e0",
+        "sizes": {
+          "raw": 266,
+          "gzip9": 135,
+          "brotli11": 105
+        }
+      }
+    },
+    {
+      "id": "apps/text-report",
+      "metric": "gzip9",
+      "tool": "closure-advanced",
+      "size": 135,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "4522c81f3cd85f0ecff1ea2aa2a41786df9996b58ca46aa5c1f6d3fe39ed74e0",
+        "sizes": {
+          "raw": 266,
+          "gzip9": 135,
+          "brotli11": 105
+        }
+      }
+    },
+    {
+      "id": "apps/text-report",
+      "metric": "brotli11",
+      "tool": "closure-advanced",
+      "size": 105,
+      "artifact": {
+        "path": "closure.js",
+        "digest": "4522c81f3cd85f0ecff1ea2aa2a41786df9996b58ca46aa5c1f6d3fe39ed74e0",
+        "sizes": {
+          "raw": 266,
+          "gzip9": 135,
+          "brotli11": 105
+        }
+      }
+    }
+  ],
+  "residual_closure_losses": [
+    {
+      "id": "apps/module-graph",
+      "set": "apps",
+      "metric": "raw",
+      "bar": "closure",
+      "ours": 143,
+      "bar_size": 118,
+      "loss": 25,
+      "classification": "Call/control-flow representation: the general array reduction helper retains a function and its loop."
+    },
+    {
+      "id": "apps/module-graph",
+      "set": "apps",
+      "metric": "gzip9",
+      "bar": "closure",
+      "ours": 141,
+      "bar_size": 127,
+      "loss": 14,
+      "classification": "Call/control-flow representation: the general array reduction helper retains a function and its loop."
+    },
+    {
+      "id": "apps/module-graph",
+      "set": "apps",
+      "metric": "brotli11",
+      "bar": "closure",
+      "ours": 119,
+      "bar_size": 114,
+      "loss": 5,
+      "classification": "Call/control-flow representation: the general array reduction helper retains a function and its loop."
+    },
+    {
+      "id": "apps/text-report",
+      "set": "apps",
+      "metric": "gzip9",
+      "bar": "closure",
+      "ours": 153,
+      "bar_size": 135,
+      "loss": 18,
+      "classification": "Host assumption boundary: Closure folds a string case conversion; pristine builtins are disabled in the matched LilScript configuration. Do not weaken the shared host contract for this case."
+    },
+    {
+      "id": "apps/text-report",
+      "set": "apps",
+      "metric": "brotli11",
+      "bar": "closure",
+      "ours": 113,
+      "bar_size": 105,
+      "loss": 8,
+      "classification": "Host assumption boundary: Closure folds a string case conversion; pristine builtins are disabled in the matched LilScript configuration. Do not weaken the shared host contract for this case."
+    },
+    {
+      "id": "algorithms/aggregate-ledger",
+      "set": "algorithms",
+      "metric": "raw",
+      "bar": "closure",
+      "ours": 257,
+      "bar_size": 221,
+      "loss": 36,
+      "classification": "Call/default representation: min/max helpers remain separate around value-product updates. Closure materializes input snapshots and inlines the comparisons."
+    },
+    {
+      "id": "algorithms/aggregate-ledger",
+      "set": "algorithms",
+      "metric": "gzip9",
+      "bar": "closure",
+      "ours": 187,
+      "bar_size": 182,
+      "loss": 5,
+      "classification": "Call/default representation: min/max helpers remain separate around value-product updates. Closure materializes input snapshots and inlines the comparisons."
+    },
+    {
+      "id": "algorithms/aggregate-ledger",
+      "set": "algorithms",
+      "metric": "brotli11",
+      "bar": "closure",
+      "ours": 171,
+      "bar_size": 160,
+      "loss": 11,
+      "classification": "Call/default representation: min/max helpers remain separate around value-product updates. Closure materializes input snapshots and inlines the comparisons."
+    },
+    {
+      "id": "algorithms/collection-geometry",
+      "set": "algorithms",
+      "metric": "raw",
+      "bar": "closure",
+      "ours": 293,
+      "bar_size": 283,
+      "loss": 10,
+      "classification": "Numeric/control-flow representation: the local argument fix removes the helper; explicit signed-32-bit index/coercion operations and loop/result placement remain different."
+    },
+    {
+      "id": "algorithms/dictionary-template-router",
+      "set": "algorithms",
+      "metric": "raw",
+      "bar": "closure",
+      "ours": 615,
+      "bar_size": 594,
+      "loss": 21,
+      "classification": "Data/branch representation: chained string dispatch and label selection compete with a property dictionary and literal array."
+    },
+    {
+      "id": "algorithms/helper-sharing",
+      "set": "algorithms",
+      "metric": "raw",
+      "bar": "closure",
+      "ours": 216,
+      "bar_size": 208,
+      "loss": 8,
+      "classification": "Call/value placement: both outputs share arithmetic; LilScript keeps an extra intermediate value and different nested expressions."
+    },
+    {
+      "id": "algorithms/helper-sharing",
+      "set": "algorithms",
+      "metric": "gzip9",
+      "bar": "closure",
+      "ours": 175,
+      "bar_size": 170,
+      "loss": 5,
+      "classification": "Call/value placement: both outputs share arithmetic; LilScript keeps an extra intermediate value and different nested expressions."
+    },
+    {
+      "id": "algorithms/helper-sharing",
+      "set": "algorithms",
+      "metric": "brotli11",
+      "bar": "closure",
+      "ours": 158,
+      "bar_size": 149,
+      "loss": 9,
+      "classification": "Call/value placement: both outputs share arithmetic; LilScript keeps an extra intermediate value and different nested expressions."
+    },
+    {
+      "id": "algorithms/large-event-analytics",
+      "set": "algorithms",
+      "metric": "brotli11",
+      "bar": "closure",
+      "ours": 427,
+      "bar_size": 425,
+      "loss": 2,
+      "classification": "Compressed representation/naming: a two-byte Brotli residual; raw and gzip already beat Closure."
+    },
+    {
+      "id": "algorithms/policy-specialization",
+      "set": "algorithms",
+      "metric": "raw",
+      "bar": "closure",
+      "ours": 312,
+      "bar_size": 290,
+      "loss": 22,
+      "classification": "Call specialization/control flow: helper calls and coercions remain where Closure duplicates the small branch expression into the loop."
+    },
+    {
+      "id": "algorithms/policy-specialization",
+      "set": "algorithms",
+      "metric": "gzip9",
+      "bar": "closure",
+      "ours": 216,
+      "bar_size": 204,
+      "loss": 12,
+      "classification": "Call specialization/control flow: helper calls and coercions remain where Closure duplicates the small branch expression into the loop."
+    },
+    {
+      "id": "algorithms/policy-specialization",
+      "set": "algorithms",
+      "metric": "brotli11",
+      "bar": "closure",
+      "ours": 195,
+      "bar_size": 179,
+      "loss": 16,
+      "classification": "Call specialization/control flow: helper calls and coercions remain where Closure duplicates the small branch expression into the loop."
+    },
+    {
+      "id": "algorithms/shape-invoice-pipeline",
+      "set": "algorithms",
+      "metric": "raw",
+      "bar": "closure",
+      "ours": 461,
+      "bar_size": 452,
+      "loss": 9,
+      "classification": "Call/value placement: the local argument fix removes single-use helpers; repeated invoice helpers and explicit result coercions remain."
+    },
+    {
+      "id": "algorithms/string-dictionary",
+      "set": "algorithms",
+      "metric": "raw",
+      "bar": "closure",
+      "ours": 432,
+      "bar_size": 403,
+      "loss": 29,
+      "classification": "Data/branch representation: chained lookup and result labels versus dictionary/array storage; raw loses while compressed output wins."
+    }
+  ],
+  "local_regressions": [
+    {
+      "id": "algorithms/helper-sharing",
+      "metric": "raw",
+      "before": 210,
+      "now": 216,
+      "delta": 6,
+      "classification": "Value placement: an additional local captures an arithmetic intermediate.",
+      "before_artifact": {
+        "sha256": "ce8e1734cf3af24e94ad7c2185c55a5311f90631f70921a296085cbe2020ab2a",
+        "code": "let a=(f,g,h)=>(f*g|0)+h|0,c=(l,m)=>a(l,3,7)^a(m,2,3)^(a(l+m|0,-2,11)^a(m,2,3));console.log((()=>{let p=0,q=algorithmCount();for(let r=0;r<q;++r)p=p+c(algorithmInt(r),r)|0;return a(p+(q*13|0)|0,5,q*-52|0)})());"
+      },
+      "now_artifact": {
+        "sha256": "6b05ca2ecf249b6a2058e43fc0e2d8ccbb2c9ae89048cec47bdb0c105d61fac7",
+        "code": "let a=(e,f,g)=>(e*f|0)+g|0,c=(k,l)=>a(k,3,7)^a(l,2,3)^(a(k+l|0,-2,11)^a(l,2,3));console.log((()=>{let q,m=0,n=algorithmCount();for(let o=0;o<n;++o)m=m+c(algorithmInt(o),o)|0;return a((q=n*13|0,m+q|0),5,n*-52|0)})());"
+      }
+    },
+    {
+      "id": "apps/module-graph",
+      "metric": "raw",
+      "before": 142,
+      "now": 143,
+      "delta": 1,
+      "classification": "Minor code-generation/naming change with unchanged loop/helper structure.",
+      "before_artifact": {
+        "sha256": "e81b08490dc3e99cce01855bee5493fb5277a7dd66e4a16cb5a0b4976c628f4a",
+        "code": "let a=(d,e)=>(d*(e+3|0)|0)+e|0,b=f=>{let g=0;for(let h=0;h<f.length;++h)g=g+a(f[h],h)|0;return g};console.log(`checksum=${b([3,1,4,1,5,9])}`);"
+      },
+      "now_artifact": {
+        "sha256": "927e7b9e330723a64837e7394c00afffc81c628fda73adbd550c4b797df0f867",
+        "code": "let a=c=>{let d=0;for(let e=0;e<c.length;++e){let f=d,g=c[e],h=e;d=f+((g*(h+3)|0)+h|0)|0}return d};console.log(`checksum=${a([3,1,4,1,5,9])}`);"
+      }
+    },
+    {
+      "id": "cases/catalog/collection/frontier-array-spread-order",
+      "metric": "raw",
+      "before": 73,
+      "now": 78,
+      "delta": 5,
+      "classification": "Aggregate transport: a nested array copy remains in the spread path.",
+      "before_artifact": {
+        "sha256": "1a77590ccf836e2ad51c4287a138c9cdf19b144d5931f9528d6c0bdc7caa9565",
+        "code": "let a=0;a=1;let b=[0,...[1,2],3];console.log(b.join(\"-\"));console.log(a);"
+      },
+      "now_artifact": {
+        "sha256": "a2bd9ffb32888d6766f47cc2f81d6c16dc1a38c5c35a91ba788d9d1760606412",
+        "code": "let a=0;a=1;let b=[0,...[...[1,2]],3];console.log(b.join(\"-\"));console.log(a);"
+      }
+    },
+    {
+      "id": "cases/catalog/function/semantic-default-array-freshness",
+      "metric": "raw",
+      "before": 75,
+      "now": 90,
+      "delta": 15,
+      "classification": "Default transport: fresh arrays are created by a callee default guard instead of at each caller.",
+      "before_artifact": {
+        "sha256": "b06382ecb7356c3c2481fd15cd30b45c6293f3f3852fc4c07c17e599eed8033b",
+        "code": "let a=b=>{b.push(1);return b.length};console.log(a([]));console.log(a([]));"
+      },
+      "now_artifact": {
+        "sha256": "946403a397f34152078a17a763ac9b610bd501a080729c52cc9cd741fe5bb966",
+        "code": "let a=b=>{b===void 0&&(b=[]);b.push(1);return b.length};console.log(a());console.log(a());"
+      }
+    },
+    {
+      "id": "cases/catalog/host/host-callable-undefined",
+      "metric": "raw",
+      "before": 116,
+      "now": 133,
+      "delta": 17,
+      "classification": "Value placement: repeated void 0 replaces one uninitialized shared binding.",
+      "before_artifact": {
+        "sha256": "9fc1ff7d1bd14069ee91048f68916530f29304ea299393323296f970b94de671",
+        "code": "let b=\"function\",a;if(typeof a==b&&typeof a.nodeType!=\"number\"&&typeof a.item!=b)console.log(1);else console.log(0);"
+      },
+      "now_artifact": {
+        "sha256": "1701df2323aad9d277d4ea213dbfff39624a9a8e19c6a3571355e12257d13cfc",
+        "code": "let b=\"function\";if(typeof void 0==b&&typeof (void 0).nodeType!=\"number\"&&typeof (void 0).item!=b)console.log(1);else console.log(0);"
+      }
+    },
+    {
+      "id": "cases/catalog/host/host-is-window-nullish",
+      "metric": "raw",
+      "before": 66,
+      "now": 77,
+      "delta": 11,
+      "classification": "Value placement: repeated void 0 replaces one uninitialized shared binding.",
+      "before_artifact": {
+        "sha256": "f3515b856bdb55ae40dc0e81ffe8aa81b37db063ec86c1c2fec8cc829ab06b57",
+        "code": "let a;if(a!=null&&a===a.window)console.log(1);else console.log(0);"
+      },
+      "now_artifact": {
+        "sha256": "5bf218f693065940031ea6b47773756771f5b9acc9434dd16685d592dda8b802",
+        "code": "if(void 0!=null&&void 0===(void 0).window)console.log(1);else console.log(0);"
+      }
+    },
+    {
+      "id": "algorithms/helper-sharing",
+      "metric": "gzip9",
+      "before": 173,
+      "now": 175,
+      "delta": 2,
+      "classification": "Value placement: an additional local captures an arithmetic intermediate.",
+      "before_artifact": {
+        "sha256": "b16da2736ef3e0ddb9ab844fa78d7302da1c2f6da9b1cff41e1a699ef213bf32",
+        "code": "let a=(a,e,t)=>(a*e|0)+t|0,t=(e,t)=>a(e,3,7)^a(t,2,3)^(a(e+t|0,-2,11)^a(t,2,3));console.log((()=>{let c=0,l=algorithmCount();for(let a=0;a<l;++a)c=c+t(algorithmInt(a),a)|0;return a(c+(l*13|0)|0,5,l*-52|0)})());"
+      },
+      "now_artifact": {
+        "sha256": "13f470c4c1c64c36f169ca6464308a5c6ac0a5d238382850af089903c3cd79f8",
+        "code": "let t=(t,a,o)=>(t*a|0)+o|0,o=(a,o)=>t(a,3,7)^t(o,2,3)^(t(a+o|0,-2,11)^t(o,2,3));console.log((()=>{let r,a=0,l=algorithmCount();for(let t=0;t<l;++t)a=a+o(algorithmInt(t),t)|0;return t((r=l*13|0,a+r|0),5,l*-52|0)})());"
+      }
+    },
+    {
+      "id": "cases/catalog/collection/frontier-array-spread-order",
+      "metric": "gzip9",
+      "before": 80,
+      "now": 83,
+      "delta": 3,
+      "classification": "Aggregate transport: a nested array copy remains in the spread path.",
+      "before_artifact": {
+        "sha256": "1a77590ccf836e2ad51c4287a138c9cdf19b144d5931f9528d6c0bdc7caa9565",
+        "code": "let a=0;a=1;let b=[0,...[1,2],3];console.log(b.join(\"-\"));console.log(a);"
+      },
+      "now_artifact": {
+        "sha256": "a2bd9ffb32888d6766f47cc2f81d6c16dc1a38c5c35a91ba788d9d1760606412",
+        "code": "let a=0;a=1;let b=[0,...[...[1,2]],3];console.log(b.join(\"-\"));console.log(a);"
+      }
+    },
+    {
+      "id": "cases/catalog/effect/edge-generator-range-3n12n3",
+      "metric": "gzip9",
+      "before": 133,
+      "now": 134,
+      "delta": 1,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "57f265d7a78a3211b599326f84a00c9e376a87ffe5ccf0e5997879b2f3910d7f",
+        "code": "let o=function*(){yield -1;yield*(function*(l,o,c){for(let e=l;e<o;e=e+c)yield e})(3,12,3)},c=0,e=0;for(let l of o()){c=c+l|0;e=e+1|0}console.log(c);console.log(e);"
+      },
+      "now_artifact": {
+        "sha256": "c8b020f18a9104f48b90f708bb72cce08a72529acfa380905c64c39624b56f09",
+        "code": "let o=function*(){yield -1;yield*(function*(d,o,c){for(let l=d;l<o;l+=c)yield l})(3,12,3)},c=0,l=0;for(let d of o()){c=c+d|0;l=l+1|0}console.log(c);console.log(l);"
+      }
+    },
+    {
+      "id": "cases/catalog/function/semantic-default-array-freshness",
+      "metric": "gzip9",
+      "before": 77,
+      "now": 94,
+      "delta": 17,
+      "classification": "Default transport: fresh arrays are created by a callee default guard instead of at each caller.",
+      "before_artifact": {
+        "sha256": "b06382ecb7356c3c2481fd15cd30b45c6293f3f3852fc4c07c17e599eed8033b",
+        "code": "let a=b=>{b.push(1);return b.length};console.log(a([]));console.log(a([]));"
+      },
+      "now_artifact": {
+        "sha256": "095e746a0b3c47ce38ab7782fd2ab2712897d734ed6dc92f76765ff69cd8670c",
+        "code": "let a=b=>{if(b===void 0)b=[];b.push(1);return b.length};console.log(a());console.log(a());"
+      }
+    },
+    {
+      "id": "cases/catalog/host/host-callable-undefined",
+      "metric": "gzip9",
+      "before": 101,
+      "now": 103,
+      "delta": 2,
+      "classification": "Value placement: repeated void 0 replaces one uninitialized shared binding.",
+      "before_artifact": {
+        "sha256": "216ff1153b7e8e64ce32062f7181591e8c367a62f50ba8bcf8baab49cadf1102",
+        "code": "let a;typeof a==\"function\"&&typeof a.nodeType!=\"number\"&&typeof a.item!=\"function\"?void console.log(1):void console.log(0);"
+      },
+      "now_artifact": {
+        "sha256": "4666b670c3f449c86f331f5fcf8503d58ba1b5014a9098c824a3aa6a005e2dbe",
+        "code": "typeof void 0==\"function\"&&typeof (void 0).nodeType!=\"number\"&&typeof (void 0).item!=\"function\"?void console.log(1):void console.log(0);"
+      }
+    },
+    {
+      "id": "algorithms/helper-sharing",
+      "metric": "brotli11",
+      "before": 155,
+      "now": 158,
+      "delta": 3,
+      "classification": "Value placement: an additional local captures an arithmetic intermediate.",
+      "before_artifact": {
+        "sha256": "01af784248aad5d613fe1cf5dcfb8536d11202885463b027aaaba0f7da4c77d1",
+        "code": "let a=(a,b,c)=>(a*b|0)+c|0,b=(b,c)=>a(b,3,7)^a(c,2,3)^(a(b+c|0,-2,11)^a(c,2,3));console.log((()=>{let e=0,f=algorithmCount();for(let a=0;a<f;++a)e=e+b(algorithmInt(a),a)|0;return a(e+(f*13|0)|0,5,f*-52|0)})());"
+      },
+      "now_artifact": {
+        "sha256": "670ef6d497e9989549aea55fd911df33ab55d3b1f9b8ad5213344ccde2d34388",
+        "code": "let a=(a,b,c)=>(a*b|0)+c|0,b=(b,c)=>a(b,3,7)^a(c,2,3)^(a(b+c|0,-2,11)^a(c,2,3));console.log((()=>{let o,c=0,t=algorithmCount();for(let a=0;a<t;++a)c=c+b(algorithmInt(a),a)|0;return a((o=t*13|0,c+o|0),5,t*-52|0)})());"
+      }
+    },
+    {
+      "id": "cases/catalog/aggregate/frontier-default-constructor",
+      "metric": "brotli11",
+      "before": 69,
+      "now": 81,
+      "delta": 12,
+      "classification": "Default/product transport: callee default construction and named fields replace caller materialization and private field names.",
+      "before_artifact": {
+        "sha256": "ba18f5e92bbaa47420cae2fb683501d626d0fa686b630e4afac0c0ddfcb39fe3",
+        "code": "let o,l,a=a=>{a.a=a.a+1|0;return a.a};console.log(a((o={a:0},o.a=0,o)));console.log(a((l={a:0},l.a=0,l)));"
+      },
+      "now_artifact": {
+        "sha256": "d09b2c2afa12bae1981a16856ae6d5ded6f02ca7ebef710b8254a42e29a66699",
+        "code": "let a=a=>{if(a===void 0)a={value:0};let l=a;l.value=(l.value|0)+1|0;return l.value|0};console.log(a());console.log(a());"
+      }
+    },
+    {
+      "id": "cases/catalog/aggregate/matrix2-9-8-7-6-5-4-3-2",
+      "metric": "brotli11",
+      "before": 128,
+      "now": 129,
+      "delta": 1,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "ce8f21334cfe1ab54ce5513782bc6579e51af977d2c1f29ccec9fa6a6ade32ab",
+        "code": "let l=[9,8,7,6,5,4,3,2],a=0,d;{let c=0;for(;(c+3|0)<l.length;c=c+4|0){let o;a=a+(o=[l[c],l[c+1|0],l[c+2|0],l[c+3|0]],d=o,(d[0]*d[3]|0)-(d[1]*d[2]|0)|0)|0}}console.log(a);"
+      },
+      "now_artifact": {
+        "sha256": "0b807ce4d81cc733f07e3cee45ff1ada77a90004b1d3bb5087ed7cc164a26616",
+        "code": "let a=b=>(b[0]*b[3]|0)-(b[1]*b[2]|0)|0,c=[9,8,7,6,5,4,3,2],d=0;for(let e=0;(e+3|0)<c.length;e=e+4|0)d=d+a([c[e],c[e+1|0],c[e+2|0],c[e+3|0]])|0;console.log(d);"
+      }
+    },
+    {
+      "id": "cases/catalog/aggregate/nested-struct-0-1-0-2-0-3-0-4",
+      "metric": "brotli11",
+      "before": 145,
+      "now": 151,
+      "delta": 6,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "821b9ae8042a51b4a4474f83e67386584cff731ab316e67ae68890ba2f00222c",
+        "code": "let e=[0,1,0,2,0,3,0,4],c=0,d;for(let f=0;(f+3|0)<e.length;f=f+4|0){let g,a=e[f+2|0],l=e[f+3|0];a==0&&(a=1);l==0&&(l=1);c=c+(g=[[e[f],e[f+1|0]],a,l],d=g,((d[1]*d[2]|0)+d[0][0]|0)+d[0][1]|0)|0}console.log(c);"
+      },
+      "now_artifact": {
+        "sha256": "02263d0b7c5ec91cbce4cc07abee8c3f5e7f137e8b0e77704a43fcb2e6bd9802",
+        "code": "let e=e=>((e[1]*e[2]|0)+e[0][0]|0)+e[0][1]|0,d=[0,1,0,2,0,3,0,4],a=0;for(let b=0;(b+3|0)<d.length;b=b+4|0){let f=d[b+2|0],l=d[b+3|0];f==0&&(f=1);if(l==0)l=1;a=a+e([[d[b],d[b+1|0]],f,l])|0}console.log(a);"
+      }
+    },
+    {
+      "id": "cases/catalog/aggregate/struct-pairs-7-14-21-28-35",
+      "metric": "brotli11",
+      "before": 122,
+      "now": 125,
+      "delta": 3,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "ca5805ec0547d8a7d8cdef9e6bd1fcf532f81e71d13271243e37738d8c3ea6c7",
+        "code": "let a=[7,14,21,28,35],b=0,g;{let c=0;for(;(c+1|0)<a.length;c=c+2|0){let e;b=b+(e=[a[c],a[c+1|0]],g=e,(g[0]*3|0)+(g[1]*5|0)|0)|0}}console.log(b);"
+      },
+      "now_artifact": {
+        "sha256": "06403f06f85785cfe21775632888afa37176b091462beb0688d9a4345084e9b1",
+        "code": "let a=a=>(a[0]*3|0)+(a[1]*5|0)|0,b=[7,14,21,28,35],c=0;for(let d=0;(d+1|0)<b.length;d=d+2|0)c=c+a([b[d],b[d+1|0]])|0;console.log(c);"
+      }
+    },
+    {
+      "id": "cases/catalog/closure/edge-closure-mutation-20nn3n4",
+      "metric": "brotli11",
+      "before": 92,
+      "now": 93,
+      "delta": 1,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "33f96abe1531bc7ef1613fd60091d1eb23575e4d97128c71cc4ec9e06216017f",
+        "code": "{let o=20,e=0,c=l=>{e=e+1|0;o=o+l|0;return o},l=0;for(let o=0;o<4;++o)l=l+c(-3+o)|0;console.log(l);console.log(o);console.log(e)}"
+      },
+      "now_artifact": {
+        "sha256": "261ca9362293d7181a5abfc20e9e9c145bf2571ba7c6c02fef0211997b9aa814",
+        "code": "{let o=20,l=0,c=c=>{l=l+1|0;o=o+c|0;return o},e=0;for(let o=0;o<4;++o)e=e+c(-3+o)|0;console.log(e);console.log(o);console.log(l)}"
+      }
+    },
+    {
+      "id": "cases/catalog/collection/frontier-array-spread-order",
+      "metric": "brotli11",
+      "before": 77,
+      "now": 82,
+      "delta": 5,
+      "classification": "Aggregate transport: a nested array copy remains in the spread path.",
+      "before_artifact": {
+        "sha256": "1a77590ccf836e2ad51c4287a138c9cdf19b144d5931f9528d6c0bdc7caa9565",
+        "code": "let a=0;a=1;let b=[0,...[1,2],3];console.log(b.join(\"-\"));console.log(a);"
+      },
+      "now_artifact": {
+        "sha256": "a2bd9ffb32888d6766f47cc2f81d6c16dc1a38c5c35a91ba788d9d1760606412",
+        "code": "let a=0;a=1;let b=[0,...[...[1,2]],3];console.log(b.join(\"-\"));console.log(a);"
+      }
+    },
+    {
+      "id": "cases/catalog/collection/minmax-scan-0-1-0-2-0-3-0-4",
+      "metric": "brotli11",
+      "before": 104,
+      "now": 105,
+      "delta": 1,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "10caa06f6a37be32d8d443839d0483c475ca6c02e4dbd66074a68b0b1294476a",
+        "code": "let values=[0,1,0,2,0,3,0,4],lo=values[0],hi=values[0];for(let i=1;i<values.length;++i){let l=values[i];if(l<lo)lo=l;if(l>hi)hi=l}console.log(lo);console.log(hi);"
+      },
+      "now_artifact": {
+        "sha256": "84b34705266bc47fa5fa0f21c98d446266a7eb017abc54d3b0ac682c7179485c",
+        "code": "let e=[0,1,0,2,0,3,0,4],l=e[0],o=e[0];for(let c=1;c<e.length;++c){let a=e[c];a<l&&(l=a);if(a>o)o=a}console.log(l);console.log(o);"
+      }
+    },
+    {
+      "id": "cases/catalog/control/enum-int-dispatch-12",
+      "metric": "brotli11",
+      "before": 87,
+      "now": 91,
+      "delta": 4,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "550a81ebbf9f77ccc1794f498a0af2541b2a0087d2a91a8aa9b056ee2115394b",
+        "code": "let r=(r,e)=>r==0?e:r==1?e*2:r==2?e*3+1:e-1,e=0;for(let b=0;b<12;++b)e=e+r(b%4,b+3)|0;console.log(e);"
+      },
+      "now_artifact": {
+        "sha256": "d7485c20c5b9af3839785d95ccf84a6cd9c74d996af56dd530d07618686d89ac",
+        "code": "let b=(a,b)=>a==0?b:a==1?b*2:a==2?b*3+1:b-1,a=0;for(let c=0;c<12;++c)a=a+b(c%4,c+3)|0;console.log(a);"
+      }
+    },
+    {
+      "id": "cases/catalog/control/enum-int-dispatch-4",
+      "metric": "brotli11",
+      "before": 86,
+      "now": 91,
+      "delta": 5,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "8672299726cc3d2c6f13ed7d0210a087b9599a0d140a4cb93506ef9107e9ece2",
+        "code": "let r=(e,r)=>e==0?r:e==1?r*2:e==2?r*3+1:r-1,e=0;for(let c=0;c<4;++c)e=e+r(c%4,c+3)|0;console.log(e);"
+      },
+      "now_artifact": {
+        "sha256": "be9407401d2a2c56ae2aa4f13e6f9dd1680cedaaa8922ed218a6976b3efbbe19",
+        "code": "let a=(d,e)=>d==0?e:d==1?e*2:d==2?e*3+1:e-1,b=0;for(let c=0;c<4;++c)b=b+a(c%4,c+3)|0;console.log(b);"
+      }
+    },
+    {
+      "id": "cases/catalog/effect/edge-exception-finally-1-5-7",
+      "metric": "brotli11",
+      "before": 71,
+      "now": 72,
+      "delta": 1,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "6be03941a32b510026356711ad42ef4048f4f6aacdfbaebb4c5a5d66cfc5b20d",
+        "code": "console.log((()=>{let l=5;try{l+=7;return l}catch{l+=7}finally{console.log(l)}return l})());"
+      },
+      "now_artifact": {
+        "sha256": "d9511e6839ab913c8dc454939dbef53855a80b0b72994c0e8e2ef0a9a0d091c0",
+        "code": "console.log((()=>{let b=5;try{b+=7;return b}catch{b+=7}finally{console.log(b)}return b})());"
+      }
+    },
+    {
+      "id": "cases/catalog/effect/edge-generator-range-7n11n1",
+      "metric": "brotli11",
+      "before": 114,
+      "now": 115,
+      "delta": 1,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "fe95ebd83027e261cefcc942b72cc40f3606b29f9f57aaf03eca07fd2f24314e",
+        "code": "let o=function*(){yield -1;yield*(function*(d,o,c){for(let l=d;l<o;l=l+c)yield l})(7,11,1)},c=0,l=0;for(let d of o()){c=c+d|0;l=l+1|0}console.log(c);console.log(l);"
+      },
+      "now_artifact": {
+        "sha256": "71802123c23d7b930698ebf5683e1be286ef4803d67116f4a90c8e0e1ed6dcf3",
+        "code": "let b=function*(){yield -1;yield*(function*(a,b,c){for(let d=a;d<b;d+=c)yield d})(7,11,1)},c=0,d=0;for(let a of b()){c=c+a|0;d=d+1|0}console.log(c);console.log(d);"
+      }
+    },
+    {
+      "id": "cases/catalog/function/semantic-default-array-freshness",
+      "metric": "brotli11",
+      "before": 66,
+      "now": 68,
+      "delta": 2,
+      "classification": "Default transport: fresh arrays are created by a callee default guard instead of at each caller.",
+      "before_artifact": {
+        "sha256": "f51634ac9b88d758e45afa87b5fac6cf2518b2f7b7cd6c65725fe38dbe9d33a9",
+        "code": "let append=values=>{values.push(1);return values.length};console.log(append([]));console.log(append([]));"
+      },
+      "now_artifact": {
+        "sha256": "095e746a0b3c47ce38ab7782fd2ab2712897d734ed6dc92f76765ff69cd8670c",
+        "code": "let a=b=>{if(b===void 0)b=[];b.push(1);return b.length};console.log(a());console.log(a());"
+      }
+    },
+    {
+      "id": "cases/catalog/host/host-callable-undefined",
+      "metric": "brotli11",
+      "before": 80,
+      "now": 82,
+      "delta": 2,
+      "classification": "Value placement: repeated void 0 replaces one uninitialized shared binding.",
+      "before_artifact": {
+        "sha256": "9fc1ff7d1bd14069ee91048f68916530f29304ea299393323296f970b94de671",
+        "code": "let b=\"function\",a;if(typeof a==b&&typeof a.nodeType!=\"number\"&&typeof a.item!=b)console.log(1);else console.log(0);"
+      },
+      "now_artifact": {
+        "sha256": "1701df2323aad9d277d4ea213dbfff39624a9a8e19c6a3571355e12257d13cfc",
+        "code": "let b=\"function\";if(typeof void 0==b&&typeof (void 0).nodeType!=\"number\"&&typeof (void 0).item!=b)console.log(1);else console.log(0);"
+      }
+    },
+    {
+      "id": "cases/catalog/host/host-hasown-a-b-c",
+      "metric": "brotli11",
+      "before": 89,
+      "now": 96,
+      "delta": 7,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "c0eb577ac019ede4bea6f51fbe83b50a27836177835a8decbe0e4f1c7c899e82",
+        "code": "let object={};object.a=1;object.b=2;object.c=3;if(Object.hasOwn(object,\"missing\"))console.log(1);else console.log(0);if(Object.hasOwn(object,\"a\"))console.log(1);else console.log(0);if(Object.hasOwn(object,\"b\"))console.log(1);else console.log(0);if(Object.hasOwn(object,\"c\"))console.log(1);else console.log(0);"
+      },
+      "now_artifact": {
+        "sha256": "eee0486db80da74bf83f5115822b47c7a3194ba818b4c8382631821e7e3dd62f",
+        "code": "let a={};a.a=1;a.b=2;a.c=3;Object.hasOwn(a,\"missing\")?void console.log(1):void console.log(0);Object.hasOwn(a,\"a\")?void console.log(1):void console.log(0);Object.hasOwn(a,\"b\")?void console.log(1):void console.log(0);Object.hasOwn(a,\"c\")?void console.log(1):void console.log(0);"
+      }
+    },
+    {
+      "id": "cases/catalog/host/host-is-window-nullish",
+      "metric": "brotli11",
+      "before": 55,
+      "now": 62,
+      "delta": 7,
+      "classification": "Value placement: repeated void 0 replaces one uninitialized shared binding.",
+      "before_artifact": {
+        "sha256": "46001771cde273bb4b845555feb05b7632db19c7c784cf9d3c67a5d13f2b991b",
+        "code": "let o;o!=null&&o===o.window?void console.log(1):void console.log(0);"
+      },
+      "now_artifact": {
+        "sha256": "5bf218f693065940031ea6b47773756771f5b9acc9434dd16685d592dda8b802",
+        "code": "if(void 0!=null&&void 0===(void 0).window)console.log(1);else console.log(0);"
+      }
+    },
+    {
+      "id": "cases/catalog/host/js-and-member-missing",
+      "metric": "brotli11",
+      "before": 69,
+      "now": 70,
+      "delta": 1,
+      "classification": "Compressed code-generation/naming residual; retained under the independent per-corpus objective gate.",
+      "before_artifact": {
+        "sha256": "4af13c14322623ec3bb8dbddc966bad45eb82839c28d61bf2bd2c15059458c86",
+        "code": "let o={},e=o&&o.nodeName;typeof e==\"string\"?void console.log(e):void console.log(\"none\");"
+      },
+      "now_artifact": {
+        "sha256": "fcb895888c35baa6f70720390a7c3052b799ad9fcd011b5d1a4c0a6a144863c1",
+        "code": "let b={},c=b&&b.nodeName;typeof c==\"string\"?void console.log(c):void console.log(\"none\");"
+      }
+    }
+  ],
+  "evidence": {
+    "ratchet-3.json": "132a4c44f42cb3b6d2acc65014003fd5fa2a485841a8dca97d8b6d620a6ce9f3",
+    "baseline-before-v1.json": "fe086781c6474186d92be1bfaae33c54460b43e557dd63cfa48f03545d7966cc",
+    "algorithm-competitors.json": "cf8f4a5269b4d74231f21e47933ec98e7e6c70115f7be54a48690e9b9d3edc9f",
+    "app-competitors.json": "b73ab17a88dd8e755fe0b98b38d9b636b5f6c2d88818f5cb77553492993424d6",
+    "semantic-qualification-4.json": "4343c669f54215ae240eb941fa48b759720e379a7c6d3bfbeb969aa0ac5546b5"
+  },
+  "limitations": [
+    "No claim of global optimality or of beating every individual program.",
+    "The algorithm competitor harness pins candidate 3; candidate 4 runtime/bytes come from the full ratchet against freshly reproduced identical Closure bars.",
+    "All observed residuals remain visible; the owner permits small local heuristic growth with improved separate objective totals. No runtime failure or changed oracle contributes a win.",
+    "Maintained libraries, Vue, held-out qualification and compile-cost study remain separate active V1 stages."
+  ]
+}

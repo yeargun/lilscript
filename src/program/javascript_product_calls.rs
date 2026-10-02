@@ -113,8 +113,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             if !fields && local.is_none() {
                 continue;
             }
-            let region =
-                self.plan(context).regions[self.program.cells[cell.index()].region.index()];
+            let region = self.storage_region(context, cell);
             let incoming = if fields {
                 self.function_lookup()?;
                 let schema = layout.unwrap().parameter(position as u32).unwrap().schema;

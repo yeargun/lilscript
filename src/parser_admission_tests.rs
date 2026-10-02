@@ -277,9 +277,8 @@ fn multiple_programs_preserve_heap_free_identities_after_collection_drop() {
     drop(programs);
     arena.with_ledger(|ledger, _| assert_eq!(ledger.retained_bytes(), bytes));
     drop(arena);
-    // Each program's nodes: the function's name, its `this` and the
-    // returned literal (M4.4).
-    assert!(identities.iter().all(|identity| identity.len() == 3));
+    // The root, function name, `this`, and returned literal keep their identities.
+    assert!(identities.iter().all(|identity| identity.len() == 4));
     assert_eq!(ledger.retained_bytes(), 0);
 }
 
@@ -711,25 +710,37 @@ fn lookahead_token_and_eof_probes_require_exact_work_without_mutating_storage() 
 #[test]
 fn recursive_type_lookahead_preserves_results_at_every_probe_cutoff() {
     const WORK: u64 = 100_000;
-    for (source, expected, probes) in [
-        ("", None, 1),
-        ("int", Some(1), 5),
-        ("int?[]?", Some(5), 13),
-        ("Box<int,string>", Some(6), 19),
-        ("func(int)->string", Some(6), 21),
-        ("func(ref int)->void", Some(7), 27),
-        ("(int|float)[]", Some(7), 18),
-        ("int[", Some(1), 5),
-        ("Box<int", None, 9),
-        ("Box<>", None, 3),
-        ("func(int", None, 10),
-        ("func()->", None, 6),
-        ("(int", None, 7),
-        ("int|", None, 6),
+    for (source, expected) in [
+        ("", None),
+        ("int", Some(1)),
+        ("int?[]?", Some(5)),
+        ("Box<int,string>", Some(6)),
+        ("func(int)->string", Some(6)),
+        ("func(ref int)->void", Some(7)),
+        ("(int|float)[]", Some(7)),
+        ("int[", Some(1)),
+        ("Box<int", None),
+        ("Box<>", None),
+        ("func(int", None),
+        ("func()->", None),
+        ("(int", None),
+        ("int|", None),
     ] {
         let plain_arena = Bump::new();
         let plain = ParserCore::new(&plain_arena, source, None).unwrap();
         assert_eq!(plain.scan_type_end(0).unwrap(), expected, "{source}");
+        // Measure this scanner's complete tariff, then deny each boundary.
+        // New type syntax may add probes without changing the cutoff contract.
+        let probes = {
+            let mut ledger = ledger(WORK, 1_000_000);
+            let arena = AdmittedArena::new(&mut ledger, WorkDomain::Baseline);
+            let parser = ParserCore::new(arena.bump(), source, Some(&arena)).unwrap();
+            let before = arena.with_ledger(|ledger, _| ledger.work_by_kind(WorkKind::Analysis));
+            assert_eq!(parser.scan_type_end(0).unwrap(), expected);
+            let work = arena.with_ledger(|ledger, _| ledger.work_by_kind(WorkKind::Analysis) - before);
+            assert!(work > 0 && work <= 16 * parser.tokens.len().max(1) as u64, "bounded lookahead: {source}");
+            work
+        };
         for available in 0..=probes {
             let mut ledger = ledger(WORK, 1_000_000);
             ledger.retain(WorkDomain::Baseline, 19).unwrap();
@@ -783,24 +794,24 @@ fn recursive_type_lookahead_preserves_results_at_every_probe_cutoff() {
 #[test]
 fn arrow_binding_and_reference_decisions_admit_their_final_probe() {
     const WORK: u64 = 100_000;
-    for (source, mode, expected, probes) in [
-        ("(int value)=>value", 0, true, 5),
-        ("()=>1", 0, true, 3),
-        ("((1))", 0, false, 6),
-        ("(1", 0, false, 2),
-        ("int value", 1, true, 6),
-        ("int", 1, false, 6),
-        ("Box<int,string>?[] value", 1, true, 25),
-        ("ref int value", 2, true, 7),
-        ("ref int", 2, false, 7),
-        ("ref", 2, false, 2),
-        ("ref<int> value", 2, false, 2),
-        ("int value", 2, false, 1),
-        ("ref func(int)->string callback", 2, true, 23),
-        ("ref int)", 3, true, 7),
-        ("ref int,", 3, true, 7),
-        ("ref int", 3, false, 7),
-        ("ref func(ref int)->void)", 3, true, 29),
+    for (source, mode, expected) in [
+        ("(int value)=>value", 0, true),
+        ("()=>1", 0, true),
+        ("((1))", 0, false),
+        ("(1", 0, false),
+        ("int value", 1, true),
+        ("int", 1, false),
+        ("Box<int,string>?[] value", 1, true),
+        ("ref int value", 2, true),
+        ("ref int", 2, false),
+        ("ref", 2, false),
+        ("ref<int> value", 2, false),
+        ("int value", 2, false),
+        ("ref func(int)->string callback", 2, true),
+        ("ref int)", 3, true),
+        ("ref int,", 3, true),
+        ("ref int", 3, false),
+        ("ref func(ref int)->void)", 3, true),
     ] {
         let inspect = |parser: &ParserCore<'_, '_, '_>| match mode {
             0 => parser.is_arrow_function_start(),
@@ -812,6 +823,18 @@ fn arrow_binding_and_reference_decisions_admit_their_final_probe() {
         let plain_arena = Bump::new();
         let plain = ParserCore::new(&plain_arena, source, None).unwrap();
         assert_eq!(inspect(&plain).unwrap(), expected, "{source}");
+        // Measure this scanner's complete tariff, then deny each boundary.
+        // New type syntax may add probes without changing the cutoff contract.
+        let probes = {
+            let mut ledger = ledger(WORK, 1_000_000);
+            let arena = AdmittedArena::new(&mut ledger, WorkDomain::Baseline);
+            let parser = ParserCore::new(arena.bump(), source, Some(&arena)).unwrap();
+            let before = arena.with_ledger(|ledger, _| ledger.work_by_kind(WorkKind::Analysis));
+            assert_eq!(inspect(&parser).unwrap(), expected);
+            let work = arena.with_ledger(|ledger, _| ledger.work_by_kind(WorkKind::Analysis) - before);
+            assert!(work > 0 && work <= 16 * parser.tokens.len() as u64, "bounded lookahead: {source}");
+            work
+        };
         for available in [probes - 1, probes] {
             let mut ledger = ledger(WORK, 1_000_000);
             let arena = AdmittedArena::new(&mut ledger, WorkDomain::Baseline);

@@ -1,0 +1,12 @@
+struct Inner{int value;}
+struct Packet{Inner inner;int[] shared;}
+extern Packet convert(Packet packet,int later);
+Packet source=Packet{Inner{1},[5]};
+int later(){print("later");source.inner.value=9;return 3;}
+Packet result=convert(source,later());
+print(source.inner.value);
+print(source.shared.join("|"));
+print(result.inner.value);
+result.inner.value=99;
+print(source.inner.value);
+print(result.shared==source.shared);

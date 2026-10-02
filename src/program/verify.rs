@@ -847,7 +847,13 @@ fn verify_units(
                     budget.push(Scratch, &mut introduced, value.index())?;
                 }
                 Task::Op(id, region, in_loop) => {
-                    work(budget, 8 + 3 * capture_lookup + (usize::BITS - program.modules.len().leading_zeros()) as usize)?;
+                    // Fixed edits change kinds, operands and places only.
+                    // Their source origins and module ranges retain the prior
+                    // full verification, without another global-range lookup.
+                    let origin_work = if named_functions.is_some() {
+                        (usize::BITS - program.modules.len().leading_zeros()) as usize
+                    } else { 0 };
+                    work(budget, 8 + 3 * capture_lookup + origin_work)?;
                     let Some(op) = unit.operations.get(id.index()) else {
                         return fail("dangling operation");
                     };
@@ -855,7 +861,8 @@ fn verify_units(
                         return fail("operation has incorrect or multiple owners");
                     }
                     op_seen[id.index()] = true;
-                    if op.origin.is_some_and(|origin| program.source_origin(origin).is_none()) {
+                    if named_functions.is_some()
+                        && op.origin.is_some_and(|origin| program.source_origin(origin).is_none()) {
                         return fail("operation origin is outside its source module");
                     }
                     let Some(operands) = unit.operands(op.operands) else {

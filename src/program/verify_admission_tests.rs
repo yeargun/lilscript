@@ -155,7 +155,7 @@ fn scratch_indexes_keep_duplicate_contracts_and_admit_compared_name_bytes() {
         ));
         let mut repeated_variant = program.clone();
         let definition = &mut std::sync::Arc::make_mut(&mut repeated_variant.enums)[0];
-        definition.variants[1].value = definition.variants[0].value;
+        definition.variants[1].name = definition.variants[0].name.clone();
         let (result, _) = run(&repeated_variant, MEMORY, WORK);
         assert!(matches!(
             result,

@@ -183,16 +183,17 @@ eight-input oracle under all three objectives. The source stays frozen.
 
 Q2 decision-lock qualification also encountered a pre-existing parse refusal in
 `src/program/fixtures/integrated-architecture/marked-api.lil` at the bare
-`nullable??demandFallback("nullish")` statement. **V1** owns updating that older
-integration fixture during the deferred broad qualification. The new focused
+`nullable??demandFallback("nullish")` statement. **V1** corrected that older
+integration fixture and qualified it in the affected compiler tests. The new focused
 reconstruction control covers records, helpers, strings, products and call
 layouts without depending on that obsolete syntax; no full-suite claim follows.
 
 N1's target-checking census covers 403 cases, including 260 with existing native
 harness masks. Four older constructor cases still request the retired
-`javascript.public_aggregate_abi="positional"` setting. **V1** owns replacing
+`javascript.public_aggregate_abi="positional"` setting. **V1** replaced
 those historical fixture controls and expectations with the supported named
-public ABI while preserving their independent setter/default observations.
+public ABI and preserved their independent setter/default observations. The
+final affected JavaScript matrix passes in each objective and format.
 The [N1 inventory](../../benchmarks/migration-results/2026-10-02-n1-native/capability-census.json)
 records each refusal and the separate masks; neither masks nor admission are
 runtime qualification. N2 closes the portable families and replaces lexical masks
@@ -200,43 +201,26 @@ with explicit digest-bound exclusions; all 161 executable native cases pass
 formation/production under sanitizers. [Closure evidence](../../benchmarks/migration-results/2026-10-02-n2-native/profiles/README.md).
 
 
-## Portable product qualification discovery (2026-10-02)
+## Portable product qualification discoveries — resolved in V1
 
-**V1** owns the JavaScript primitive-argument adaptation refusal reproduced by
-`Object.values(Record<Payload>)` in `tests/native/products.lil` under its effort-zero
-configuration. The native fixture and independent value-copy oracle pass; the
-JavaScript target currently reports `value-struct primitive argument ABI adaptation`.
-The separate `product-places.lil` fixture does compile to JavaScript and agrees with
-native reallocation/replacement and nested copy semantics. Do not label the full
-products fixture as a JavaScript/native parity pass before closing this refusal.
+The complete unchanged N2 fixtures `products.lil`, `arrays.lil`,
+`call-transport.lil`, `callable-containers.lil`, `static-data.lil` and
+`generators.lil` now agree with their independent ECMAScript oracles and native
+goldens under raw/gzip/Brotli at efforts 0 and 13. This closes the typed
+`Object.values` product transport, private generic array/callable containers,
+indirect reference proof, non-finite literal formation and eager generator
+default-timing gaps. An additional activation/default fixture checks eager
+throws, independent iterators, `this`, `arguments` and function arity.
 
-**V1** also owns the JavaScript generic class-field transport refusal in
-`tests/native/arrays.lil` (`List<T>` initialization reports "erased product
-escapes a closed typed interface"). Native array qualification uses the separate
-ECMAScript oracle; it does not count this full source as JavaScript parity.
+The public-boundary qualification also corrected nullable field encoding,
+foreign product call transport, constructor arity/scope, exact rendered-artifact
+contract validation and retained-definition placement in CJS. The full
+405-case JavaScript matrix plus affected rechecks has no unexpected failure:
+9,594 executable passes, 102 format masks and 24 explicitly unsupported
+ambiguous-product/opaque-generic ABI refusals. Refusals and masks are not passes.
+[Evidence and verification limits](../../benchmarks/migration-results/2026-10-02-v1-javascript/README.md).
 
-**V1** owns the JavaScript formation refusal in `tests/native/call-transport.lil`:
-`reference callable requires a complete private interface`. Legal indirect
-managed/callable reference arguments pass native and the independent ECMAScript
-location model. The defaults-only extracted subset passes JavaScript at effort0
-and13; this is not full source parity. The retained N2 call-transport driver and
-failed formation log reproduce the distinction.
-
-The same **V1** erased-interface gap also refuses
-`tests/native/callable-containers.lil` at `getMapper`'s generic callable field
-read, at effort0 and13. Native formation/production and independent ECMAScript
-observations pass; both JavaScript refusal logs are retained with N2's callable
-container evidence.
-
-**V1** owns JavaScript formation of mandatory const non-finite values: the full
-`tests/native/static-data.lil` fixture is refused at effort0 and13 with
-`non-finite semantic literal`. Native handles NaN, infinities, signed zero and
-subnormals. The complete finite-number variant matches emitted JavaScript at
-both efforts; that is explicitly a variant, not full source parity.
-
-**V1** owns JavaScript generator default timing in `tests/native/generators.lil`:
-at effort0 and13 nonliteral defaults execute on first iteration, rather than at
-the call, and a throwing default is correspondingly delayed. The complete native
-trace matches an independent ECMAScript oracle. JavaScript formation succeeds
-and all observations after this default prefix agree, but full parity is not
-claimed before correcting the JavaScript parameter transport.
+The matched 642-program size matrix and fresh Closure application/algorithm
+comparisons are qualified under the independent per-objective aggregate rule.
+V1 remains active for maintained and held-out ports, Vue production/parity/upstream,
+Motion delivery and compile-cost evidence.

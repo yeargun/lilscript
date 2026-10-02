@@ -873,16 +873,9 @@ fn contract_changes_reject_candidate_and_output_reuse_without_changing_sources()
         changed.mangle.preserve_properties = Some(vec!["stable".into()]);
         variants.push(resolve(&changed, true));
         variants.push(resolve(&config, false));
-        // Delivery is part of the contract: a candidate formed for one file
-        // is not another mode's candidate.
-        for mode in [
-            crate::config::DeliveryMode::Split,
-            crate::config::DeliveryMode::PreserveModules,
-        ] {
-            let mut changed = config.clone();
-            changed.delivery.mode = mode;
-            variants.push(resolve(&changed, true));
-        }
+        // Delivery can vary over reusable semantic candidates. Each printed
+        // artifact still belongs to exactly one delivery contract; the artifact
+        // admission tests cover cross-container replay separately.
         let mut changed = config.clone();
         changed.delivery.mode = crate::config::DeliveryMode::Split;
         changed.delivery.chunk_names = Some("[index].[ext]".into());

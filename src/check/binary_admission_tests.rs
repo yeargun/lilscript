@@ -31,6 +31,12 @@ fn frame_bytes() -> u64 {
     size_of::<BinaryContinuation<'_, '_>>() as u64
 }
 
+fn primitive_pool_bytes() -> u64 {
+    let mut pool = type_pool::TypePool::default();
+    pool.intern(&Type::Int, &mut AllocationBudget::new(None)).unwrap();
+    pool.storage_bytes()
+}
+
 fn scope_bytes() -> u64 {
     (size_of::<AHashMap<&str, SymbolId>>() + size_of::<Narrowing<'_>>()) as u64
 }
@@ -56,7 +62,7 @@ fn both_binary_tree_directions_charge_exact_growth_and_release_between_expressio
             let arena = bumpalo::Bump::new();
             let program = crate::parse_source(&arena, &source).unwrap();
             let expected = analyze(&program).unwrap();
-            let mut ledger = ledger(WORK, SENTINEL + scope_bytes() + peak_frames * frame_bytes());
+            let mut ledger = ledger(WORK, SENTINEL + scope_bytes() + primitive_pool_bytes() + peak_frames * frame_bytes());
             let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
             let mut facts = ModuleFacts::new(program.source_identity());
             let mut declarations = DeclarationTables::default();
@@ -92,24 +98,27 @@ fn both_binary_tree_directions_charge_exact_growth_and_release_between_expressio
                 }
                 assert_eq!(
                     analyzer.budget.retained_bytes(AllocationClass::Scratch),
-                    scope_bytes()
+                    scope_bytes() + analyzer.declarations.types.storage_bytes()
                 );
             }
+            let shared = analyzer.declarations.types.storage_bytes();
             drop(analyzer);
-            assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
+            assert_eq!(budget.retained_bytes(AllocationClass::Scratch), shared);
+            drop(declarations);
+            budget.release(AllocationClass::Scratch, shared).unwrap();
             drop(budget);
             assert_eq!(ledger.retained_bytes(), SENTINEL);
             assert_eq!(
                 ledger.peak_retained_bytes(),
-                SENTINEL + scope_bytes() + peak_frames * frame_bytes()
+                SENTINEL + scope_bytes() + primitive_pool_bytes() + peak_frames * frame_bytes()
             );
             assert_eq!(
                 ledger.work_by_kind(WorkKind::Analysis),
-                2 * (4 * operators as u64 + 2)
+                2 * (4 * operators as u64 + 2) + 3 + (4 * operators as u64 + 1) * 36
             );
             assert_eq!(
                 ledger.work_by_kind(WorkKind::Render),
-                4 + 2 * (2 * operators as u64 + growth_work)
+                14 + 2 * (2 * operators as u64 + growth_work)
             );
         }
     }
@@ -145,7 +154,7 @@ fn binary_memory_refusals_cover_first_and_overlapping_growth_without_publishing_
         assert!(analyzer.facts.expression_types.iter().all(Option::is_none));
         assert_eq!(
             analyzer.budget.retained_bytes(AllocationClass::Scratch),
-            scope_bytes()
+            scope_bytes() + analyzer.declarations.types.storage_bytes()
         );
         assert_eq!((analyzer.scopes.len(), analyzer.narrowings.len()), (1, 1));
         drop(analyzer);
@@ -161,8 +170,8 @@ fn binary_memory_refusals_cover_first_and_overlapping_growth_without_publishing_
 #[test]
 fn every_binary_work_cutoff_restores_scopes_and_preserves_the_exact_success_tariff() {
     for (source, analysis_work, render_work, ty) in [
-        ("1+1+1+1+1+1;", 22, 20, Type::Int),
-        ("true&&(true&&(true&&true));", 14, 21, Type::Bool),
+        ("1+1+1+1+1+1;", 385, 30, Type::Int),
+        ("true&&(true&&(true&&true));", 233, 31, Type::Bool),
     ] {
         let arena = bumpalo::Bump::new();
         let program = crate::parse_source(&arena, source).unwrap();
@@ -203,10 +212,13 @@ fn every_binary_work_cutoff_restores_scopes_and_preserves_the_exact_success_tari
                 + analyzer.narrowings.capacity() * size_of::<Narrowing<'_>>();
             assert_eq!(
                 analyzer.budget.retained_bytes(AllocationClass::Scratch),
-                backing as u64
+                backing as u64 + analyzer.declarations.types.storage_bytes()
             );
+            let shared = analyzer.declarations.types.storage_bytes();
             drop(analyzer);
-            assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
+            assert_eq!(budget.retained_bytes(AllocationClass::Scratch), shared);
+            drop(declarations);
+            budget.release(AllocationClass::Scratch, shared).unwrap();
             drop(budget);
             assert_eq!(ledger.retained_bytes(), SENTINEL);
             assert!(ledger.work_used(WorkDomain::Baseline) <= limit);
@@ -223,7 +235,7 @@ fn nested_binary_calls_admit_simultaneously_live_worklists_and_release_for_reuse
     let arena = bumpalo::Bump::new();
     let program = crate::parse_source(&arena, "1+-(2+3);4+5;").unwrap();
     for enough in [false, true] {
-        let peak = scope_bytes() + 8 * frame_bytes();
+        let peak = scope_bytes() + primitive_pool_bytes() + 8 * frame_bytes();
         let mut ledger = ledger(WORK, SENTINEL + peak - u64::from(!enough));
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
         let mut facts = ModuleFacts::new(program.source_identity());
@@ -250,7 +262,7 @@ fn nested_binary_calls_admit_simultaneously_live_worklists_and_release_for_reuse
         );
         assert_eq!(
             analyzer.budget.retained_bytes(AllocationClass::Scratch),
-            scope_bytes()
+            scope_bytes() + analyzer.declarations.types.storage_bytes()
         );
         assert_eq!(
             analyzer.analyze_binary_expression(expression(&program, 1), None),
@@ -258,18 +270,18 @@ fn nested_binary_calls_admit_simultaneously_live_worklists_and_release_for_reuse
         );
         assert_eq!(
             analyzer.budget.retained_bytes(AllocationClass::Scratch),
-            scope_bytes()
+            scope_bytes() + analyzer.declarations.types.storage_bytes()
         );
         drop(analyzer);
         drop(budget);
         assert_eq!(ledger.retained_bytes(), SENTINEL);
         assert_eq!(
             ledger.peak_retained_bytes(),
-            SENTINEL + scope_bytes() + if enough { 8 } else { 4 } * frame_bytes()
+            SENTINEL + scope_bytes() + primitive_pool_bytes() + if enough { 8 } else { 4 } * frame_bytes()
         );
         if enough {
-            assert_eq!(ledger.work_by_kind(WorkKind::Analysis), 18);
-            assert_eq!(ledger.work_by_kind(WorkKind::Render), 13);
+            assert_eq!(ledger.work_by_kind(WorkKind::Analysis), 18 + 3 + 8 * 36);
+            assert_eq!(ledger.work_by_kind(WorkKind::Render), 23);
         }
     }
 }
@@ -315,8 +327,11 @@ fn binary_semantic_errors_and_deadlines_preserve_diagnostics_and_release_scratch
             analyzer.budget.retained_bytes(AllocationClass::Scratch),
             remaining
         );
+        let shared = analyzer.declarations.types.storage_bytes();
         drop(analyzer);
-        assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
+        assert_eq!(budget.retained_bytes(AllocationClass::Scratch), shared);
+        drop(declarations);
+        budget.release(AllocationClass::Scratch, shared).unwrap();
         drop(budget);
         assert_eq!(ledger.retained_bytes(), SENTINEL);
     }
@@ -352,6 +367,6 @@ fn binary_panic_drops_live_worklist_before_the_existing_callback_scope_rolls_bac
     assert_eq!(ledger.retained_bytes(), SENTINEL);
     assert_eq!(
         ledger.peak_retained_bytes(),
-        SENTINEL + scope_bytes() + 4 * frame_bytes()
+        SENTINEL + scope_bytes() + primitive_pool_bytes() + 4 * frame_bytes()
     );
 }

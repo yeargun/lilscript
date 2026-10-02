@@ -7,7 +7,7 @@ export void run(bool which){
     string choice=if(which){"yes-literal-payload"}else{"no-literal-payload"};
     JS.and(truth,event("truth-effect"));
     JS.or(empty,event("empty-effect"));
-    present??event("unreachable-nullish");
-    missing??event("missing-effect");
+    auto unused_present=present??event("unreachable-nullish");
+    auto unused_missing=missing??event("missing-effect");
     JS.and(choice,event("branch-effect"));
 }

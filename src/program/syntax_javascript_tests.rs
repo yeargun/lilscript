@@ -16,6 +16,14 @@ fn compile_with(source: &str, config: &str) -> String {
     compile_plan(source, config, Plan::new(Style::Global))
 }
 
+fn compile_optimized(source: &str, config: &str) -> String {
+    let config = toml::from_str::<crate::config::ProjectConfig>(config).unwrap();
+    let objective = config.objective.codecs[0];
+    let compiled = crate::build::compile_source(source, &config,
+        crate::build::ServiceOptions::default()).unwrap();
+    compiled.javascript(objective).unwrap().javascript().to_owned()
+}
+
 fn compile_plan(source: &str, config: &str, plan: Plan) -> String {
     compile_program(source, config, plan, false)
 }
@@ -610,7 +618,7 @@ fn single_expression_helpers_inline_only_where_the_arguments_keep_their_order() 
 
 #[test]
 fn inlined_bodies_repeat_only_arguments_whose_value_cannot_change() {
-    let javascript = compile_with(
+    let javascript = compile_optimized(
         r#"
         extern void show(JsValue value);
         JsValue path(JsValue a, JsValue b) {
@@ -906,7 +914,7 @@ fn a_contract_may_publish_names_without_reflecting_them() {
 
 #[test]
 fn constructions_through_a_field_initializer_are_their_literals() {
-    let javascript = compile_with(
+    let javascript = compile_optimized(
         r#"
         extern void show(JsValue value);
         extern float seed();
@@ -1162,8 +1170,8 @@ fn a_function_of_one_statement_is_inlined_where_its_value_is_discarded() {
         }
         show(fill(JS.object(), JS.object("s", 2)));
     "#;
-    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
-    let coded = compile_with(source, PRISTINE);
+    let raw = compile_optimized(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
+    let coded = compile_optimized(source, PRISTINE);
     // `put`'s body is its calls' statements; the function is gone.
     for javascript in [&raw, &coded] {
         assert!(

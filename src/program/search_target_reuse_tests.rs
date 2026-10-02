@@ -94,7 +94,7 @@ fn config(
     schedule: &str,
 ) -> crate::config::ProjectConfig {
     toml::from_str(&format!(
-        "[javascript]\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=128\n[policy.search]\ncodec_schedule='{schedule}'\n[policy.tactics]\ntarget-compaction='on'\nidentifier-mangling='on'\nnaming-search='{}'\nscalar-replacement='{}'\ninlining='off'\nconstant-folding='off'\nstring-pooling='off'",
+        "[javascript]\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=128\n[policy.search]\nprotect_effort=false\ncodec_schedule='{schedule}'\n[policy.tactics]\ntarget-compaction='on'\nidentifier-mangling='on'\nnaming-search='{}'\nscalar-replacement='{}'\ninlining='off'\nconstant-folding='off'\nstring-pooling='off'",
         if naming { "on" } else { "off" }, if scalar { "on" } else { "off" },
     )).unwrap()
 }

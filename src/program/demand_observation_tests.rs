@@ -165,9 +165,9 @@ fn lazy_gates_join_through_cells_and_regions_while_effects_stay_required() {
         string? mixed="mixed";
         string choice=if(gate()){"yes-literal"}else{"no-literal"};
         JS.and(truth,event("truth-effect"));
-        nullable??event("nullish-effect");
+        auto unusedNullable=nullable??event("nullish-effect");
         JS.and(mixed,event("mixed-effect"));
-        mixed??event("mixed-nullish");
+        auto unusedMixed=mixed??event("mixed-nullish");
         JS.and(choice,event("branch-effect"));
     "#,
         |program| {

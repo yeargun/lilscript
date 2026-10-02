@@ -2202,3 +2202,49 @@ coverage win.
 N2's six acceptance packages are complete. V1 now owns the remaining JavaScript
 formation/default-timing discoveries, independent raw/gzip/Brotli competition,
 maintained/held-out runtime and compile-cost evidence. V2 follows qualification.
+
+
+## 2026-10-02: V1 compiler semantics and independent objective qualification
+
+V1 remains active. Its first three acceptance stages are qualified; maintained
+libraries, Vue, held-out delivery and the deferred cost study remain before V2.
+[Evidence and pinned source/binary identities](../../benchmarks/migration-results/2026-10-02-v1-javascript/README.md).
+
+The semantic batch closes product values/call transport, private callable aliases,
+non-finite constants, eager generator defaults, public absence/arity, exact
+artifact-contract ownership, constructor scope and retained CJS definitions.
+Constructor analysis releases its scratch owners on every exit. Qualification
+also corrects obsolete assertions and host fixtures without weakening their
+independent behavior observations.
+
+One broad compiler run followed by focused repairs accounts for every original
+failure; it is not represented as a repeated final full-suite run. The combined
+405-case JavaScript matrix has 9,594 executable passes, 102 format masks and 24
+explicitly unsupported ABI refusals, with no unexpected failure. The complete
+portable semantic fixtures pass 91 commands on the final pin. Unsupported
+boundaries and historical ignores are never counted as executable parity.
+
+Two general size fixes remove unnecessary strictness from private application
+product helpers and admit initialized local arguments to single-use expression
+inlining. Both retain the module/library frame contract and mutation/TDZ guards.
+The latter's call/parent indexing now walks shared expression DAGs in linear
+nodes/edges, with bounded-work regression coverage; 192 affected target checks
+pass. Algorithm identity 89 records the changed analysis accounting.
+
+The unchanged 642-program ratchet has no runtime failures. Raw/gzip/Brotli totals
+improve independently by 906/557/602 bytes over the S1 accepted baseline, and
+every constituent corpus improves in each objective. All local growth remains
+in the receipt with the exact old/new code and hashes. The aggregate acceptance
+rule permits these residuals; no oracle, population or objective is changed.
+Fresh Closure application/algorithm measurements reproduce the pinned bars.
+The combined 18-program totals beat Closure in all metrics; the algorithms alone
+remain 43 raw bytes larger and are 74 gzip / 42 Brotli bytes smaller. Individual
+Closure losses are classified and retained, not relabeled as wins.
+
+Comparison drivers now request bare private application output explicitly; the
+standalone C linker supplies the native runtime's math library. The resumed
+library runner saves each finished port's pinned result atomically. Cnlil's
+upstream, 300,000-case fuzz and join suites pass. An interrupted HTML-library
+compilation is recorded as incomplete while the DAG traversal repair is applied;
+it is not a test failure or a timing claim. Remaining port/API and cost results
+continue under V1.

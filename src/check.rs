@@ -11259,7 +11259,7 @@ mod tests {
                 "void f(ref int value){auto escaped=()=>{value=2;};}",
                 "cannot be captured",
             ),
-            ("void f(ref int value=1){}", "cannot have defaults"),
+            ("void f(ref int value=1){}", "cannot have a default"),
             ("auto f=(ref int value=1)=>value;", "cannot have defaults"),
             ("async void f(ref int value){}", "async and generator"),
             (
@@ -12077,16 +12077,12 @@ mod tests {
         )
         .unwrap();
 
-        let omitted_default = check(
+        // Defaults are now evaluated by the selected callee at call time.
+        // Both union members accept omission; no caller-side default is chosen.
+        check(
             "int one(int value=1){return value;}int two(int value=2){return value;}auto choices=[one,two];auto chosen=choices[0];int value=chosen();",
         )
-        .unwrap_err();
-        assert!(
-            omitted_default
-                .message
-                .contains("union calls require every argument explicitly"),
-            "{omitted_default}"
-        );
+        .unwrap();
 
         check(
             "int one(int value=1){return value;}int two(int value=2){return value;}auto choices=[one,two];auto chosen=choices[0];int value=chosen(3);",

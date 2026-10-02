@@ -4,6 +4,20 @@ use crate::config::{CandidateSearch, CompressionCostModel};
 const SOURCE: &str = include_str!("program/fixtures/search-structural-valley/entry.lil");
 const CODECS: [Objective; 3] = [Objective::Raw, Objective::Gzip, Objective::Brotli];
 
+// The shared artifact arena has a different live capacity for one versus
+// several objectives. Its admitted allocation work may differ; choices,
+// exact judgments, stops and delivered bytes must still agree.
+fn terminal_decisions(report: &serde_json::Value) -> serde_json::Value {
+    let mut report = report.clone();
+    if let Some(rows) = report["effort_checkpoints"].as_array_mut() {
+        for row in rows {
+            assert!(row["optional_work"].as_u64().is_some());
+            row.as_object_mut().unwrap().remove("optional_work");
+        }
+    }
+    report
+}
+
 #[test]
 fn configured_objective_sets_and_order_keep_only_the_requested_results() {
     let mut config = configuration(13, "");
@@ -205,11 +219,14 @@ fn independent_objectives_match_separate_policies_searches_and_execution() {
                     "proof_queries",
                     "terminal",
                 ] {
-                    assert_eq!(
-                        lane[field],
-                        one.report()["search"][field],
-                        "{field}, {codec:?}, level {level}"
-                    );
+                    if field == "terminal" {
+                        assert_eq!(terminal_decisions(&lane[field]),
+                            terminal_decisions(&one.report()["search"][field]),
+                            "{field}, {codec:?}, level {level}");
+                    } else {
+                        assert_eq!(lane[field], one.report()["search"][field],
+                            "{field}, {codec:?}, level {level}");
+                    }
                 }
                 assert_eq!(
                     together.report()["resources"]["frontend_logical_work"],
@@ -261,7 +278,8 @@ fn objective_override_resolves_the_requested_codec_and_encoder_settings() {
             let lane = &together.report()["search"]["objectives"][index];
             assert_eq!(one.report()["javascript_policy"], policy.receipt());
             assert_eq!(lane["policy"], policy.receipt());
-            assert_eq!(lane["terminal"], one.report()["search"]["terminal"]);
+            assert_eq!(terminal_decisions(&lane["terminal"]),
+                terminal_decisions(&one.report()["search"]["terminal"]));
             assert_eq!(
                 together.javascript(requested).unwrap().javascript(),
                 one.javascript(requested).unwrap().javascript()

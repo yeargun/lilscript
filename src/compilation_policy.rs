@@ -46,7 +46,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // with objective fragments and admits fixed batches of independent file scores.
 // Version69 retains abrupt-exit finalizers and resolves embedded ESM re-exports.
 // Version71 preserves per-module identity for opaque embedded hosts.
-pub const POLICY_ALGORITHM_VERSION: u32 = 85;
+pub const POLICY_ALGORITHM_VERSION: u32 = 89;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -87,6 +87,56 @@ pub enum CompilationContract {
     Native {
         abi_version: u32,
     },
+}
+
+impl CompilationContract {
+    /// Artifact eligibility retains the exact formation contract, independently
+    /// of the compilation's reusable semantic candidates and codec scores.
+    pub(crate) fn copy_admitted(
+        &self,
+        budget: &mut crate::output_budget::AllocationBudget<'_>,
+    ) -> Result<Self, crate::output_budget::AllocationError> {
+        use crate::output_budget::AllocationClass::Retained;
+        let Self::JavaScript { language, preserved_properties, delivery } = self else {
+            return Ok(self.clone());
+        };
+        fn strings(values: &[String], budget: &mut crate::output_budget::AllocationBudget<'_>)
+            -> Result<Vec<String>, crate::output_budget::AllocationError> {
+            let mut result = budget.vector(Retained, values.len())?;
+            for value in values { result.push(budget.string(Retained, value)?); }
+            Ok(result)
+        }
+        fn pairs(values: &[(String, String)], budget: &mut crate::output_budget::AllocationBudget<'_>)
+            -> Result<Vec<(String, String)>, crate::output_budget::AllocationError> {
+            let mut result = budget.vector(Retained, values.len())?;
+            for (key, value) in values {
+                result.push((budget.string(Retained, key)?, budget.string(Retained, value)?));
+            }
+            Ok(result)
+        }
+        let mut optional = |value: &Option<String>| value.as_ref()
+            .map(|value| budget.string(Retained, value)).transpose();
+        let entry_names = optional(&delivery.entry_names)?;
+        let chunk_names = optional(&delivery.chunk_names)?;
+        let module_names = optional(&delivery.module_names)?;
+        let global = optional(&delivery.container.global)?;
+        let source_root = optional(&delivery.container.source_root)?;
+        Ok(Self::JavaScript {
+            language: *language,
+            preserved_properties: strings(preserved_properties, budget)?,
+            delivery: DeliveryContract {
+                select: strings(&delivery.select, budget)?,
+                entry_names, chunk_names, module_names,
+                container: ContainerContract {
+                    global, source_root,
+                    globals: pairs(&delivery.container.globals, budget)?,
+                    external_specifiers: pairs(&delivery.container.external_specifiers, budget)?,
+                    ..delivery.container
+                },
+                ..*delivery
+            },
+        })
+    }
 }
 
 /// The delivery part of the contract (plan M3.3, architecture §14
@@ -2038,8 +2088,10 @@ mod tests {
                 ),
                 Err(AdmissionError::ForbiddenTactic(tactic))
             );
+            let prerequisites = tactic.spec().prerequisites.iter()
+                .map(|id| format!("{}='on'\n", id.spec().name)).collect::<String>();
             let on = js(&format!(
-                "effort.level=0\n[policy.tactics]\n{}='on'",
+                "effort.level=0\n[policy.tactics]\n{prerequisites}{}='on'",
                 tactic.spec().name
             ));
             assert_eq!(

@@ -1647,22 +1647,16 @@ mod tests {
             warnings: vec![],
         };
         let report = policy_report(&args, &loaded, service_options_with_environment(&args, None).unwrap()).unwrap();
-        for key in ["diagnostics", "native_diagnostics"] {
-            assert!(report[key]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|value| value.as_str().unwrap().contains("helper-sharing")));
+        for (key, available) in [("diagnostics", true), ("native_diagnostics", false)] {
+            let reported = report[key].as_array().unwrap().iter()
+                .any(|value| value.as_str().unwrap().contains("helper-sharing"));
+            assert_eq!(reported, !available, "{key}");
         }
-        for key in ["policy", "native_policy"] {
-            let tactic = report[key]["tactics"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|value| value["id"] == "helper-sharing")
-                .unwrap();
-            assert_eq!(tactic["available"], false);
-            assert_eq!(tactic["state"]["enabled"], false);
+        for (key, available) in [("policy", true), ("native_policy", false)] {
+            let tactic = report[key]["tactics"].as_array().unwrap().iter()
+                .find(|value| value["id"] == "helper-sharing").unwrap();
+            assert_eq!(tactic["available"], available);
+            assert_eq!(tactic["state"]["enabled"], available);
             assert!(report[key].get("diagnostics").is_none());
         }
     }

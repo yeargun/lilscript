@@ -266,6 +266,15 @@ async function runPort(port, context) {
     Object.assign(result, diffAgainstLedger(result.failing, listed, suiteRan(result.test)));
     result.ledgerEntries = listed.map((entry) => ({ index: entry.index, owner: entry.owner }));
     result.state = result.regressions.length ? "regressed" : result.failing.length ? "ledgered" : "green";
+    // A long fleet run can be interrupted after a completed library. Preserve
+    // that library's pinned evidence immediately, independently of the final
+    // fleet report, so resuming does not require repeating its suite.
+    const completedPath = join(logs, `${port}.result.json`);
+    writeFileSync(`${completedPath}.tmp`, `${JSON.stringify({
+      schema: 1, kind: "lilscript-port-result", compiler, codec, objective,
+      patches, checks, completed: new Date().toISOString(), result,
+    }, null, 1)}\n`);
+    renameSync(`${completedPath}.tmp`, completedPath);
     if (!keep) rmSync(parent, { recursive: true, force: true });
     return result;
   };
@@ -498,4 +507,3 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.
     process.exit(2);
   });
 }
-

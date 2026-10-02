@@ -84,6 +84,7 @@ impl From<AdmissionError> for SearchError {
 impl From<ProvenanceError> for SearchError {
     fn from(error: ProvenanceError) -> Self {
         match error {
+            ProvenanceError::ContractMismatch => CandidateError::ContractMismatch.into(),
             ProvenanceError::Allocation(error) => error.into(),
             ProvenanceError::Naming(error) => CandidateError::from(error).into(),
             ProvenanceError::Admission(error) => error.into(),

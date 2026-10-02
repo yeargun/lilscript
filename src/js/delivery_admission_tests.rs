@@ -293,18 +293,18 @@ fn q2_rendered_bundle_owns_names_layout_and_files_and_refusals_keep_only_naming_
                 LiteralOutput::Original,
                 usize::MAX,
                 7u32,
-                |name, code, _| (name, code),
+                |name, code, structure| (name, code, structure),
             )
             .unwrap();
         let bytes = files.iter().fold(
             vector_bytes(&files).unwrap() + layout.heap_bytes().unwrap(),
-            |sum, (name, code)| sum + (name.capacity() + code.capacity()) as u64,
+            |sum, (name, code, structure)| sum + (name.capacity() + code.capacity()) as u64 + structure.heap_bytes().unwrap(),
         );
         assert_eq!(charge.bytes(), bytes);
         assert!(files.len() > 1);
         assert!(files
             .iter()
-            .all(|(name, _)| name.starts_with("nested/") && !name.contains("[hash")));
+            .all(|(name, _, _)| name.starts_with("nested/") && !name.contains("[hash")));
         let partial = files[0].1.len() + 1;
         drop((files, layout));
         output.with_allocation_budget(|budget| {
@@ -318,7 +318,7 @@ fn q2_rendered_bundle_owns_names_layout_and_files_and_refusals_keep_only_naming_
                     LiteralOutput::Original,
                     limit,
                     7u32,
-                    |name, code, _| (name, code)
+                    |name, code, structure| (name, code, structure)
                 ),
                 Err(OutputError::ByteLimit)
             ));

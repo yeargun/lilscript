@@ -16,6 +16,7 @@ It does not describe unsupported cases as implemented.
 | Disjoint product/primitive unions | Select by disjoint runtime categories without probing object fields |
 | Published constructors and prototype methods | Preserve nominal identity, constructibility, receiver, default/rest and reflected arity |
 | Concrete struct-bearing callbacks | Value codecs when uses only invoke the callback; aliases and nested/returned closures may retain the private adapter |
+| Direct concrete `extern` function calls carrying structs | Encode argument snapshots and decode results using the same named-field codecs; getter/evaluation order and reference-valued fields are preserved; no extra callable wrapper |
 | Ordinary struct-array parameters | A snapshot only under complete read-only/no-escape evidence and isolation from reentry, suspension and observable writes |
 | Private erased products and collections | Complete typed interface; branches, recursive helpers, nested products, captures and owned concrete callbacks |
 | Declared shapes and observed generic classes | Concrete field codecs and checked presence/default rules; reference identity remains unchanged |

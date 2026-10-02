@@ -192,8 +192,7 @@ fn parameter_defaults_snapshot_arguments_inside_the_ordered_call() {
 }
 
 #[test]
-#[ignore = "wrong output: production applies a default to a supplied JS.undefined() (prints 16/8 for 109/101)"]
-fn defaults_distinguish_omission_supplied_undefined_and_function_arity() {
+fn defaults_apply_to_omission_and_supplied_undefined_and_preserve_function_arity() {
     compare_source_output_with_setup(
         r#"
         extern int tag(JsValue value);
@@ -203,7 +202,9 @@ fn defaults_distinguish_omission_supplied_undefined_and_function_arity() {
         print(arity(choose));
     "#,
         "globalThis.tag=value=>value===undefined?100:Number(value);globalThis.arity=callable=>callable.length;",
-        "16\n109\n101\n2\n",
+        // R7 uses the callee's defaults for undefined as well as omission;
+        // the first default also ends the observable JavaScript arity.
+        "16\n16\n8\n0\n",
     );
 }
 

@@ -734,18 +734,17 @@ fn service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback(
         ServiceOptions::default(),
     )
     .unwrap_err();
-    // An exported array of value structs that the function mutates has no
-    // D2 adapter, so the target refuses it.
-    assert_eq!(result.phase, "javascript");
+    // The public array needs a write-through adapter. The shared interface
+    // checker now refuses this unsupported ABI before target formation.
+    assert_eq!(result.phase, "check");
     assert!(
         result
             .message
             .contains("public value-struct ABI adaptation"),
         "{result}"
     );
-    // The target session no longer holds source text, so a formation refusal
-    // carries its span in the message but no rendered diagnostic (011 work).
-    assert!(result.diagnostic.is_none());
+    // Interface checking still owns the source and supplies its diagnostic.
+    assert!(result.diagnostic.is_some());
     // Multi-file delivery of one source module is its entry file alone.
     for mode in ["preserve-modules", "split"] {
         let result = compile_source(
@@ -1543,9 +1542,21 @@ fn stable_rule_scheduling_preserves_searched_artifacts_and_behavior() {
             assert_eq!(execute_javascript(artifact.javascript(), "",
                 "const a=library.make(2),b=library.make(7);console.log(library.run(3),library.run(-1),a(3),b(4),a(1));"),
                 "21 -2 5 11 6\n");
-            (artifact.javascript().to_owned(), artifact.sizes, compiled.report()["phases_ns"]["rules"].clone())
+            let mut rules = compiled.report()["phases_ns"]["rules"].clone();
+            // Dense auditing deliberately recomputes facts. Compare every
+            // transformation receipt, and verify the separate reuse counters.
+            let work = ["aggregate_analysis_work", "local_units_visited", "effect_units_visited"]
+                .map(|key| rules.as_object_mut().unwrap().remove(key).unwrap().as_u64().unwrap());
+            let reuse = ["effect_components_reused", "local_units_reused", "effect_units_reused"]
+                .map(|key| rules.as_object_mut().unwrap().remove(key).unwrap().as_u64().unwrap());
+            ((artifact.javascript().to_owned(), artifact.sizes, rules), work, reuse)
         });
-        assert_eq!(runs[0], runs[1], "{codec}");
+        assert_eq!(runs[0].0, runs[1].0, "{codec}");
+        for (normal, dense) in runs[0].1.into_iter().zip(runs[1].1) {
+            assert!(normal <= dense, "{codec}: reuse must save analysis work");
+        }
+        assert_eq!(runs[1].2, [0; 3], "dense audit bypasses every reuse shortcut");
+        assert!(runs[0].2.iter().all(|&count| count > 0), "fixture must exercise reuse");
     }
 }
 

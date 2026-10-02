@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "runner_sha256": "8c50f47ce3339b8ea7162cbf54b5bf983c51d29c97d4dba1fc5f41b07f34aaf9",
+  "rows": [
+    {
+      "id": "aggregate-model",
+      "exit": 1,
+      "log_sha256": "e8b53fcbd4a3649e21cc29e933bd2bd98c25dfc848f1affcc71ebf79214bd6e8"
+    },
+    {
+      "id": "control-flow-engine",
+      "exit": 1,
+      "log_sha256": "f91b4a346e377996298ef21f09ff9d6fd85f05ea2991301e626536fafdbc2c5d"
+    },
+    {
+      "id": "higher-order-pipeline",
+      "exit": 1,
+      "log_sha256": "f366fb53d2e535f9f08358944d6b00e73a892ee41ec40f890df2bbd64055380b"
+    },
+    {
+      "id": "module-graph",
+      "exit": 1,
+      "log_sha256": "5404d3ccedaecb9df1334b4488b08033b25346cbdcad7c4a59c27a8efaefc723"
+    },
+    {
+      "id": "numerical-kernel",
+      "exit": 1,
+      "log_sha256": "8e44abededc6d4e4257d6a3df3355a48f752cf24fd3b34f320592db860cd7052"
+    },
+    {
+      "id": "optimizer-pressure",
+      "exit": 1,
+      "log_sha256": "875e3cf9f32c26f9b5c8fb0cc8d2924fa9c74e028fa5bc729ca0f970fc8a3b9c"
+    },
+    {
+      "id": "text-report",
+      "exit": 1,
+      "log_sha256": "1a4e958d8e3426465dc6e74bec034e9d053d7b5a0e39fc1fb275c230d1f466c4"
+    }
+  ]
+}

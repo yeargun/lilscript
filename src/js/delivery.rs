@@ -1751,12 +1751,24 @@ fn link(
                             sources
                                 .iter()
                                 .copied()
+                                // Formation may retain unused definitions
+                                // when optional DCE is off. Their entry label
+                                // still owns them, even with no binding import
+                                // leading to their file. Preserve that ownership
+                                // before single-file flattening follows links.
+                                .chain((0..count).filter(|&other| {
+                                    other != index
+                                        && !layout.files[other].anchored
+                                        && !layout.files[other].statements.is_empty()
+                                        && layout.files[other].label.contains(entry)
+                                }))
                                 .filter(|source| !order.contains(source))
                                 .map(|source| (context.first_point(&layout.files[source]), source)),
                             Scratch,
                             budget,
                         )?;
                         rest.sort_unstable();
+                        rest.dedup();
                         extend_in(
                             &mut order,
                             rest.iter().map(|&(_, source)| source),

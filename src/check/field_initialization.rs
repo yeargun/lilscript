@@ -32,6 +32,24 @@ pub(super) fn analyze<'src>(
     view: CheckedView<'_, '_, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FieldInitializationFacts, AllocationError> {
+    // Branch-state buffers are local to this analysis. Only the published
+    // implicit-field list remains owned by the declaration table.
+    let before = budget.retained_bytes(Scratch);
+    let result = analyze_inner(class, view, budget);
+    let kept = result.as_ref().map_or(0, |facts| {
+        (facts.implicit.capacity() * std::mem::size_of::<NominalMemberId>()) as u64
+    });
+    if budget.is_accounted() {
+        budget.release(Scratch, budget.retained_bytes(Scratch) - before - kept)?;
+    }
+    result
+}
+
+fn analyze_inner<'src>(
+    class: &ClassDecl<'_, 'src>,
+    view: CheckedView<'_, '_, 'src>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<FieldInitializationFacts, AllocationError> {
     let identity = view.type_binding(class.name.name).expect("checked class");
     let info = view.nominal_class(identity).expect("class schema");
     let init = class.members.iter().find_map(|member| match member {
@@ -535,6 +553,49 @@ mod tests {
             ("try{if(b){return;}this.x=1;}finally{this.y=2;}", vec!["x"]),
         ] {
             assert_eq!(missing(body), expected, "{body}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod admission_tests {
+    use super::*;
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+
+    #[test]
+    fn flow_scratch_releases_on_success_and_each_work_refusal() {
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena,
+            "class Box{int value;init(bool set){if(set){this.value=7;}}}").unwrap();
+        let checked = crate::analyze(&syntax).unwrap();
+        let Item::Class(class) = &syntax.items[0] else { unreachable!() };
+        let mut complete = None;
+        for pass in 0..1000 {
+            let limit = if pass == 0 { 1000 } else { pass - 1 };
+            if pass != 0 && limit > complete.unwrap() { break; }
+            let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+                baseline_work: limit, optional_work: 0, baseline_retained_bytes: 0,
+                retained_bytes: 1_000_000,
+            }).unwrap();
+            let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+            let result = analyze(class, checked.view(), &mut budget);
+            let bytes = if pass == 0 || Some(limit) == complete {
+                let facts = result.unwrap();
+                assert_eq!(facts.implicit.len(), 1);
+                let bytes = (facts.implicit.capacity() * std::mem::size_of::<NominalMemberId>()) as u64;
+                assert_eq!(budget.retained_bytes(Scratch), bytes);
+                drop(facts);
+                bytes
+            } else {
+                assert!(matches!(result, Err(AllocationError::Budget(
+                    crate::compilation_policy::BudgetError::WorkExhausted(WorkDomain::Baseline)))));
+                assert_eq!(budget.retained_bytes(Scratch), 0);
+                0
+            };
+            budget.release(Scratch, bytes).unwrap();
+            drop(budget);
+            assert_eq!(ledger.retained_bytes(), 0);
+            if pass == 0 { complete = Some(ledger.work_used(WorkDomain::Baseline)); }
         }
     }
 }

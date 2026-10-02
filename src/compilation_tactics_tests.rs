@@ -153,8 +153,8 @@ fn origins_explain_equivalent_permissions_without_splitting_cache_identity() {
         row(&blocked, "naming-search")["status"],
         "prerequisite-disabled"
     );
-    let unavailable = js("policy.tactics.recurring-reconstruction='on'");
-    assert_eq!(row(&unavailable, "recurring-reconstruction")["status"], "unavailable");
+    let blocked = js("policy.tactics.recurring-reconstruction='on'");
+    assert_eq!(row(&blocked, "recurring-reconstruction")["status"], "prerequisite-disabled");
     let modern = js("policy.version=3\neffort.level=16");
     assert_eq!(
         row(&modern, "startup-reconstruction")["status"],
@@ -201,8 +201,10 @@ fn producer_dependencies_do_not_disable_independent_implementations() {
 #[test]
 fn registry_risk_classes_are_an_admission_boundary_even_for_explicit_on() {
     for tactic in TacticId::ALL {
+        let prerequisites = tactic.spec().prerequisites.iter()
+            .map(|id| format!("policy.tactics.{}='on'\n", id.spec().name)).collect::<String>();
         let policy = js(&format!(
-            "policy.version=3\npolicy.tactics.{}='on'",
+            "policy.version=3\n{prerequisites}policy.tactics.{}='on'",
             tactic.spec().name
         ));
         for risk in [

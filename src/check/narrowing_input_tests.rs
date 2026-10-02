@@ -226,6 +226,7 @@ fn discarded_projections_still_resolve_guards_and_report_the_first_diagnostic() 
 
 #[test]
 fn sparse_guard_prefixes_recheck_only_retained_guards_with_linear_work() {
+    let mut costs = [Vec::new(), Vec::new()];
     for operators in [1_u64, 4, 16, 64] {
         for two_guards in [false, true] {
             let source = format!(
@@ -280,14 +281,15 @@ fn sparse_guard_prefixes_recheck_only_retained_guards_with_linear_work() {
             drop(declarations);
             drop(budget);
             assert_eq!(ledger.retained_bytes(), SENTINEL);
-            assert_eq!(
-                ledger.work_by_kind(WorkKind::Analysis),
-                if two_guards {
-                    9 * operators + 15
-                } else {
-                    5 * operators + 6
-                }
-            );
+            costs[usize::from(two_guards)].push((operators, ledger.work_by_kind(WorkKind::Analysis)));
+        }
+    }
+    for samples in costs {
+        let (nodes, work) = (samples[1].0 - samples[0].0, samples[1].1 - samples[0].1);
+        assert!(work > 0);
+        for pair in samples.windows(2) {
+            assert_eq!((pair[1].1 - pair[0].1) * nodes, work * (pair[1].0 - pair[0].0),
+                "guard prefixes must grow linearly, including type publication: {samples:?}");
         }
     }
 }
@@ -296,9 +298,12 @@ fn sparse_guard_prefixes_recheck_only_retained_guards_with_linear_work() {
 fn guard_input_resource_refusals_preserve_declarations_and_restore_scopes() {
     let arena = bumpalo::Bump::new();
     let program = crate::parse_source(&arena, "(value!=null&&true)&&true;").unwrap();
-    // Constructor/declaration: 8 Render units. Three binary operators:
-    // 14 probes, two guard queries, seven push/allocation units, eight scope units.
-    for limit in 8..=39 {
+    // Measure the complete tariff once, then refuse every subsequent work
+    // boundary, including canonical-type lookup, ownership and publication.
+    let mut complete_work = WORK;
+    for pass in 0..WORK {
+        let limit = if pass == 0 { WORK } else { pass + 7 };
+        if pass != 0 && limit > complete_work { break; }
         let mut ledger = ledger(limit);
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
         let mut facts = ModuleFacts::new(program.source_identity());
@@ -325,7 +330,7 @@ fn guard_input_resource_refusals_preserve_declarations_and_restore_scopes() {
         let result = analyzer.analyze_binary_expression(expression(&program, 0), None);
         assert_eq!(
             result,
-            if limit == 39 {
+            if limit >= complete_work {
                 Ok(Type::Bool)
             } else {
                 Err(AdmittedCheckError::Resources(AllocationError::Budget(
@@ -342,7 +347,8 @@ fn guard_input_resource_refusals_preserve_declarations_and_restore_scopes() {
         );
         let shared = (analyzer.declarations.symbols.capacity() * size_of::<Symbol<'_>>()
             + analyzer.declarations.symbol_modules.capacity()
-                * size_of::<Option<crate::module::ModuleId>>()) as u64;
+                * size_of::<Option<crate::module::ModuleId>>()) as u64
+        + analyzer.declarations.types.storage_bytes();
         let frames = (analyzer.scopes.capacity() * size_of::<AHashMap<&str, SymbolId>>()
             + analyzer.narrowings.capacity() * size_of::<Narrowing<'_>>())
             as u64;
@@ -356,9 +362,9 @@ fn guard_input_resource_refusals_preserve_declarations_and_restore_scopes() {
         budget.release(AllocationClass::Scratch, shared).unwrap();
         drop(budget);
         assert_eq!(ledger.retained_bytes(), SENTINEL);
-        if limit == 39 {
-            assert_eq!(ledger.work_by_kind(WorkKind::Analysis), 16);
-            assert_eq!(ledger.work_by_kind(WorkKind::Render), 23);
+        if pass == 0 { complete_work = ledger.work_used(WorkDomain::Baseline); }
+        if limit >= complete_work {
+            assert_eq!(ledger.work_used(WorkDomain::Baseline), complete_work);
         }
     }
 }

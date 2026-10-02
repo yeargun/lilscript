@@ -177,7 +177,8 @@ fn execution_seal_is_explicit_and_opaque_callable_uses_never_become_closed_input
         },
     );
     for source in [
-        "int compute(int value){return value+1;}auto alias=compute;print(alias(7));",
+        "extern void retain(func(int)->int value);int compute(int value){return value+1;}auto alias=compute;retain(alias);print(alias(7));",
+        "int compute(int value){return value+1;}auto alias=compute;alias=(int value)=>value;print(alias(7));",
         "export int compute(int value){return value+1;}print(compute(7));",
         "extern void retain(func(int)->int callback);int compute(int value){return value+1;}retain(compute);print(compute(7));",
         "func(int)->int compute=(int value)=>value;compute=(int value)=>value+1;print(compute(7));",
@@ -210,6 +211,28 @@ fn execution_seal_is_explicit_and_opaque_callable_uses_never_become_closed_input
             assert_eq!(ledger.retained_bytes(), 0);
         });
     }
+}
+
+#[test]
+fn immutable_alias_chains_keep_complete_calls_and_storage_dependencies() {
+    checked("int compute(int value){return value+1;}auto alias=compute;auto other=alias;print(compute(1));print(other(2));int nested(){return alias(3);}print(nested());", |program| {
+        let mut ledger = ledger(1_000_000);
+        let uses = UseIndex::build(program, &mut ledger, WorkDomain::Baseline).unwrap();
+        {
+            let mut allocation = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
+            let mut meter = Meter(&mut allocation);
+            let proof = complete(CallableInputs::for_cell(program, &uses,
+                cell(program, "compute"), module(), &mut meter).unwrap());
+            assert_eq!(proof.calls().len(), 3);
+            for name in ["compute", "alias", "other"] {
+                assert!(proof.dependencies().cells().iter().any(|&(id, _)| id == cell(program, name)));
+            }
+            proof.discard(&mut meter).unwrap();
+            assert_eq!(allocation.retained_bytes(AllocationClass::Scratch), 0);
+        }
+        uses.discard(&mut ledger).unwrap();
+        assert_eq!(ledger.retained_bytes(), 0);
+    });
 }
 
 #[test]

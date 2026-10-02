@@ -794,76 +794,16 @@ fn module_graph_schedule_and_late_interface_work_refusals_keep_actual_attributio
         .map(|source| crate::parse_source(&arena, source).unwrap())
         .collect();
     let storage = ModuleStorage::new(&programs, &modules);
-    let mut successful = ledger(WORK, MEMORY);
-    with_analyzed_modules(
-        &programs,
-        &modules,
-        &mut AllocationBudget::new(Some((&mut successful, WorkDomain::Baseline))),
-        |_, _| (),
-    )
-    .unwrap();
-    let total = successful.work_used(WorkDomain::Baseline);
-    let pool_work = Cell::new(0);
-    with_analyzed_modules(
-        &programs,
-        &modules,
-        &mut AllocationBudget::new(None),
-        |checked, _| {
-            // Reproduce the fixture's ordered type publications under a separate
-            // ledger; equal types pay lookup/equality, new ones pay ownership.
-            let mut meter = ledger(WORK, MEMORY);
-            let mut budget = AllocationBudget::new(Some((&mut meter, WorkDomain::Baseline)));
-            let mut pool = type_pool::TypePool::default();
-            for module in checked.initialization_order() {
-                let view = checked.view(*module).unwrap();
-                for id in view.facts.expression_types.iter().flatten() {
-                    pool.intern(view.checked_type(*id), &mut budget).unwrap();
-                }
-            }
-            drop(pool);
-            drop(budget);
-            pool_work.set(meter.work_used(WorkDomain::Baseline));
-        },
-    )
-    .unwrap();
-    let total = total - pool_work.get();
+    let mut meter = ledger(WORK, MEMORY);
+    let [(graph_end, graph_peak), (signature_end, signature_peak)] =
+        modules::interface_phase_costs_for_test(&programs, &modules,
+            &mut AllocationBudget::new(Some((&mut meter, WorkDomain::Baseline))));
     let graph_work = (modules.modules.len()
         + modules
             .modules
             .iter()
             .map(|module| module.dependencies.len())
             .sum::<usize>()) as u64;
-    let published_rows = programs
-        .iter()
-        .map(|program| {
-            program.exports.len()
-                + program
-                    .imports
-                    .iter()
-                    .map(|import| import.specifiers.len())
-                    .sum::<usize>()
-        })
-        .sum::<usize>() as u64;
-    assert_eq!(published_rows, 4);
-    // Two canonical function symbols: two initial vector allocations, then
-    // two row publications at two work units each. Import aliases add no rows.
-    let declaration_work = 2 + 2 * 2;
-    // Four analyzer passes over three modules; two signature scopes, then two
-    // function bodies with one lexical scope and return/generator contexts.
-    // Root's one binary expression adds three visits, three continuation
-    // probes, two pushes and one first allocation, all during body checking.
-    let binary_work = 3 + 3 + 2 + 1;
-    // Entering a body costs 1 more than the names it assigns (none here):
-    // three module bodies and two function bodies (R1's narrowing scan).
-    let scan_work = 3 + 2;
-    let analyzer_work = 4 * 3 * 4 + 2 * 2 + 2 * (2 + 6 + 2 + 2) + binary_work + scan_work;
-    let body_work = 3 * 4 + 2 * (2 + 6 + 2 + 2) + binary_work + scan_work;
-    let registration_peak = storage.schedule_peak().max(
-        storage.live()
-            + small_declaration_bytes()
-            + base_scope_bytes()
-            + 4 * std::mem::size_of::<AHashSet<&str>>() as u64,
-    );
     for (name, work, module, peak) in [
         ("first graph row", 0, 0, 0),
         ("later graph row", 1, 1, 0),
@@ -877,15 +817,15 @@ fn module_graph_schedule_and_late_interface_work_refusals_keep_actual_attributio
         ),
         (
             "last interface table row",
-            total - published_rows - declaration_work - analyzer_work - 1,
+            graph_end - 1,
             2,
-            storage.peak(),
+            graph_peak - SENTINEL,
         ),
         (
             "last published export",
-            total - body_work - 1,
+            signature_end - 1,
             2,
-            registration_peak,
+            signature_peak - SENTINEL,
         ),
     ] {
         let live_facts = live_facts_for_test();

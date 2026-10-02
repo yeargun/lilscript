@@ -1,0 +1,17 @@
+{
+  "scope": "One full JavaScript case matrix plus affected constructor/default/delivery rechecks; no claim that unaffected cases were repeated on the final pin.",
+  "initial": "cases-initial.json",
+  "repairs": "cases-repairs-1.json",
+  "cases": 405,
+  "lanes": 24,
+  "outcomes": {
+    "pass": 9594,
+    "masked": 102,
+    "refused": 24
+  },
+  "unexpected": 0,
+  "unsupported_cases": [
+    "cases/regressions/opt-wrapped_and_generic_dynamic_aliases_keep_nominal_object_semantics"
+  ],
+  "note": "Masked format boundaries and the explicit unsupported ABI ledger entry are not executable passes."
+}

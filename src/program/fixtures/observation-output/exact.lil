@@ -4,7 +4,7 @@ export string exposed="public-exact";
 export string run(bool which){
     string? mixed="mixed-exact";
     JS.and(mixed,event("mixed-gate"));
-    mixed??event("unreachable-nullish");
+    auto unused_mixed=mixed??event("unreachable-nullish");
     event(mixed);
     string shared="reference-before";
     touch(ref shared);

@@ -125,11 +125,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         source: ValueId,
         value: js::ExprId,
     ) -> Result<js::ExprId, FormationError> {
-        if !self.program.absence_abi {
-            return Ok(value);
-        }
         let data = self.data(unit);
         let actual = &self.program.types[data.values[source.index()].ty.index()];
+        if !self.program.absence_abi && !public_structs::carries_product(actual, self.budget)? {
+            return Ok(value);
+        }
         let site = &data.calls[call.index()];
         let signature = site
             .contract

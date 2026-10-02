@@ -6,14 +6,15 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 ## Now
 
-- **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is complete** under its [acceptance contract](q3-acceptance.md). **Q4 is complete** under its [acceptance contract](q4-acceptance.md). **D1 is complete** under its [acceptance contract](d1-acceptance.md). **D2 is complete** under its [acceptance contract](d2-acceptance.md). **D3 is complete** under its [acceptance contract](d3-acceptance.md). **N1 is complete** under its [acceptance contract](n1-acceptance.md). **N2 is complete** under its [acceptance contract](n2-acceptance.md). **V1 is next**.
+- **C1, C2 and C3 are complete. S1 implementation is complete.** V1 has closed its deferred compiler library/CLI qualification through one broad run and focused repairs; the matched compile-cost study remains in V1. [S1 evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md), [V1 evidence](../../benchmarks/migration-results/2026-10-02-v1-javascript/README.md).
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is complete** under its [acceptance contract](q3-acceptance.md). **Q4 is complete** under its [acceptance contract](q4-acceptance.md). **D1 is complete** under its [acceptance contract](d1-acceptance.md). **D2 is complete** under its [acceptance contract](d2-acceptance.md). **D3 is complete** under its [acceptance contract](d3-acceptance.md). **N1 is complete** under its [acceptance contract](n1-acceptance.md). **N2 is complete** under its [acceptance contract](n2-acceptance.md). **V1 is the sole active milestone** under its [acceptance contract](v1-acceptance.md).
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Complete **V1**: remaining JavaScript formation/runtime gaps, independent objective
-qualification and maintained/held-out delivery results. Then follow **V2**.
+Complete **V1**: finish maintained/held-out library delivery and compile-cost
+qualification. Known JavaScript formation/runtime gaps, the compiler language
+matrix and separate objective size matrix are qualified. Then follow **V2**.
 
 Q2's safe reuse boundaries and D3's shared graph/session integration are qualified.
 D3 implements bounded, conservatively invalidated per-module elaboration reuse. Arbitrary
@@ -38,7 +39,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [C1](plan.md#c1) Controls | Complete; new producers register their controls within their own milestone |
 | [x] | [C2](plan.md#c2) Evidence | Complete; each later optimization supplies its needed independent oracle and affected-workload qualification |
 | [x] | [C3](plan.md#c3) Calibration | Complete; later policy changes belong to Q3 and external-library qualification remains V1 |
-| [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
+| [x] | [S1](plan.md#s1) Folding | Implementation complete; compiler library/CLI checks qualified in V1; paired cost verification remains V1 |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
 | [x] | [S4](plan.md#s4) Contracts | Checked contracts, consumers/removals and author controls complete within the explicit public ABI; staged defaults remain V2 |
@@ -59,7 +60,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 
 ## Working rules
 
-- One active milestone and one heavy build, test or measurement job at a time. Implement substantial coherent batches before focused checks; do not repeat full library qualification for small changes. The owner has deferred S1’s remaining broad reruns.
+- One active milestone and one heavy build, test or measurement job at a time. Implement substantial coherent batches before focused checks; do not repeat full library qualification for small changes. The deferred compiler run is now qualified; continue with the remaining V1 evidence.
 - Size comes first at default effort 13 and above; expensive strategies with small measured returns may default to 14 or 15 with explicit overrides. Document every control's situation, defaults/gates and size/compile/runtime tradeoffs. Judge batch totals separately by objective; explain small local heuristic regressions and additional search cost.
 - Every open defect has an owner in [coverage.md](coverage.md). Native completion remains owned separately from JavaScript qualification.
 - Keep `ref`, public constructibility and `pure` termination semantics explicit while their language decisions remain open. D1 now supplies Y5's approved application IIFE default.

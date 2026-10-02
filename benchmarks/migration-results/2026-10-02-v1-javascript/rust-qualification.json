@@ -1,0 +1,581 @@
+{
+  "scope": "One broad library and CLI run, followed by affected tests only; not a claim that the full suite was repeated on the final compiler.",
+  "initial_failure_resolution": [
+    {
+      "test": "build::delivery_tests::relative_foreign_imports_resolve_from_nested_files",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "build::objective_tests::independent_objectives_match_separate_policies_searches_and_execution",
+      "passing_stage": "repairs-3"
+    },
+    {
+      "test": "build::objective_tests::objective_override_resolves_the_requested_codec_and_encoder_settings",
+      "passing_stage": "repairs-3"
+    },
+    {
+      "test": "build::terminal_tests::the_objective_seeds_the_families_and_its_codec_judges_them",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "build::terminal_tests::every_objective_judges_the_data_tables_and_delivers_them_exactly",
+      "passing_stage": "repairs-3"
+    },
+    {
+      "test": "build::tests::s4_absence_keeps_public_optional_keys_and_pinned_fields",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "build::tests::s4_assumed_generic_and_nullable_structs_snapshot_public_fields_once",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "build::tests::s4_product_unions_preserve_public_schemas_and_private_narrowing",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "build::tests::s4_public_abi_closed_array_snapshots_and_private_bodies_remain_supported",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "build::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "build::tests::stable_rule_scheduling_preserves_searched_artifacts_and_behavior",
+      "passing_stage": "repairs-3"
+    },
+    {
+      "test": "check::admission_tests::module_graph_schedule_and_late_interface_work_refusals_keep_actual_attribution",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::analyzer_admission_tests::all_context_backings_drop_before_release_without_releasing_shared_declarations",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::analyzer_admission_tests::callable_context_refusals_release_partial_frames_but_keep_declarations",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::binary_admission_tests::binary_panic_drops_live_worklist_before_the_existing_callback_scope_rolls_back",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "check::binary_admission_tests::binary_semantic_errors_and_deadlines_preserve_diagnostics_and_release_scratch",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "check::binary_admission_tests::both_binary_tree_directions_charge_exact_growth_and_release_between_expressions",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "check::binary_admission_tests::every_binary_work_cutoff_restores_scopes_and_preserves_the_exact_success_tariff",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "check::binary_admission_tests::nested_binary_calls_admit_simultaneously_live_worklists_and_release_for_reuse",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "check::class_ownership_tests::hierarchy_errors_keep_original_spans_messages_and_own_member_storage",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::declaration_admission_tests::all_four_backings_and_detached_symbols_release_on_callback_error_and_unwind",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::declaration_admission_tests::struct_and_member_backings_refuse_at_initial_and_later_growth",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::modules::tests::constructor_exports_publish_classes_and_refuse_what_cannot_be_one",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::narrowing_admission_tests::guard_free_boolean_trees_skip_only_empty_narrowing_queries",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "check::narrowing_admission_tests::narrowing_preserves_branch_maps_active_scope_assignment_and_shadowing",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "check::narrowing_input_tests::guard_input_resource_refusals_preserve_declarations_and_restore_scopes",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::narrowing_input_tests::sparse_guard_prefixes_recheck_only_retained_guards_with_linear_work",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::tests::mutable_reference_lifetimes_reject_capture_suspension_and_opaque_abis",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "check::tests::requires_every_union_callable_member_to_accept_a_call",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "compilation_policy::tactic_tests::origins_explain_equivalent_permissions_without_splitting_cache_identity",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "compilation_policy::tactic_tests::registry_risk_classes_are_an_admission_boundary_even_for_explicit_on",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "compilation_policy::tests::every_tactic_obeys_explicit_off_and_on_without_forcing_a_winner",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "js::delivery::admission_tests::q2_rendered_bundle_owns_names_layout_and_files_and_refusals_keep_only_naming_caches",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "module::source_arena::tests::incremental_program_list_preserves_identities_without_reentering_parser_ledger",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "parser::admission::tests::arrow_binding_and_reference_decisions_admit_their_final_probe",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "parser::admission::tests::multiple_programs_preserve_heap_free_identities_after_collection_drop",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "parser::admission::tests::recursive_type_lookahead_preserves_results_at_every_probe_cutoff",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "program::artifacts::admission_tests::a_private_wrapper_cannot_be_replayed_as_a_bare_script",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::d3_clause_tests::d3_8_async_settlement_and_generator_interleaving_are_preserved",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::demand::observation_tests::lazy_gates_join_through_cells_and_regions_while_effects_stay_required",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::formation_budget_tests::formation_charges_exact_live_module_capacity_and_releases_all_planning_scratch",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::formation_budget_tests::late_literal_formation_denial_preserves_incumbent_and_cleans_demand_and_partial_module",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::from_source::tests::admitted_lower_matches_structure_and_runs_conversion_and_verification_once",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::integrated_javascript_tests::integrated_value_reference_module_executes_unchanged_through_native_and_javascript",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::javascript_struct_boundary_tests::an_exported_function_may_take_a_struct_array_it_only_reads",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::javascript_struct_boundary_tests::struct_arrays_keep_value_semantics_through_indexing_methods_and_spread",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::module_contract::tests::forged_imports_export_ownership_and_initialization_orders_are_rejected",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "program::module_native_tests::native_module_cycles_instantiate_all_functions_before_ordered_evaluation",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::module_native_tests::native_modules_share_imported_and_function_captured_scalar_storage",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_reference_tests::reference_forwarding_composes_field_paths_and_recursive_calls_keep_the_location",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_reference_tests::reference_preparation_preserves_value_snapshots_and_later_argument_reentry",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_reference_tests::reference_scalar_aliases_write_immediately_and_copies_remain_values",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_reference_tests::reference_whole_and_nested_field_aliases_follow_root_replacement",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_struct_tests::native_empty_structs_have_no_observable_padding_field",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_struct_tests::native_nested_value_copies_preserve_originals_and_immutable_utf16_backing",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_struct_tests::native_struct_arguments_returns_assignment_values_and_field_effect_order",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_struct_tests::native_struct_record_fields_own_shared_storage",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::arrays_grow_nest_and_run_callbacks_natively",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::binary64_rounding_nan_and_negative_zero",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::classes_tagged_values_and_adapted_generic_callbacks_run_natively",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::closure_tests::callable_identity_and_prepared_callee_survive_later_argument_replacement",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::closure_tests::iteration_boxes_continue_break_and_temporary_owners_do_not_accumulate",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::closure_tests::managed_select_and_nested_returns_transfer_before_cleanup",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::closure_tests::module_tests::original_product_module_composes_with_retained_factory_callbacks_in_one_program",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::closure_tests::overlapping_reference_paths_and_reentrant_host_clear_keep_live_owners",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::closure_tests::plain_struct_captures_keep_independent_values_and_shared_sibling_cells",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::closure_tests::public_path_factory_qualified_reentrant_callbacks_compile_as_separate_translation_units",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::closure_tests::public_source_factory_qualified_callbacks_compile_as_separate_translation_units",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::escaped_scalar_closure_executes_after_its_factory_returns",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::generic_class_chains_run_natively",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::integer_arithmetic_shift_division_and_rounded_multiply",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::maps_sets_and_typed_arrays_keep_javascript_semantics",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::match_optional_access_and_array_destructuring_run_natively",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::native_nullish_assignment_keeps_lazy_values_and_captured_index_references",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::ordered_calls_lazy_regions_and_continue_updates",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_checked_binary_reads_share_nullable_and_evaluation_contracts",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_native_callee_default_expressions_and_parameter_captures",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_native_captured_and_earlier_parameter_defaults",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_native_checked_reads_value_updates_and_generic_methods",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_native_defaults_and_constructor_rest",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_native_defaults_distinguish_omission_from_zero_and_follow_aliases",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_native_receiver_functions_and_spread_snapshots",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_native_string_indexing_keeps_utf16_views_and_char_at_compatibility",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_native_variadic_values_keep_typed_arrays_and_call_contracts",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_observed_generic_class_instances_keep_shared_native_identity",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::s4_optimized_nullable_views_keep_native_unboxing",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::strings_convert_and_print_as_javascript_does",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::unchanged_finite_loop_control_source",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::unchanged_native_primitives_example",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::unchanged_recursion_and_integer_source",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::native_tests::utf16_embedded_nul_surrogates_and_borrowed_slices",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::nominal_target_tests::imported_motion_schemas_preserve_diamond_identity_copies_and_overlapping_references",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::nominal_target_tests::unchanged_motion_geometry_type_only_interface_has_no_runtime_exports_or_cells",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::observation_output_tests::literal_output_refusals_preserve_prior_artifacts_and_never_return_false_availability",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::observation_output_tests::mixed_exact_public_and_shared_reference_literals_canonicalize_to_original",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::observation_output_tests::one_naming_seed_uses_optional_literal_work_only_when_allowed",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::observation_output_tests::public_search_skips_inactive_modes_and_keeps_actual_mode_qualified_winners",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::observation_output_tests::weak_literals_share_one_prepared_target_across_modes_names_and_preserve",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::physical_storage_tests::s2_native_final_use_transfer_preserves_loops_and_live_aliases",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::physical_storage_tests::s2_native_shared_banks_preserve_captures_and_class_aliases",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::product_call_javascript_tests::original_product_call_sources_execute_through_both_native_compilers",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::publication::fixed_tests::consuming_five_operation_edit_work_is_independent_of_unrelated_module_count",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::product_reference_javascript_tests::product_reference_whole_replacement_and_value_arguments_have_independent_storage",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::publication::rewrites::tests::checked_integer_folds_preserve_native_overflow_division_and_binary64_multiplication",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::publication::search::terminal::tests::deferred_naming::deferred_naming_default_changes_at_fourteen_without_spending_work_at_thirteen",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::publication::search::terminal::tests::deferred_naming::deferred_naming_exhaustion_keeps_the_completed_winner",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::publication::search::terminal::tests::local_read_order_polish_protects_the_completed_search_under_each_objective",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "program::publication::search::terminal::tests::incumbents_never_worsen_within_a_search_or_its_terminal_stage",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "program::publication_tests::contract_changes_reject_candidate_and_output_reuse_without_changing_sources",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "program::string_call_tests::javascript_slice_split_repeat_and_trim_execute_natively",
+      "passing_stage": "native-recheck"
+    },
+    {
+      "test": "program::syntax_javascript_tests::a_function_of_one_statement_is_inlined_where_its_value_is_discarded",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "program::syntax_javascript_tests::a_host_value_assumed_to_be_a_struct_is_read_by_field_name",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "program::syntax_javascript_tests::constructions_through_a_field_initializer_are_their_literals",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "program::syntax_javascript_tests::inlined_bodies_repeat_only_arguments_whose_value_cannot_change",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "program::verify::admission_tests::scratch_indexes_keep_duplicate_contracts_and_admit_compared_name_bytes",
+      "passing_stage": "repairs-1"
+    },
+    {
+      "test": "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+      "passing_stage": "repairs-2"
+    },
+    {
+      "test": "tests::policy_report_explains_unavailable_controls_for_each_target",
+      "passing_stage": "cli-final"
+    }
+  ],
+  "stages": [
+    {
+      "stage": "library-initial",
+      "log": "/tmp/lilscript-v1-library-cli.log",
+      "log_sha256": "409f9ba6b67905e61084e9d3748bbe139ef349a92318d72dc9f532e8c5acdb87",
+      "summary": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2148 filtered out; finished in 0.02s",
+        "test result: FAILED. 2027 passed; 118 failed; 4 ignored; 0 measured; 0 filtered out; finished in 326.59s"
+      ],
+      "observed_test_rows": 2150,
+      "final_summary": "test result: FAILED. 2027 passed; 118 failed; 4 ignored; 0 measured; 0 filtered out; finished in 326.59s",
+      "summary_note": "Earlier summaries, if present, are nested subprocess tests."
+    },
+    {
+      "stage": "native-recheck",
+      "log": "/tmp/lilscript-v1-native-recheck.log",
+      "log_sha256": "5d3cdb8c97b2905887d0a9b81e49b703d0b18436113faacf7a313d33f6b7dc2d",
+      "summary": [
+        "test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 2095 filtered out; finished in 130.20s"
+      ],
+      "observed_test_rows": 54,
+      "final_summary": "test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 2095 filtered out; finished in 130.20s",
+      "summary_note": "Earlier summaries, if present, are nested subprocess tests."
+    },
+    {
+      "stage": "repairs-1",
+      "log": "/tmp/lilscript-v1-repairs-1.log",
+      "log_sha256": "9822ade0d7558bcda8d917fcbb50cebeb47bca8ac2e9aa53034d80d507656b7b",
+      "summary": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2148 filtered out; finished in 0.02s",
+        "test result: FAILED. 59 passed; 27 failed; 0 ignored; 0 measured; 2063 filtered out; finished in 36.57s"
+      ],
+      "observed_test_rows": 87,
+      "final_summary": "test result: FAILED. 59 passed; 27 failed; 0 ignored; 0 measured; 2063 filtered out; finished in 36.57s",
+      "summary_note": "Earlier summaries, if present, are nested subprocess tests."
+    },
+    {
+      "stage": "repairs-2",
+      "log": "/tmp/lilscript-v1-repairs-2.log",
+      "log_sha256": "25585a8fc3630abb715c2d43a2f981bc2fa3ec466e6ad6bdd6a5f3427b77b4a4",
+      "summary": [
+        "test result: FAILED. 50 passed; 4 failed; 0 ignored; 0 measured; 2095 filtered out; finished in 80.14s"
+      ],
+      "observed_test_rows": 54,
+      "final_summary": "test result: FAILED. 50 passed; 4 failed; 0 ignored; 0 measured; 2095 filtered out; finished in 80.14s",
+      "summary_note": "Earlier summaries, if present, are nested subprocess tests."
+    },
+    {
+      "stage": "repairs-3",
+      "log": "/tmp/lilscript-v1-repairs-3.log",
+      "log_sha256": "df687fd6722b4bd329578c1667702e9bac8bc91369f3bf6ca3152091adde19e9",
+      "summary": [
+        "test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 2142 filtered out; finished in 64.40s"
+      ],
+      "observed_test_rows": 8,
+      "final_summary": "test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 2142 filtered out; finished in 64.40s",
+      "summary_note": "Earlier summaries, if present, are nested subprocess tests."
+    },
+    {
+      "stage": "cli-initial",
+      "log": "/tmp/lilscript-v1-cli-tests.log",
+      "log_sha256": "99f5d6738f85ddb45afc200e1455dfb3b6c2f35a342e8e7860cd1bf3d14ca537",
+      "summary": [
+        "test result: FAILED. 16 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s"
+      ],
+      "observed_test_rows": 17,
+      "final_summary": "test result: FAILED. 16 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s",
+      "summary_note": "Earlier summaries, if present, are nested subprocess tests."
+    },
+    {
+      "stage": "cli-final",
+      "log": "/tmp/lilscript-v1-cli-final.log",
+      "log_sha256": "441d1aabf4eebffd851a9eb9c07eefb3662ee8e9daaaea9ecd65c2d5c0597bd4",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.01s"
+      ],
+      "observed_test_rows": 1,
+      "final_summary": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.01s",
+      "summary_note": "Earlier summaries, if present, are nested subprocess tests."
+    },
+    {
+      "stage": "source-legality-final",
+      "log": "/tmp/lilscript-v1-arity-qualified.log",
+      "log_sha256": "8c1f3cf659298decb8648575773866428caed04e315a259a1c303868ecb6e299",
+      "summary": [
+        "test result: ok. 84 passed; 0 failed; 0 ignored; 0 measured; 2066 filtered out; finished in 10.50s"
+      ],
+      "observed_test_rows": 84,
+      "final_summary": "test result: ok. 84 passed; 0 failed; 0 ignored; 0 measured; 2066 filtered out; finished in 10.50s",
+      "summary_note": "Earlier summaries, if present, are nested subprocess tests."
+    }
+  ],
+  "initial_failures_unresolved": [],
+  "final_source_legality_tests": 84,
+  "environment": {
+    "native_clang": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+    "esbuild": "/home/azureuser/lilscript/benchmarks/popular/node_modules/@esbuild/linux-x64/bin/esbuild"
+  },
+  "ignored_tests_note": "The external esbuild consumer was explicitly run with its pinned executable and passed. Two historical Brotli-valley fixtures remain ignored because their pre-008 byte landscapes no longer have a valley; active 010 finite-neighborhood and schedule oracle tests provide replacement coverage. The former default-arity ignore was removed and its test now passes.",
+  "initial_unique_failures": 119
+}

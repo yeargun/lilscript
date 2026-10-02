@@ -16,6 +16,12 @@
       "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
     },
     {
+      "id": "cases/foreign-product-calls",
+      "input_digest": "6ad321a9683513939586c582be2a09df8a6720e65f5b963535b1a4e4220628e3",
+      "category": "provider-setup",
+      "reason": "The fixture has JavaScript host providers; no equivalent C provider is configured."
+    },
+    {
       "id": "cases/formation/class_bodies",
       "input_digest": "d44fb213fff20a3e5fd834f15d8e828280f2c1af3009046cd81d286d4d98681c",
       "category": "javascript-host",
@@ -74,6 +80,12 @@
       "input_digest": "e646c41cad693fc65dc2eda2e9d22d39473965c9b762465f92a5d29b8e356ad0",
       "category": "provider-setup",
       "reason": "extern `inspect` needs an explicit [host.native] provider for the native target"
+    },
+    {
+      "id": "cases/generator-call-defaults",
+      "input_digest": "9b1d8a9db8c666f0d1d97cfa54d0bb0c82595913bbe659c1aa515c17d697ba2a",
+      "category": "javascript-host",
+      "reason": "This independent activation-identity fixture observes the JavaScript arguments object. Native generator call-time defaults are qualified separately in tests/native/generators.lil."
     },
     {
       "id": "cases/nominal/export_constructor_boundary",
@@ -581,9 +593,9 @@
     },
     {
       "id": "cases/regressions/irjs-dense_constructor_literals_ignore_inherited_prototype_setters-positional",
-      "input_digest": "8d4a8723a557327fad7681b1ee9917800575f1bc5eae64f9b92f6afd8c2b3024",
-      "category": "obsolete-config",
-      "reason": "Retired positional JavaScript ABI fixture configuration; owned by V1."
+      "input_digest": "07e282b513afe09a881bef3a9496ba4e3981f19679374e6cc69ff14053183a37",
+      "category": "provider-setup",
+      "reason": "The fixture has JavaScript host providers; no equivalent C provider is configured."
     },
     {
       "id": "cases/regressions/irjs-dense_string_tables_serialize_decoded_values",
@@ -599,15 +611,15 @@
     },
     {
       "id": "cases/regressions/irjs-direct_constructor_fusion_refuses_observable_host_defaults",
-      "input_digest": "eb102014ef477a13fe499ee581c519ef65db884e0894ed34b23ffbc4f60d46e6",
-      "category": "obsolete-config",
-      "reason": "Retired positional JavaScript ABI fixture configuration; owned by V1."
+      "input_digest": "b9d037349906a4ae805c9152a3162acce29efc88185eb03a8451b18ada0ee4e9",
+      "category": "provider-setup",
+      "reason": "The fixture has JavaScript host providers; no equivalent C provider is configured."
     },
     {
       "id": "cases/regressions/irjs-direct_constructor_fusion_refuses_unmapped_host_defaults",
-      "input_digest": "2801621489279f2f061ee0cee60cdd70efc106cf3a3866a22644e46d9c2ac1b3",
-      "category": "obsolete-config",
-      "reason": "Retired positional JavaScript ABI fixture configuration; owned by V1."
+      "input_digest": "c163554a33d32612916a8f6624ac60ae4bcc265aa05c1aad73ab42763d3bc251",
+      "category": "provider-setup",
+      "reason": "The fixture has JavaScript host providers; no equivalent C provider is configured."
     },
     {
       "id": "cases/regressions/irjs-direct_constructor_literals_preserve_named_and_positional_own_properties-named",
@@ -617,9 +629,9 @@
     },
     {
       "id": "cases/regressions/irjs-direct_constructor_literals_preserve_named_and_positional_own_properties-positional",
-      "input_digest": "266344ea2442521845fa2cbcbb957fb54529e111f89870c4f065759231f898af",
-      "category": "obsolete-config",
-      "reason": "Retired positional JavaScript ABI fixture configuration; owned by V1."
+      "input_digest": "943900f63b9fbff704d34bf8683ecdc1934bc495cc59c3a116d787ae2cbfb236",
+      "category": "provider-setup",
+      "reason": "The fixture has JavaScript host providers; no equivalent C provider is configured."
     },
     {
       "id": "cases/regressions/irjs-directly_fuses_constructor_parameters_once_in_left_to_right_order",

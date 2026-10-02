@@ -86,6 +86,7 @@ const result = {
   lilscriptVersion,
   closureVersion,
   objectiveContract: {
+    delivery: "bare private application script",
     raw: "raw-config artifact measured as raw UTF-8",
     gzip9: "gzip-config artifact measured as gzip level 9",
     brotli11: "brotli-config artifact measured as Brotli quality 11, lgwin 22",

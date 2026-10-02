@@ -19,6 +19,6 @@ export void inspectMatch() {
     JsValue? nullable=matched;
     demandSeen(matched);
     JS.and(matched,demandFallback("and"));
-    nullable??demandFallback("nullish");
+    auto unusedNullish=nullable??demandFallback("nullish");
     matched;
 }

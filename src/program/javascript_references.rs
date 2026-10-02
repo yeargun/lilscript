@@ -537,7 +537,7 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
         Ok(())
     }
 
-    fn generated_binding(
+    pub(super) fn generated_binding(
         &mut self,
         region: js::RegionId,
         name: &str,
@@ -838,7 +838,7 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
         context: ContextId,
     ) -> Result<(), FormationError> {
         let data = self.data(context);
-        let region = self.plan(context).regions[data.entry.index()];
+        let region = self.call_body(context);
         let mut parameter_paths = Vec::new();
         if !self.demand.context(context).kind.is_inline() {
             for &cell in &data.parameters {

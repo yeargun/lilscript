@@ -340,9 +340,13 @@ for (int value of values()) {
 }
 ```
 
-Generator methods use the same modifier. JavaScript emission is direct
-`function*`, `yield`, `yield*`, and `for...of`; there is no iterator helper or
-state-machine runtime. Native compilation uses owned typed region frames. A
+Generator methods use the same modifier. Defaults run when the generator is
+called, after supplied arguments, even if the iterator is never advanced. A
+throwing default throws from that call. The body starts at the first iteration.
+JavaScript uses `function*`, `yield`, `yield*`, and `for...of`. A generator with
+defaults has an eager call frame around its suspended iterator body; captured
+parameters, `this`, `arguments` and reflected arity retain their call semantics.
+There is no iterator helper or state-machine runtime. Native compilation uses owned typed region frames. A
 regular or arrow-function boundary blocks `yield`, so a nested callback cannot
 accidentally suspend its containing generator. Async generators are not yet in
 the portable core.

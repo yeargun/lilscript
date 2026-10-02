@@ -522,6 +522,7 @@ fn discard_provenance(
 
 fn provenance_error(error: ProvenanceError) -> CandidateError {
     match error {
+        ProvenanceError::ContractMismatch => CandidateError::ContractMismatch,
         ProvenanceError::Allocation(error) => error.into(),
         ProvenanceError::Naming(error) => error.into(),
         ProvenanceError::Admission(AdmissionError::ForbiddenTactic(tactic)) => {

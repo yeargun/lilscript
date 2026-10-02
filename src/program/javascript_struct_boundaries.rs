@@ -24,10 +24,42 @@ fn product_variant(ty: &Type<'_>, budget: &mut AllocationBudget<'_>) -> Result<b
 }
 
 impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
-    fn product_record_keys(&self, context: ContextId, call: CallId) -> bool {
+    pub(super) fn foreign_product_call(
+        &mut self, context: ContextId, call: CallId,
+    ) -> Result<bool, FormationError> {
+        let data = self.data(context);
+        let CallTarget::Value { callee, .. } = data.calls[call.index()].target else { return Ok(false); };
+        self.foreign_product_callee(context,
+            &data.operations[data.values[callee.index()].definition.index()])
+    }
+    /// A concrete foreign callable may cross products at its call sites.
+    /// Its raw identity never becomes a private callable value: each use is
+    /// a directly prepared host call whose arguments/result use the codecs.
+    fn foreign_product_callee(
+        &mut self, context: ContextId, operation: &Operation,
+    ) -> Result<bool, FormationError> {
+        let OperationKind::Load(place) = operation.kind else { return Ok(false); };
+        let data = self.data(context);
+        let Place::Cell(cell) = data.places[place.index()] else { return Ok(false); };
+        let storage = &self.program.cells[cell.index()];
+        if storage.binding != CellBinding::Foreign { return Ok(false); }
+        let Type::Function(signature) = &self.program.types[storage.ty.index()] else { return Ok(false); };
+        if !public_structs::adaptable_callable(self.program, signature, self.budget)? { return Ok(false); }
+        let Some(value) = operation.result else { return Ok(false); };
+        let Some(uses) = self.uses.and_then(|uses| uses.unit(self.semantic(context)))
+            .and_then(|uses| uses.value_uses(value)) else { return Ok(false); };
+        for usage in uses {
+            self.work(1)?;
+            let super::super::uses::ValueUse::CallCallee { call, .. } = *usage else { return Ok(false); };
+            if !self.host_call_boundary(context, call) { return Ok(false); }
+        }
+        Ok(true)
+    }
+
+    fn product_record_query(&self, context: ContextId, call: CallId) -> bool {
         let data = self.data(context);
         let call = &data.calls[call.index()];
-        matches!(call.target, CallTarget::Builtin(BuiltinCall::ObjectKeys))
+        matches!(call.target, CallTarget::Builtin(BuiltinCall::ObjectKeys | BuiltinCall::ObjectValues))
             && matches!(data.arguments(call.arguments).unwrap(), [CallArgument::Value(value)]
                 if matches!(self.program.types[data.values[value.index()].ty.index()], Type::Record(_)))
     }
@@ -577,10 +609,11 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                             );
                         }
                     }
-                } else if self.product_record_keys(context, *call) {
-                    // Typed record keys describe the record's public storage,
-                    // independently of the representation of its payloads.
-                    // No product is passed to or returned from this intrinsic.
+                } else if self.product_record_query(context, *call) {
+                    // Keys inspect only public record storage. Values transfers
+                    // its already packed elements into a fresh typed array;
+                    // subsequent element loads perform the language value copy.
+                    self.closed_product_operands(context, operation, None)?;
                 } else if self.product_array_method(
                     context,
                     operation,
@@ -786,9 +819,12 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
     /// A closed product representation cannot cross an unadapted opaque ABI.
     /// This qualification belongs to the target, while common verification owns
     /// language typing. In particular JS.assume is not a representation proof.
-    /// Returns whether this context's frame must be strict: in a classic
-    /// script a sloppy host callback could otherwise read `caller.arguments`
-    /// of a struct-bearing frame and see the private product backing.
+    /// Returns whether this context's frame needs reflection protection. In
+    /// an open classic script a host callback could read `caller.arguments`
+    /// and see private product backing. Modules already hide frames; closed
+    /// applications exclude host frame reflection by contract. Adding strict
+    /// execution there would change failed writes and unnecessarily obstruct
+    /// otherwise legal inlining into the surrounding script.
     pub(super) fn validate_struct_context(
         &mut self,
         context: ContextId,
@@ -798,8 +834,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         }
         self.validate_generic_product_context(context)?;
         let data = self.data(context);
-        let strict_frame = self.contract.execution
-            == crate::compilation_contract::JavaScriptExecution::Script
+        let strict_frame = !self.contract.frames_hidden()
             && data
                 .callable_type
                 .is_some_and(|ty| self.struct_plan.boundary_types[ty.index()]);
@@ -839,6 +874,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                         let cell = &self.program.cells[cell.index()];
                         if cell.binding == CellBinding::Foreign
                             && self.struct_plan.boundary_types[cell.ty.index()]
+                            && !self.foreign_product_callee(context, operation)?
                         {
                             return Err(self
                                 .error(operation.span, "foreign value-struct storage adaptation"));
@@ -890,11 +926,17 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     if boundary && self.product_array_method(context, operation, &site.target)? {
                         boundary = false;
                     }
-                    // `JS.assume`'s transfer was checked. Record key queries
-                    // expose no payload backing; their input shape was checked.
+                    // `JS.assume`'s transfer was checked. Typed record queries
+                    // keep their elements in the private collection ABI.
                     if matches!(site.target, CallTarget::Builtin(BuiltinCall::JsAssume))
-                        || self.product_record_keys(context, call)
+                        || self.product_record_query(context, call)
                     {
+                        boundary = false;
+                    }
+                    // The foreign callee's only uses were qualified above.
+                    // Host arguments and results cross the existing named
+                    // value codecs at the call, without a callable wrapper.
+                    if boundary && self.foreign_product_call(context, call)? {
                         boundary = false;
                     }
                     if boundary {

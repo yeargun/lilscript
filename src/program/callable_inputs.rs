@@ -462,91 +462,127 @@ impl CallableInputs {
             },
         };
         admission.push(&mut self.producers, producer)?;
-        let users = uses.cell(cell).unwrap();
-        let mut found_init = false;
-        for site in users.sites() {
-            admission.work(1)?;
-            let CellUseSite::Unit { unit, usage } = *site else {
-                return Err(Stop::Unknown(UnknownReason::CallableObservation));
-            };
-            self.unit(program, uses, unit, admission)?;
-            match usage {
-                CellUse::Initialize(operation)
-                    if unit == creation.unit && operation == initialize && !found_init =>
-                {
-                    found_init = true;
-                }
-                CellUse::Capture => {}
-                CellUse::Read { operation, place } => {
-                    let caller = program.unit(unit).unwrap();
-                    let load = &caller.operations[operation.index()];
-                    if caller.places[place.index()] != Place::Cell(cell)
-                        || !matches!(load.kind,OperationKind::Load(id) if id==place)
-                    {
-                        return Err(Stop::Unknown(UnknownReason::UnsupportedCall));
-                    }
-                    let value = load
-                        .result
-                        .ok_or_else(|| admission.invalid("callable load result"))?;
-                    admission.push(&mut self.handles, OpRef { unit, operation })?;
-                    for usage in uses
-                        .unit(unit)
-                        .unwrap()
-                        .value_uses(value)
-                        .ok_or_else(|| admission.invalid("callable load uses"))?
-                    {
-                        admission.work(1)?;
-                        let ValueUse::CallCallee {
-                            prepare,
-                            call: target,
-                        } = *usage
-                        else {
-                            return Err(Stop::Unknown(UnknownReason::CallableObservation));
-                        };
-                        let site = &caller.calls[target.index()];
-                        if !matches!(site.target,CallTarget::Value{callee,invocation:Invocation::Value} if callee==value)
-                            || !matches!(caller.operations[prepare.index()].kind,OperationKind::PrepareCall(id) if id==target)
+        let mut pending = admission.vector(1)?;
+        admission.push(&mut pending, (cell, creation.unit, initialize))?;
+        let result = (|| {
+            let mut cursor = 0;
+            while cursor < pending.len() {
+                let (cell, owner_unit, initialize) = pending[cursor];
+                cursor += 1;
+                self.cell(program, uses, cell, admission)?;
+                let storage = &program.cells[cell.index()];
+                let users = uses.cell(cell).unwrap();
+                let mut found_init = false;
+                for site in users.sites() {
+                    admission.work(1)?;
+                    let CellUseSite::Unit { unit, usage } = *site else {
+                        return Err(Stop::Unknown(UnknownReason::CallableObservation));
+                    };
+                    self.unit(program, uses, unit, admission)?;
+                    match usage {
+                        CellUse::Initialize(operation)
+                            if unit == owner_unit && operation == initialize && !found_init =>
                         {
-                            return Err(Stop::Unknown(UnknownReason::UnsupportedCall));
+                            found_init = true;
                         }
-                        let call = uses
-                            .unit(unit)
-                            .unwrap()
-                            .call_operation(target)
-                            .ok_or_else(|| admission.invalid("callable invocation index"))?;
-                        let invocation = &caller.operations[call.index()];
-                        if !matches!(invocation.kind,OperationKind::Call(id) if id==target) {
-                            return Err(Stop::Unknown(UnknownReason::UnsupportedCall));
+                        CellUse::Capture => {}
+                        CellUse::Read { operation, place } => {
+                            let caller = program.unit(unit).unwrap();
+                            let load = &caller.operations[operation.index()];
+                            if caller.places[place.index()] != Place::Cell(cell)
+                                || !matches!(load.kind,OperationKind::Load(id) if id==place)
+                            {
+                                return Err(Stop::Unknown(UnknownReason::UnsupportedCall));
+                            }
+                            let value = load
+                                .result
+                                .ok_or_else(|| admission.invalid("callable load result"))?;
+                            admission.push(&mut self.handles, OpRef { unit, operation })?;
+                            for usage in uses
+                                .unit(unit)
+                                .unwrap()
+                                .value_uses(value)
+                                .ok_or_else(|| admission.invalid("callable load uses"))?
+                            {
+                                admission.work(1)?;
+                                // A private immutable alias has the same callable ABI.
+                                // Follow every read and stamp its storage dependencies;
+                                // a write, export or opaque use still poisons the proof.
+                                if let ValueUse::Operand { operation: init, position: 0 } = *usage {
+                                    let initial = &caller.operations[init.index()];
+                                    if let OperationKind::Initialize(alias) = initial.kind {
+                                        let target = &program.cells[alias.index()];
+                                        if target.owner != unit || target.region != initial.region
+                                            || target.binding == CellBinding::Foreign || target.reassigned
+                                            || target.ty != storage.ty
+                                            || caller.operands(initial.operands) != Some(&[value])
+                                        {
+                                            return Err(Stop::Unknown(UnknownReason::Initialization));
+                                        }
+                                        admission.work(pending.len())?;
+                                        if pending.iter().any(|&(known, _, _)| known == alias) {
+                                            return Err(Stop::Unknown(UnknownReason::Initialization));
+                                        }
+                                        admission.push(&mut pending, (alias, unit, init))?;
+                                        continue;
+                                    }
+                                }
+                                let ValueUse::CallCallee {
+                                    prepare,
+                                    call: target,
+                                } = *usage
+                                else {
+                                    return Err(Stop::Unknown(UnknownReason::CallableObservation));
+                                };
+                                let site = &caller.calls[target.index()];
+                                if !matches!(site.target,CallTarget::Value{callee,invocation:Invocation::Value} if callee==value)
+                                    || !matches!(caller.operations[prepare.index()].kind,OperationKind::PrepareCall(id) if id==target)
+                                {
+                                    return Err(Stop::Unknown(UnknownReason::UnsupportedCall));
+                                }
+                                let call = uses
+                                    .unit(unit)
+                                    .unwrap()
+                                    .call_operation(target)
+                                    .ok_or_else(|| admission.invalid("callable invocation index"))?;
+                                let invocation = &caller.operations[call.index()];
+                                if !matches!(invocation.kind,OperationKind::Call(id) if id==target) {
+                                    return Err(Stop::Unknown(UnknownReason::UnsupportedCall));
+                                }
+                                if site.contract.signature != Some(storage.ty)
+                                    || site.contract.supplied as usize != body.parameters.len()
+                                    || site.arguments.len as usize != body.parameters.len()
+                                    || invocation.operands.len != 0
+                                {
+                                    return Err(Stop::Unknown(UnknownReason::Signature));
+                                }
+                                admission.push(
+                                    &mut self.calls,
+                                    CallInput {
+                                        producer: creation,
+                                        caller: unit,
+                                        load: operation,
+                                        prepare,
+                                        call,
+                                        target,
+                                    },
+                                )?;
+                            }
                         }
-                        if site.contract.signature != Some(storage.ty)
-                            || site.contract.supplied as usize != body.parameters.len()
-                            || site.arguments.len as usize != body.parameters.len()
-                            || invocation.operands.len != 0
-                        {
-                            return Err(Stop::Unknown(UnknownReason::Signature));
+                        CellUse::Write { .. } => {
+                            return Err(Stop::Unknown(UnknownReason::NotPrivateCallable));
                         }
-                        admission.push(
-                            &mut self.calls,
-                            CallInput {
-                                producer: creation,
-                                caller: unit,
-                                load: operation,
-                                prepare,
-                                call,
-                                target,
-                            },
-                        )?;
+                        _ => return Err(Stop::Unknown(UnknownReason::CallableObservation)),
                     }
                 }
-                CellUse::Write { .. } => {
-                    return Err(Stop::Unknown(UnknownReason::NotPrivateCallable));
+                if !found_init {
+                    return Err(Stop::Unknown(UnknownReason::Initialization));
                 }
-                _ => return Err(Stop::Unknown(UnknownReason::CallableObservation)),
             }
-        }
-        if !found_init {
-            return Err(Stop::Unknown(UnknownReason::Initialization));
-        }
+            Ok(())
+        })();
+        admission.release(pending)?;
+        result?;
         Ok(())
     }
 }

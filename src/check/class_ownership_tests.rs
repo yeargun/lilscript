@@ -260,7 +260,7 @@ fn hierarchy_errors_keep_original_spans_messages_and_own_member_storage() {
         ("class Base{}extern class Child extends Base{}", 1, None, "an extern class cannot extend an internal class"),
         ("class Base{int value;}class Child extends Base{int spare;int value;}", 1, Some("value"), "class `Child` cannot shadow inherited member `value`"),
         ("class Base{int value(){return 1;}}class Child extends Base{int spare;int value;}", 1, Some("value"), "class `Child` cannot shadow inherited member `value`"),
-        ("class Base{int value(){return 1;}}class Child extends Base{int spare;int value(){return 2;}}", 1, None, "class `Child` cannot override inherited member `value`"),
+        ("class Base{int value(){return 1;}}class Child extends Base{int spare;int value(){return 2;}}", 1, None, "class `Child` cannot override inherited member `value` without an explicit override of a virtual method"),
         ("class Base{int value;}class Child extends Base{int spare;int value(){return 2;}}", 1, None, "class `Child` cannot override inherited member `value`"),
     ] {
         let arena = bumpalo::Bump::new();

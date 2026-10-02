@@ -14,7 +14,7 @@ const VALLEY: &str = include_str!("program/fixtures/search-structural-valley/ent
 
 fn configuration(proposals: usize, inlining: bool) -> crate::config::ProjectConfig {
     toml::from_str(&format!(
-        "objective.codecs='brotli'\n[javascript]\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=48\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
+        "objective.codecs='brotli'\n[javascript]\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=48\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\nprotect_effort=false\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
         if inlining { "on" } else { "off" },
     )).unwrap()
 }
@@ -77,7 +77,7 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             .map(|stage| {
                 let starts = stage["starts"].as_array().unwrap();
                 let groups = starts.iter()
-                    .filter(|start| matches!(start["name"].as_str(), Some("search" | "level-0" | "local-naming")))
+                    .filter(|start| matches!(start["name"].as_str(), Some("search" | "level-0" | "local-naming" | "objective-prior" | "representation-joints" | "compact-allocation")))
                     .count() as u64
                     + u64::from(starts.iter().any(|start| start["name"].as_str().unwrap().starts_with("deferred-naming")));
                 let heads = stage["heads"].as_u64().unwrap();

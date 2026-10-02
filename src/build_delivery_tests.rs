@@ -1072,7 +1072,8 @@ fn relative_foreign_imports_resolve_from_nested_files() {
         .iter()
         .find(|(name, _)| name == "sub/x.js")
         .unwrap_or_else(|| panic!("{files:?}"));
-    assert!(nested.contains("from\"../sub/helper.js\""), "{nested}");
+    assert!(nested.contains("from\"../extern0.js\""), "{nested}");
+    assert!(files.iter().any(|(name, _)| name == "extern0.js"));
     let out = directory.join("out");
     let _ = fs::remove_dir_all(&out);
     for (name, code) in &files {
@@ -1080,6 +1081,7 @@ fn relative_foreign_imports_resolve_from_nested_files() {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, code).unwrap();
     }
+    // The external JavaScript module remains a user-owned delivery input.
     fs::write(out.join("sub/helper.js"), helper).unwrap();
     fs::write(out.join("package.json"), "{\"type\":\"module\"}").unwrap();
     let output = Command::new("node")

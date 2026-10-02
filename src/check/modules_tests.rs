@@ -1066,7 +1066,7 @@ fn class_and_enum_imports_bind_identities_under_their_aliases() {
 fn constructor_exports_publish_classes_and_refuse_what_cannot_be_one() {
     let arena = Bump::new();
     let sources = [
-        r#"import {Child as Kid,make} from "./b";Kid kid=make();print(kid.total());"#,
+        r#"import {Child as Kid,make} from "./b";Kid kid=make();print(kid.total());export constructor Kid;"#,
         "export class Child extends Base{int extra;init(int value){super(value);this.extra=1;}int total(){return this.value+this.extra;}}class Base{int value;init(int value){this.value=value;}}class Lone{int x;}class Leaf extends Child{init(){super(2);}}export constructor Child;export Child make(){return new Child(3);}",
     ];
     let programs: Vec<_> = sources
@@ -1098,7 +1098,7 @@ fn constructor_exports_publish_classes_and_refuse_what_cannot_be_one() {
     for (source, expected) in [
         (
             "extern class Host{}export constructor Host;",
-            "non-extern class",
+            "internal class",
         ),
         (
             "export int value=1;export constructor value;",

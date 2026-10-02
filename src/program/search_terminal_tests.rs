@@ -314,7 +314,7 @@ fn local_read_order_polish_protects_the_completed_search_under_each_objective() 
             // and compact-allocation stages in the counterfactual run.
             let original_stage = &original.report.objectives[0];
             let prefix_passes = original_stage.starts.iter()
-                .find(|start| start.name.starts_with("deferred-naming") || start.name == "compact-allocation" || start.name == "representation-joints")
+                .find(|start| start.name.starts_with("deferred-naming") || start.name == "compact-allocation" || start.name == "representation-joints" || start.name == "objective-prior")
                 .map_or(original_stage.passes, |start| start.pass - 1);
             assert!(trials[0].pass > prefix_passes);
             if source == geometry {
@@ -470,6 +470,11 @@ fn replay(stage: &TerminalObjective) -> usize {
             );
             continue;
         };
+        if start.outcome == ChallengerOutcome::Stopped && start.size.is_none() {
+            assert_eq!(firsts[index], firsts[index + 1], "a refused assignment walks no pass");
+            assert!(start.delta.is_none());
+            continue;
+        }
         let end = walk(firsts[index]..firsts[index + 1], from);
         assert_eq!(start.size, Some(end), "{start:?}");
         assert_eq!(start.delta, Some(end as i64 - best as i64), "{start:?}");

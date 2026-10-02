@@ -1,4 +1,4 @@
-# Migration handoff — V1 next
+# Migration handoff — V1 active
 
 Implement the remaining migration in order: **V1 → V2**. Commit/push are
 authorized; continue after each milestone. N2 is complete under its
@@ -8,11 +8,18 @@ Use substantial coherent implementation batches followed by focused checks.
 One heavy build/test/measurement job at a time. Do not repeat the entire library
 suite for small edits. No PR or subagents have been requested.
 
-Before V1 implementation, write its finite acceptance checklist. Close the
-JavaScript formation/default-timing discoveries at the bottom of
-[coverage.md](coverage.md), the obsolete positional-ABI and Marked syntax
-fixtures, then run the final independent objective/runtime/compile-cost
-qualification. Preserve source/oracle boundaries and compare eligible Closure
+Follow the [finite V1 acceptance checklist](v1-acceptance.md). Its known semantic
+gaps, compiler library/CLI/language-matrix checks and matched size matrix are
+qualified. The active stage is maintained/held-out library runtime/delivery,
+followed by compile-cost qualification. Candidate 5 is pinned at
+`/home/azureuser/lilscript-work/bin/v1-js-candidate-5/lilscript`. Its bounded target
+DAG indexing passes all 192 affected checks and preserves the 54 app/algorithm
+artifact hashes. The library runner saves completed per-port results under its
+work directory; cnlil is already qualified and is excluded from the resumed batch.
+Do not restart the broad
+compiler suite: every original failure has a passing focused recheck in the
+[evidence](../../benchmarks/migration-results/2026-10-02-v1-javascript/README.md).
+Preserve source/oracle boundaries and compare eligible Closure
 ADVANCED separately for raw, gzip and Brotli. Keep effort 13 size-focused;
 expensive marginal work can default to 14/15 with explicit TOML overrides.
 Every control documents its situation, gate and compile/size/runtime tradeoffs.

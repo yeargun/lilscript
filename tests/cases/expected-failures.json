@@ -1,46 +1,11 @@
 {
   "schema": 1,
-  "about": "Expected case-runner failures on the one compiler (scripts/cases.mjs). Each entry names cases (an id relative to tests/, a glob, or a list), the lanes it covers (the --lanes syntax; omitted means all), why they fail, and the plan task that owns the fix (docs/migration/index.md). A failure not covered here fails the run; an entry that covers no failure any more is reported for removal. Recorded from the pre-M1 binary ~/lilscript-work/bin/pre-m1/lilscript (sha256 01c5e298...) on 2026-09-24: 29 failing cases, all harvested regressions; the 72 tests/cases programs and tests/modules pass on every lane.",
+  "about": "Expected runtime/formation failures, scoped to exact cases and lanes. Every uncovered failure fails scripts/cases.mjs. Entries with newly passing lanes must be removed. Retired positional-ABI fixtures were migrated to named fields in V1 without removing their default/setter observations; reflected-name fixtures now pass their explicit keep_function_names contracts.",
   "entries": [
     {
-      "case": [
-        "cases/regressions/irjs-dense_constructor_literals_ignore_inherited_prototype_setters-positional",
-        "cases/regressions/irjs-direct_constructor_literals_preserve_named_and_positional_own_properties-positional"
-      ],
-      "reason": "Refused at configuration load by design (D2): the case sets `public_aggregate_abi = \"positional\"`, and its host reads positional slots (`slot[0]`). Public aggregates are plain objects with named fields; the named siblings of these cases pass.",
-      "owner": "D2 (refused since M1.4; the case documents the refusal)"
-    },
-    {
-      "case": [
-        "cases/regressions/irjs-direct_constructor_fusion_refuses_observable_host_defaults",
-        "cases/regressions/irjs-direct_constructor_fusion_refuses_unmapped_host_defaults"
-      ],
-      "reason": "Refused at configuration load by design (D2): the cases set `public_aggregate_abi = \"positional\"` and their hosts read positional slots (`cache[0]`, `cache[1]`). The field-default order fault they also exposed was fixed in M1.9.",
-      "owner": "D2 (refused since M1.4; the cases document the refusal)"
-    },
-    {
-      "case": [
-        "cases/regressions/irjs-aggregate_read_helper_stays_before_an_intervening_mutation",
-        "cases/regressions/irjs-named_proto_fields_are_own_data_properties-struct"
-      ],
-      "reason": "A struct value passed to an extern is refused: Unsupported \"foreign value-struct storage adaptation\".",
-      "owner": "M1.9"
-    },
-    {
-      "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate",
-      "reason": "The test expects the inferred wrapper name 'handle'. The rule is decided (architecture §10.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6), so no lane owes 'handle'; here the struct's positional representation creates the function in an array slot, where JavaScript infers no name. The case asserts an unguaranteed name.",
-      "owner": "M10.14 (R6: rewrite the case to observe only what the reflected-set contract guarantees)"
-    },
-    {
-      "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver",
-      "lanes": "formation-only/*/script,formation-only/*/module",
-      "reason": "The test expects a non-empty wrapper name. The rule is decided (architecture §10.2, plan M8.2 A1): a method's name is unobservable unless the contract keeps it (R6). Production lanes let the method carry the name JavaScript infers and pass; formation-only lanes keep the callback's exact anonymous name, which the contract also allows.",
-      "owner": "M10.14 (R6: rewrite the case to observe only what the reflected-set contract guarantees)"
-    },
-    {
       "case": "cases/regressions/opt-wrapped_and_generic_dynamic_aliases_keep_nominal_object_semantics",
-      "reason": "Refused, not miscompiled: a struct union widened to JsValue, a generic function taking a struct (\"generic product transport requires a complete private interface\" on scripts) and a generic body that does not return its parameter (\"generic product body requires closed value forwarding\" on modules).",
-      "owner": "M1.9 (the struct-to-host family; the plan does not yet name this gap)"
+      "reason": "Explicit unsupported ABI boundary: an ambiguous union of two undiscriminated product types is erased to JsValue, and generic bodies erase an abstract T to JsValue. No public decoder or runtime type witness is defined for these crossings; this remains a refusal, never an executable parity pass.",
+      "owner": "S4 public ABI scope decision (docs/migration/s4-public-abi.md); V1 records the refusal"
     }
   ]
 }

@@ -990,6 +990,17 @@ than an unconditional semantic rewrite.
 unreachable operations, unused parameters and unused results. Inlining keeps
 its own permission.
 
+For a single-use expression helper, `inlining` can substitute initialized local
+arguments, including locals created in loops. It reuses the target's lexical
+initialization proof and refuses arguments that another actual argument or a
+captured function could change. Reads before initialization retain their throw.
+This can expose field scalarization and remove a helper call without adding a
+search tier or overriding `scalar-replacement`. The compiler builds the call
+location index lazily, charges its temporary storage and analysis work, and
+releases it before publishing edits. The tradeoff is extra analysis for helpers
+whose arguments previously lacked a stability proof; there is no additional
+runtime allocation.
+
 Private literal-default transport retains semantic arguments and explicit
 callee guards in the shared program. JavaScript may omit matching trailing
 literals and use native default syntax when argument count, reflected length,
@@ -1291,6 +1302,11 @@ product unions and unsupported stored graph schemas are diagnosed.
   owns its private root scope. It retains the same private-root contract; it
   does not publish globals or make their names stable. `esm` requires module
   execution. Classic IIFE/bare applications may carry embedded host modules.
+  The private-frame contract also applies to typed products: their internal
+  helpers do not acquire strict execution just to hide `caller.arguments`.
+  This preserves classic-script failed-write behavior and permits the ordinary
+  inlining/scalar choices. Module and library execution guarantees remain in
+  force. Effort and mangling flags do not change this semantic contract.
 - `cjs` writes CommonJS files (`.cjs` by default), including shared and lazy
   chunks. Exports are live enumerable getters, installed before module requests;
   imported bindings stay live property reads. Imported function calls retain

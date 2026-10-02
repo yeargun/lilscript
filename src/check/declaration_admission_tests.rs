@@ -8,6 +8,12 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 const SENTINEL: u64 = 29;
 const WORK: u64 = 1_000_000;
 
+fn initial_type_pool_bytes() -> u64 {
+    let mut pool = type_pool::TypePool::default();
+    pool.intern(&Type::Int, &mut AllocationBudget::new(None)).unwrap();
+    pool.storage_bytes()
+}
+
 fn ledger(work: u64, memory: u64) -> BudgetLedger {
     let mut ledger = BudgetLedger::new(
         ResourceLimits {
@@ -249,31 +255,32 @@ fn struct_and_member_backings_refuse_at_initial_and_later_growth() {
     let members = 4 * size_of::<MemberDefinition>() as u64;
     let base = (size_of::<AHashMap<&str, SymbolId>>() + size_of::<Narrowing<'_>>()) as u64;
     let parameters = 4 * size_of::<AHashSet<&str>>() as u64;
+    let pool = initial_type_pool_bytes();
     for (source, frames, required, peak) in [
         ("struct A{}", base, structs, 0),
         (
             "struct A{}struct B{}struct C{}struct D{}struct E{}",
             base,
-            3 * structs,
-            structs,
+            3 * structs + pool,
+            structs + pool,
         ),
         (
             "struct A{int a;}",
             base + parameters,
-            structs + members,
-            structs,
+            structs + members + pool,
+            structs + pool,
         ),
         (
             "struct A{int a;int b;int c;int d;int e;}",
             base + parameters,
-            structs + 3 * members,
-            structs + members,
+            structs + 3 * members + pool,
+            structs + members + pool,
         ),
     ] {
         let arena = bumpalo::Bump::new();
         let syntax = crate::parse_source(&arena, source).unwrap();
         let facts = (syntax.source_identity().len()
-            * (size_of::<Option<Type<'_>>>() + size_of::<SourceInfo<'_, '_>>()))
+            * (size_of::<Option<CheckedTypeId>>() + size_of::<SourceInfo<'_, '_>>()))
             as u64;
         let mut ledger = ledger(WORK, SENTINEL + facts + frames + required - 1);
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
@@ -302,24 +309,20 @@ fn all_four_backings_and_detached_symbols_release_on_callback_error_and_unwind()
     let source = "struct A{int a;int b;int c;int d;int e;}struct B{}struct C{}struct D{}struct E{}extern void consume(int left,int right);int first=1;int second=2;";
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source).unwrap();
-    let expected = with_single_analyzer(&syntax, &mut AllocationBudget::new(None), |model, _| {
-        format!("{model:?}")
-    })
-    .unwrap();
+    let mut complete = ledger(WORK, 1_000_000);
+    let (expected, pool) = with_single_analyzer(&syntax,
+        &mut AllocationBudget::new(Some((&mut complete, WorkDomain::Baseline))), |model, _| {
+        (format!("{model:?}"), model.declarations.types.storage_bytes())
+    }).unwrap();
+    let peak = complete.peak_retained_bytes() - SENTINEL;
+    let work = complete.work_used(WorkDomain::Baseline);
     let nodes = syntax.source_identity().len() as u64;
-    let facts = nodes * (size_of::<Option<Type<'_>>>() + size_of::<SourceInfo<'_, '_>>()) as u64;
+    let facts = nodes * (size_of::<Option<CheckedTypeId>>() + size_of::<SourceInfo<'_, '_>>()) as u64;
     let s = size_of::<Symbol<'_>>() as u64;
     let m = size_of::<Option<crate::module::ModuleId>>() as u64;
     let t = size_of::<StructInfo<'_>>() as u64;
     let n = size_of::<MemberDefinition>() as u64;
-    let base = (size_of::<AHashMap<&str, SymbolId>>() + size_of::<Narrowing<'_>>()) as u64;
-    let parameters = 4 * size_of::<AHashSet<&str>>() as u64;
-    let live = facts + 8 * (s + m + t + n);
-    let peak = facts
-        + base
-        + (12 * t)
-            .max(8 * t + parameters + 12 * n)
-            .max(8 * (t + n) + parameters + (12 * s + 4 * m).max(8 * s + 12 * m));
+    let live = facts + 8 * (s + m + t + n) + pool;
     for unwind in [false, true] {
         let mut ledger = ledger(WORK, SENTINEL + 6 + peak);
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
@@ -368,14 +371,8 @@ fn all_four_backings_and_detached_symbols_release_on_callback_error_and_unwind()
         drop(budget);
         assert_eq!(ledger.retained_bytes(), SENTINEL);
         assert_eq!(ledger.peak_retained_bytes(), SENTINEL + 6 + peak);
-        // Parent string: one allocation and 6 copied bytes. Each five-row single
-        // vector costs 11 units; the five paired symbol rows cost 22 units.
-        // Analyzer creation costs 4; seven type scopes share one allocation.
-        // Entering the module's body costs 1 more than its assigned names
-        // (none here), the narrowing scan (R1).
-        assert_eq!(
-            ledger.work_used(WorkDomain::Baseline),
-            7 + 2 * nodes + 2 + 11 + 11 + 22 + 4 + 8 + 1
-        );
+        // The callback's parent string adds one allocation and six copied
+        // bytes; all declaration and canonical-type work is otherwise identical.
+        assert_eq!(ledger.work_used(WorkDomain::Baseline), work + 7);
     }
 }

@@ -13,6 +13,9 @@ mod statement_mentions;
 #[path = "strict_inline_tests.rs"]
 mod strict_inline;
 
+#[path = "inline_local_tests.rs"]
+mod inline_locals;
+
 #[path = "reach_tests.rs"]
 mod reach_analysis;
 

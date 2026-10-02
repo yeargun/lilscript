@@ -29,7 +29,6 @@ pub(in crate::program) fn closed_erased_transport<A: Admission>(
     admission.release(pending)?;
     let mut bodies = admission.vector(1)?;
     admission.push(&mut bodies, body)?;
-    let mut callbacks = admission.vector(0)?;
     let result = (|| {
         let mut cursor = 0;
         while cursor < bodies.len() {
@@ -187,7 +186,7 @@ pub(in crate::program) fn closed_erased_transport<A: Admission>(
                             collection_transport(program, data, operation, receiver)
                         } else if matches!(
                             site.target,
-                            CallTarget::Builtin(BuiltinCall::ObjectKeys)
+                            CallTarget::Builtin(BuiltinCall::ObjectKeys | BuiltinCall::ObjectValues)
                         ) {
                             matches!(data.arguments(site.arguments).unwrap(), [CallArgument::Value(value)]
                                 if matches!(program.types[data.values[value.index()].ty.index()], Type::Record(_)))
@@ -220,12 +219,8 @@ pub(in crate::program) fn closed_erased_transport<A: Admission>(
                         } else {
                             closed_callback(
                                 program,
-                                uses,
                                 unit,
                                 *call,
-                                execution,
-                                &abstract_types,
-                                &mut callbacks,
                                 admission,
                             )?
                         }
@@ -262,7 +257,6 @@ pub(in crate::program) fn closed_erased_transport<A: Admission>(
         Ok(None)
     })();
     admission.release(bodies)?;
-    admission.release(callbacks)?;
     admission.release(abstract_types)?;
     result
 }
@@ -279,95 +273,23 @@ fn enqueue<A: Admission>(
     Ok(())
 }
 
-/// An indirect callback keeps the private callable ABI only when every
-/// original caller supplies an owned function with a concrete checked schema.
-/// A host callable, reassigned parameter or unresolved producer supplies no
-/// permission. The common locator and complete input owner do all tracing.
+/// A checked function value uses the common packed callable ABI even when
+/// loaded from a typed collection, copied into a local or captured by a closure.
+/// Concrete product-bearing host functions cannot enter that ABI: JavaScript
+/// formation rejects foreign storage, host results and unchecked views at the
+/// concrete boundary. Closed abstract transport must not introduce an opaque
+/// type here, but does not need the callback's identity or a direct-call set.
 fn closed_callback<A: Admission>(
     program: &Program<'_>,
-    uses: &UseIndex,
     unit: UnitId,
     call: CallId,
-    execution: JavaScriptExecution,
-    abstract_types: &[bool],
-    callbacks: &mut Vec<CellId>,
     admission: &mut A,
 ) -> Result<bool, A::Error> {
     let data = program.unit(unit).unwrap();
-    let CallTarget::Value {
-        callee,
-        invocation: Invocation::Value,
-    } = data.calls[call.index()].target
-    else {
-        return Ok(false);
-    };
-    let OperationKind::Load(place) =
-        data.operations[data.values[callee.index()].definition.index()].kind
-    else {
-        return Ok(false);
-    };
-    let Place::Cell(cell) = data.places[place.index()] else {
-        return Ok(false);
-    };
-    let storage = &program.cells[cell.index()];
-    let CellBinding::Parameter(position) = storage.binding else {
-        return Ok(false);
-    };
-    if storage.owner != unit
-        || storage.reassigned
-        || data.parameters.get(position as usize) != Some(&cell)
-    {
-        return Ok(false);
-    }
-    admission.work(callbacks.len())?;
-    if callbacks.contains(&cell) {
-        return Ok(true);
-    }
-    let inputs = CallableInputs::for_body_published(
-        program,
-        uses,
-        unit,
-        CallObservations::from_execution(execution),
-        admission,
-    )?;
-    let InputOutcome::Complete(inputs) = inputs else {
-        return Ok(false);
-    };
-    let result = (|| {
-        if !inputs.runtime_inputs_sealed() {
-            return Ok(false);
-        }
-        for input in inputs.calls() {
-            admission.work(1)?;
-            let caller = program.unit(input.caller).unwrap();
-            let arguments = caller
-                .arguments(caller.calls[input.target.index()].arguments)
-                .unwrap();
-            let Some(&CallArgument::Value(value)) = arguments.get(position as usize) else {
-                return Ok(false);
-            };
-            let Some(body) =
-                callable_inputs::body_for_value(program, uses, input.caller, value, admission)?
-            else {
-                return Ok(false);
-            };
-            if program
-                .unit(body)
-                .unwrap()
-                .callable_type
-                .is_none_or(|ty| abstract_types[ty.index()])
-            {
-                return Ok(false);
-            }
-        }
-        Ok(true)
-    })();
-    inputs.discard(admission)?;
-    let complete = result?;
-    if complete {
-        admission.push(callbacks, cell)?;
-    }
-    Ok(complete)
+    let CallTarget::Value { callee, invocation: Invocation::Value } =
+        data.calls[call.index()].target else { return Ok(false); };
+    let ty = &program.types[data.values[callee.index()].ty.index()];
+    Ok(matches!(ty, Type::Function(_)) && closed_type(program, ty, admission)?)
 }
 
 fn closed_cell<A: Admission>(
@@ -530,7 +452,14 @@ fn collection_transport(
         | Intrinsic::ArrayConcat
         | Intrinsic::ArrayReverse
         | Intrinsic::ArrayFill
-        | Intrinsic::ArrayCopyWithin => receiver.is_some_and(|value| {
+        | Intrinsic::ArrayCopyWithin
+        | Intrinsic::ArrayMap
+        | Intrinsic::ArrayFilter
+        | Intrinsic::ArrayReduce
+        | Intrinsic::ArrayForEach
+        | Intrinsic::ArraySome
+        | Intrinsic::ArrayEvery
+        | Intrinsic::ArrayFindIndex => receiver.is_some_and(|value| {
             matches!(
                 program.types[data.values[value.index()].ty.index()],
                 Type::Array(_)

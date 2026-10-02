@@ -1,0 +1,30 @@
+extern JsValue arguments;
+int calls=0;
+int choose(){calls+=1;print("default "+calls);return calls;}
+int fail(){throw "default error";}
+generator int scope(int n=choose(),JsValue saved=arguments){
+    print("body "+n);
+    print(saved==arguments);
+    auto captured=()=>arguments;
+    print(captured()==saved);
+    yield n;
+}
+generator int broken(int n=fail()){yield n;}
+class Sequence {
+    int start;
+    init(int start){this.start=start;}
+    generator int next(int n=choose()){yield this.start+n;}
+}
+Generator<int> a=scope();
+Generator<int> b=scope();
+JsValue callable=scope;print(callable.length);
+print("created "+calls);
+for(int n of b){print(n);}
+for(int n of a){print(n);}
+try {Generator<int> unused=broken();print("wrong");}
+catch(auto error){print(error);}
+Sequence sequence=new Sequence(10);
+Generator<int> method=sequence.next();
+print("method created "+calls);
+sequence.start=20;
+for(int n of method){print(n);}

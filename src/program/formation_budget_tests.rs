@@ -54,6 +54,15 @@ fn property(value: &js::Property) -> u64 {
 fn module_storage(module: &js::Module) -> u64 {
     let mut total = bytes(&module.expressions)
         + bytes(&module.origins)
+        + bytes(&module.discardable_functions)
+        + bytes(&module.const_freezers)
+        + bytes(&module.immutable_data)
+        + bytes(&module.authored_pool)
+        + module.authored_pool.iter().map(|s| s.capacity_bytes() as u64).sum::<u64>()
+        + bytes(&module.authored_expressions)
+        + bytes(&module.authored_regions)
+        + bytes(&module.authored_sites)
+        + bytes(&module.spelling_nodes)
         + bytes(&module.observed_literals)
         + bytes(&module.behaviours)
         + module

@@ -3,6 +3,6 @@
   const events = [];
   globalThis.Map = class { constructor() { events.push('map'); } };
   globalThis.read = function () { events.push('read'); return 7; };
-  globalThis.inspect = function (cache) { events.push('inspect:' + cache[1]); };
+  globalThis.inspect = function (cache) { events.push('inspect:' + cache.value); };
   process.on('exit', () => { console.log('TRACE:' + events.join(',')); });
 })();

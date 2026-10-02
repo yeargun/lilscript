@@ -1,0 +1,1355 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+    "sha256": "97bddf448d7a3c6f08236f971221f8d2ef207fa9610be8d2f93b22ada6a00db2"
+  },
+  "sources": [
+    {
+      "case": "products",
+      "source": "tests/native/products.lil",
+      "sha256": "cb3947a7c8564df7b9261b97ed41a9e7309287f5dd0d43a81b0bd4d21d7fa4ec",
+      "oracle_sha256": "18fd75b17975ca411fc61d142d51c6218ac159043999259fed3bb39c57fdd15d",
+      "expected_sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+    },
+    {
+      "case": "arrays",
+      "source": "tests/native/arrays.lil",
+      "sha256": "493122058d3c0b114db3a921995cf51f57dc507837ae939275a35e09da207825",
+      "oracle_sha256": "bb2f01d54610f6eba16309d655f3aa7d434f6857c554efbaf8781a97880580dd",
+      "expected_sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    },
+    {
+      "case": "call-transport",
+      "source": "tests/native/call-transport.lil",
+      "sha256": "58626647c6a8282250bdcce84dcc9ce617e5336b0f79274f058582652a47f07b",
+      "oracle_sha256": "6384c000e990e4e3b5f5d3799cebb38088d4129c90864d8e3bed5e488d87a045",
+      "expected_sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    },
+    {
+      "case": "callable-containers",
+      "source": "tests/native/callable-containers.lil",
+      "sha256": "c9b485ebf910d1915475c3310fbf72c116cf7c8888ff084db16a9bc628a747b7",
+      "oracle_sha256": "f1f3bbce80e8536ce0bba2e5c9dd37caccddfdcfcf6ffbb6502a3f2b4d089263",
+      "expected_sha256": "80408280a0dd2f5efe3a222f7aad0612293ec03bb4ca5ac1bf8f14fef44c1819"
+    },
+    {
+      "case": "static-data",
+      "source": "tests/native/static-data.lil",
+      "sha256": "9ef87a1673f5577c9ab57de98b93d61a8b1a60ba9d1c2a874f7e15a3f0613e78",
+      "oracle_sha256": "38d7b13578c4276934fab69897aca280b1ea48afadc5e48fdacc6cd594df646b",
+      "expected_sha256": "a6aa9894c3a16e690dda5d619942d883de3a2849f5c03c53a7d438a5d91045b5"
+    },
+    {
+      "case": "generators",
+      "source": "tests/native/generators.lil",
+      "sha256": "8b9c3b0566a8ed5356804d080e1449b6d11b0ead741bc23aaa7bf7f9f3705c86",
+      "oracle_sha256": "1058db7c82923b4a109ff2e9e853ba906f96a47e5c13129dae1ffafd91e5d8b8",
+      "expected_sha256": "727bc28fdf2014e0f10abecf461917de7ed95ddf8af821f82cd858bf30000ae7"
+    },
+    {
+      "case": "generator-call-defaults",
+      "source": "tests/cases/generator-call-defaults.lil",
+      "sha256": "6c60f580e9f0e751c345d6fab7103a34cd3a62586194b4671a2bf7fdbfa8ea69",
+      "oracle_sha256": "eb5271c80215165d70947c44f5d45774410c4440961c5bcf17ef02952ed16391",
+      "expected_sha256": "263c96067509fa37bcfa208c204c633a523db500e501bba727162b24a692c1a9"
+    }
+  ],
+  "rows": [
+    {
+      "name": "products-oracle",
+      "command": [
+        "node",
+        "/home/azureuser/lilscript/tests/native/products.oracle.mjs"
+      ],
+      "seconds": 0.03483541600871831,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+    },
+    {
+      "name": "products-0-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/products.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/products-0-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/products-0-raw.mjs"
+      ],
+      "seconds": 0.009152590006124228,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "products-0-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/products-0-raw.mjs"
+      ],
+      "seconds": 0.036493903025984764,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+    },
+    {
+      "name": "products-0-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/products.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/products-0-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/products-0-gzip.mjs"
+      ],
+      "seconds": 0.010316571017028764,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "products-0-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/products-0-gzip.mjs"
+      ],
+      "seconds": 0.03506028701667674,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+    },
+    {
+      "name": "products-0-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/products.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/products-0-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/products-0-brotli.mjs"
+      ],
+      "seconds": 0.009176235005725175,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "products-0-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/products-0-brotli.mjs"
+      ],
+      "seconds": 0.033518957992782816,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+    },
+    {
+      "name": "products-13-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/products.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/products-13-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/products-13-raw.mjs"
+      ],
+      "seconds": 0.3354675779992249,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "products-13-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/products-13-raw.mjs"
+      ],
+      "seconds": 0.04486771099618636,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+    },
+    {
+      "name": "products-13-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/products.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/products-13-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/products-13-gzip.mjs"
+      ],
+      "seconds": 0.29293505000532605,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "products-13-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/products-13-gzip.mjs"
+      ],
+      "seconds": 0.03541780699742958,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+    },
+    {
+      "name": "products-13-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/products.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/products-13-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/products-13-brotli.mjs"
+      ],
+      "seconds": 0.9640748579986393,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "products-13-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/products-13-brotli.mjs"
+      ],
+      "seconds": 0.035001868003746495,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a02d96a3c70749d21a270ed64f2fa9841630e0fdb662efb1e5a3ef74f5afca9b"
+    },
+    {
+      "name": "arrays-oracle",
+      "command": [
+        "node",
+        "/home/azureuser/lilscript/tests/native/arrays.oracle.mjs"
+      ],
+      "seconds": 0.031948629999533296,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    },
+    {
+      "name": "arrays-0-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/arrays.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-raw.mjs"
+      ],
+      "seconds": 0.009366751997731626,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "arrays-0-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-raw.mjs"
+      ],
+      "seconds": 0.032934953982476145,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    },
+    {
+      "name": "arrays-0-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/arrays.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-gzip.mjs"
+      ],
+      "seconds": 0.00905697199050337,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "arrays-0-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-gzip.mjs"
+      ],
+      "seconds": 0.03352712298510596,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    },
+    {
+      "name": "arrays-0-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/arrays.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-brotli.mjs"
+      ],
+      "seconds": 0.009013029019115493,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "arrays-0-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/arrays-0-brotli.mjs"
+      ],
+      "seconds": 0.03336912702070549,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    },
+    {
+      "name": "arrays-13-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/arrays.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-raw.mjs"
+      ],
+      "seconds": 0.1399015510105528,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "arrays-13-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-raw.mjs"
+      ],
+      "seconds": 0.03545613901223987,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    },
+    {
+      "name": "arrays-13-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/arrays.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-gzip.mjs"
+      ],
+      "seconds": 0.24998248400515877,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "arrays-13-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-gzip.mjs"
+      ],
+      "seconds": 0.03497955601778813,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    },
+    {
+      "name": "arrays-13-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/arrays.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-brotli.mjs"
+      ],
+      "seconds": 0.473186119023012,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "arrays-13-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/arrays-13-brotli.mjs"
+      ],
+      "seconds": 0.034140093019232154,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "5586f0e3072e7f117952ba07582a66d6ebf9bc917f968e579e008d14bd21f6ea"
+    },
+    {
+      "name": "call-transport-oracle",
+      "command": [
+        "node",
+        "/home/azureuser/lilscript/tests/native/call-transport.oracle.mjs"
+      ],
+      "seconds": 0.03278537400183268,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    },
+    {
+      "name": "call-transport-0-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/call-transport.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-raw.mjs"
+      ],
+      "seconds": 0.010747768974397331,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "call-transport-0-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-raw.mjs"
+      ],
+      "seconds": 0.03325820999452844,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    },
+    {
+      "name": "call-transport-0-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/call-transport.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-gzip.mjs"
+      ],
+      "seconds": 0.010519892995944247,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "call-transport-0-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-gzip.mjs"
+      ],
+      "seconds": 0.03759657600312494,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    },
+    {
+      "name": "call-transport-0-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/call-transport.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-brotli.mjs"
+      ],
+      "seconds": 0.01344551399233751,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "call-transport-0-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/call-transport-0-brotli.mjs"
+      ],
+      "seconds": 0.04461786599131301,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    },
+    {
+      "name": "call-transport-13-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/call-transport.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-raw.mjs"
+      ],
+      "seconds": 0.513157687993953,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "call-transport-13-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-raw.mjs"
+      ],
+      "seconds": 0.03530188201693818,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    },
+    {
+      "name": "call-transport-13-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/call-transport.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-gzip.mjs"
+      ],
+      "seconds": 0.46558915299829096,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "call-transport-13-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-gzip.mjs"
+      ],
+      "seconds": 0.037280142976669595,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    },
+    {
+      "name": "call-transport-13-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/call-transport.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-brotli.mjs"
+      ],
+      "seconds": 0.872002521995455,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "call-transport-13-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/call-transport-13-brotli.mjs"
+      ],
+      "seconds": 0.03569377399981022,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "7686ca9159a1d14a4aad9f650d67eb45039f0e4d0ce5d5fa84cd0a3a5f8608c4"
+    },
+    {
+      "name": "callable-containers-oracle",
+      "command": [
+        "node",
+        "/home/azureuser/lilscript/tests/native/callable-containers.oracle.mjs"
+      ],
+      "seconds": 0.03042189500411041,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "80408280a0dd2f5efe3a222f7aad0612293ec03bb4ca5ac1bf8f14fef44c1819"
+    },
+    {
+      "name": "callable-containers-0-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/callable-containers.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-raw.mjs"
+      ],
+      "seconds": 0.009064925980055705,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "callable-containers-0-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-raw.mjs"
+      ],
+      "seconds": 0.03342939101275988,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "80408280a0dd2f5efe3a222f7aad0612293ec03bb4ca5ac1bf8f14fef44c1819"
+    },
+    {
+      "name": "callable-containers-0-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/callable-containers.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-gzip.mjs"
+      ],
+      "seconds": 0.008625903981737792,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "callable-containers-0-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-gzip.mjs"
+      ],
+      "seconds": 0.035068094002781436,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "80408280a0dd2f5efe3a222f7aad0612293ec03bb4ca5ac1bf8f14fef44c1819"
+    },
+    {
+      "name": "callable-containers-0-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/callable-containers.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-brotli.mjs"
+      ],
+      "seconds": 0.00901875999988988,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "callable-containers-0-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-0-brotli.mjs"
+      ],
+      "seconds": 0.0351071749755647,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "80408280a0dd2f5efe3a222f7aad0612293ec03bb4ca5ac1bf8f14fef44c1819"
+    },
+    {
+      "name": "callable-containers-13-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/callable-containers.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-raw.mjs"
+      ],
+      "seconds": 0.14707923101377673,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "callable-containers-13-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-raw.mjs"
+      ],
+      "seconds": 0.03220881402376108,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "80408280a0dd2f5efe3a222f7aad0612293ec03bb4ca5ac1bf8f14fef44c1819"
+    },
+    {
+      "name": "callable-containers-13-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/callable-containers.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-gzip.mjs"
+      ],
+      "seconds": 0.18416542297927663,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "callable-containers-13-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-gzip.mjs"
+      ],
+      "seconds": 0.03204971499508247,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "80408280a0dd2f5efe3a222f7aad0612293ec03bb4ca5ac1bf8f14fef44c1819"
+    },
+    {
+      "name": "callable-containers-13-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/callable-containers.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-brotli.mjs"
+      ],
+      "seconds": 0.3666681929898914,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "callable-containers-13-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/callable-containers-13-brotli.mjs"
+      ],
+      "seconds": 0.03444412199314684,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "80408280a0dd2f5efe3a222f7aad0612293ec03bb4ca5ac1bf8f14fef44c1819"
+    },
+    {
+      "name": "static-data-oracle",
+      "command": [
+        "node",
+        "/home/azureuser/lilscript/tests/native/static-data.oracle.mjs"
+      ],
+      "seconds": 0.03266256398637779,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a6aa9894c3a16e690dda5d619942d883de3a2849f5c03c53a7d438a5d91045b5"
+    },
+    {
+      "name": "static-data-0-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-raw.mjs"
+      ],
+      "seconds": 0.009180954017210752,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "static-data-0-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-raw.mjs"
+      ],
+      "seconds": 0.033592487015994266,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a6aa9894c3a16e690dda5d619942d883de3a2849f5c03c53a7d438a5d91045b5"
+    },
+    {
+      "name": "static-data-0-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-gzip.mjs"
+      ],
+      "seconds": 0.009817436017328873,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "static-data-0-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-gzip.mjs"
+      ],
+      "seconds": 0.03418936498928815,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a6aa9894c3a16e690dda5d619942d883de3a2849f5c03c53a7d438a5d91045b5"
+    },
+    {
+      "name": "static-data-0-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-brotli.mjs"
+      ],
+      "seconds": 0.008701143990037963,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "static-data-0-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/static-data-0-brotli.mjs"
+      ],
+      "seconds": 0.03330704101244919,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a6aa9894c3a16e690dda5d619942d883de3a2849f5c03c53a7d438a5d91045b5"
+    },
+    {
+      "name": "static-data-13-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-raw.mjs"
+      ],
+      "seconds": 0.1421251379942987,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "static-data-13-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-raw.mjs"
+      ],
+      "seconds": 0.03666053499910049,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a6aa9894c3a16e690dda5d619942d883de3a2849f5c03c53a7d438a5d91045b5"
+    },
+    {
+      "name": "static-data-13-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-gzip.mjs"
+      ],
+      "seconds": 0.16358520998619497,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "static-data-13-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-gzip.mjs"
+      ],
+      "seconds": 0.03786921998835169,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a6aa9894c3a16e690dda5d619942d883de3a2849f5c03c53a7d438a5d91045b5"
+    },
+    {
+      "name": "static-data-13-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/static-data.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-brotli.mjs"
+      ],
+      "seconds": 0.42936869198456407,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "static-data-13-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/static-data-13-brotli.mjs"
+      ],
+      "seconds": 0.036921464023180306,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "a6aa9894c3a16e690dda5d619942d883de3a2849f5c03c53a7d438a5d91045b5"
+    },
+    {
+      "name": "generators-oracle",
+      "command": [
+        "node",
+        "/home/azureuser/lilscript/tests/native/generators.oracle.mjs"
+      ],
+      "seconds": 0.04873376898467541,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "727bc28fdf2014e0f10abecf461917de7ed95ddf8af821f82cd858bf30000ae7"
+    },
+    {
+      "name": "generators-0-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generators-0-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generators-0-raw.mjs"
+      ],
+      "seconds": 0.012710937997326255,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generators-0-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generators-0-raw.mjs"
+      ],
+      "seconds": 0.0412260009907186,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "727bc28fdf2014e0f10abecf461917de7ed95ddf8af821f82cd858bf30000ae7"
+    },
+    {
+      "name": "generators-0-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generators-0-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generators-0-gzip.mjs"
+      ],
+      "seconds": 0.009947560000000522,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generators-0-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generators-0-gzip.mjs"
+      ],
+      "seconds": 0.03830919199390337,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "727bc28fdf2014e0f10abecf461917de7ed95ddf8af821f82cd858bf30000ae7"
+    },
+    {
+      "name": "generators-0-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generators-0-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generators-0-brotli.mjs"
+      ],
+      "seconds": 0.0109860859811306,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generators-0-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generators-0-brotli.mjs"
+      ],
+      "seconds": 0.03938875099993311,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "727bc28fdf2014e0f10abecf461917de7ed95ddf8af821f82cd858bf30000ae7"
+    },
+    {
+      "name": "generators-13-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generators-13-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generators-13-raw.mjs"
+      ],
+      "seconds": 0.23452832200564444,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generators-13-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generators-13-raw.mjs"
+      ],
+      "seconds": 0.03545855401898734,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "727bc28fdf2014e0f10abecf461917de7ed95ddf8af821f82cd858bf30000ae7"
+    },
+    {
+      "name": "generators-13-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generators-13-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generators-13-gzip.mjs"
+      ],
+      "seconds": 0.3964187999954447,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generators-13-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generators-13-gzip.mjs"
+      ],
+      "seconds": 0.04001358902314678,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "727bc28fdf2014e0f10abecf461917de7ed95ddf8af821f82cd858bf30000ae7"
+    },
+    {
+      "name": "generators-13-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/native/generators.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generators-13-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generators-13-brotli.mjs"
+      ],
+      "seconds": 1.3036394330265466,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generators-13-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generators-13-brotli.mjs"
+      ],
+      "seconds": 0.035478138976031914,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "727bc28fdf2014e0f10abecf461917de7ed95ddf8af821f82cd858bf30000ae7"
+    },
+    {
+      "name": "generator-call-defaults-oracle",
+      "command": [
+        "node",
+        "/home/azureuser/lilscript/tests/cases/generator-call-defaults.oracle.mjs"
+      ],
+      "seconds": 0.029875190986786038,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "263c96067509fa37bcfa208c204c633a523db500e501bba727162b24a692c1a9"
+    },
+    {
+      "name": "generator-call-defaults-0-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/cases/generator-call-defaults.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-raw.mjs"
+      ],
+      "seconds": 0.005910504987696186,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generator-call-defaults-0-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-raw.mjs"
+      ],
+      "seconds": 0.03253148798830807,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "263c96067509fa37bcfa208c204c633a523db500e501bba727162b24a692c1a9"
+    },
+    {
+      "name": "generator-call-defaults-0-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/cases/generator-call-defaults.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-gzip.mjs"
+      ],
+      "seconds": 0.005584664992056787,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generator-call-defaults-0-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-gzip.mjs"
+      ],
+      "seconds": 0.032680939009878784,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "263c96067509fa37bcfa208c204c633a523db500e501bba727162b24a692c1a9"
+    },
+    {
+      "name": "generator-call-defaults-0-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/cases/generator-call-defaults.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-brotli.mjs"
+      ],
+      "seconds": 0.005457235994981602,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generator-call-defaults-0-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-0-brotli.mjs"
+      ],
+      "seconds": 0.03234189600334503,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "263c96067509fa37bcfa208c204c633a523db500e501bba727162b24a692c1a9"
+    },
+    {
+      "name": "generator-call-defaults-13-raw-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/cases/generator-call-defaults.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-raw.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-raw.mjs"
+      ],
+      "seconds": 0.08368182499543764,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generator-call-defaults-13-raw-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-raw.mjs"
+      ],
+      "seconds": 0.032960912998532876,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "263c96067509fa37bcfa208c204c633a523db500e501bba727162b24a692c1a9"
+    },
+    {
+      "name": "generator-call-defaults-13-gzip-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/cases/generator-call-defaults.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-gzip.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-gzip.mjs"
+      ],
+      "seconds": 0.10028886399231851,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generator-call-defaults-13-gzip-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-gzip.mjs"
+      ],
+      "seconds": 0.03153971998835914,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "263c96067509fa37bcfa208c204c633a523db500e501bba727162b24a692c1a9"
+    },
+    {
+      "name": "generator-call-defaults-13-brotli-compile",
+      "command": [
+        "/home/azureuser/lilscript-work/bin/v1-js-candidate-1/lilscript",
+        "/home/azureuser/lilscript/tests/cases/generator-call-defaults.lil",
+        "--config",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-brotli.toml",
+        "--target",
+        "js-module",
+        "-o",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-brotli.mjs"
+      ],
+      "seconds": 0.26648171999840997,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "generator-call-defaults-13-brotli-runtime",
+      "command": [
+        "node",
+        "/tmp/lilscript-v1-semantics-final/run.mjs",
+        "/tmp/lilscript-v1-semantics-final/generator-call-defaults-13-brotli.mjs"
+      ],
+      "seconds": 0.035351389000425115,
+      "exit": 0,
+      "passed": true,
+      "stdout_sha256": "263c96067509fa37bcfa208c204c633a523db500e501bba727162b24a692c1a9"
+    }
+  ]
+}

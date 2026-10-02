@@ -1,0 +1,677 @@
+{
+  "candidate": {
+    "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-2/lilscript",
+    "sha256": "3e13744e26f6048ade48ede7d1ab710fbd4069b22831800bd4b264511d1f1c8d",
+    "version": "lilscript 0.1.0",
+    "label": null
+  },
+  "previous": {
+    "source": "/home/azureuser/lilscript-work/bin/s1-complete-4/lilscript",
+    "sha256": "628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268",
+    "version": "lilscript 0.1.0",
+    "label": null
+  },
+  "runtime_failures": [],
+  "changed_cells": [
+    {
+      "case": "cases/canonical/collections/array-pipeline",
+      "objective": "brotli11",
+      "before": 87,
+      "after": 86,
+      "delta": -1
+    },
+    {
+      "case": "cases/canonical/control/early-return",
+      "objective": "brotli11",
+      "before": 82,
+      "after": 81,
+      "delta": -1
+    },
+    {
+      "case": "cases/canonical/control/scalar-match",
+      "objective": "gzip9",
+      "before": 90,
+      "after": 85,
+      "delta": -5
+    },
+    {
+      "case": "cases/canonical/functions/closure-capture",
+      "objective": "raw",
+      "before": 60,
+      "after": 32,
+      "delta": -28
+    },
+    {
+      "case": "cases/canonical/functions/closure-capture",
+      "objective": "gzip9",
+      "before": 65,
+      "after": 42,
+      "delta": -23
+    },
+    {
+      "case": "cases/canonical/functions/closure-capture",
+      "objective": "brotli11",
+      "before": 51,
+      "after": 36,
+      "delta": -15
+    },
+    {
+      "case": "cases/canonical/identity/saved-loop-phi",
+      "objective": "brotli11",
+      "before": 68,
+      "after": 65,
+      "delta": -3
+    },
+    {
+      "case": "cases/catalog/aggregate/nested-struct-3-1-4-1-5-9",
+      "objective": "brotli11",
+      "before": 152,
+      "after": 151,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/aggregate/class-counter-13-8",
+      "objective": "brotli11",
+      "before": 102,
+      "after": 96,
+      "delta": -6
+    },
+    {
+      "case": "cases/catalog/string/string-search-compression-press",
+      "objective": "brotli11",
+      "before": 77,
+      "after": 76,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/control/enum-int-dispatch-4",
+      "objective": "brotli11",
+      "before": 86,
+      "after": 91,
+      "delta": 5
+    },
+    {
+      "case": "cases/catalog/control/enum-int-dispatch-12",
+      "objective": "brotli11",
+      "before": 87,
+      "after": 91,
+      "delta": 4
+    },
+    {
+      "case": "cases/catalog/host/host-hasown-a-b-c",
+      "objective": "brotli11",
+      "before": 89,
+      "after": 96,
+      "delta": 7
+    },
+    {
+      "case": "cases/catalog/collection/minmax-scan-0-1-0-2-0-3-0-4",
+      "objective": "brotli11",
+      "before": 104,
+      "after": 105,
+      "delta": 1
+    },
+    {
+      "case": "cases/catalog/collection/minmax-scan-5-5-5-5-5-5",
+      "objective": "brotli11",
+      "before": 100,
+      "after": 97,
+      "delta": -3
+    },
+    {
+      "case": "cases/catalog/string/string-chars-brotli",
+      "objective": "brotli11",
+      "before": 93,
+      "after": 92,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/aggregate/record-transform-4",
+      "objective": "brotli11",
+      "before": 93,
+      "after": 84,
+      "delta": -9
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-1n2n4",
+      "objective": "gzip9",
+      "before": 108,
+      "after": 107,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-1n2n4",
+      "objective": "brotli11",
+      "before": 90,
+      "after": 88,
+      "delta": -2
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-3nn1n5",
+      "objective": "brotli11",
+      "before": 90,
+      "after": 89,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-5n3n6",
+      "objective": "brotli11",
+      "before": 91,
+      "after": 90,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-7nn2n7",
+      "objective": "brotli11",
+      "before": 90,
+      "after": 89,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-11n4n5",
+      "objective": "gzip9",
+      "before": 109,
+      "after": 108,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-11n4n5",
+      "objective": "brotli11",
+      "before": 92,
+      "after": 90,
+      "delta": -2
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-n4n5n6",
+      "objective": "gzip9",
+      "before": 110,
+      "after": 109,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-n4n5n6",
+      "objective": "brotli11",
+      "before": 93,
+      "after": 89,
+      "delta": -4
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-20nn3n4",
+      "objective": "gzip9",
+      "before": 110,
+      "after": 109,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-20nn3n4",
+      "objective": "brotli11",
+      "before": 92,
+      "after": 93,
+      "delta": 1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-2n7n5",
+      "objective": "brotli11",
+      "before": 92,
+      "after": 90,
+      "delta": -2
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-9n1n8",
+      "objective": "gzip9",
+      "before": 108,
+      "after": 107,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-9n1n8",
+      "objective": "brotli11",
+      "before": 90,
+      "after": 88,
+      "delta": -2
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-n8nn2n6",
+      "objective": "gzip9",
+      "before": 111,
+      "after": 110,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/closure/edge-closure-mutation-n8nn2n6",
+      "objective": "brotli11",
+      "before": 96,
+      "after": 92,
+      "delta": -4
+    },
+    {
+      "case": "cases/catalog/string/edge-string-utf16-accent",
+      "objective": "brotli11",
+      "before": 97,
+      "after": 89,
+      "delta": -8
+    },
+    {
+      "case": "cases/catalog/effect/edge-exception-finally-0-4-6",
+      "objective": "gzip9",
+      "before": 104,
+      "after": 103,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/effect/edge-exception-finally-0-4-6",
+      "objective": "brotli11",
+      "before": 83,
+      "after": 82,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/effect/edge-exception-finally-1-5-7",
+      "objective": "brotli11",
+      "before": 71,
+      "after": 72,
+      "delta": 1
+    },
+    {
+      "case": "cases/catalog/effect/edge-exception-finally-0-7-9",
+      "objective": "brotli11",
+      "before": 82,
+      "after": 81,
+      "delta": -1
+    },
+    {
+      "case": "cases/catalog/effect/edge-exception-finally-0-10-12",
+      "objective": "brotli11",
+      "before": 96,
+      "after": 84,
+      "delta": -12
+    },
+    {
+      "case": "cases/catalog/effect/edge-generator-range-3n12n3",
+      "objective": "gzip9",
+      "before": 133,
+      "after": 134,
+      "delta": 1
+    },
+    {
+      "case": "cases/catalog/effect/edge-generator-range-7n11n1",
+      "objective": "brotli11",
+      "before": 114,
+      "after": 115,
+      "delta": 1
+    },
+    {
+      "case": "cases/catalog/host/host-callable-undefined",
+      "objective": "raw",
+      "before": 116,
+      "after": 133,
+      "delta": 17
+    },
+    {
+      "case": "cases/catalog/host/host-callable-undefined",
+      "objective": "gzip9",
+      "before": 101,
+      "after": 103,
+      "delta": 2
+    },
+    {
+      "case": "cases/catalog/host/host-callable-undefined",
+      "objective": "brotli11",
+      "before": 80,
+      "after": 82,
+      "delta": 2
+    },
+    {
+      "case": "cases/catalog/host/host-is-window-nullish",
+      "objective": "raw",
+      "before": 66,
+      "after": 77,
+      "delta": 11
+    },
+    {
+      "case": "cases/catalog/host/host-is-window-nullish",
+      "objective": "brotli11",
+      "before": 55,
+      "after": 62,
+      "delta": 7
+    },
+    {
+      "case": "cases/catalog/host/js-and-member-missing",
+      "objective": "brotli11",
+      "before": 69,
+      "after": 70,
+      "delta": 1
+    },
+    {
+      "case": "cases/catalog/function/semantic-default-array-freshness",
+      "objective": "raw",
+      "before": 75,
+      "after": 90,
+      "delta": 15
+    },
+    {
+      "case": "cases/catalog/function/semantic-default-array-freshness",
+      "objective": "gzip9",
+      "before": 77,
+      "after": 94,
+      "delta": 17
+    },
+    {
+      "case": "cases/catalog/function/semantic-default-array-freshness",
+      "objective": "brotli11",
+      "before": 66,
+      "after": 68,
+      "delta": 2
+    },
+    {
+      "case": "cases/catalog/control/frontier-inline-for",
+      "objective": "raw",
+      "before": 150,
+      "after": 88,
+      "delta": -62
+    },
+    {
+      "case": "cases/catalog/control/frontier-inline-for",
+      "objective": "gzip9",
+      "before": 124,
+      "after": 86,
+      "delta": -38
+    },
+    {
+      "case": "cases/catalog/control/frontier-inline-for",
+      "objective": "brotli11",
+      "before": 102,
+      "after": 75,
+      "delta": -27
+    },
+    {
+      "case": "cases/catalog/aggregate/frontier-default-constructor",
+      "objective": "raw",
+      "before": 106,
+      "after": 98,
+      "delta": -8
+    },
+    {
+      "case": "cases/catalog/aggregate/frontier-default-constructor",
+      "objective": "brotli11",
+      "before": 69,
+      "after": 81,
+      "delta": 12
+    },
+    {
+      "case": "cases/catalog/collection/frontier-array-spread-order",
+      "objective": "raw",
+      "before": 73,
+      "after": 78,
+      "delta": 5
+    },
+    {
+      "case": "cases/catalog/collection/frontier-array-spread-order",
+      "objective": "gzip9",
+      "before": 80,
+      "after": 83,
+      "delta": 3
+    },
+    {
+      "case": "cases/catalog/collection/frontier-array-spread-order",
+      "objective": "brotli11",
+      "before": 77,
+      "after": 82,
+      "delta": 5
+    },
+    {
+      "case": "cases/catalog/aggregate/frontier-inheritance-super",
+      "objective": "brotli11",
+      "before": 65,
+      "after": 64,
+      "delta": -1
+    },
+    {
+      "case": "apps/module-graph",
+      "objective": "raw",
+      "before": 142,
+      "after": 143,
+      "delta": 1
+    },
+    {
+      "case": "apps/module-graph",
+      "objective": "gzip9",
+      "before": 142,
+      "after": 141,
+      "delta": -1
+    },
+    {
+      "case": "apps/module-graph",
+      "objective": "brotli11",
+      "before": 120,
+      "after": 119,
+      "delta": -1
+    },
+    {
+      "case": "algorithms/collection-geometry",
+      "objective": "raw",
+      "before": 325,
+      "after": 376,
+      "delta": 51
+    },
+    {
+      "case": "algorithms/collection-geometry",
+      "objective": "gzip9",
+      "before": 234,
+      "after": 252,
+      "delta": 18
+    },
+    {
+      "case": "algorithms/collection-geometry",
+      "objective": "brotli11",
+      "before": 212,
+      "after": 225,
+      "delta": 13
+    },
+    {
+      "case": "algorithms/dictionary-template-router",
+      "objective": "raw",
+      "before": 658,
+      "after": 615,
+      "delta": -43
+    },
+    {
+      "case": "algorithms/dictionary-template-router",
+      "objective": "gzip9",
+      "before": 374,
+      "after": 355,
+      "delta": -19
+    },
+    {
+      "case": "algorithms/dictionary-template-router",
+      "objective": "brotli11",
+      "before": 329,
+      "after": 316,
+      "delta": -13
+    },
+    {
+      "case": "algorithms/helper-sharing",
+      "objective": "raw",
+      "before": 210,
+      "after": 216,
+      "delta": 6
+    },
+    {
+      "case": "algorithms/helper-sharing",
+      "objective": "gzip9",
+      "before": 173,
+      "after": 175,
+      "delta": 2
+    },
+    {
+      "case": "algorithms/helper-sharing",
+      "objective": "brotli11",
+      "before": 155,
+      "after": 158,
+      "delta": 3
+    },
+    {
+      "case": "algorithms/large-event-analytics",
+      "objective": "raw",
+      "before": 880,
+      "after": 836,
+      "delta": -44
+    },
+    {
+      "case": "algorithms/large-event-analytics",
+      "objective": "gzip9",
+      "before": 499,
+      "after": 480,
+      "delta": -19
+    },
+    {
+      "case": "algorithms/large-event-analytics",
+      "objective": "brotli11",
+      "before": 460,
+      "after": 442,
+      "delta": -18
+    },
+    {
+      "case": "algorithms/policy-specialization",
+      "objective": "raw",
+      "before": 316,
+      "after": 312,
+      "delta": -4
+    },
+    {
+      "case": "algorithms/policy-specialization",
+      "objective": "gzip9",
+      "before": 217,
+      "after": 216,
+      "delta": -1
+    },
+    {
+      "case": "algorithms/policy-specialization",
+      "objective": "brotli11",
+      "before": 200,
+      "after": 195,
+      "delta": -5
+    },
+    {
+      "case": "algorithms/shape-invoice-pipeline",
+      "objective": "raw",
+      "before": 582,
+      "after": 590,
+      "delta": 8
+    },
+    {
+      "case": "algorithms/shape-invoice-pipeline",
+      "objective": "gzip9",
+      "before": 310,
+      "after": 320,
+      "delta": 10
+    },
+    {
+      "case": "algorithms/shape-invoice-pipeline",
+      "objective": "brotli11",
+      "before": 294,
+      "after": 297,
+      "delta": 3
+    },
+    {
+      "case": "algorithms/state-machine-parser",
+      "objective": "raw",
+      "before": 361,
+      "after": 353,
+      "delta": -8
+    },
+    {
+      "case": "algorithms/state-machine-parser",
+      "objective": "gzip9",
+      "before": 274,
+      "after": 269,
+      "delta": -5
+    },
+    {
+      "case": "algorithms/state-machine-parser",
+      "objective": "brotli11",
+      "before": 244,
+      "after": 245,
+      "delta": 1
+    },
+    {
+      "case": "algorithms/stateful-packet-decoder",
+      "objective": "raw",
+      "before": 551,
+      "after": 547,
+      "delta": -4
+    },
+    {
+      "case": "algorithms/stateful-packet-decoder",
+      "objective": "gzip9",
+      "before": 365,
+      "after": 344,
+      "delta": -21
+    },
+    {
+      "case": "algorithms/stateful-packet-decoder",
+      "objective": "brotli11",
+      "before": 339,
+      "after": 317,
+      "delta": -22
+    },
+    {
+      "case": "algorithms/static-rule-engine",
+      "objective": "raw",
+      "before": 319,
+      "after": 307,
+      "delta": -12
+    },
+    {
+      "case": "algorithms/static-rule-engine",
+      "objective": "gzip9",
+      "before": 212,
+      "after": 205,
+      "delta": -7
+    },
+    {
+      "case": "algorithms/static-rule-engine",
+      "objective": "brotli11",
+      "before": 192,
+      "after": 184,
+      "delta": -8
+    },
+    {
+      "case": "algorithms/string-dictionary",
+      "objective": "raw",
+      "before": 461,
+      "after": 432,
+      "delta": -29
+    },
+    {
+      "case": "algorithms/string-dictionary",
+      "objective": "gzip9",
+      "before": 280,
+      "after": 271,
+      "delta": -9
+    },
+    {
+      "case": "algorithms/string-dictionary",
+      "objective": "brotli11",
+      "before": 248,
+      "after": 239,
+      "delta": -9
+    }
+  ],
+  "totals": {
+    "raw": {
+      "before": 58406,
+      "after": 58278
+    },
+    "gzip9": {
+      "before": 53691,
+      "after": 53589
+    },
+    "brotli11": {
+      "before": 43454,
+      "after": 43337
+    }
+  },
+  "accepted_baseline_updated": false,
+  "followup": "Investigate script product frame strictness under Y5; preserve the matched config and pinned bars."
+}

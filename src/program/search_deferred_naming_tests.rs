@@ -27,7 +27,7 @@ fn compile_mode(codec: &str, level: u8, deferred: &str, extra: &str) -> ServiceC
         format!("deferred_naming_starts={deferred}\n")
     };
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "objective.codecs='{codec}'\neffort.level={level}\n[target.javascript]\nformat='bare'\n[policy.search]\n{deferred}{extra}"
+        "objective.codecs='{codec}'\neffort.level={level}\n[target.javascript]\nformat='bare'\n[policy.search]\nprotect_effort=false\n{deferred}{extra}"
     ))
     .unwrap();
     // Isolate deferred-start scheduling; G1 tests its subsequent allocation tail.

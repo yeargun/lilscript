@@ -317,6 +317,29 @@ struct SignaturePhase<'ast, 'src> {
     inferred: Vec<(usize, usize)>,
 }
 
+/// Test checkpoints keep refusal-attribution tests independent of the type
+/// interner's evolving tariff while exercising the real phase boundaries.
+#[cfg(test)]
+pub(super) fn interface_phase_costs_for_test<'ast, 'src, S>(
+    programs: &[Program<'ast, 'src>],
+    modules: &ModuleSet<S>,
+    budget: &mut AllocationBudget<'_>,
+) -> [(u64, u64); 2] {
+    let mut scope = budget.scope();
+    let checkpoint = |scope: &mut AllocationBudget<'_>| scope.with_ledger(|owner| {
+        let (ledger, domain) = owner.unwrap();
+        (ledger.work_used(domain), ledger.peak_retained_bytes())
+    });
+    let graph = graph_phase(programs, modules, &mut scope).unwrap();
+    let graph_cost = checkpoint(&mut scope);
+    let declarations = declaration_phase(programs, graph, &mut scope).unwrap();
+    let schemas = schema_phase(programs, declarations, &mut scope).unwrap();
+    let signatures = signature_phase(programs, modules, schemas, &mut scope).unwrap();
+    let signature_cost = checkpoint(&mut scope);
+    drop(signatures);
+    [graph_cost, signature_cost]
+}
+
 fn graph_phase<'ast, 'src, S>(
     programs: &[Program<'ast, 'src>],
     modules: &ModuleSet<S>,

@@ -173,13 +173,13 @@ fn lazy_results_and_thrown_products_cannot_launder_their_representation() {
 }
 
 #[test]
-fn struct_bearing_callable_frames_are_strict_in_scripts_and_modules() {
+fn product_frame_protection_follows_the_application_and_module_contract() {
     let source = "struct P{int x;}extern void probe();void consume(P value){probe();print(value.x);}consume(P{1});";
     for compact in [false, true] {
-        // A classic script's struct-bearing frame is printed strict, so a
-        // sloppy host sees `caller === null` there as in a module.
+        // Y5 excludes host reflection into application frames. A private
+        // product does not change a classic application's execution mode.
         let script = output(source, compact, false).unwrap();
-        assert!(script.contains("\"use strict\""), "{script}");
+        assert!(!script.contains("\"use strict\""), "{script}");
         let javascript = output(source, compact, true).unwrap();
         assert_eq!(
             execute(
@@ -195,6 +195,30 @@ fn struct_bearing_callable_frames_are_strict_in_scripts_and_modules() {
     // An unused declaration alone must not require a product ABI or strict
     // callable frame. No struct value reaches an executable interface here.
     assert!(output("struct P{int x;}print(2);", true, false).is_ok());
+}
+
+#[test]
+fn private_products_do_not_make_classic_script_host_writes_strict() {
+    let source = "struct P{int x;}extern JsValue target;int consume(P value){target.field=value.x;return value.x;}print(consume(P{7}));";
+    for compact in [false, true] {
+        let javascript = output(source, compact, false).unwrap();
+        let script = format!(
+            "const vm=require('node:vm'),events=[];try{{vm.runInNewContext({},{{target:Object.freeze({{}}),console:{{log:value=>events.push(value)}}}})}}catch(error){{events.push(error.name)}}process.stdout.write(JSON.stringify(events));",
+            serde_json::to_string(&javascript).unwrap(),
+        );
+        let result = Command::new("node").args(["-e", &script]).output().unwrap();
+        assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+        assert_eq!(serde_json::from_slice::<Json>(&result.stdout).unwrap(), json!([7]));
+        // The same write in a library module remains strict and must throw.
+        let library = output(source, compact, true).unwrap();
+        let script = format!(
+            "globalThis.target=Object.freeze({{}});let result;try{{await import('data:text/javascript,'+encodeURIComponent({}));result='returned'}}catch(error){{result=error.name}}process.stdout.write(JSON.stringify(result));",
+            serde_json::to_string(&library).unwrap(),
+        );
+        let result = Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+        assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+        assert_eq!(serde_json::from_slice::<Json>(&result.stdout).unwrap(), json!("TypeError"));
+    }
 }
 
 #[test]
@@ -328,7 +352,11 @@ fn struct_arrays_keep_value_semantics_through_indexing_methods_and_spread() {
         "P value=P{1};P[] values=[value];print(values.indexOf(value));",
         "P value=P{1};P[] values=[value];print(values.includes(value));",
     ] {
-        rejected(&format!("struct P{{int x;}}{body}"), "value-struct");
+        let arena = bumpalo::Bump::new();
+        let text = format!("struct P{{int x;}}{body}");
+        let syntax = crate::parse_source(&arena, &text).unwrap();
+        let error = crate::analyze(&syntax).unwrap_err();
+        assert!(error.message.contains("no portable identity contract"), "{error}");
     }
 }
 

@@ -37,6 +37,62 @@ struct Template {
     strictness: u8,
 }
 
+#[derive(Clone, Copy)]
+enum CallSite {
+    Absent,
+    At(RegionId, usize),
+    Shared,
+}
+
+struct CallContexts {
+    frames: Frames,
+    sites: Vec<CallSite>,
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+
+    #[test]
+    fn shared_expression_dags_have_linear_context_work_and_no_unique_call_proof() {
+        for depth in [1, 8, 32, 128, 512] {
+            let mut module = Module::default();
+            module.expressions.push(Expr::Literal(Literal::Null));
+            let call = ExprId::new(module.expressions.len());
+            module.expressions.push(Expr::Call {
+                callee: ExprId::new(0), arguments: vec![], invocation: Invocation::Value,
+            });
+            let mut shared = call;
+            for _ in 0..depth {
+                let next = ExprId::new(module.expressions.len());
+                module.expressions.push(Expr::Sequence(vec![shared, shared]));
+                shared = next;
+            }
+            let unique = ExprId::new(module.expressions.len());
+            module.expressions.push(Expr::Call {
+                callee: ExprId::new(0), arguments: vec![], invocation: Invocation::Value,
+            });
+            module.regions[module.root.index()].statements = vec![
+                Statement::Evaluate(shared), Statement::Evaluate(unique),
+            ];
+            // 512 shared levels describe 2^512 evaluation paths. Indexing
+            // placements must still finish within a linear work allowance.
+            let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+                baseline_work: 100_000, optional_work: 64 * module.expressions.len() as u64,
+                baseline_retained_bytes: 0, retained_bytes: 1_000_000,
+            }).unwrap();
+            {
+                let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
+                let contexts = module.inline_call_contexts(&[module.root], &mut budget).unwrap();
+                assert!(matches!(contexts.sites[call.index()], CallSite::Shared));
+                assert!(matches!(contexts.sites[unique.index()], CallSite::At(region, 1) if region == module.root));
+            }
+            assert_eq!(ledger.retained_bytes(), 0);
+        }
+    }
+}
+
 /// A body may inherit the destination's mode only when both have one
 /// known, equal mode. Module execution makes every context strict.
 pub(super) fn same_strictness(left: u8, right: u8) -> bool {
@@ -176,81 +232,101 @@ impl Module {
                     }
                 }
             }
-            let mut sites = Vec::new();
-            for &(id, depth) in &reach.expressions {
-                budget.work(Analysis, 1)?;
-                let Expr::Call {
-                    callee,
-                    arguments,
-                    invocation: Invocation::Value | Invocation::Reference,
-                } = &module.expressions[id.index()]
-                else {
-                    continue;
-                };
-                let Expr::Binding(binding) = module.expressions[callee.index()] else {
-                    continue;
-                };
-                let Some(found) = template(binding) else {
-                    continue;
-                };
-                if !strict
-                    && !same_strictness(found.strictness, reach.strict_expressions[id.index()])
-                {
-                    continue;
-                }
-                if found.discards && !discarded[id.index()] {
-                    continue;
-                }
-                if depth > SITE_DEPTH
-                    || arguments.len() != found.parameters.len()
-                    || arguments.iter().any(|argument| {
-                        matches!(module.expressions[argument.index()], Expr::Spread(_))
-                    })
-                {
-                    continue;
-                }
-                // An argument read exactly once is read in argument order, outside a
-                // branch, with only inert evaluations before the last such read.
-                // One whose value cannot change may also be read again or not at
-                // all. Where the call is the function's only one (so the function
-                // goes), a stable argument may also be read at any time. For
-                // repeated calls the compatibility policy only substitutes
-                // repeatable arguments, avoiding repeated expression expansion.
-                // Broader duplicating alternatives belong to call search (S3).
-                let single = reach.bindings[binding.index()].calls == 1;
-                let mut fits = true;
-                let mut last: Option<usize> = None;
-                for (index, &argument) in arguments.iter().enumerate() {
-                    let reads = found.reads[index];
-                    let stable = if single {
-                        module
-                            .stable(argument, index, arguments, reach, &early, budget)?
-                    } else {
-                        reads != 1
-                            && module.repeatable(argument, index, arguments, reach, budget)?
+            let sites = {
+                // Only candidate discovery needs this index. Release its complete
+                // scratch owner before publishing any copied expression nodes.
+                let mut phase = budget.scope();
+                let budget = &mut phase;
+                let mut contexts: Option<CallContexts> = None;
+                let mut sites = Vec::new();
+                for &(id, depth) in &reach.expressions {
+                    budget.work(Analysis, 1)?;
+                    let Expr::Call {
+                        callee,
+                        arguments,
+                        invocation: Invocation::Value | Invocation::Reference,
+                    } = &module.expressions[id.index()]
+                    else {
+                        continue;
                     };
-                    if (single && stable) || (reads == 0 && stable) {
+                    let Expr::Binding(binding) = module.expressions[callee.index()] else {
+                        continue;
+                    };
+                    let Some(found) = template(binding) else {
+                        continue;
+                    };
+                    if !strict
+                        && !same_strictness(found.strictness, reach.strict_expressions[id.index()])
+                    {
                         continue;
                     }
-                    if reads != 1 && !stable {
-                        fits = false;
-                        break;
+                    if found.discards && !discarded[id.index()] {
+                        continue;
                     }
-                    match found.first[index] {
-                        Some((position, false)) if last.is_none_or(|last| position > last) => {
-                            last = Some(position);
+                    if depth > SITE_DEPTH
+                        || arguments.len() != found.parameters.len()
+                        || arguments.iter().any(|argument| {
+                            matches!(module.expressions[argument.index()], Expr::Spread(_))
+                        })
+                    {
+                        continue;
+                    }
+                    // An argument read exactly once is read in argument order, outside a
+                    // branch, with only inert evaluations before the last such read.
+                    // One whose value cannot change may also be read again or not at
+                    // all. Where the call is the function's only one (so the function
+                    // goes), a stable argument may also be read at any time. For
+                    // repeated calls the compatibility policy only substitutes
+                    // repeatable arguments, avoiding repeated expression expansion.
+                    // Broader duplicating alternatives belong to call search (S3).
+                    let single = reach.bindings[binding.index()].calls == 1;
+                    let mut fits = true;
+                    let mut last: Option<usize> = None;
+                    for (index, &argument) in arguments.iter().enumerate() {
+                        let reads = found.reads[index];
+                        let stable = if single {
+                            let mut stable = module
+                                .stable(argument, index, arguments, reach, &early, budget)?;
+                            if !stable && module.repeatable(argument, index, arguments, reach, budget)? {
+                                if let Expr::Binding(binding) = module.expressions[argument.index()] {
+                                    if contexts.is_none() {
+                                        contexts = Some(module.inline_call_contexts(&reach.regions, budget)?);
+                                    }
+                                    let contexts = contexts.as_ref().unwrap();
+                                    if let CallSite::At(region, position) = contexts.sites[id.index()] {
+                                        stable = module.initialized_at(binding, region, position, &contexts.frames, budget)?;
+                                    }
+                                }
+                            }
+                            stable
+                        } else {
+                            reads != 1
+                                && module.repeatable(argument, index, arguments, reach, budget)?
+                        };
+                        if (single && stable) || (reads == 0 && stable) {
+                            continue;
                         }
-                        _ => {
+                        if reads != 1 && !stable {
                             fits = false;
                             break;
                         }
+                        match found.first[index] {
+                            Some((position, false)) if last.is_none_or(|last| position > last) => {
+                                last = Some(position);
+                            }
+                            _ => {
+                                fits = false;
+                                break;
+                            }
+                        }
                     }
+                    if !fits || last.is_some_and(|last| last >= found.prefix) {
+                        continue;
+                    }
+                    sites.push((id, binding));
                 }
-                if !fits || last.is_some_and(|last| last >= found.prefix) {
-                    continue;
-                }
-                sites.push((id, binding));
-            }
+                sites
+            };
             // A site inside another template's body is edited in place, so later
             // copies of that body carry it inlined: the same evaluations either way.
             for &(site, binding) in &sites {
@@ -284,6 +360,48 @@ impl Module {
             module.renumber(budget)?;
             Ok(sites.len())
         })?
+    }
+
+    /// Index call occurrences once, only when a single-use template needs a
+    /// local initialization proof. Reuse the target's frame/dominance owner;
+    /// an expression with several placements supplies no unique site proof.
+    fn inline_call_contexts(
+        &self,
+        regions: &[RegionId],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<CallContexts, AllocationError> {
+        use crate::output_budget::AllocationClass::Scratch;
+        let frames = self.frames(budget)?;
+        let mut sites = budget.filled(Scratch, self.expressions.len(), CallSite::Absent)?;
+        let mut pending = Vec::new();
+        for &region in regions {
+            for (position, statement) in self.regions[region.index()].statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                let mut count = 0;
+                statement.visit_expressions(|_| count += 1);
+                budget.reserve_vec(Scratch, &mut pending, count)?;
+                statement.visit_expressions(|root| pending.push((root, CallSite::At(region, position))));
+                while let Some((id, context)) = pending.pop() {
+                    budget.work(Analysis, 1)?;
+                    // The expression arena is a DAG. A second placement makes
+                    // every descendant shared, but expand each node at most
+                    // twice (first placement, then shared). Walking all paths
+                    // would make a small repeatedly shared subtree exponential.
+                    let context = match sites[id.index()] {
+                        CallSite::Absent => context,
+                        CallSite::At(..) => CallSite::Shared,
+                        CallSite::Shared => continue,
+                    };
+                    sites[id.index()] = context;
+                    let node = &self.expressions[id.index()];
+                    let mut count = 0;
+                    let _ = node.visit_children(|_| { count += 1; Ok::<_, ()>(()) });
+                    budget.reserve_vec(Scratch, &mut pending, count)?;
+                    let _ = node.visit_children(|child| { pending.push((child, context)); Ok::<_, ()>(()) });
+                }
+            }
+        }
+        Ok(CallContexts { frames, sites })
     }
 
     /// `E` and its node count, when `function` is an arrow `(…)=>E` that a

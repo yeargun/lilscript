@@ -321,7 +321,8 @@ fn narrowing_preserves_branch_maps_active_scope_assignment_and_shadowing() {
     );
     let shared = (analyzer.declarations.symbols.capacity() * size_of::<Symbol<'_>>()
         + analyzer.declarations.symbol_modules.capacity()
-            * size_of::<Option<crate::module::ModuleId>>()) as u64;
+            * size_of::<Option<crate::module::ModuleId>>()) as u64
+        + analyzer.declarations.types.storage_bytes();
     drop(analyzer);
     assert_eq!(budget.retained_bytes(AllocationClass::Scratch), shared);
     drop(declarations);
@@ -453,11 +454,14 @@ fn guard_free_boolean_trees_skip_only_empty_narrowing_queries() {
                 Ok(Type::Bool)
             );
             assert_eq!((analyzer.scopes.len(), analyzer.narrowings.len()), (1, 1));
+            let shared = analyzer.declarations.types.storage_bytes();
             drop(analyzer);
-            assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
+            assert_eq!(budget.retained_bytes(AllocationClass::Scratch), shared);
+            drop(declarations);
+            budget.release(AllocationClass::Scratch, shared).unwrap();
             drop(budget);
             assert_eq!(ledger.retained_bytes(), SENTINEL);
-            assert_eq!(ledger.work_by_kind(WorkKind::Analysis), 4 * operators + 2);
+            assert_eq!(ledger.work_by_kind(WorkKind::Analysis), 4 * operators + 2 + 3 + 2 * operators * 36);
         }
     }
 }

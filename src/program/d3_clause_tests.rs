@@ -208,7 +208,7 @@ fn d3_8_async_settlement_and_generator_interleaving_are_preserved() {
         run(&javascript, "", true),
         "yield 0\ngot 0\nyield 1\ngot 1\na:start\nb:start\nsync\na:end1\nb:end1\n"
     );
-    // Refusal: native targets refuse suspension rather than reorder it.
+    // Native frames and continuations owe exactly the same interleaving.
     let arena = bumpalo::Bump::new();
     let program = program(&arena, source);
     let mut compiler = compilation();
@@ -218,12 +218,13 @@ fn d3_8_async_settlement_and_generator_interleaving_are_preserved() {
     let native = crate::config::ProjectConfig::default()
         .resolve_policy(CompilationRequest::Native)
         .unwrap();
-    assert!(matches!(
-        compiler.with_native_c(source, &native, WorkDomain::Baseline, |_| panic!(
-            "suspension reached native output"
-        )),
-        Err(super::native::NativeError::Unsupported { .. })
-    ));
+    compiler.with_native_c(source, &native, WorkDomain::Baseline, |output| {
+        super::native_tests::compile_and_execute(
+            output.as_str(),
+            "yield 0\ngot 0\nyield 1\ngot 1\na:start\nb:start\nsync\na:end1\nb:end1\n",
+            "async-generator-interleaving",
+        );
+    }).unwrap();
     assert_eq!(compiler.finish().retained_bytes(), 0);
 }
 

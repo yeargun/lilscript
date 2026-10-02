@@ -1245,6 +1245,10 @@ struct UnitPlan {
     // uses ordinary-function syntax. Declared functions start a new one.
     lexical_owner: ContextId,
     observes_activation: bool,
+    /// Generator defaults execute in this call frame; the entry region is
+    /// the separately suspended iterator body beneath it.
+    generator_entry: Option<js::RegionId>,
+    activation_aliases: [Option<js::BindingId>; 2],
     /// Printed strict (a classic script's struct-bearing frame).
     strict_frame: bool,
     reference_parameters: Vec<(CellId, js::BindingId)>,
@@ -2041,9 +2045,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 _ => {}
             }
         }
+        let generator_entry = (data.suspension == Suspension::Generator
+            && data.parameter_region.is_some()).then_some(body);
+        let execution_body = if generator_entry.is_some() {
+            self.module.region_in(self.module.regions[body.index()].scope, self.budget)?
+        } else { body };
         let mut regions = self
             .budget
-            .filled(AllocationClass::Scratch, data.regions.len(), body)?;
+            .filled(AllocationClass::Scratch, data.regions.len(), execution_body)?;
         let entry_depth = if self.compact {
             self.entry_depths[context.index()]
         } else {
@@ -2097,8 +2106,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     regions[child.index()] = if expression_regions[child.index()] {
                         regions[parent.index()]
                     } else {
+                        let enclosing = if generator_entry.is_some() && data.parameter_region == Some(child) {
+                            body
+                        } else { regions[parent.index()] };
                         self.module.region_in(
-                            self.module.regions[regions[parent.index()].index()].scope,
+                            self.module.regions[enclosing.index()].scope,
                             self.budget,
                         )?
                     };
@@ -2161,7 +2173,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 {
                     continue;
                 }
-                let region = regions[cell.region.index()];
+                let region = if generator_entry.is_some() && matches!(cell.binding, CellBinding::Parameter(_)) {
+                    body
+                } else { regions[cell.region.index()] };
                 if let Some(record) = self.demand.record_for_cell(cell_id) {
                     for slot in 0..self.records[record].bindings.len() {
                         self.work(1)?;
@@ -2430,6 +2444,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 shared_strings,
                 lexical_owner,
                 observes_activation: false,
+                generator_entry,
+                activation_aliases: [None; 2],
                 strict_frame,
                 reference_parameters: Vec::new(),
                 prepared_references: Vec::new(),
@@ -2539,7 +2555,21 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             OperationKind::Constant(Constant::Number(bits)) => {
                 let value = f64::from_bits(*bits);
                 if !value.is_finite() {
-                    return Err(self.error(operation.span, "non-finite semantic literal"));
+                    // These are semantic numbers, not JavaScript identifiers:
+                    // host bindings named NaN/Infinity must not affect them.
+                    let left = self.literal(js::Literal::Number(if value.is_nan() {
+                        0.0
+                    } else if value.is_sign_negative() {
+                        -1.0
+                    } else {
+                        1.0
+                    }))?;
+                    let right = self.literal(js::Literal::Number(0.0))?;
+                    return self.expression(js::Expr::Binary {
+                        op: js::Binary::Divide,
+                        left,
+                        right,
+                    });
                 }
                 js::Literal::Number(value)
             }
@@ -2633,12 +2663,38 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             .unwrap()
             .plan
             .observes_activation = true;
+        if let Some(entry) = self.plan(owner).generator_entry {
+            let index = usize::from(ambient == Ambient::Arguments);
+            let binding = if let Some(binding) = self.plan(owner).activation_aliases[index] {
+                binding
+            } else {
+                let name = if index == 0 { "generator_this" } else { "generator_arguments" };
+                let binding = self.generated_binding(entry, name)?;
+                let value = self.ambient_expression(ambient)?;
+                self.statement(entry, js::Statement::Let { binding, value: Some(value) })?;
+                self.contexts[owner.index()].as_mut().unwrap().plan.activation_aliases[index] = Some(binding);
+                binding
+            };
+            return self.reference(binding);
+        }
         Ok(self.ambient_expression(ambient)?)
+    }
+
+    fn call_body(&self, unit: ContextId) -> js::RegionId {
+        self.plan(unit).generator_entry.unwrap_or(self.plan(unit).regions[self.data(unit).entry.index()])
+    }
+
+    fn storage_region(&self, unit: ContextId, cell: CellId) -> js::RegionId {
+        let storage = &self.program.cells[cell.index()];
+        if matches!(storage.binding, CellBinding::Parameter(_)) {
+            if let Some(entry) = self.plan(unit).generator_entry { return entry; }
+        }
+        self.plan(unit).regions[storage.region.index()]
     }
 
     fn finish_unit(&mut self, unit: ContextId) -> Result<(), FormationError> {
         self.work(1)?;
-        let body = self.plan(unit).regions[self.data(unit).entry.index()];
+        let body = self.call_body(unit);
         let mut reference_prefix = self.product_parameter_prefix(unit)?;
         for &cell in &self.data(unit).parameters {
             self.work(1)?;
@@ -2668,6 +2724,24 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             self.prepend_root_owners(body, count, js::RootRow::new(module, js::Anchor::Anchored))?;
         }
         self.drop_scratch(reference_prefix)?;
+        if self.plan(unit).generator_entry.is_some() {
+            let iterator = js::FunctionId::try_new(self.module.functions.len())
+                .ok_or(AllocationError::Capacity)?;
+            let iterator_body = self.plan(unit).regions[self.data(unit).entry.index()];
+            let strict = self.plan(unit).strict_frame;
+            self.budget.push(AllocationClass::Retained, &mut self.module.functions, js::Function {
+                parameters: Vec::new(), rest: false,
+                body: iterator_body,
+                arrow: false, name: js::FunctionName::Unobserved,
+                strict, length: None,
+                suspension: js::Suspension::Generator,
+            })?;
+            let callee = self.expression(js::Expr::Function(iterator))?;
+            let value = self.expression(js::Expr::Call {
+                callee, arguments: Vec::new(), invocation: Invocation::Value,
+            })?;
+            self.statement(body, js::Statement::Return(Some(value)))?;
+        }
         Ok(())
     }
 
@@ -2749,7 +2823,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     fn cell(&mut self, unit: ContextId, cell: CellId) -> Result<js::ExprId, FormationError> {
         self.work(1)?;
         // A method's receiver is `this`, its rest list `arguments`.
-        if let Some(read) = self.activation_read(cell)? {
+        if let Some(read) = self.activation_read(unit, cell)? {
             return Ok(read);
         }
         if self.program.cells[cell.index()].binding == CellBinding::Foreign {
@@ -3444,7 +3518,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 if self.host_call_boundary(unit, call) {
                     if let Some(result) = operation.result {
                         let ty = &self.program.types[self.data(unit).values[result.index()].ty.index()];
-                        if ty.callable_signature().is_some() && public_structs::carries_absence(self.program, ty, self.budget)? {
+                        if public_structs::carries_product(ty, self.budget)? && self.foreign_product_call(unit, call)?
+                            || ty.callable_signature().is_some() && public_structs::carries_absence(self.program, ty, self.budget)? {
                             expression = self.public_value(ty, expression, true)?;
                         }
                     }
@@ -4703,11 +4778,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         _ => value,
                     }
                 } else { value };
-                // A legacy construction seed has its own Null type, not a
-                // fabricated value of its non-nullable field's record type.
-                let public_type = if matches!(self.program.types[self.data(unit).values[operands[0].index()].ty.index()], Type::Null) {
-                    None
-                } else { self.public_storage_type(unit, place)? };
+                // A legacy construction seed is not a value of a required
+                // product field. Actual optional slots still owe their public
+                // absence pin, including when the source writes literal null.
+                let public_type = self.public_storage_type(unit, place)?;
+                let public_type = public_type.filter(|ty| {
+                    !matches!(self.program.types[self.data(unit).values[operands[0].index()].ty.index()], Type::Null)
+                        || matches!(ty.as_ref(), Type::Nullable(_))
+                });
                 let mut sequence = Vec::new();
                 let result_binding = if public_type.is_some() && operation.result.is_some() {
                     let region = self.plan(unit).regions[operation.region.index()];
@@ -5147,13 +5225,15 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         let mut value = self.value(unit, operand)?;
                         let ty = self.data(unit).values[operation.result.unwrap().index()].ty;
                         if let AllocationKind::Instance { class, .. } = kind {
-                            if self.program.class(*class).is_some_and(|class| class.reflected || class.external)
-                                && !matches!(self.program.types[self.data(unit).values[operand.index()].ty.index()], Type::Null) {
+                            if self.program.class(*class).is_some_and(|class| class.reflected || class.external) {
                                 let ty = super::schema::class_field_type(self.program, &self.program.types[ty.index()],
                                     FieldRef { nominal: *class, slot: slot as u32 },
                                     &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?
                                     .ok_or_else(|| self.error(operation.span, "missing construction field"))?;
-                                value = self.public_value(&ty, value, false)?;
+                                if !matches!(self.program.types[self.data(unit).values[operand.index()].ty.index()], Type::Null)
+                                    || matches!(ty.as_ref(), Type::Nullable(_)) {
+                                    value = self.public_value(&ty, value, false)?;
+                                }
                             }
                         } else if matches!(self.program.types[ty.index()], Type::Intersection(_)) {
                             let fields = super::schema::shape_fields(self.program, &self.program.types[ty.index()],
@@ -5216,7 +5296,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let parent = self.module.regions[region.index()].scope;
                 let capture_factory = self.payload_factory(unit, created, parent)?;
                 let parent = capture_factory.as_ref().map_or(parent, |factory| self.module.regions[factory.body.index()].scope);
-                let rest_factory = if rest_scope {
+                let declared_defaults = self.program.unit(created)
+                    .is_some_and(|data| data.constructor_of.is_none() && data.declared_length.is_some());
+                let rest_factory = if rest_scope || declared_defaults {
                     Some(self.module.region_in(parent, self.budget)?)
                 } else {
                     None
@@ -5332,6 +5414,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let suspension = match self.data(child).suspension {
                     Suspension::None => js::Suspension::None,
                     Suspension::Async => js::Suspension::Async,
+                    Suspension::Generator if self.plan(child).generator_entry.is_some() => js::Suspension::None,
                     Suspension::Generator => js::Suspension::Generator,
                 };
                 // A generator has no arrow form.
@@ -5378,6 +5461,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                 }
                 let strict = self.plan(child).strict_frame || declared_method.is_some();
+                if method.is_none()
+                    && (self.plan(child).generator_entry.is_some()
+                        || !private && private_cell.is_none())
+                {
+                    // Observable arity belongs to the source declaration,
+                    // independently of optional default-argument transport.
+                    let receiver = usize::from(self.data(child).constructor_of.is_some());
+                    length = self.data(child).declared_length
+                        .map(|length| (length as usize).saturating_sub(receiver));
+                }
                 if self.default_transport
                     && length.is_none()
                     && method.is_none()
@@ -5418,6 +5511,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         _ => false,
                     }
                 });
+                let non_simple_frame = rest || declared_defaults && length.is_some();
                 self.budget.push(
                     AllocationClass::Retained,
                     &mut self.module.functions,
@@ -5431,7 +5525,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         } else {
                             name
                         },
-                        strict: strict && constructor_of.is_none() && !rest,
+                        strict: strict && constructor_of.is_none() && !non_simple_frame,
                         length,
                         suspension,
                     },
@@ -5451,7 +5545,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     if let Some(cell) = private_cell {
                         let _ = result;
                         let node =
-                            self.rest_strict_frame(function, rest && strict, rest_factory)?;
+                            self.rest_strict_frame(function, non_simple_frame && strict, rest_factory)?;
                         let value = self.expression(node)?;
                         let binding = self.cell_binding(unit, cell)?;
                         let region = self.plan(unit).regions[operation.region.index()];
@@ -5473,7 +5567,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         function,
                         operation.span,
                     )?,
-                    None => self.rest_strict_frame(function, rest && strict, rest_factory)?,
+                    None => self.rest_strict_frame(function, non_simple_frame && strict, rest_factory)?,
                 };
                 self.finish_payload_factory(capture_factory, node)?
             }
@@ -5989,6 +6083,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 OperationKind::Continue => js::Statement::Continue,
                 OperationKind::Block(body) => {
                     self.statement_region(unit, body)?;
+                    if self.data(unit).parameter_region == Some(body) {
+                        if let Some(entry) = self.plan(unit).generator_entry {
+                            self.statement(entry, js::Statement::Block(self.plan(unit).regions[body.index()]))?;
+                            cursor += 1;
+                            continue;
+                        }
+                    }
                     js::Statement::Block(self.plan(unit).regions[body.index()])
                 }
                 OperationKind::If { yes, no } => {

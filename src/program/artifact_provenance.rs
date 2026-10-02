@@ -127,6 +127,7 @@ impl OutputTactics {
 
 #[derive(Debug)]
 pub(super) enum ProvenanceError {
+    ContractMismatch,
     Allocation(AllocationError),
     Naming(OutputError),
     Admission(AdmissionError),
@@ -144,6 +145,7 @@ impl From<AllocationError> for ProvenanceError {
 #[derive(Debug)]
 #[must_use = "retain with the admitting compilation or explicitly discard through it"]
 pub(super) struct ArtifactProvenance {
+    contract: crate::compilation_policy::CompilationContract,
     naming: Plan,
     naming_origin: NamingProvenance,
     output: OutputTactics,
@@ -270,8 +272,13 @@ impl ArtifactProvenance {
             .and_then(|n| n.checked_add(output.choices.retained_bytes()))
             .and_then(|n| u64::try_from(n).ok())
             .ok_or(AllocationError::Capacity)?;
+        let before = phase.retained_bytes(Retained);
+        let contract = policy.contract().copy_admitted(&mut phase)?;
+        let bytes = bytes.checked_add(phase.retained_bytes(Retained) - before)
+            .ok_or(AllocationError::Capacity)?;
         let charge = phase.detach_retained(owner, bytes)?;
         Ok(Self {
+            contract,
             naming: Plan {
                 style: naming.style,
                 alphabet: naming.alphabet,
@@ -362,6 +369,9 @@ impl ArtifactProvenance {
         baseline: CandidateCostEvidence,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), ProvenanceError> {
+        if self.contract != *policy.contract() {
+            return Err(ProvenanceError::ContractMismatch);
+        }
         self.check_output_permissions(policy, budget)?;
         policy
             .admit_evidence(self.tactics(), cost, baseline)
@@ -395,8 +405,8 @@ impl ArtifactProvenance {
         if !self.charge.belongs_to(&owner) {
             return Err((self, AllocationError::WrongOwner));
         }
-        let Self { naming, charge, .. } = self;
-        drop(naming);
+        let Self { naming, contract, output, charge, .. } = self;
+        drop((naming, contract, output));
         charge
             .discard(&owner, ledger)
             .unwrap_or_else(|_| panic!("artifact provenance allocation owner invariant"));
@@ -903,11 +913,17 @@ mod tests {
                 "[policy.constraints]\nmax_runtime_memory_bytes=0",
                 "runtime memory",
             ),
-            ("[javascript]\npriority='balanced'", "performance estimate"),
+
         ] {
             assert!(matches!(admit(&evidence, &policy(text), &mut ledger),
                 Err(ProvenanceError::Admission(AdmissionError::MissingCostEvidence(found))) if found == missing));
         }
+        evidence.discard(owner, &mut ledger).unwrap();
+        let balanced = policy("[javascript]\npriority='balanced'");
+        let evidence = build(owner, &mut ledger, WorkDomain::Optional, &balanced,
+            &Plan::new(Style::Global), &[], NO_OUTPUT);
+        assert!(matches!(admit(&evidence, &balanced, &mut ledger),
+            Err(ProvenanceError::Admission(AdmissionError::MissingCostEvidence("performance estimate")))));
         evidence.discard(owner, &mut ledger).unwrap();
     }
 

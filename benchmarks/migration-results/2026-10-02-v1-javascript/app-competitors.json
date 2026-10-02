@@ -1,0 +1,846 @@
+{
+  "schema": 1,
+  "runner_sha256": "3a05ff95af605ba2144ed8a7751cfc27a2aa5fc08547c607d3e4beb9b6e90b09",
+  "rows": [
+    {
+      "id": "aggregate-model",
+      "exit": 0,
+      "log_sha256": "ae899c59153b081d540920338a6ce5d424a94e0cea65ffe021d289eeaf10f040",
+      "report": {
+        "schemaVersion": 4,
+        "app": "aggregate-model",
+        "lilscriptVersion": "0.1.0",
+        "closureVersion": "v20260804",
+        "objectiveContract": {
+          "delivery": "bare private application script",
+          "raw": "raw-config artifact measured as raw UTF-8",
+          "gzip9": "gzip-config artifact measured as gzip level 9",
+          "brotli11": "brotli-config artifact measured as Brotli quality 11, lgwin 22"
+        },
+        "lilscript": {
+          "raw": 120,
+          "gzip9": 109,
+          "brotli11": 90
+        },
+        "lilscriptArtifacts": {
+          "raw": {
+            "path": "lilscript-raw.js",
+            "digest": "05b021aa4b24be24b8d69d6b96302bbefaf778c568087744d1fd6cbe81551869",
+            "sizes": {
+              "raw": 120,
+              "gzip9": 109,
+              "brotli11": 90
+            }
+          },
+          "gzip9": {
+            "path": "lilscript-gzip.js",
+            "digest": "05b021aa4b24be24b8d69d6b96302bbefaf778c568087744d1fd6cbe81551869",
+            "sizes": {
+              "raw": 120,
+              "gzip9": 109,
+              "brotli11": 90
+            }
+          },
+          "brotli11": {
+            "path": "lilscript-brotli.js",
+            "digest": "05b021aa4b24be24b8d69d6b96302bbefaf778c568087744d1fd6cbe81551869",
+            "sizes": {
+              "raw": 120,
+              "gzip9": 109,
+              "brotli11": 90
+            }
+          }
+        },
+        "closure": {
+          "raw": 240,
+          "gzip9": 165,
+          "brotli11": 150
+        },
+        "closureArtifact": {
+          "path": "closure.js",
+          "digest": "9a25d2cf01ffc9cef63ae1be6e6427fefa6a580c04b49253a687e8da23a116ee",
+          "sizes": {
+            "raw": 240,
+            "gzip9": 165,
+            "brotli11": 150
+          }
+        },
+        "codecs": {
+          "implementation": "lilscript-codec",
+          "schemaVersion": 1,
+          "scorer": {
+            "path": "../lilscript-work/bin/q1-complete-2/lilscript-codec",
+            "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+            "bytes": 2408728
+          },
+          "gzip9": {
+            "encoder": "upstream-stock-zlib-c",
+            "libraryVersion": "1.3.1",
+            "cargoPackage": "libz-sys",
+            "cargoPackageVersion": "1.1.24",
+            "level": 9,
+            "mtime": 0
+          },
+          "brotli11": {
+            "encoder": "official-google-brotli-c",
+            "libraryVersion": "1.1.0",
+            "cargoPackage": "compu-brotli-sys",
+            "cargoPackageVersion": "1.1.0",
+            "quality": 11,
+            "lgwin": 22,
+            "mode": "generic"
+          },
+          "nodeCodecsAreDiagnosticOnly": true
+        },
+        "toolVersions": {
+          "lilscript": {
+            "path": "../lilscript-work/bin/v1-js-candidate-4/lilscript",
+            "digest": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+            "version": "lilscript 0.1.0"
+          },
+          "closure": {
+            "path": "comparison/.tools/closure-compiler-v20260804.jar",
+            "digest": "9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b",
+            "version": "v20260804"
+          }
+        },
+        "provenance": {
+          "configs": {
+            "raw": {
+              "path": "comparison/cases/configs/raw.toml",
+              "digest": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e"
+            },
+            "gzip": {
+              "path": "comparison/cases/configs/gzip.toml",
+              "digest": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16"
+            },
+            "brotli": {
+              "path": "comparison/cases/configs/brotli.toml",
+              "digest": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "control-flow-engine",
+      "exit": 0,
+      "log_sha256": "78af3174ff1c52543ed0fd580d4fe6778694cb5a9b147e4b6df8eece10570fc8",
+      "report": {
+        "schemaVersion": 4,
+        "app": "control-flow-engine",
+        "lilscriptVersion": "0.1.0",
+        "closureVersion": "v20260804",
+        "objectiveContract": {
+          "delivery": "bare private application script",
+          "raw": "raw-config artifact measured as raw UTF-8",
+          "gzip9": "gzip-config artifact measured as gzip level 9",
+          "brotli11": "brotli-config artifact measured as Brotli quality 11, lgwin 22"
+        },
+        "lilscript": {
+          "raw": 17,
+          "gzip9": 37,
+          "brotli11": 21
+        },
+        "lilscriptArtifacts": {
+          "raw": {
+            "path": "lilscript-raw.js",
+            "digest": "747e81414aeafc7d3df01c72e3f0167700e829ba0fa544302960292b72a8568a",
+            "sizes": {
+              "raw": 17,
+              "gzip9": 37,
+              "brotli11": 21
+            }
+          },
+          "gzip9": {
+            "path": "lilscript-gzip.js",
+            "digest": "747e81414aeafc7d3df01c72e3f0167700e829ba0fa544302960292b72a8568a",
+            "sizes": {
+              "raw": 17,
+              "gzip9": 37,
+              "brotli11": 21
+            }
+          },
+          "brotli11": {
+            "path": "lilscript-brotli.js",
+            "digest": "747e81414aeafc7d3df01c72e3f0167700e829ba0fa544302960292b72a8568a",
+            "sizes": {
+              "raw": 17,
+              "gzip9": 37,
+              "brotli11": 21
+            }
+          }
+        },
+        "closure": {
+          "raw": 138,
+          "gzip9": 130,
+          "brotli11": 116
+        },
+        "closureArtifact": {
+          "path": "closure.js",
+          "digest": "0ab4f39f7cbe7bb77dba91ce5cc423d97b4958ba49809bf675685fd7e9ca06b9",
+          "sizes": {
+            "raw": 138,
+            "gzip9": 130,
+            "brotli11": 116
+          }
+        },
+        "codecs": {
+          "implementation": "lilscript-codec",
+          "schemaVersion": 1,
+          "scorer": {
+            "path": "../lilscript-work/bin/q1-complete-2/lilscript-codec",
+            "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+            "bytes": 2408728
+          },
+          "gzip9": {
+            "encoder": "upstream-stock-zlib-c",
+            "libraryVersion": "1.3.1",
+            "cargoPackage": "libz-sys",
+            "cargoPackageVersion": "1.1.24",
+            "level": 9,
+            "mtime": 0
+          },
+          "brotli11": {
+            "encoder": "official-google-brotli-c",
+            "libraryVersion": "1.1.0",
+            "cargoPackage": "compu-brotli-sys",
+            "cargoPackageVersion": "1.1.0",
+            "quality": 11,
+            "lgwin": 22,
+            "mode": "generic"
+          },
+          "nodeCodecsAreDiagnosticOnly": true
+        },
+        "toolVersions": {
+          "lilscript": {
+            "path": "../lilscript-work/bin/v1-js-candidate-4/lilscript",
+            "digest": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+            "version": "lilscript 0.1.0"
+          },
+          "closure": {
+            "path": "comparison/.tools/closure-compiler-v20260804.jar",
+            "digest": "9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b",
+            "version": "v20260804"
+          }
+        },
+        "provenance": {
+          "configs": {
+            "raw": {
+              "path": "comparison/cases/configs/raw.toml",
+              "digest": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e"
+            },
+            "gzip": {
+              "path": "comparison/cases/configs/gzip.toml",
+              "digest": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16"
+            },
+            "brotli": {
+              "path": "comparison/cases/configs/brotli.toml",
+              "digest": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "higher-order-pipeline",
+      "exit": 0,
+      "log_sha256": "023ad03dc0c107f41e4ecebe82e4a94dcd78d03f6c076bb474a7f10b263cd968",
+      "report": {
+        "schemaVersion": 4,
+        "app": "higher-order-pipeline",
+        "lilscriptVersion": "0.1.0",
+        "closureVersion": "v20260804",
+        "objectiveContract": {
+          "delivery": "bare private application script",
+          "raw": "raw-config artifact measured as raw UTF-8",
+          "gzip9": "gzip-config artifact measured as gzip level 9",
+          "brotli11": "brotli-config artifact measured as Brotli quality 11, lgwin 22"
+        },
+        "lilscript": {
+          "raw": 129,
+          "gzip9": 128,
+          "brotli11": 112
+        },
+        "lilscriptArtifacts": {
+          "raw": {
+            "path": "lilscript-raw.js",
+            "digest": "ca99e1b35856c78628a5984261aa59360be34cae1fe8fd17e49f5f5ee5102fad",
+            "sizes": {
+              "raw": 129,
+              "gzip9": 132,
+              "brotli11": 114
+            }
+          },
+          "gzip9": {
+            "path": "lilscript-gzip.js",
+            "digest": "3eba7db8278a0c8c58816718476caa3d7f047c5eb4e27257fcef7b80808f3c2f",
+            "sizes": {
+              "raw": 129,
+              "gzip9": 128,
+              "brotli11": 112
+            }
+          },
+          "brotli11": {
+            "path": "lilscript-brotli.js",
+            "digest": "bfd05c502b82b6636ff621f89cdf9ed8d2e2f2f5157f84af2abcfc8d8f24a5d6",
+            "sizes": {
+              "raw": 129,
+              "gzip9": 130,
+              "brotli11": 112
+            }
+          }
+        },
+        "closure": {
+          "raw": 133,
+          "gzip9": 135,
+          "brotli11": 113
+        },
+        "closureArtifact": {
+          "path": "closure.js",
+          "digest": "1cb966bb41ad40f0b306aba6744e6a5e61c01b1949592fc2253cc8daa35eb8c1",
+          "sizes": {
+            "raw": 133,
+            "gzip9": 135,
+            "brotli11": 113
+          }
+        },
+        "codecs": {
+          "implementation": "lilscript-codec",
+          "schemaVersion": 1,
+          "scorer": {
+            "path": "../lilscript-work/bin/q1-complete-2/lilscript-codec",
+            "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+            "bytes": 2408728
+          },
+          "gzip9": {
+            "encoder": "upstream-stock-zlib-c",
+            "libraryVersion": "1.3.1",
+            "cargoPackage": "libz-sys",
+            "cargoPackageVersion": "1.1.24",
+            "level": 9,
+            "mtime": 0
+          },
+          "brotli11": {
+            "encoder": "official-google-brotli-c",
+            "libraryVersion": "1.1.0",
+            "cargoPackage": "compu-brotli-sys",
+            "cargoPackageVersion": "1.1.0",
+            "quality": 11,
+            "lgwin": 22,
+            "mode": "generic"
+          },
+          "nodeCodecsAreDiagnosticOnly": true
+        },
+        "toolVersions": {
+          "lilscript": {
+            "path": "../lilscript-work/bin/v1-js-candidate-4/lilscript",
+            "digest": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+            "version": "lilscript 0.1.0"
+          },
+          "closure": {
+            "path": "comparison/.tools/closure-compiler-v20260804.jar",
+            "digest": "9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b",
+            "version": "v20260804"
+          }
+        },
+        "provenance": {
+          "configs": {
+            "raw": {
+              "path": "comparison/cases/configs/raw.toml",
+              "digest": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e"
+            },
+            "gzip": {
+              "path": "comparison/cases/configs/gzip.toml",
+              "digest": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16"
+            },
+            "brotli": {
+              "path": "comparison/cases/configs/brotli.toml",
+              "digest": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "module-graph",
+      "exit": 0,
+      "log_sha256": "b01def6563fb5ae869fe2eadf33ba28b42f0f8cdbde2971fe7db8637f70e62b9",
+      "report": {
+        "schemaVersion": 4,
+        "app": "module-graph",
+        "lilscriptVersion": "0.1.0",
+        "closureVersion": "v20260804",
+        "objectiveContract": {
+          "delivery": "bare private application script",
+          "raw": "raw-config artifact measured as raw UTF-8",
+          "gzip9": "gzip-config artifact measured as gzip level 9",
+          "brotli11": "brotli-config artifact measured as Brotli quality 11, lgwin 22"
+        },
+        "lilscript": {
+          "raw": 143,
+          "gzip9": 141,
+          "brotli11": 119
+        },
+        "lilscriptArtifacts": {
+          "raw": {
+            "path": "lilscript-raw.js",
+            "digest": "927e7b9e330723a64837e7394c00afffc81c628fda73adbd550c4b797df0f867",
+            "sizes": {
+              "raw": 143,
+              "gzip9": 144,
+              "brotli11": 135
+            }
+          },
+          "gzip9": {
+            "path": "lilscript-gzip.js",
+            "digest": "0f779227afaab810c706e71e3114387f22d1e81e0f3d51fcecd36e2887f64774",
+            "sizes": {
+              "raw": 143,
+              "gzip9": 141,
+              "brotli11": 130
+            }
+          },
+          "brotli11": {
+            "path": "lilscript-brotli.js",
+            "digest": "725a7c3c33a90ef7816c1539c8e2d74563c67027c57756f33766b1aa761d37c2",
+            "sizes": {
+              "raw": 146,
+              "gzip9": 144,
+              "brotli11": 119
+            }
+          }
+        },
+        "closure": {
+          "raw": 118,
+          "gzip9": 127,
+          "brotli11": 114
+        },
+        "closureArtifact": {
+          "path": "closure.js",
+          "digest": "e05d4075b43be80f8af2644e51894cc5ee5daf88e8b5b9ca5f01732ae2c0c426",
+          "sizes": {
+            "raw": 118,
+            "gzip9": 127,
+            "brotli11": 114
+          }
+        },
+        "codecs": {
+          "implementation": "lilscript-codec",
+          "schemaVersion": 1,
+          "scorer": {
+            "path": "../lilscript-work/bin/q1-complete-2/lilscript-codec",
+            "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+            "bytes": 2408728
+          },
+          "gzip9": {
+            "encoder": "upstream-stock-zlib-c",
+            "libraryVersion": "1.3.1",
+            "cargoPackage": "libz-sys",
+            "cargoPackageVersion": "1.1.24",
+            "level": 9,
+            "mtime": 0
+          },
+          "brotli11": {
+            "encoder": "official-google-brotli-c",
+            "libraryVersion": "1.1.0",
+            "cargoPackage": "compu-brotli-sys",
+            "cargoPackageVersion": "1.1.0",
+            "quality": 11,
+            "lgwin": 22,
+            "mode": "generic"
+          },
+          "nodeCodecsAreDiagnosticOnly": true
+        },
+        "toolVersions": {
+          "lilscript": {
+            "path": "../lilscript-work/bin/v1-js-candidate-4/lilscript",
+            "digest": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+            "version": "lilscript 0.1.0"
+          },
+          "closure": {
+            "path": "comparison/.tools/closure-compiler-v20260804.jar",
+            "digest": "9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b",
+            "version": "v20260804"
+          }
+        },
+        "provenance": {
+          "configs": {
+            "raw": {
+              "path": "comparison/cases/configs/raw.toml",
+              "digest": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e"
+            },
+            "gzip": {
+              "path": "comparison/cases/configs/gzip.toml",
+              "digest": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16"
+            },
+            "brotli": {
+              "path": "comparison/cases/configs/brotli.toml",
+              "digest": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "numerical-kernel",
+      "exit": 0,
+      "log_sha256": "9432f20b064580c2ebeef81e21ca4b785e79650305e165d512dac6302411690e",
+      "report": {
+        "schemaVersion": 4,
+        "app": "numerical-kernel",
+        "lilscriptVersion": "0.1.0",
+        "closureVersion": "v20260804",
+        "objectiveContract": {
+          "delivery": "bare private application script",
+          "raw": "raw-config artifact measured as raw UTF-8",
+          "gzip9": "gzip-config artifact measured as gzip level 9",
+          "brotli11": "brotli-config artifact measured as Brotli quality 11, lgwin 22"
+        },
+        "lilscript": {
+          "raw": 51,
+          "gzip9": 50,
+          "brotli11": 37
+        },
+        "lilscriptArtifacts": {
+          "raw": {
+            "path": "lilscript-raw.js",
+            "digest": "728f1859622ea4ab806c42dca7b76ec65328034b882a98a2dbf5e35ebe45cb72",
+            "sizes": {
+              "raw": 51,
+              "gzip9": 50,
+              "brotli11": 37
+            }
+          },
+          "gzip9": {
+            "path": "lilscript-gzip.js",
+            "digest": "728f1859622ea4ab806c42dca7b76ec65328034b882a98a2dbf5e35ebe45cb72",
+            "sizes": {
+              "raw": 51,
+              "gzip9": 50,
+              "brotli11": 37
+            }
+          },
+          "brotli11": {
+            "path": "lilscript-brotli.js",
+            "digest": "728f1859622ea4ab806c42dca7b76ec65328034b882a98a2dbf5e35ebe45cb72",
+            "sizes": {
+              "raw": 51,
+              "gzip9": 50,
+              "brotli11": 37
+            }
+          }
+        },
+        "closure": {
+          "raw": 197,
+          "gzip9": 163,
+          "brotli11": 138
+        },
+        "closureArtifact": {
+          "path": "closure.js",
+          "digest": "7610f93041dcc5dd5ddcde08e0291a58fbdb9a69db8151edeff099f99e863b63",
+          "sizes": {
+            "raw": 197,
+            "gzip9": 163,
+            "brotli11": 138
+          }
+        },
+        "codecs": {
+          "implementation": "lilscript-codec",
+          "schemaVersion": 1,
+          "scorer": {
+            "path": "../lilscript-work/bin/q1-complete-2/lilscript-codec",
+            "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+            "bytes": 2408728
+          },
+          "gzip9": {
+            "encoder": "upstream-stock-zlib-c",
+            "libraryVersion": "1.3.1",
+            "cargoPackage": "libz-sys",
+            "cargoPackageVersion": "1.1.24",
+            "level": 9,
+            "mtime": 0
+          },
+          "brotli11": {
+            "encoder": "official-google-brotli-c",
+            "libraryVersion": "1.1.0",
+            "cargoPackage": "compu-brotli-sys",
+            "cargoPackageVersion": "1.1.0",
+            "quality": 11,
+            "lgwin": 22,
+            "mode": "generic"
+          },
+          "nodeCodecsAreDiagnosticOnly": true
+        },
+        "toolVersions": {
+          "lilscript": {
+            "path": "../lilscript-work/bin/v1-js-candidate-4/lilscript",
+            "digest": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+            "version": "lilscript 0.1.0"
+          },
+          "closure": {
+            "path": "comparison/.tools/closure-compiler-v20260804.jar",
+            "digest": "9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b",
+            "version": "v20260804"
+          }
+        },
+        "provenance": {
+          "configs": {
+            "raw": {
+              "path": "comparison/cases/configs/raw.toml",
+              "digest": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e"
+            },
+            "gzip": {
+              "path": "comparison/cases/configs/gzip.toml",
+              "digest": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16"
+            },
+            "brotli": {
+              "path": "comparison/cases/configs/brotli.toml",
+              "digest": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "optimizer-pressure",
+      "exit": 0,
+      "log_sha256": "048e792e7abe422567e7f5e0c625c1ce3fe0e7bed755c9a30c8eea468dc05822",
+      "report": {
+        "schemaVersion": 4,
+        "app": "optimizer-pressure",
+        "lilscriptVersion": "0.1.0",
+        "closureVersion": "v20260804",
+        "objectiveContract": {
+          "delivery": "bare private application script",
+          "raw": "raw-config artifact measured as raw UTF-8",
+          "gzip9": "gzip-config artifact measured as gzip level 9",
+          "brotli11": "brotli-config artifact measured as Brotli quality 11, lgwin 22"
+        },
+        "lilscript": {
+          "raw": 141,
+          "gzip9": 89,
+          "brotli11": 65
+        },
+        "lilscriptArtifacts": {
+          "raw": {
+            "path": "lilscript-raw.js",
+            "digest": "2ec74bbeb87c5bbfb6d9d90a021e79764f906d59e4d0524b1ee1b2278f1da6b1",
+            "sizes": {
+              "raw": 141,
+              "gzip9": 94,
+              "brotli11": 91
+            }
+          },
+          "gzip9": {
+            "path": "lilscript-gzip.js",
+            "digest": "bdfc146e4012def970e24d3ac6fc87c91f7c9114d05289e43903fe3e270d9c7d",
+            "sizes": {
+              "raw": 191,
+              "gzip9": 89,
+              "brotli11": 65
+            }
+          },
+          "brotli11": {
+            "path": "lilscript-brotli.js",
+            "digest": "bdfc146e4012def970e24d3ac6fc87c91f7c9114d05289e43903fe3e270d9c7d",
+            "sizes": {
+              "raw": 191,
+              "gzip9": 89,
+              "brotli11": 65
+            }
+          }
+        },
+        "closure": {
+          "raw": 240,
+          "gzip9": 127,
+          "brotli11": 98
+        },
+        "closureArtifact": {
+          "path": "closure.js",
+          "digest": "e0250f7dd2f8301ed12529cde9377a179098b6d65a9b85d2b46056077570727d",
+          "sizes": {
+            "raw": 240,
+            "gzip9": 127,
+            "brotli11": 98
+          }
+        },
+        "codecs": {
+          "implementation": "lilscript-codec",
+          "schemaVersion": 1,
+          "scorer": {
+            "path": "../lilscript-work/bin/q1-complete-2/lilscript-codec",
+            "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+            "bytes": 2408728
+          },
+          "gzip9": {
+            "encoder": "upstream-stock-zlib-c",
+            "libraryVersion": "1.3.1",
+            "cargoPackage": "libz-sys",
+            "cargoPackageVersion": "1.1.24",
+            "level": 9,
+            "mtime": 0
+          },
+          "brotli11": {
+            "encoder": "official-google-brotli-c",
+            "libraryVersion": "1.1.0",
+            "cargoPackage": "compu-brotli-sys",
+            "cargoPackageVersion": "1.1.0",
+            "quality": 11,
+            "lgwin": 22,
+            "mode": "generic"
+          },
+          "nodeCodecsAreDiagnosticOnly": true
+        },
+        "toolVersions": {
+          "lilscript": {
+            "path": "../lilscript-work/bin/v1-js-candidate-4/lilscript",
+            "digest": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+            "version": "lilscript 0.1.0"
+          },
+          "closure": {
+            "path": "comparison/.tools/closure-compiler-v20260804.jar",
+            "digest": "9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b",
+            "version": "v20260804"
+          }
+        },
+        "provenance": {
+          "configs": {
+            "raw": {
+              "path": "comparison/cases/configs/raw.toml",
+              "digest": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e"
+            },
+            "gzip": {
+              "path": "comparison/cases/configs/gzip.toml",
+              "digest": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16"
+            },
+            "brotli": {
+              "path": "comparison/cases/configs/brotli.toml",
+              "digest": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "text-report",
+      "exit": 0,
+      "log_sha256": "f4f574a09b23c02957bd1d511eee40e9cdfc2cec82164c8066d5965d18900899",
+      "report": {
+        "schemaVersion": 4,
+        "app": "text-report",
+        "lilscriptVersion": "0.1.0",
+        "closureVersion": "v20260804",
+        "objectiveContract": {
+          "delivery": "bare private application script",
+          "raw": "raw-config artifact measured as raw UTF-8",
+          "gzip9": "gzip-config artifact measured as gzip level 9",
+          "brotli11": "brotli-config artifact measured as Brotli quality 11, lgwin 22"
+        },
+        "lilscript": {
+          "raw": 210,
+          "gzip9": 153,
+          "brotli11": 113
+        },
+        "lilscriptArtifacts": {
+          "raw": {
+            "path": "lilscript-raw.js",
+            "digest": "181bd06bdf3eb805765569e2126794a0de710753fb75393501e1027856814f69",
+            "sizes": {
+              "raw": 210,
+              "gzip9": 154,
+              "brotli11": 120
+            }
+          },
+          "gzip9": {
+            "path": "lilscript-gzip.js",
+            "digest": "4281847bff7ec21f79adc63502d383fd4935573c6deee79d7059f289a26e102f",
+            "sizes": {
+              "raw": 296,
+              "gzip9": 153,
+              "brotli11": 113
+            }
+          },
+          "brotli11": {
+            "path": "lilscript-brotli.js",
+            "digest": "a4cd0150a39559875d044ecfd3ec3d21534a7a6a3350405a63102f152d91539c",
+            "sizes": {
+              "raw": 296,
+              "gzip9": 154,
+              "brotli11": 113
+            }
+          }
+        },
+        "closure": {
+          "raw": 266,
+          "gzip9": 135,
+          "brotli11": 105
+        },
+        "closureArtifact": {
+          "path": "closure.js",
+          "digest": "4522c81f3cd85f0ecff1ea2aa2a41786df9996b58ca46aa5c1f6d3fe39ed74e0",
+          "sizes": {
+            "raw": 266,
+            "gzip9": 135,
+            "brotli11": 105
+          }
+        },
+        "codecs": {
+          "implementation": "lilscript-codec",
+          "schemaVersion": 1,
+          "scorer": {
+            "path": "../lilscript-work/bin/q1-complete-2/lilscript-codec",
+            "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+            "bytes": 2408728
+          },
+          "gzip9": {
+            "encoder": "upstream-stock-zlib-c",
+            "libraryVersion": "1.3.1",
+            "cargoPackage": "libz-sys",
+            "cargoPackageVersion": "1.1.24",
+            "level": 9,
+            "mtime": 0
+          },
+          "brotli11": {
+            "encoder": "official-google-brotli-c",
+            "libraryVersion": "1.1.0",
+            "cargoPackage": "compu-brotli-sys",
+            "cargoPackageVersion": "1.1.0",
+            "quality": 11,
+            "lgwin": 22,
+            "mode": "generic"
+          },
+          "nodeCodecsAreDiagnosticOnly": true
+        },
+        "toolVersions": {
+          "lilscript": {
+            "path": "../lilscript-work/bin/v1-js-candidate-4/lilscript",
+            "digest": "984b99192e63043cff22544b3834664ff277ce3ac0a81111a53e1f9436d598c6",
+            "version": "lilscript 0.1.0"
+          },
+          "closure": {
+            "path": "comparison/.tools/closure-compiler-v20260804.jar",
+            "digest": "9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b",
+            "version": "v20260804"
+          }
+        },
+        "provenance": {
+          "configs": {
+            "raw": {
+              "path": "comparison/cases/configs/raw.toml",
+              "digest": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e"
+            },
+            "gzip": {
+              "path": "comparison/cases/configs/gzip.toml",
+              "digest": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16"
+            },
+            "brotli": {
+              "path": "comparison/cases/configs/brotli.toml",
+              "digest": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

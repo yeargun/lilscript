@@ -53,8 +53,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             self.work(1)?;
             let fields = self.demand.products()[family].fields().len();
             let mut slots = self.budget.filled(AllocationClass::Scratch, fields, None)?;
-            let region =
-                self.plan(context).regions[self.program.cells[cell.index()].region.index()];
+            let region = self.storage_region(context, cell);
             let budget = &mut self.budget;
             let shared = self
                 .demand

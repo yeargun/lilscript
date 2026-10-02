@@ -72,8 +72,11 @@ fn admitted_lower_matches_structure_and_runs_conversion_and_verification_once() 
     let explicit = {
         let mut budget = AllocationBudget::new(Some((&mut explicit_ledger, WorkDomain::Baseline)));
         let mut scope = budget.scope();
-        let program = convert_source(&syntax, &semantics, None, &Default::default(), &mut scope).unwrap();
+        let mut program = convert_source(&syntax, &semantics, None, &Default::default(), &mut scope).unwrap();
+        hosts::apply(&mut program, semantics.view(), &Default::default(), &mut scope).unwrap();
         verify_conversion(&program, syntax.span, &mut scope).unwrap();
+        check_contracts(&program, &mut scope).unwrap();
+        check_javascript_interfaces(&program, None, &mut scope).unwrap();
         PreparedProgram::new(program, &mut scope).unwrap()
     };
     assert_eq!(integrated.program().types, ordinary.types);

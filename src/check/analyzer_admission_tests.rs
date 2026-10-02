@@ -8,6 +8,12 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 const SENTINEL: u64 = 29;
 const WORK: u64 = 1_000_000;
 
+fn initial_type_pool_bytes() -> u64 {
+    let mut pool = type_pool::TypePool::default();
+    pool.intern(&Type::Int, &mut AllocationBudget::new(None)).unwrap();
+    pool.storage_bytes()
+}
+
 fn ledger(work: u64, memory: u64) -> BudgetLedger {
     let mut ledger = BudgetLedger::new(
         ResourceLimits {
@@ -233,7 +239,8 @@ fn callable_context_refusals_release_partial_frames_but_keep_declarations() {
     let scoped = declarations + 4 * (s + n) + parameters;
     let scope_peak = declarations + parameters + (5 * s + n).max(4 * s + 5 * n);
     // A class is declared in its registry before any frame exists.
-    let class_declarations = declarations + 4 * size_of::<ClassInfo<'_>>() as u64;
+    let class_declarations = declarations + 4 * size_of::<ClassInfo<'_>>() as u64
+        + initial_type_pool_bytes();
     let class_scoped = class_declarations + 4 * (s + n) + parameters;
     for (source, required, peak, shared, capacities) in [
         (
@@ -341,9 +348,10 @@ class Box<T> {
             + size_of::<Option<NominalId>>()
             + size_of::<Option<Type<'_>>>())
         + 4 * size_of::<AHashSet<&str>>()) as u64;
-    let shared = (8 * (size_of::<Symbol<'_>>() + size_of::<Option<crate::module::ModuleId>>())
+    let shared_backings = (8 * (size_of::<Symbol<'_>>() + size_of::<Option<crate::module::ModuleId>>())
         + 4 * size_of::<ClassInfo<'_>>()) as u64;
     for unwind in [false, true] {
+        let shared = std::cell::Cell::new(shared_backings);
         let mut ledger = ledger(WORK, 1_000_000);
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
         let parent = budget.string(AllocationClass::Retained, "parent").unwrap();
@@ -360,6 +368,7 @@ class Box<T> {
             )
             .unwrap();
             analyzer.analyze_program(&program).unwrap();
+            shared.set(shared_backings + analyzer.declarations.types.storage_bytes());
             assert_eq!(
                 (
                     analyzer.scopes.capacity(),
@@ -388,7 +397,7 @@ class Box<T> {
             );
             assert_eq!(
                 analyzer.budget.retained_bytes(AllocationClass::Scratch),
-                shared + frames
+                shared.get() + frames
             );
             analyzer.budget.with_ledger(|owner| {
                 owner
@@ -401,11 +410,11 @@ class Box<T> {
             }
         }));
         assert_eq!(result.is_err(), unwind);
-        assert_eq!(budget.retained_bytes(AllocationClass::Scratch), shared);
+        assert_eq!(budget.retained_bytes(AllocationClass::Scratch), shared.get());
         assert_eq!(budget.retained_bytes(AllocationClass::Retained), 6);
         assert_eq!(parent, "parent");
         drop(declarations);
-        budget.release(AllocationClass::Scratch, shared).unwrap();
+        budget.release(AllocationClass::Scratch, shared.get()).unwrap();
         drop(parent);
         budget.release(AllocationClass::Retained, 6).unwrap();
         drop(budget);

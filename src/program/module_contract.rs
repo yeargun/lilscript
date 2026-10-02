@@ -176,7 +176,11 @@ mod tests {
             );
             rejects(
                 &program,
-                |p| Arc::make_mut(&mut p.modules)[1].dependencies.clear(),
+                |p| {
+                    let module = &mut Arc::make_mut(&mut p.modules)[1];
+                    module.dependencies.clear();
+                    module.dependency_spans.clear();
+                },
                 "canonical export",
             );
             rejects(
@@ -201,7 +205,11 @@ mod tests {
             );
             rejects(
                 &program,
-                |p| Arc::make_mut(&mut p.modules)[0].dependencies.clear(),
+                |p| {
+                    let module = &mut Arc::make_mut(&mut p.modules)[0];
+                    module.dependencies.clear();
+                    module.dependency_spans.clear();
+                },
                 "unreachable",
             );
             rejects(

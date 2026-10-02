@@ -24,6 +24,9 @@ The hard gate is per case and per metric:
 - three independent LilScript compilations use the raw, gzip, and Brotli configs;
   the raw artifact gates only raw, the gzip artifact only gzip-9, and the Brotli
   artifact only Brotli-11 against that metric's independently selected JS minimum;
+- LilScript explicitly emits `bare` application scripts in the harness-owned
+  private root, matching Closure's `assumeFunctionWrapper` setting and the
+  generic ratchet; a changed default container cannot silently change this boundary;
 - each Lil artifact's other two measured sizes are diagnostic and may lose;
 - aggregate wins never offset an individual loss.
 

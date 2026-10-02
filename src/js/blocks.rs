@@ -829,6 +829,9 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<Option<(RegionId, usize)>>, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
+        let mut phase = budget.scope();
+        let budget = &mut phase;
+        let mut seen_expressions = budget.filled(AllocationClass::Scratch, self.expressions.len(), false)?;
         let mut parents = vec![None; self.regions.len()];
         let mut regions = vec![self.root];
         let mut seen = vec![false; self.regions.len()];
@@ -846,6 +849,10 @@ impl Module {
                 let mut expressions = Vec::new();
                 statement.visit_expressions(|root| expressions.push(root));
                 while let Some(id) = expressions.pop() {
+                    budget.work(Analysis, 1)?;
+                    if std::mem::replace(&mut seen_expressions[id.index()], true) {
+                        continue;
+                    }
                     let expression = &self.expressions[id.index()];
                     for function in expression.created_functions() {
                         children.push(self.functions[function.index()].body);
