@@ -1,16 +1,12 @@
-import extern {
+import {
   ConstantTypes,
   NodeTypes,
   createSimpleExpression
-} from "../../../packages/vuelil/compiler-core.js";
-import extern {
+} from "../../package/compiler-core.lil";
+import {
   parseStringStyle as sharedParseStringStyle
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 
-extern JsValue ConstantTypes;
-extern JsValue NodeTypes;
-extern JsValue createSimpleExpression;
-extern JsValue sharedParseStringStyle;
 extern JsValue JSON;
 
 JsValue styleUndefined() {

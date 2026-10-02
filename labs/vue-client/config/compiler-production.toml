@@ -1,0 +1,140 @@
+# Compiler-written Vue delivery. No source staging or JavaScript rewriting.
+[policy]
+version = 3
+[optimization]
+preset = "maximum"
+[javascript]
+# Proxy traps, getters and patched globals are observable Vue behavior.
+assume_pristine_builtins = false
+assume_pure_property_reads = false
+[objective]
+codecs = "brotli"
+[effort]
+# Preserve the port's release effort. Development mode skips optional search.
+level = 15
+[execution]
+jobs = 1
+[mangle]
+identifiers = true
+properties = true
+pool_strings = true
+
+[defines]
+APP_COMPAT = false
+APP_DEV = false
+APP_FEATURE_OPTIONS_API = true
+APP_FEATURE_PROD_DEVTOOLS = false
+ATTR_COMPAT = false
+COMPAT_DEV = false
+COMPAT_TEST = false
+COMPILER_BROWSER = false
+COMPILER_DEV = false
+COMPONENT_COMPAT = false
+COMPONENT_DEV = false
+COMPONENT_ESM_BROWSER = false
+COMPONENT_ESM_BUNDLER = true
+COMPONENT_FEATURE_OPTIONS_API = true
+COMPONENT_FEATURE_PROD_DEVTOOLS = false
+COMPONENT_FEATURE_SUSPENSE = true
+COMPONENT_GLOBAL = false
+COMPONENT_SSR = true
+CSS_MODULE_DEV = false
+CSS_MODULE_GLOBAL = false
+CSS_VARS_BROWSER = false
+CSS_VARS_DEV = false
+CSS_VARS_FEATURE_SUSPENSE = true
+CSS_VARS_TEST = false
+CUSTOM_ELEMENT_DEV = false
+CUSTOM_ELEMENT_FEATURE_PROD_DEVTOOLS = false
+DEV = false
+DIRECTIVES_COMPAT = false
+DIRECTIVES_DEV = false
+EMITS_COMPAT = false
+EMITS_DEV = false
+EMITS_FEATURE_OPTIONS_API = true
+EMITS_FEATURE_PROD_DEVTOOLS = false
+EVENT_DEV = false
+FEATURE_PROD_DEVTOOLS = false
+FEATURE_SUSPENSE = true
+GLOBAL_DEV = false
+GLOBAL_PROD_DEVTOOLS = false
+HYDRATION_FEATURE_SUSPENSE = true
+INSTANCE_DEV = false
+KEEP_ALIVE_BROWSER = false
+KEEP_ALIVE_COMPAT = false
+KEEP_ALIVE_DEV = false
+KEEP_ALIVE_PROD_DEVTOOLS = false
+KEEP_ALIVE_SSR = true
+OPTIONS_COMPAT = false
+OPTIONS_DEV = false
+PROD_DEVTOOLS = false
+PROD_HYDRATION_MISMATCH_DETAILS = false
+PROPS_COMPAT = false
+PROPS_DEV = false
+PROPS_FEATURE_OPTIONS_API = true
+PROP_COMPAT = false
+PROP_DEV = false
+PUBLIC_COMPAT = false
+PUBLIC_DEV = false
+PUBLIC_FEATURE_OPTIONS_API = true
+PUBLIC_TEST = false
+RENDERER_COMPAT = false
+RENDERER_ESM_BUNDLER = true
+RENDERER_FEATURE_PROD_DEVTOOLS = false
+RENDERER_FEATURE_SUSPENSE = true
+RENDER_UTILS_COMPAT = false
+RENDER_UTILS_DEV = false
+RUNTIME_DOM_COMPAT = false
+RUNTIME_DOM_DEV = false
+RUNTIME_DOM_SSR = true
+SLOTS_COMPAT = false
+SLOTS_DEV = false
+STYLE_DEV = false
+SUSPENSE_DEV = false
+SUSPENSE_FEATURE = true
+SUSPENSE_TEST = false
+TELEPORT_FEATURE_SUSPENSE = true
+TEST = false
+TRANSITION_COMPAT = false
+TRANSITION_DEV = false
+TRANSITION_FEATURE_SUSPENSE = true
+TRANSITION_GROUP_COMPAT = false
+TRANSITION_GROUP_DEV = false
+VUE_COMPAT = false
+VUE_DEV = false
+VUE_DEV_BROWSER = false
+VUE_DEV_ESM_BUNDLER = true
+VUE_ESM_BROWSER = false
+VUE_ESM_BUNDLER = true
+VUE_FEATURE_OPTIONS_API = true
+VUE_FEATURE_PROD_DEVTOOLS = false
+VUE_FEATURE_PROD_HYDRATION_MISMATCH_DETAILS = false
+VUE_GLOBAL = false
+VUE_HOST_FLAGS = false
+VUE_VERSION = "3.5.42"
+V_MODEL_COMPAT = false
+V_ON_COMPAT = false
+V_ON_DEV = false
+
+[delivery]
+mode = "split"
+directory = "."
+host_modules = "embed"
+entry_names = "packages/vuelil/production/[name].js"
+chunk_names = "packages/vuelil/production/chunks/production/[name]-[index].js"
+[delivery.entries]
+"compiler-core" = "../src/package/compiler-core-public.lil"
+"compiler-dom" = "../src/package/compiler-dom-public.lil"
+"compiler-sfc" = "../src/package/compiler-sfc-public.lil"
+"compiler-ssr" = "../src/package/compiler-ssr-public.lil"
+"reactivity" = "../src/package/reactivity-public.lil"
+"runtime-core" = "../src/package/runtime-core-public.lil"
+"runtime-dom" = "../src/package/runtime-dom-public.lil"
+"runtime-test" = "../src/package/runtime-test.lil"
+"server-renderer" = "../src/package/server-renderer-public.lil"
+"shared" = "../src/package/shared-public.lil"
+"vue" = "../src/package/vue-public.lil"
+"vue.runtime" = "../src/package/vue.runtime.lil"
+
+[dependencies]
+vue-hosts = {path="../src/providers/node",version="=1.0.0",abi=1}

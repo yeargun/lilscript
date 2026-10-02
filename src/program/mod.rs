@@ -423,7 +423,8 @@ pub struct ModuleInterface {
 #[derive(Debug, Clone)]
 pub struct ForeignImport {
     pub span: Span,
-    pub cell: CellId,
+    /// None is a side-effect-only module request.
+    pub cell: Option<CellId>,
     pub source: String,
     pub imported: String,
 }

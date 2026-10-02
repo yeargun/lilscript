@@ -1,4 +1,4 @@
-import extern { initDirectivesForSSR as serverInitDirectivesForSSR } from "../../packages/vuelil/runtime-dom.js";
+import { initDirectivesForSSR as serverInitDirectivesForSSR } from "../package/runtime-dom.lil";
 import { renderToString } from "./renderToString";
 import {
   pipeToNodeWritable,
@@ -29,8 +29,6 @@ import {
   ssrRenderTeleport,
   ssrRenderVNode
 } from "./internal";
-
-extern void serverInitDirectivesForSSR();
 
 serverInitDirectivesForSSR();
 

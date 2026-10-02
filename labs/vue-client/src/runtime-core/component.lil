@@ -49,15 +49,15 @@ extern JsValue Object;
 extern JsValue Proxy;
 extern JsValue hostFunction1Rest(JsValue callback);
 
-bool COMPONENT_DEV = true;
-bool COMPONENT_SSR = false;
-bool COMPONENT_COMPAT = false;
-bool COMPONENT_FEATURE_SUSPENSE = true;
-bool COMPONENT_FEATURE_OPTIONS_API = true;
-bool COMPONENT_FEATURE_PROD_DEVTOOLS = false;
-bool COMPONENT_ESM_BUNDLER = true;
-bool COMPONENT_ESM_BROWSER = false;
-bool COMPONENT_GLOBAL = false;
+define bool COMPONENT_DEV = true;
+define bool COMPONENT_SSR = false;
+define bool COMPONENT_COMPAT = false;
+define bool COMPONENT_FEATURE_SUSPENSE = true;
+define bool COMPONENT_FEATURE_OPTIONS_API = true;
+define bool COMPONENT_FEATURE_PROD_DEVTOOLS = false;
+define bool COMPONENT_ESM_BUNDLER = true;
+define bool COMPONENT_ESM_BROWSER = false;
+define bool COMPONENT_GLOBAL = false;
 int COMPONENT_STATEFUL = JS.number(ShapeFlags["STATEFUL_COMPONENT"]).toInt();
 
 JsValue componentUndefined() {

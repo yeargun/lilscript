@@ -20,7 +20,7 @@ use crate::span::Span;
 mod admission;
 #[cfg(test)]
 pub(crate) use admission::admitted_arena_activity_for_test;
-pub(crate) use admission::{AdmittedArena, AdmittedParseError, ParsedSources};
+pub(crate) use admission::{AdmittedArena, AdmittedParseError, BorrowedArena, ParsedSources};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
@@ -69,7 +69,7 @@ pub fn parse_source<'arena, 'src>(
     Parser::new(arena, source)?.parse_program()
 }
 
-pub struct Parser<'arena, 'src>(ParserCore<'arena, 'src>);
+pub struct Parser<'arena, 'src>(ParserCore<'arena, 'src, 'arena>);
 
 impl<'arena, 'src> Parser<'arena, 'src> {
     pub fn new(arena: &'arena Bump, source: &'src str) -> Result<Self, ParseError> {
@@ -85,21 +85,21 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     }
 }
 
-struct ParserCore<'arena, 'src> {
+struct ParserCore<'arena, 'src, 'admission> {
     arena: &'arena Bump,
-    admission: Option<&'arena dyn admission::Admission>,
+    admission: Option<&'admission dyn admission::Admission>,
     source: &'arena crate::ast::SourceNodes,
-    tokens: TokenStorage<'arena, 'src>,
+    tokens: TokenStorage<'admission, 'src>,
     cursor: usize,
     source_len: usize,
     last_split_span: Option<Span>,
 }
 
-impl<'arena, 'src> ParserCore<'arena, 'src> {
+impl<'arena, 'src, 'admission> ParserCore<'arena, 'src, 'admission> {
     fn new(
         arena: &'arena Bump,
         source: &'src str,
-        admission: Option<&'arena dyn admission::Admission>,
+        admission: Option<&'admission dyn admission::Admission>,
     ) -> Result<Self, AdmittedParseError> {
         Self::new_fragment(
             arena,
@@ -115,7 +115,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         source: &'src str,
         base_offset: usize,
         nodes: &'arena crate::ast::SourceNodes,
-        admission: Option<&'arena dyn admission::Admission>,
+        admission: Option<&'admission dyn admission::Admission>,
     ) -> Result<Self, AdmittedParseError> {
         let mut tokens = TokenStorage::new(source, admission).map_err(|error| match error {
             AdmittedLexError::Syntax(error) => AdmittedParseError::Syntax(ParseError {
@@ -278,11 +278,17 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let mut specifiers = BumpVec::new_in(self.arena, self.admission);
         if !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             loop {
-                let imported = self.expect_ident("expected imported name")?;
+                // Module export names are IdentifierNames, not local binding
+                // identifiers. A keyword export such as `number` requires a
+                // local alias so it cannot become an unusable source binding.
+                let binding_name = matches!(self.peek_kind(), Some(TokenKind::Ident(_) | TokenKind::From));
+                let imported = self.expect_property_ident("expected imported name")?;
                 let local = if self.match_kind(|kind| matches!(kind, TokenKind::As)) {
                     self.expect_ident("expected local alias after `as`")?
-                } else {
+                } else if binding_name {
                     imported
+                } else {
+                    return Err(AdmittedParseError::new(imported.span, "a keyword import requires a local alias with `as`"));
                 };
                 specifiers.push(ImportSpecifier { imported, local })?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
@@ -318,13 +324,13 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     fn parse_export_list_after_open(
         &mut self,
         start: Span,
-        exports: &mut BumpVec<'arena, ExportDecl<'src>>,
+        exports: &mut BumpVec<'arena, 'admission, ExportDecl<'src>>,
     ) -> Result<(), AdmittedParseError> {
         if !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             loop {
                 let local = self.expect_ident("expected exported name")?;
                 let exported = if self.match_kind(|kind| matches!(kind, TokenKind::As)) {
-                    self.expect_ident("expected export alias after `as`")?
+                    self.expect_property_ident("expected export alias after `as`")?
                 } else {
                     local
                 };
@@ -397,8 +403,10 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
 
     fn parse_item(&mut self) -> Result<Item<'arena, 'src>, AdmittedParseError> {
         let region = self.parse_region_policy()?;
-        let declared_define = self.match_kind(|kind| matches!(kind, TokenKind::Ident("define")));
-        let declared_const = declared_define || self.match_kind(|kind| matches!(kind, TokenKind::Ident("const")));
+        let declared_define = self.data_modifier("define")?;
+        if declared_define { self.advance(); }
+        let declared_const = declared_define || self.data_modifier("const")?;
+        if declared_const && !declared_define { self.advance(); }
         let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
         let is_async = self.match_kind(|kind| matches!(kind, TokenKind::Async));
         let is_generator = self.match_kind(|kind| matches!(kind, TokenKind::Generator));
@@ -708,8 +716,9 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     }
 
     fn parse_statement(&mut self) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
-        if matches!(self.peek_kind(), Some(TokenKind::Ident("define"))) { return Err(self.error_here("`define` is a module-level declaration")); }
-        if self.match_kind(|kind| matches!(kind, TokenKind::Ident("const"))) {
+        if self.data_modifier("define")? { return Err(self.error_here("`define` is a module-level declaration")); }
+        if self.data_modifier("const")? {
+            self.advance();
             let ty = self.parse_type()?;
             let name = self.expect_ident("expected const binding name")?;
             let mut decl = self.parse_var_decl_after_name(ty, name)?;
@@ -2776,6 +2785,13 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         ))
     }
 
+    /// Data modifiers are contextual; existing functions, values and types may
+    /// still be named `define` or `const`.
+    fn data_modifier(&self, name: &str) -> Result<bool, AdmittedParseError> {
+        Ok(matches!(self.peek_kind(), Some(TokenKind::Ident(word)) if *word == name)
+            && self.looks_like_typed_binding_at(self.cursor + 1)?)
+    }
+
     fn looks_like_typed_binding(&self) -> Result<bool, AdmittedParseError> {
         // `delete v.k;` is an operator applied to an operand, not a binding
         // of type `delete`.
@@ -4060,6 +4076,22 @@ int result=from(3);"#,
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn d3_data_modifiers_preserve_identifier_calls_and_types() {
+        let arena = Bump::new();
+        parse_source(&arena, r#"
+            void define(int value) {}
+            void const(int value) {}
+            define(1); const(2);
+            void run() { define(3); const(4); const int local = 5; }
+            define bool FEATURE = false;
+            const int VALUE = 7;
+        "#).unwrap();
+        parse_source(&arena, "class define {} define value; class const {} const other;").unwrap();
+        assert!(parse_source(&arena, "void run(){define bool LOCAL=false;}").unwrap_err().to_string().contains("module-level"));
+        assert!(parse_source(&arena, "define int function(){return 1;}").is_err());
     }
 
     #[test]

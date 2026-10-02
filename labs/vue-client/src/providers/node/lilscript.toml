@@ -1,0 +1,5 @@
+[package]
+name="vue-hosts"
+version="1.0.0"
+abi=1
+entry="compiler-core.lil"

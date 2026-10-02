@@ -1,9 +1,9 @@
-import extern { initCustomFormatter as runtimeInitCustomFormatter } from "../../packages/vuelil/runtime-dom.js";
+import { initCustomFormatter as runtimeInitCustomFormatter } from "../package/runtime-dom.lil";
 import { console as compatConsole } from "../shared/makeMap";
 
-extern JsValue runtimeInitCustomFormatter;
-bool DEV_BROWSER = true;
-bool DEV_ESM_BUNDLER = false;
+
+define bool DEV_BROWSER = true;
+define bool DEV_ESM_BUNDLER = false;
 
 export void initDev() {
   if (DEV_BROWSER) {

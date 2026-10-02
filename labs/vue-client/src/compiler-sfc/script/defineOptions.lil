@@ -1,11 +1,9 @@
-import extern { unwrapTSNode as optionsUnwrapTSNode } from "../../../packages/vuelil/compiler-dom.js";
+import { unwrapTSNode as optionsUnwrapTSNode } from "../../package/compiler-dom.lil";
 import { DEFINE_EMITS } from "./defineEmits";
 import { DEFINE_EXPOSE } from "./defineExpose";
 import { DEFINE_PROPS } from "./defineProps";
 import { DEFINE_SLOTS } from "./defineSlots";
 import { isCallOf } from "./utils";
-
-extern JsValue optionsUnwrapTSNode;
 
 int optionsLength(JsValue value) {
   return JS.number(value["length"]).toInt();

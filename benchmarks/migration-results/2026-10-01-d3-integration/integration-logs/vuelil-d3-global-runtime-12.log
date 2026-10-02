@@ -1,0 +1,8 @@
+FAIL packages/vuelil/vue.global.test.js atob is not defined
+FAIL packages/vuelil/dist/vue.global.js atob is not defined
+You are running a development build of Vue.
+Make sure to use the production build (*.prod.js) when deploying for production.
+FAIL packages/vuelil/dist/vue.runtime.global.js Maximum call stack size exceeded
+PASS packages/vuelil/@vue/reactivity/dist/reactivity.global.js 50
+FAIL packages/vuelil/@vue/runtime-dom/dist/runtime-dom.global.js Maximum call stack size exceeded
+FAIL packages/vuelil/@vue/compiler-dom/dist/compiler-dom.global.js atob is not defined

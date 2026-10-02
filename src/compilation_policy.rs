@@ -44,7 +44,9 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version63 qualifies six target-local proofs with complete dependency and storage keys.
 // Version64 protects effort checkpoints, bounds assignment evidence, ranks data
 // with objective fragments and admits fixed batches of independent file scores.
-pub const POLICY_ALGORITHM_VERSION: u32 = 67;
+// Version69 retains abrupt-exit finalizers and resolves embedded ESM re-exports.
+// Version71 preserves per-module identity for opaque embedded hosts.
+pub const POLICY_ALGORITHM_VERSION: u32 = 72;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -92,6 +94,7 @@ pub enum CompilationContract {
 /// compiler's; it never depends on the format.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeliveryContract {
+    pub select: Vec<String>,
     pub mode: crate::config::DeliveryMode,
     pub export_placement: crate::config::ExportPlacement,
     pub format: crate::config::JavaScriptFormat,
@@ -119,6 +122,7 @@ impl DeliveryContract {
     /// Today's single-file output: one entry file, no plan.
     pub fn single() -> Self {
         Self {
+            select: Vec::new(),
             mode: crate::config::DeliveryMode::Single,
             export_placement: crate::config::ExportPlacement::Auto,
             format: crate::config::JavaScriptFormat::Esm,
@@ -152,6 +156,7 @@ impl DeliveryContract {
             .into_iter()
             .flatten()
             .chain(self.container.strings())
+            .chain(self.select.iter())
     }
 }
 
@@ -164,6 +169,7 @@ pub struct ContainerContract {
     pub source_root: Option<String>,
     pub global: Option<String>,
     pub globals: Vec<(String, String)>,
+    pub external_specifiers: Vec<(String, String)>,
     pub global_binding: crate::config::GlobalBinding,
     pub es_module_marker: crate::config::EsModuleMarker,
     pub exports: crate::config::CjsExports,
@@ -172,13 +178,18 @@ pub struct ContainerContract {
 }
 impl ContainerContract {
     pub fn strings(&self) -> impl Iterator<Item=&String> {
-        self.global.iter().chain(self.source_root.iter()).chain(self.globals.iter().flat_map(|(key,value)| [key,value]))
+        self.global.iter().chain(self.source_root.iter()).chain(self.globals.iter().chain(&self.external_specifiers).flat_map(|(key,value)| [key,value]))
+    }
+    pub(crate) fn external_specifier<'a>(&'a self, source: &'a str) -> &'a str {
+        self.external_specifiers.iter().find(|(known,_)| known == source).map_or(source,|(_,target)|target)
     }
     pub(crate) fn clone_in(&self, budget: &mut crate::output_budget::AllocationBudget<'_>) -> Result<Self, crate::output_budget::AllocationError> {
         use crate::output_budget::AllocationClass::Retained;
         let mut globals=budget.vector(Retained,self.globals.len())?;
         for (key,value) in &self.globals { globals.push((budget.string(Retained,key)?,budget.string(Retained,value)?)); }
-        Ok(Self { global:self.global.as_ref().map(|s| budget.string(Retained,s)).transpose()?,globals,
+        let mut external_specifiers=budget.vector(Retained,self.external_specifiers.len())?;
+        for (key,value) in &self.external_specifiers { external_specifiers.push((budget.string(Retained,key)?,budget.string(Retained,value)?)); }
+        Ok(Self { global:self.global.as_ref().map(|s| budget.string(Retained,s)).transpose()?,globals,external_specifiers,
             source_maps:self.source_maps,sources_content:self.sources_content,source_root:self.source_root.as_ref().map(|s|budget.string(Retained,s)).transpose()?,
             annotations:self.annotations,global_binding:self.global_binding, es_module_marker:self.es_module_marker,exports:self.exports,default_interop:self.default_interop,strict:self.strict })
     }
@@ -1116,7 +1127,7 @@ impl ResolvedPolicy {
                 "strip_console_calls":language.effects.strip_console_calls,
                 "checks":language.checks.name(),
                 "preserved_properties":preserved_properties,
-                "delivery":{"mode":delivery.mode.name(), "format":delivery.format.name(), "container":delivery.container,
+                "delivery":{"select":delivery.select,"mode":delivery.mode.name(), "format":delivery.format.name(), "container":delivery.container,
                     "export_placement":delivery.export_placement, "preload":delivery.preload.name(), "host_modules":delivery.host_modules.name(), "entry_names":delivery.entry_names(),
                     "chunk_names":delivery.chunk_names(), "module_names":delivery.module_names(),
                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},

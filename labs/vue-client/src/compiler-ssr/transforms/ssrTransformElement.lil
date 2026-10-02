@@ -1,4 +1,4 @@
-import extern {
+import {
   ElementTypes,
   ErrorCodes,
   MERGE_PROPS,
@@ -19,14 +19,14 @@ import extern {
   hasDynamicKeyVBind,
   isStaticArgOf,
   isStaticExp
-} from "../../../packages/vuelil/compiler-dom.js";
-import extern {
+} from "../../package/compiler-dom.lil";
+import {
   escapeHtml as sharedEscapeHtml,
   isBooleanAttr as sharedIsBooleanAttr,
   isBuiltInDirective as sharedIsBuiltInDirective,
   isSSRSafeAttrName as sharedIsSSRSafeAttrName,
   propsToAttrMap as sharedPropsToAttrMap
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { SSRErrorCodes, createSSRCompilerError } from "../errors";
 import {
   SSR_GET_DIRECTIVE_PROPS,
@@ -41,33 +41,10 @@ import {
 } from "../runtimeHelpers";
 import { processChildren } from "../ssrCodegenTransform";
 
-extern JsValue ElementTypes;
-extern JsValue ErrorCodes;
 extern JsValue JSON;
-extern JsValue MERGE_PROPS;
-extern JsValue NodeTypes;
+
+
 extern JsValue WeakMap;
-extern JsValue buildDirectiveArgs;
-extern JsValue buildProps;
-extern JsValue createArrayExpression;
-extern JsValue createAssignmentExpression;
-extern JsValue createCallExpression;
-extern JsValue createCompilerError;
-extern JsValue createCompoundExpression;
-extern JsValue createConditionalExpression;
-extern JsValue createInterpolation;
-extern JsValue createSequenceExpression;
-extern JsValue createSimpleExpression;
-extern JsValue createTemplateLiteral;
-extern JsValue findDir;
-extern JsValue hasDynamicKeyVBind;
-extern JsValue isStaticArgOf;
-extern JsValue isStaticExp;
-extern JsValue sharedEscapeHtml;
-extern JsValue sharedIsBooleanAttr;
-extern JsValue sharedIsBuiltInDirective;
-extern JsValue sharedIsSSRSafeAttrName;
-extern JsValue sharedPropsToAttrMap;
 
 JsValue ssrElementUndefined() {
   return JS.undefined();

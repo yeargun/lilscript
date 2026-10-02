@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 const projectRoot = resolve(import.meta.dirname, "..");
 const upstreamRoot = resolve(projectRoot, "upstream/vue");
 const reactivityRoot = resolve(upstreamRoot, "packages/reactivity/src");
-const candidate = resolve(projectRoot, "tests/reactivity-upstream.candidate.js");
+const candidate = resolve(projectRoot, "tests/reactivity-upstream.candidate.mjs");
 
 const candidateModules = new Set([
   reactivityRoot,

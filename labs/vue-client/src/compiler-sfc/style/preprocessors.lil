@@ -1,14 +1,12 @@
 import extern { default as preprocessMerge } from "merge-source-map";
-import extern {
+import {
   hostAssign as preprocessAssign,
   hostJsonParse as preprocessJsonParse,
   hostRequire as preprocessRequire
-} from "../host.js";
+} from "../host.lil";
 
-extern JsValue preprocessAssign;
-extern JsValue preprocessJsonParse;
 extern JsValue preprocessMerge;
-extern JsValue preprocessRequire;
+
 
 int preprocessLength(JsValue value) {
   return JS.number(value["length"]).toInt();

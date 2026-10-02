@@ -1,18 +1,18 @@
 import extern { parse as indexBabelParse } from "@babel/parser";
 import extern { default as IndexMagicString } from "magic-string";
 import extern { walk as indexWalk } from "estree-walker";
-import extern {
+import {
   DOMErrorMessages as sfcDOMErrorMessages,
   errorMessages as sfcCoreErrorMessages
-} from "../../packages/vuelil/compiler-dom.js";
-import extern {
+} from "../package/compiler-dom.lil";
+import {
   extractIdentifiers as indexExtractIdentifiers,
   generateCodeFrame as indexGenerateCodeFrame,
   isInDestructureAssignment as indexIsInDestructureAssignment,
   isStaticProperty as indexIsStaticProperty,
   walkIdentifiers as indexWalkIdentifiers
-} from "../../packages/vuelil/compiler-core.js";
-import extern { hostAssign as indexAssign } from "./host.js";
+} from "../package/compiler-core.lil";
+import { hostAssign as indexAssign } from "./host.lil";
 import { compileScript } from "./compileScript";
 import { compileStyle, compileStyleAsync } from "./compileStyle";
 import { compileTemplate } from "./compileTemplate";
@@ -29,15 +29,8 @@ import {
 
 extern JsValue IndexMagicString;
 extern JsValue indexBabelParse;
-extern JsValue indexExtractIdentifiers;
-extern JsValue indexGenerateCodeFrame;
-extern JsValue indexAssign;
-extern JsValue indexIsInDestructureAssignment;
-extern JsValue indexIsStaticProperty;
+
 extern JsValue indexWalk;
-extern JsValue indexWalkIdentifiers;
-extern JsValue sfcCoreErrorMessages;
-extern JsValue sfcDOMErrorMessages;
 
 export string version = "3.5.42";
 export JsValue parseCache = internalParseCache;

@@ -810,6 +810,12 @@ pub struct DecisionsConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CacheConfig {
+    /// Reuse parsed sources and dependency-scheduled elaboration in graph sessions.
+    /// False forces fresh parsing/checking for editor parity audits.
+    pub elaboration_reuse: bool,
+    /// Soft session epoch limit. Editors replace their arena between requests
+    /// after this many retained source/syntax bytes (not a compiler output limit).
+    pub frontend_cache_bytes: u64,
     /// Reuse completed builds when directory is set (default true). Full input,
     /// configuration, compiler and limits must match. False forces compilation.
     pub build_reuse: bool,
@@ -834,6 +840,8 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
+            elaboration_reuse: true,
+            frontend_cache_bytes: 64 * 1024 * 1024,
             build_reuse: true,
             normalization_reuse: true,
             formation_reuse: true,
@@ -1174,6 +1182,9 @@ impl ProjectConfig {
                 return Err("`delivery.globals` values must be dotted JavaScript global paths".into());
             }
         }
+        if delivery.external_specifiers.iter().any(|(source, target)| source.is_empty() || target.is_empty() || source.contains('\0') || target.contains('\0')) {
+            return Err("`delivery.external_specifiers` requires nonempty module specifiers without NUL".into());
+        }
         if !matches!(format, F::Esm | F::Cjs) && delivery.mode != DeliveryMode::Single {
             return Err("IIFE, UMD and bare delivery require `delivery.mode = 'single'`".into());
         }
@@ -1193,6 +1204,7 @@ impl ProjectConfig {
             ));
         }
         Ok(crate::compilation_policy::DeliveryContract {
+            select: { let mut selected = delivery.select.clone(); selected.sort(); selected },
             mode: delivery.mode,
             export_placement: delivery.export_placement,
             format,
@@ -1211,6 +1223,7 @@ impl ProjectConfig {
             container: crate::compilation_policy::ContainerContract {
                 global: delivery.global.clone(),
                 globals: delivery.globals.iter().map(|(key,value)| (key.clone(),value.clone())).collect(),
+                external_specifiers: delivery.external_specifiers.iter().map(|(key,value)| (key.clone(),value.clone())).collect(),
                 global_binding: delivery.global_binding,
                 es_module_marker: delivery.es_module_marker,
                 exports: delivery.exports,
@@ -1348,6 +1361,26 @@ impl ProjectConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        if self.delivery.directory.as_ref().is_some_and(|path| path.components().any(|part|
+            !matches!(part,std::path::Component::Normal(_) | std::path::Component::CurDir))) {
+            return Err("`delivery.directory` must stay within the output directory".into());
+        }
+        if self.delivery.also.len() >= MAX_DELIVERY_OUTPUTS {
+            return Err(format!("at most {MAX_DELIVERY_OUTPUTS} delivery outputs are supported, including the primary"));
+        }
+        let mut names = HashSet::new();
+        for output in &self.delivery.also {
+            if !valid_entry_name(&output.name) || output.name == "primary" || !names.insert(&output.name) {
+                return Err("`delivery.also.name` must be a unique entry name other than `primary`".into());
+            }
+            output.configuration(self).validate().map_err(|error| format!("delivery output `{}`: {error}", output.name))?;
+        }
+        let mut selected = HashSet::new();
+        for entry in &self.delivery.select {
+            if !valid_entry_name(entry) || !selected.insert(entry) {
+                return Err("`delivery.select` must contain unique entry names".into());
+            }
+        }
         self.language.const_evaluation.validated()?;
         self.execution.validated()?;
         self.host.validate()?;
@@ -2142,6 +2175,15 @@ pub enum ExportPlacement { #[default] Auto, Facade }
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DeliveryConfig {
+    /// Optional directory beneath the CLI output root. Multi-format builds
+    /// default to the output name; use "." with distinct file templates to
+    /// publish several formats beside each other without moving their bytes.
+    pub directory: Option<PathBuf>,
+    /// Empty selects all configured source entries. Selection is a delivery
+    /// boundary; discovery/checking still validates the complete shared graph.
+    pub select: Vec<String>,
+    /// Additional compiler-written outputs, sharing source work and budgets.
+    pub also: Vec<AdditionalOutput>,
     /// Consumer hints, only when semantic discardability is proven. These
     /// comments add bytes to a standalone artifact; choose them for bundlers.
     pub annotations: ConsumerAnnotations,
@@ -2153,6 +2195,9 @@ pub struct DeliveryConfig {
     pub global: Option<String>,
     pub global_binding: GlobalBinding,
     pub globals: BTreeMap<String, String>,
+    /// External module requests, mapped at delivery. Relative destinations are
+    /// rooted at the output directory and rebased for each delivered file.
+    pub external_specifiers: BTreeMap<String, String>,
     pub es_module_marker: EsModuleMarker,
     pub exports: CjsExports,
     pub default_interop: DefaultInterop,
@@ -2186,6 +2231,9 @@ pub struct DeliveryConfig {
 impl Default for DeliveryConfig {
     fn default() -> Self {
         Self {
+            directory: None,
+            select: Vec::new(),
+            also: Vec::new(),
             annotations: ConsumerAnnotations::Off,
             export_placement: ExportPlacement::Auto,
             source_maps: SourceMaps::Off,
@@ -2194,6 +2242,7 @@ impl Default for DeliveryConfig {
             global: None,
             global_binding: GlobalBinding::default(),
             globals: BTreeMap::new(),
+            external_specifiers: BTreeMap::new(),
             es_module_marker: EsModuleMarker::default(),
             exports: CjsExports::default(),
             default_interop: DefaultInterop::default(),
@@ -2212,6 +2261,59 @@ impl Default for DeliveryConfig {
 
 /// The largest declared deployment cost, per request or import level (1 GiB).
 pub const MAX_DECLARED_COST_BYTES: u64 = 1 << 30;
+
+/// At most eight formats/subsets (including the primary) and three codecs each.
+/// All mandatory incumbents coexist before optional search begins.
+pub const MAX_DELIVERY_OUTPUTS: usize = 8;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct AdditionalOutput {
+    pub name: String,
+    pub directory: Option<PathBuf>,
+    pub format: Option<JavaScriptFormat>,
+    pub mode: Option<DeliveryMode>,
+    pub entries: Vec<String>,
+    #[serde(deserialize_with = "one_or_many_codecs")]
+    pub codecs: Vec<CompressionCostModel>,
+    pub entry_names: Option<String>,
+    pub chunk_names: Option<String>,
+    pub module_names: Option<String>,
+    pub global: Option<String>,
+    pub global_binding: Option<GlobalBinding>,
+    pub globals: Option<BTreeMap<String, String>>,
+    pub external_specifiers: Option<BTreeMap<String, String>>,
+    pub es_module_marker: Option<EsModuleMarker>,
+    pub exports: Option<CjsExports>,
+    pub default_interop: Option<DefaultInterop>,
+    pub annotations: Option<ConsumerAnnotations>,
+    pub export_placement: Option<ExportPlacement>,
+    pub source_maps: Option<SourceMaps>,
+    pub sources_content: Option<bool>,
+    pub source_root: Option<String>,
+    pub preload: Option<PreloadPolicy>,
+}
+
+impl AdditionalOutput {
+    /// Only packaging and objective selection vary. Source contracts, host
+    /// assumptions, effort and hard tactic vetoes belong to the shared build.
+    pub fn configuration(&self, shared: &ProjectConfig) -> ProjectConfig {
+        let mut config = shared.clone();
+        config.delivery.also.clear();
+        config.delivery.select = self.entries.clone();
+        if let Some(format) = self.format { config.target.javascript.format = format; }
+        if !self.codecs.is_empty() { config.objective.codecs = self.codecs.clone(); }
+        macro_rules! inherit {
+            ($($field:ident),*) => { $(if let Some(value) = &self.$field { config.delivery.$field = value.clone(); })* };
+        }
+        macro_rules! inherit_optional {
+            ($($field:ident),*) => { $(if let Some(value) = &self.$field { config.delivery.$field = Some(value.clone()); })* };
+        }
+        inherit!(mode, global_binding, globals, external_specifiers, es_module_marker, exports, default_interop, annotations, export_placement, source_maps, sources_content, preload);
+        inherit_optional!(entry_names, chunk_names, module_names, global, source_root, directory);
+        config
+    }
+}
 
 /// Whether `name` may name an entry: it becomes a file name and an entry
 /// label, so it is a plain path segment.

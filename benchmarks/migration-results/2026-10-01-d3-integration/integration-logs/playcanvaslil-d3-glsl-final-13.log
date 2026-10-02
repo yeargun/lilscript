@@ -1,0 +1,19 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+false !== true
+
+    at file:///home/azureuser/playcanvaslil/src/shader-processing/shader-processor-glsl.differential.mjs:173:10
+    at check (file:///home/azureuser/playcanvaslil/src/shader-processing/shader-processor-glsl.differential.mjs:55:3)
+    at file:///home/azureuser/playcanvaslil/src/shader-processing/shader-processor-glsl.differential.mjs:145:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual'
+}
+
+Node.js v20.19.0

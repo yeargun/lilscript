@@ -1,17 +1,17 @@
-import extern {
+import {
   BindingTypes as CompileBindingTypes,
   UNREF as CompileUNREF,
   isFunctionType as compileIsFunctionType,
   unwrapTSNode as compileUnwrapTSNode,
   walkIdentifiers as compileWalkIdentifiers
-} from "../../packages/vuelil/compiler-dom.js";
-import extern { generateCodeFrame as compileGenerateCodeFrame } from "../../packages/vuelil/shared.js";
+} from "../package/compiler-dom.lil";
+import { generateCodeFrame as compileGenerateCodeFrame } from "../package/shared.lil";
 import extern { walk as compileWalk } from "estree-walker";
 import extern {
   SourceMapConsumer as CompileSourceMapConsumer,
   SourceMapGenerator as CompileSourceMapGenerator
 } from "source-map-js";
-import extern {
+import {
   hostArrayFrom as compileScriptArrayFrom,
   hostAssign as compileScriptHostAssign,
   hostCreateError as compileScriptCreateError,
@@ -19,7 +19,7 @@ import extern {
   hostCreateSet as compileScriptCreateSet,
   hostJsonStringify as compileScriptJsonStringify,
   hostKeys as compileScriptKeys
-} from "./host.js";
+} from "./host.lil";
 import { DEFAULT_FILENAME } from "./parse";
 import { compileTemplate } from "./compileTemplate";
 import { warnOnce } from "./warn";
@@ -62,22 +62,12 @@ import {
 } from "./script/importUsageCheck";
 import { processAwait } from "./script/topLevelAwait";
 
-extern JsValue CompileBindingTypes;
+
 extern JsValue CompileSourceMapConsumer;
 extern JsValue CompileSourceMapGenerator;
-extern JsValue CompileUNREF;
-extern JsValue compileScriptArrayFrom;
-extern JsValue compileScriptCreateError;
-extern JsValue compileScriptCreateObject;
-extern JsValue compileScriptCreateSet;
-extern JsValue compileGenerateCodeFrame;
-extern JsValue compileScriptHostAssign;
-extern JsValue compileIsFunctionType;
-extern JsValue compileScriptJsonStringify;
-extern JsValue compileScriptKeys;
-extern JsValue compileUnwrapTSNode;
+
 extern JsValue compileWalk;
-extern JsValue compileWalkIdentifiers;
+
 
 // The distributed compiler-sfc build has __TEST__ replaced with false.
 bool compileScriptTestBuild = false;

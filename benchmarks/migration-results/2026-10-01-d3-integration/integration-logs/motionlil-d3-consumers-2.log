@@ -1,0 +1,227 @@
+TAP version 13
+# Subtest: ESM entry points load without a browser global
+ok 1 - ESM entry points load without a browser global
+  ---
+  duration_ms: 1.870846
+  ...
+# Subtest: pure utilities and MotionValue behavior work
+ok 2 - pure utilities and MotionValue behavior work
+  ---
+  duration_ms: 1.625145
+  ...
+# Subtest: CommonJS entry points expose the same public names
+ok 3 - CommonJS entry points expose the same public names
+  ---
+  duration_ms: 51.751823
+  ...
+# Subtest: every Motion DOM export is present on the full entry
+ok 4 - every Motion DOM export is present on the full entry
+  ---
+  duration_ms: 0.517881
+  ...
+# Subtest: default entry keeps the JS consumer API
+ok 5 - default entry keeps the JS consumer API
+  ---
+  duration_ms: 0.304741
+  ...
+# Subtest: public constructor compatibility covers common direct usage
+ok 6 - public constructor compatibility covers common direct usage
+  ---
+  duration_ms: 0.553457
+  ...
+# Subtest: MotionValue uses its public prototype and preserves method defaults
+ok 7 - MotionValue uses its public prototype and preserves method defaults
+  ---
+  duration_ms: 0.648545
+  ...
+# Subtest: group compatibility preserves existing native accessors and completion promises
+ok 8 - group compatibility preserves existing native accessors and completion promises
+  ---
+  duration_ms: 0.577201
+  ...
+# Subtest: ESM entry points share the same frame queue, values and control constructors
+ok 9 - ESM entry points share the same frame queue, values and control constructors
+  ---
+  duration_ms: 21.342312
+  ...
+# Subtest: value type tables use Motion's object keys, identities and defaults
+ok 10 - value type tables use Motion's object keys, identities and defaults
+  ---
+  duration_ms: 0.607749
+  ...
+# Subtest: subscriptions preserve mutation order, omitted arguments and the cleared array
+ok 11 - subscriptions preserve mutation order, omitted arguments and the cleared array
+  ---
+  duration_ms: 0.531476
+  ...
+# Subtest: MotionValue start resolves with undefined
+ok 12 - MotionValue start resolves with undefined
+  ---
+  duration_ms: 0.587541
+  ...
+# Subtest: keyframe helpers preserve null, undefined, holes and nonnumeric values like Motion
+ok 13 - keyframe helpers preserve null, undefined, holes and nonnumeric values like Motion
+  ---
+  duration_ms: 0.919132
+  ...
+# Subtest: transition lookup uses property access, nullish fallback and inherited properties
+ok 14 - transition lookup uses property access, nullish fallback and inherited properties
+  ---
+  duration_ms: 0.592139
+  ...
+# Subtest: mix preserves Motion's numeric and mixer-returning overloads
+ok 15 - mix preserves Motion's numeric and mixer-returning overloads
+  ---
+  duration_ms: 26.97117
+  ...
+# Subtest: named imports do not pull the whole consumer graph
+not ok 16 - named imports do not pull the whole consumer graph
+  ---
+  duration_ms: 2275.981355
+  location: '/home/azureuser/motionlil/test/shake.test.mjs:31:1'
+  failureType: 'testCodeFailure'
+  error: 'animateMini stayed too large: 43276'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/azureuser/motionlil/test/shake.test.mjs:38:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: all installed code is exactly the compiler delivery, with complete package effects
+ok 17 - all installed code is exactly the compiler delivery, with complete package effects
+  ---
+  duration_ms: 188.951107
+  ...
+# Subtest: all ten ESM and CJS entry points preserve the public export sets
+not ok 18 - all ten ESM and CJS entry points preserve the public export sets
+  ---
+  duration_ms: 276.513048
+  location: '/home/azureuser/motionlil/test/shared-graph.test.mjs:30:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    animate ESM
+    + actual - expected ... Lines skipped
+    
+      [
+        'GroupAnimation',
+        'GroupAnimationWithThen',
+        'MotionValue',
+    -   'SubscriptionManager',
+        'animate',
+    ...
+        'transformValue',
+        'wrap'
+      ]
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'GroupAnimation'
+    1: 'GroupAnimationWithThen'
+    2: 'MotionValue'
+    3: 'SubscriptionManager'
+    4: 'animate'
+    5: 'anticipate'
+    6: 'backIn'
+    7: 'backInOut'
+    8: 'backOut'
+    9: 'cancelFrame'
+    10: 'circIn'
+    11: 'circInOut'
+    12: 'circOut'
+    13: 'clamp'
+    14: 'createScopedAnimate'
+    15: 'cubicBezier'
+    16: 'defaultEasing'
+    17: 'delay'
+    18: 'delayInSeconds'
+    19: 'distance'
+    20: 'distance2D'
+    21: 'easeIn'
+    22: 'easeInOut'
+    23: 'easeOut'
+    24: 'followValue'
+    25: 'frame'
+    26: 'getAsType'
+    27: 'getValueAsType'
+    28: 'inertia'
+    29: 'interpolate'
+    30: 'isMotionValue'
+    31: 'keyframes'
+    32: 'mapValue'
+    33: 'mix'
+    34: 'motionValue'
+    35: 'number'
+    36: 'numberType'
+    37: 'progress'
+    38: 'spring'
+    39: 'springValue'
+    40: 'stagger'
+    41: 'steps'
+    42: 'transform'
+    43: 'transformValue'
+    44: 'wrap'
+  actual:
+    0: 'GroupAnimation'
+    1: 'GroupAnimationWithThen'
+    2: 'MotionValue'
+    3: 'animate'
+    4: 'anticipate'
+    5: 'backIn'
+    6: 'backInOut'
+    7: 'backOut'
+    8: 'cancelFrame'
+    9: 'circIn'
+    10: 'circInOut'
+    11: 'circOut'
+    12: 'clamp'
+    13: 'createScopedAnimate'
+    14: 'cubicBezier'
+    15: 'defaultEasing'
+    16: 'delay'
+    17: 'delayInSeconds'
+    18: 'distance'
+    19: 'distance2D'
+    20: 'easeIn'
+    21: 'easeInOut'
+    22: 'easeOut'
+    23: 'followValue'
+    24: 'frame'
+    25: 'getAsType'
+    26: 'getValueAsType'
+    27: 'inertia'
+    28: 'interpolate'
+    29: 'isMotionValue'
+    30: 'keyframes'
+    31: 'mapValue'
+    32: 'mix'
+    33: 'motionValue'
+    34: 'number'
+    35: 'numberType'
+    36: 'progress'
+    37: 'spring'
+    38: 'springValue'
+    39: 'stagger'
+    40: 'steps'
+    41: 'transform'
+    42: 'transformValue'
+    43: 'wrap'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/azureuser/motionlil/test/shared-graph.test.mjs:36:12)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 16
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2446.456201

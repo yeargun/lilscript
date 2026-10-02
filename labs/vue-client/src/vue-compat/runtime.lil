@@ -1,11 +1,11 @@
 import { createCompatVue } from "./createCompatVue";
-import extern { warn as runtimeWarn } from "../../packages/vuelil/runtime-core.js";
+import { warn as runtimeWarn } from "../package/runtime-core.lil";
 
-extern JsValue runtimeWarn;
-bool RUNTIME_DEV = true;
-bool RUNTIME_ESM_BROWSER = false;
-bool RUNTIME_ESM_BUNDLER = true;
-bool RUNTIME_GLOBAL = false;
+
+define bool RUNTIME_DEV = true;
+define bool RUNTIME_ESM_BROWSER = false;
+define bool RUNTIME_ESM_BUNDLER = true;
+define bool RUNTIME_GLOBAL = false;
 
 JsValue Vue = createCompatVue();
 

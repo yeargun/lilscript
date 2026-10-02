@@ -5,6 +5,10 @@ use crate::compilation_policy::WorkKind;
 use crate::module::{ModuleId, ModuleSet};
 use std::collections::VecDeque;
 
+#[path = "module_reuse.rs"]
+mod reuse;
+pub(crate) use reuse::ElaborationCache;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleCheckError {
     pub module: ModuleId,
@@ -40,7 +44,7 @@ pub enum InterfaceTarget {
     Type(NominalId),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModuleImport<'src> {
     pub module: ModuleId,
     pub imported: &'src str,
@@ -50,13 +54,13 @@ pub struct ModuleImport<'src> {
     /// The local binding's identifier (M4.4).
     pub node: SourceNodeId,
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModuleExport<'src> {
     pub external: &'src str,
     pub target: InterfaceTarget,
     pub span: Span,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleInterface<'src> {
     pub module: ModuleId,
     pub dependencies: Vec<ModuleId>,
@@ -262,12 +266,23 @@ fn analyze_modules_in<'ast, 'src, S>(
     contract: crate::config::LanguageConfig,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<CheckedModules<'ast, 'src>, AdmittedModuleCheckError> {
+    analyze_modules_cached(programs, modules, contract, budget, None, modules.root())
+}
+
+pub(crate) fn analyze_modules_cached<'ast, 'src, S>(
+    programs: &[Program<'ast, 'src>],
+    modules: &ModuleSet<S>,
+    contract: crate::config::LanguageConfig,
+    budget: &mut AllocationBudget<'_>,
+    cache: Option<&mut ElaborationCache<'ast, 'src>>,
+    checkpoint_before: ModuleId,
+) -> Result<CheckedModules<'ast, 'src>, AdmittedModuleCheckError> {
     let mut graph = graph_phase(programs, modules, budget)?;
     graph.checked.declarations.source_contract = contract;
     let declared = declaration_phase(programs, graph, budget)?;
     let schemas = schema_phase(programs, declared, budget)?;
     let signatures = signature_phase(programs, modules, schemas, budget)?;
-    body_phase(programs, signatures, budget)
+    body_phase(programs, signatures, budget, cache, checkpoint_before)
 }
 
 /// Phase 1's product: the checked graph's interfaces (dependencies only) and
@@ -524,7 +539,9 @@ fn schema_phase<'ast, 'src>(
         if module == last {
             analyzer
                 .resolve_class_hierarchies()
-                .map_err(|error| AdmittedModuleCheckError { module, error })?;
+                .map_err(|(owner, error)| AdmittedModuleCheckError {
+                    module: owner.expect("class declaration module"), error,
+                })?;
         }
         scopes[module] = analyzer.scopes.pop().expect("one module declaration scope");
     }
@@ -647,16 +664,26 @@ fn body_phase<'ast, 'src>(
     programs: &[Program<'ast, 'src>],
     signatures: SignaturePhase<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
+    mut cache: Option<&mut ElaborationCache<'ast, 'src>>,
+    checkpoint_before: ModuleId,
 ) -> Result<CheckedModules<'ast, 'src>, AdmittedModuleCheckError> {
+    let key = cache.as_ref().map(|_| reuse::SignatureKey::new(programs, &signatures));
     let SignaturePhase {
         mut checked,
         mut initialization,
         mut scopes,
         inferred,
     } = signatures;
-    for index in 0..checked.initialization_order.len() {
+    let reused = cache.as_mut().map_or(0, |cache| cache.restore(key.as_ref().unwrap(), &mut checked, &mut initialization));
+    for index in reused..checked.initialization_order.len() {
         let module = checked.initialization_order[index];
         let program = &programs[module];
+        if module == checkpoint_before {
+            if let Some(cache) = cache.as_mut() {
+                cache.save(key.as_ref().unwrap().clone(), index, &checked, &initialization);
+            }
+        }
+        if let Some(cache) = cache.as_mut() { cache.checked.push(module); }
         let mut analyzer = Analyzer::new(
             &mut checked.facts[module],
             &mut checked.declarations,
@@ -666,6 +693,16 @@ fn body_phase<'ast, 'src>(
         )
         .map_err(|error| resource(module, error))?;
         analyzer.scopes[0] = std::mem::take(&mut scopes[module]);
+        // An import-extern local is the same binding as its checked extern
+        // declaration. Keep that identity on the import syntax for all clients.
+        for import in program.foreign_imports {
+            for specifier in import.specifiers {
+                if let Some(&symbol) = analyzer.scopes[0].get(specifier.local.name) {
+                    analyzer.record_identifier(specifier.local.id, symbol);
+                    analyzer.facts.binding_types.insert(specifier.local.id, BindingType::Symbol(symbol));
+                }
+            }
+        }
         for item in program.items {
             if let Item::Stmt(Stmt::VarDecl(decl, ..)) = item {
                 if !decl.ty.is_auto() {

@@ -63,8 +63,8 @@ pub(crate) fn program(
             .iter_mut()
             .find(|(source, _)| **source == import.source)
         {
-            Some((_, count)) => *count += 1,
-            None => sources.push((&import.source, 1)),
+            Some((_, count)) => *count += usize::from(!import.imported.is_empty()),
+            None => sources.push((&import.source, usize::from(!import.imported.is_empty()))),
         }
     }
     for (_, specifiers) in sources {
@@ -338,6 +338,15 @@ impl Walk<'_> {
             Expr::Binding(binding) => if self.member_imports.binary_search(binding).is_ok() {
                 Canon::member(Canon::Ident,None)
             } else {Canon::Ident},
+            Expr::Host(host) if host.kind == crate::catalog::HostKind::ModuleUrl => {
+                if self.commonjs {
+                    let require = Canon::Call(Box::new(Canon::Ident), vec![Canon::Lit]);
+                    let url = Canon::Call(Box::new(Canon::member(require, None)), vec![Canon::Ident]);
+                    Canon::member(url, None)
+                } else {
+                    Canon::member(Canon::Other("import-meta"), None)
+                }
+            }
             Expr::Host(host) => host
                 .name
                 .split('.')

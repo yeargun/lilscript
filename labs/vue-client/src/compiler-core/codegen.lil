@@ -1,3 +1,5 @@
+import { COMPILER_BROWSER } from "./validateExpression";
+import { hostCreateSourceMap, hostAddSourceMapping, hostSourceMapJson } from "./host.lil";
 import { getVNodeBlockHelper, getVNodeHelper, locStub } from "./ast";
 import { String } from "./errors";
 import {
@@ -25,10 +27,6 @@ import {
 
 export extern JsValue Array;
 export extern JsValue JSON;
-
-extern JsValue hostCreateSourceMap(string filename, string source);
-extern void hostAddSourceMapping(JsValue map, JsValue mapping);
-extern JsValue hostSourceMapJson(JsValue map);
 
 int codegenLength(JsValue value) {
   return JS.number(value["length"]).toInt();
@@ -553,7 +551,7 @@ JsValue createCodegenContext(JsValue ast, JsValue options) {
     codegenNewline(context);
     return codegenUndefined();
   });
-  if (options["sourceMap"].truthy()) context["map"] = hostCreateSourceMap(filename, JS.string(ast["source"]));
+  if (!COMPILER_BROWSER && options["sourceMap"].truthy()) context["map"] = hostCreateSourceMap(filename, JS.string(ast["source"]));
   return context;
 }
 

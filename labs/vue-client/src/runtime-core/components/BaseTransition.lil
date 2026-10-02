@@ -17,9 +17,9 @@ extern JsValue Function;
 extern JsValue Array;
 extern JsValue String;
 extern JsValue Boolean;
-bool TRANSITION_DEV = true;
-bool TRANSITION_COMPAT = false;
-bool TRANSITION_FEATURE_SUSPENSE = true;
+define bool TRANSITION_DEV = true;
+define bool TRANSITION_COMPAT = false;
+define bool TRANSITION_FEATURE_SUSPENSE = true;
 int transitionLength(JsValue value) {
   return JS.number(value["length"]).toInt();
 }

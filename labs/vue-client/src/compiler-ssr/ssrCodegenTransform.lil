@@ -1,4 +1,4 @@
-import extern {
+import {
   ElementTypes,
   NodeTypes,
   createBlockStatement,
@@ -9,8 +9,8 @@ import extern {
   createTemplateLiteral,
   createTransformContext,
   processExpression
-} from "../../packages/vuelil/compiler-dom.js";
-import extern { escapeHtml as sharedEscapeHtml } from "../../packages/vuelil/shared.js";
+} from "../package/compiler-dom.lil";
+import { escapeHtml as sharedEscapeHtml } from "../package/shared.lil";
 import { SSRErrorCodes, createSSRCompilerError } from "./errors";
 import { SSR_INTERPOLATE, ssrHelpers } from "./runtimeHelpers";
 import { ssrProcessComponent } from "./transforms/ssrTransformComponent";
@@ -20,18 +20,9 @@ import { ssrProcessFor } from "./transforms/ssrVFor";
 import { ssrProcessIf } from "./transforms/ssrVIf";
 
 extern JsValue Array;
-extern JsValue ElementTypes;
-extern JsValue NodeTypes;
+
+
 extern JsValue Set;
-extern JsValue createBlockStatement;
-extern JsValue createCallExpression;
-extern JsValue createCompoundExpression;
-extern JsValue createRoot;
-extern JsValue createSimpleExpression;
-extern JsValue createTemplateLiteral;
-extern JsValue createTransformContext;
-extern JsValue processExpression;
-extern JsValue sharedEscapeHtml;
 
 JsValue ssrCodegenUndefined() {
   return JS.undefined();

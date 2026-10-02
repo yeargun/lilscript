@@ -280,7 +280,7 @@ fn hierarchy_errors_keep_original_spans_messages_and_own_member_storage() {
         let expected_span = field.map_or(declaration_span, |field| info.fields[field].span);
         let own_fields = info.fields.clone();
         let own_methods = info.methods.clone();
-        let error = analyzer.resolve_class_hierarchies().unwrap_err();
+        let (_, error) = analyzer.resolve_class_hierarchies().unwrap_err();
         assert_eq!(error, AdmittedCheckError::Semantic(CheckError::new(expected_span, message)), "{source}");
         let info = &analyzer.declarations.classes[analyzer.facts.type_bindings[name].index()];
         assert_eq!(info.fields, own_fields, "failed hierarchy must not consume own fields");

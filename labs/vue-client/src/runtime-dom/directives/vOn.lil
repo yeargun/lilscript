@@ -1,9 +1,9 @@
-import extern {
+import {
   DeprecationTypes as vOnDeprecationTypes,
   compatUtils as vOnCompatUtils,
   getCurrentInstance as vOnGetCurrentInstance
-} from "../../../packages/vuelil/runtime-core.js";
-import extern { hyphenate as vOnHyphenate, isArray as vOnIsArray } from "../../../packages/vuelil/shared.js";
+} from "../../package/runtime-core.lil";
+import { hyphenate as vOnHyphenate, isArray as vOnIsArray } from "../../package/shared.lil";
 import extern {
   hostCall1,
   hostCallWithEventArgs,
@@ -14,11 +14,6 @@ import extern {
   hostWrite
 } from "../host.js";
 
-extern JsValue vOnDeprecationTypes;
-extern JsValue vOnCompatUtils;
-extern JsValue vOnGetCurrentInstance;
-extern JsValue vOnHyphenate;
-extern bool vOnIsArray(JsValue value);
 extern JsValue hostCall1(JsValue fn, JsValue first);
 extern JsValue hostCallWithEventArgs(JsValue fn, JsValue event, JsValue args);
 extern JsValue hostEventRestWrapper(JsValue callback);
@@ -27,8 +22,8 @@ extern JsValue hostRead(JsValue value, JsValue key);
 extern string hostString(JsValue value);
 extern void hostWrite(JsValue value, JsValue key, JsValue next);
 
-bool V_ON_COMPAT = false;
-bool V_ON_DEV = true;
+define bool V_ON_COMPAT = false;
+define bool V_ON_DEV = true;
 string[] systemModifiers = ["ctrl", "shift", "alt", "meta"];
 Regex numericModifierPattern = new Regex("^\\d+$");
 

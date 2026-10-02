@@ -1,3 +1,4 @@
+import {read_COMPAT} from "../package/build-flags.lil";
 // Core API ------------------------------------------------------------------
 
 import {
@@ -83,7 +84,8 @@ import {
   hydrateOnVisible
 } from "./hydrationStrategies";
 
-export string version = "3.5.42";
+define string VUE_VERSION = "3.5.42";
+export string version = VUE_VERSION;
 
 // Advanced API ---------------------------------------------------------------
 
@@ -224,6 +226,11 @@ JsValue runtimeCompatUtils = JS.object(
 export JsValue resolveFilter = null;
 export JsValue compatUtils = null;
 export JsValue DeprecationTypes = null;
+if (read_COMPAT().truthy()) {
+  resolveFilter = compatResolveFilter;
+  compatUtils = runtimeCompatUtils;
+  DeprecationTypes = runtimeDeprecationTypes;
+}
 
 export {
   BaseTransition,

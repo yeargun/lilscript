@@ -1,16 +1,13 @@
 import extern { parse as contextBabelParse } from "@babel/parser";
 import extern { default as ContextMagicString } from "magic-string";
-import extern { generateCodeFrame } from "../../../packages/vuelil/shared.js";
-import extern { hostCreateNullObject, hostCreateSet as contextCreateSet } from "../host.js";
+import { generateCodeFrame } from "../../package/shared.lil";
+import { hostCreateNullObject, hostCreateSet as contextCreateSet } from "../host.lil";
 import { warn as compilerSfcWarn } from "../warn";
 import { isJS as languageIsJS, isTS as languageIsTS } from "./utils";
 
 extern JsValue Error;
 extern JsValue ContextMagicString;
 extern JsValue contextBabelParse;
-extern JsValue generateCodeFrame;
-extern JsValue hostCreateNullObject;
-extern JsValue contextCreateSet;
 
 int contextLength(JsValue value) {
   return JS.number(value["length"]).toInt();

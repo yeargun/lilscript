@@ -1,0 +1,44 @@
+TAP version 13
+# Subtest: shader-processing public ABI
+    # Subtest: preserves exports and static class descriptors
+    ok 1 - preserves exports and static class descriptors
+      ---
+      duration_ms: 1.908626
+      ...
+    # Subtest: preserves representative helpers
+    ok 2 - preserves representative helpers
+      ---
+      duration_ms: 1.023618
+      ...
+    1..2
+ok 1 - shader-processing public ABI
+  ---
+  duration_ms: 4.690058
+  type: 'suite'
+  ...
+# Subtest: closed-world entry
+    # Subtest: preserves exported functions and preprocessing output
+    ok 1 - preserves exported functions and preprocessing output
+      ---
+      duration_ms: 2.242212
+      ...
+    # Subtest: executes every closed entry with equivalent results
+    ok 2 - executes every closed entry with equivalent results
+      ---
+      duration_ms: 5.589083
+      ...
+    1..2
+ok 2 - closed-world entry
+  ---
+  duration_ms: 8.033974
+  type: 'suite'
+  ...
+1..2
+# tests 4
+# suites 2
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 86.957605

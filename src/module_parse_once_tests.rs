@@ -347,6 +347,7 @@ fn retained_root_override_uses_the_same_loader_without_reading_old_text() {
         let (modules, programs) = discover_with_storage(
             &[crate::module::EntrySource::of(&root)],
             Some(text),
+            &[],
             None,
             RetainedSources {
                 sources: &sources,

@@ -399,6 +399,7 @@ pub(super) fn lower_admitted(
         &js::ChoiceMap::SEEDS,
         None,
         true,
+        &[],
         budget,
     )
 }
@@ -418,11 +419,12 @@ pub(super) fn lower_output_admitted(
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
     reuse_normalization: bool,
+    selected_entries: &[String],
     budget: &mut AllocationBudget<'_>,
 ) -> Result<js::Module, FormationError> {
     let mut phase = budget.scope();
     let demand = phase.with_ledger(|ledger| {
-        DemandPlan::build_with_reuse(
+        DemandPlan::build_selected(
             program,
             Some(uses),
             Some(implementations),
@@ -430,6 +432,7 @@ pub(super) fn lower_output_admitted(
             mode,
             ledger,
             reuse_normalization,
+            selected_entries,
         )
     })?;
     let result = form_with_demand(
@@ -663,7 +666,7 @@ fn form_head(
         return Err(Unsupported { span: Span::default(), feature: "selected target rules conflict with source @choose" }.into());
     }
     let mut phase = budget.scope();
-    let struct_plan = structs::plan(program, contract, &mut phase)?;
+    let struct_plan = structs::plan(program, contract, demand, &mut phase)?;
     let reference_plan = references::Plan::new();
     let storage = if compact && rules.scalar_replacement && !program.structs.is_empty() {
         match uses {
@@ -841,10 +844,10 @@ fn form_head(
             formation.work(program.exports().len())?;
             // Several entries (plan M3.3): one cell exported by two entries,
             // or under two names, is one identity with one adapter (DL6).
-            let several = program.entries().len() > 1;
+            let several = demand.entries().len() > 1;
             let mut identities: Vec<(CellId, js::BindingId)> = Vec::new();
             let mut positions: Vec<u32> = Vec::new();
-            for export in program.exports() {
+            for export in demand.exports() {
                 let InterfaceTarget::Value(cell) = export.target else {
                     positions.push(u32::MAX);
                     continue;
@@ -953,7 +956,8 @@ fn form_head(
             // Each entry's exports, as positions in the one export list.
             if several {
                 let mut start = 0;
-                for (entry, program_entry) in program.entries().iter().enumerate() {
+                for &entry in demand.entries() {
+                    let program_entry = &program.entries()[entry];
                     let count = program.entry_exports(entry).len();
                     let exports = positions[start..start + count]
                         .iter()
@@ -1004,8 +1008,13 @@ fn form_head(
     // Module loading and export-name validation survive an unused local binding.
     // The delivery graph owns these requests independently of value demand.
     for source in program.modules() {
+        if formation.demand.module_context(source.initializer).is_none() { continue; }
         for import in &source.foreign_imports {
-            if let Err(error) = formation.foreign_import(import.cell) { drop(formation); return Err(error); }
+            let result = match import.cell {
+                Some(cell) => formation.foreign_import(cell).map(|_| ()),
+                None => formation.foreign_effect_import(&import.source),
+            };
+            if let Err(error) = result { drop(formation); return Err(error); }
         }
     }
     // Host syntax lowering is a delivery operation at every effort level.
@@ -2687,6 +2696,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         context: ContextId,
         cell: CellId,
     ) -> Result<js::BindingId, FormationError> {
+        // A re-export can be the first use of an extern binding. It has an
+        // import owner, never lexical storage in its source module.
+        if self.program.cells[cell.index()].binding == CellBinding::Foreign {
+            if let Some(binding) = self.foreign_import(cell)? { return Ok(binding); }
+        }
         let captures = &self.contexts[context.index()].as_ref().unwrap().captures;
         self.budget.work(
             WorkKind::Render,
@@ -2767,6 +2781,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     /// The ES import binding of a foreign cell whose runtime source is an
     /// `import extern` edge, created with its import on first use. A classic
     /// script has no module syntax to spell one.
+    fn foreign_effect_import(&mut self, source: &str) -> Result<(), FormationError> {
+        self.work(self.module.imports.len() + 1)?;
+        if self.module.imports.iter().any(|import| import.source.as_unicode() == Some(source)) { return Ok(()); }
+        let scope = self.module.regions[self.module.root.index()].scope;
+        // An unused target binding retains the request's graph identity. Its
+        // empty imported name prints only the request, never a named export.
+        let binding = self.fresh_binding(scope, "effect")?;
+        self.module.import_in(source, "", binding, self.budget)?;
+        Ok(())
+    }
+
     fn foreign_import(&mut self, cell: CellId) -> Result<Option<js::BindingId>, FormationError> {
         self.work(self.foreign_bindings.len() + 1)?;
         if let Some(&(_, binding)) = self
@@ -2783,7 +2808,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             if let Some(import) = module
                 .foreign_imports
                 .iter()
-                .find(|import| import.cell == cell)
+                .find(|import| import.cell == Some(cell))
             {
                 found = Some(import);
                 break;
@@ -4678,7 +4703,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         _ => value,
                     }
                 } else { value };
-                let public_type = self.public_storage_type(unit, place)?;
+                // A legacy construction seed has its own Null type, not a
+                // fabricated value of its non-nullable field's record type.
+                let public_type = if matches!(self.program.types[self.data(unit).values[operands[0].index()].ty.index()], Type::Null) {
+                    None
+                } else { self.public_storage_type(unit, place)? };
                 let mut sequence = Vec::new();
                 let result_binding = if public_type.is_some() && operation.result.is_some() {
                     let region = self.plan(unit).regions[operation.region.index()];
@@ -5118,7 +5147,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         let mut value = self.value(unit, operand)?;
                         let ty = self.data(unit).values[operation.result.unwrap().index()].ty;
                         if let AllocationKind::Instance { class, .. } = kind {
-                            if self.program.class(*class).is_some_and(|class| class.reflected || class.external) {
+                            if self.program.class(*class).is_some_and(|class| class.reflected || class.external)
+                                && !matches!(self.program.types[self.data(unit).values[operand.index()].ty.index()], Type::Null) {
                                 let ty = super::schema::class_field_type(self.program, &self.program.types[ty.index()],
                                     FieldRef { nominal: *class, slot: slot as u32 },
                                     &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?

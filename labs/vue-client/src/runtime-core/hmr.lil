@@ -8,7 +8,7 @@ extern JsValue Map;
 extern JsValue Set;
 extern bool hostDelete(JsValue value, JsValue key);
 
-bool DEV = true;
+define bool DEV = true;
 
 export bool isHmrUpdating = false;
 

@@ -144,7 +144,10 @@ pub(in crate::js) fn render_planned_file_admitted(
         inline_module: None,
         local_names: &local_names,
     };
-    match plan.format {
+    if let Some(index) = file.links.host {
+        let Some(hosts) = hosts else { return Err(PrintError::Container("missing carried host body")); };
+        opaque_host(&mut printer, planned, hosts, index);
+    } else { match plan.format {
         JavaScriptFormat::Esm | JavaScriptFormat::Bare => esm(&mut printer, plan, planned, hosts),
         JavaScriptFormat::Iife if plan.container.global.is_none() => {
             // Application frames have no publication namespace. Keep the same
@@ -156,6 +159,7 @@ pub(in crate::js) fn render_planned_file_admitted(
         }
         JavaScriptFormat::Cjs | JavaScriptFormat::Iife | JavaScriptFormat::Umd => containers::render(&mut printer, planned, hosts),
         _ => return Err(PrintError::Container("unresolved output container")),
+    }
     }
     let structure=printer.planned_structure;
     let Buffer { mut text, error, points, .. } = printer.output;
@@ -199,6 +203,67 @@ fn export_name(printer: &mut Printer<'_, '_, '_>, name: &str) {
     } else {
         printer.unicode_string(name);
     }
+}
+
+/// An opaque body keeps a native dependency boundary even though its syntax
+/// cannot enter typed target optimization. No source text is rewritten here:
+/// the host parser's checked body/reads and the verified delivery links own it.
+fn opaque_host(printer: &mut Printer<'_, '_, '_>, planned: &PlannedPrint<'_>,
+    (hosts, strict): (&crate::host_modules::HostDelivery, bool), index: usize) {
+    use AllocationClass::{Retained, Scratch};
+    let file = &planned.plan.files[planned.file];
+    let commonjs = planned.plan.format == JavaScriptFormat::Cjs;
+    if !file.statements.is_empty() || !matches!(planned.plan.format, JavaScriptFormat::Esm | JavaScriptFormat::Cjs) {
+        printer.output.error = Some(PrintError::Container("opaque host placement is not a module file")); return;
+    }
+    let Some(prefix) = printer.output.admit(|budget| {
+        let mut prefix = budget.string(Scratch, "$host")?;
+        loop {
+            budget.work(WorkKind::Render, (printer.module.bindings.len() + printer.module.reserved.len()) as u64)?;
+            if !(0..printer.module.bindings.len()).any(|i| printer.names.get(BindingId::new(i)).starts_with(&prefix))
+                && !printer.module.reserved.iter().any(|name| name.starts_with(&prefix)) { break; }
+            budget.push_char(Scratch, &mut prefix, '$')?;
+        }
+        Ok(prefix)
+    }) else { return; };
+    if strict { printer.text("\"use strict\";"); }
+    let mut arguments = Vec::new();
+    for (source, _) in &file.links.imports {
+        let Some(dependency) = planned.plan.files[*source as usize].links.host else {
+            printer.output.error = Some(PrintError::Container("opaque host dependency lost its module identity")); return;
+        };
+        let Some(path) = specifier(printer, planned, *source) else { return; };
+        let Some(local) = printer.output.admit(|budget| budget.format(Scratch, format_args!("{prefix}{dependency}"))) else { return; };
+        if commonjs {
+            printer.text("const "); printer.text(&local); printer.text("=require("); printer.unicode_string(&path); printer.text(").default;");
+        } else {
+            printer.text("import "); printer.text(&local); printer.text(" from "); printer.unicode_string(&path); printer.text(";");
+        }
+        printer.output.drop_string(path, Scratch);
+        if printer.output.admit(|budget| budget.push(Scratch, &mut arguments, (dependency, local))).is_none() { return; }
+    }
+    let Some(expression) = printer.output.admit(|budget| hosts.module_expression_in(index, strict, &arguments, budget)) else { return; };
+    printer.text("const "); printer.text(&prefix); printer.text("="); printer.text(&expression); printer.text(";");
+    printer.output.drop_string(expression, Retained);
+    for binding in &file.links.exports {
+        let Some(import) = file.links.hosted.iter().map(|&i| &printer.module.imports[i]).find(|import| import.binding == *binding) else {
+            printer.output.error = Some(PrintError::Container("opaque host export has no foreign binding")); return;
+        };
+        if import.imported.is_empty() { continue; }
+        let local = printer.names.get(*binding);
+        if commonjs {
+            printer.text("Object.defineProperty(exports,"); printer.unicode_string(local);
+            printer.text(",{enumerable:true,value:"); printer.text(&prefix); printer.text("["); printer.unicode_string(&import.imported); printer.text("]});");
+        } else {
+            printer.text("export const "); printer.text(local); printer.text("="); printer.text(&prefix); printer.text("["); printer.unicode_string(&import.imported); printer.text("];");
+        }
+    }
+    if commonjs {
+        printer.text("Object.defineProperty(exports,'default',{value:"); printer.text(&prefix); printer.text("});");
+    } else { printer.text("export default "); printer.text(&prefix); printer.text(";"); }
+    for (_, local) in arguments.drain(..) { printer.output.drop_string(local, Scratch); }
+    printer.output.drop_vec(arguments, Scratch);
+    printer.output.drop_string(prefix, Scratch);
 }
 
 fn esm(
@@ -288,13 +353,14 @@ fn esm(
         file.links.foreign.iter().copied(),
         hosts,
         Some(own_name(planned)),
+        Some(&plan.container),
     );
     if let Some(hosts) = hosts {
-        if !file.links.hosted.is_empty() {
+        if !file.links.hosted.is_empty() && !file.initializers.iter().any(|part| part.host.is_some()) {
             printer.host_bindings(hosts, file.links.hosted.iter().copied());
         }
     }
-    inline::body(printer, file);
+    inline::body(printer, file, hosts);
     // Internal exports under their own names, then the public names this
     // file declares.
     let own = planned.file as u32;

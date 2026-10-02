@@ -1,4 +1,4 @@
-import extern {
+import {
   CREATE_STATIC,
   ConstantTypes,
   ElementTypes,
@@ -7,8 +7,8 @@ import extern {
   createCallExpression,
   findDir,
   isStaticArgOf
-} from "../../../packages/vuelil/compiler-core.js";
-import extern {
+} from "../../package/compiler-core.lil";
+import {
   escapeHtml as sharedEscapeHtml,
   includeBooleanAttr as sharedIncludeBooleanAttr,
   isArray as sharedIsArray,
@@ -24,31 +24,8 @@ import extern {
   normalizeStyle as sharedNormalizeStyle,
   stringifyStyle as sharedStringifyStyle,
   toDisplayString as sharedToDisplayString
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 
-extern JsValue CREATE_STATIC;
-extern JsValue ConstantTypes;
-extern JsValue ElementTypes;
-extern JsValue Namespaces;
-extern JsValue NodeTypes;
-extern JsValue createCallExpression;
-extern JsValue findDir;
-extern JsValue isStaticArgOf;
-extern JsValue sharedEscapeHtml;
-extern JsValue sharedIncludeBooleanAttr;
-extern JsValue sharedIsArray;
-extern JsValue sharedIsBooleanAttr;
-extern JsValue sharedIsKnownHtmlAttr;
-extern JsValue sharedIsKnownMathMLAttr;
-extern JsValue sharedIsKnownSvgAttr;
-extern JsValue sharedIsString;
-extern JsValue sharedIsSymbol;
-extern JsValue sharedIsVoidTag;
-extern JsValue sharedMakeMap;
-extern JsValue sharedNormalizeClass;
-extern JsValue sharedNormalizeStyle;
-extern JsValue sharedStringifyStyle;
-extern JsValue sharedToDisplayString;
 extern JsValue Function;
 extern JsValue JSON;
 

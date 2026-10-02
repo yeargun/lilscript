@@ -1,3 +1,4 @@
+import extern { hostCreateObject, hostCreateWeakMap, hostCreateMap, hostCreateFinalizationRegistry, hostFinalizationRegister, hostRead, hostObjectIs, hostSymbol } from "./host.js";
 import { isIntegerKey, isMap, isSymbol } from "../shared/general";
 import { DEV, TEST } from "./constants";
 import {

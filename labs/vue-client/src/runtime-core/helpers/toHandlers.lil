@@ -1,7 +1,7 @@
 import { isObject, toHandlerKey } from "../../shared/general";
 import { warn } from "../warning";
 
-bool DEV = true;
+define bool DEV = true;
 Regex uppercaseRE = new Regex("[A-Z]");
 
 export JsValue toHandlers(

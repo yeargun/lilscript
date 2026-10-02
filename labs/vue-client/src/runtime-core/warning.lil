@@ -9,8 +9,8 @@ import { ErrorCodes, callWithErrorHandling } from "./errorHandling";
 extern JsValue arguments;
 extern JsValue isNaN;
 
-bool DEV = true;
-bool TEST = true;
+define bool DEV = true;
+define bool TEST = true;
 JsValue[] stack = [];
 bool isWarning = false;
 

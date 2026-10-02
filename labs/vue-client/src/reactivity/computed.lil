@@ -1,3 +1,4 @@
+import extern { hostCreateObject, hostRead, hostDefineAccessor } from "./host.js";
 import { isFunction } from "../shared/general";
 import { DEV } from "./constants";
 import { depTrack, newDep } from "./dep";

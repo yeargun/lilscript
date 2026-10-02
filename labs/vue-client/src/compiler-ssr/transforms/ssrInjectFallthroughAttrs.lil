@@ -1,18 +1,11 @@
-import extern {
+import {
   ElementTypes,
   NodeTypes,
   createSimpleExpression,
   findDir,
   isCommentOrWhitespace,
   locStub
-} from "../../../packages/vuelil/compiler-dom.js";
-
-extern JsValue ElementTypes;
-extern JsValue NodeTypes;
-extern JsValue createSimpleExpression;
-extern JsValue findDir;
-extern JsValue isCommentOrWhitespace;
-extern JsValue locStub;
+} from "../../package/compiler-dom.lil";
 
 JsValue fallthroughUndefined() {
   return JS.undefined();

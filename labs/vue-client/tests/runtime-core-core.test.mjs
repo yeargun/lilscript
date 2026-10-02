@@ -320,7 +320,8 @@ describe("Vue 3.5.42 runtime-core tranche", () => {
   });
 
   test("registers lifecycle hooks with current-instance and tracking isolation", () => {
-    const scope = candidate.effectScope(true);
+    // The test profile owns its reactivity state; exercise one configured graph.
+    const scope = internal.effectScope(true);
     const target = {
       scope,
       parent: null,
@@ -338,7 +339,7 @@ describe("Vue 3.5.42 runtime-core tranche", () => {
     assert.equal(internal.inject("factory", function () { return this.marker; }, true), "proxy");
     assert.equal(internal.hasInjectionContext(), true);
 
-    const source = candidate.ref(0);
+    const source = internal.ref(0);
     let hookRuns = 0;
     let sawCurrent = false;
     internal.onMounted(() => {
@@ -349,12 +350,12 @@ describe("Vue 3.5.42 runtime-core tranche", () => {
     reset();
     assert.equal(internal.hasInjectionContext(), false);
     let effectRuns = 0;
-    const runner = candidate.effect(() => {
+    const runner = internal.effect(() => {
       effectRuns++;
       target.m[0]();
     });
     source.value++;
-    candidate.stop(runner);
+    internal.stop(runner);
     assert.deepEqual({ hookRuns, effectRuns, sawCurrent }, { hookRuns: 1, effectRuns: 1, sawCurrent: true });
   });
 });

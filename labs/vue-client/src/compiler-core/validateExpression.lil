@@ -1,10 +1,9 @@
+import { hostNewFunction } from "./host.lil";
 import { createCompilerError } from "./errors";
 
-extern void hostNewFunction(string body);
-
 // Selected by compiler-core graph builds, matching Vue's compile-time globals.
-export bool COMPILER_BROWSER = false;
-export bool COMPILER_DEV = true;
+export define bool COMPILER_BROWSER = false;
+export define bool COMPILER_DEV = true;
 
 string prohibitedKeywords =
   "arguments,await,break,case,catch,class,const,continue,debugger,default," +

@@ -1,17 +1,15 @@
 import extern { Rule as ScopedRule } from "postcss";
 import extern { default as scopedSelectorParser } from "postcss-selector-parser";
-import extern {
+import {
   hostApply as scopedApply,
   hostCreateNullObject as scopedCreateNullObject,
   hostKeys as scopedKeys
-} from "../host.js";
+} from "../host.lil";
 import { warn as scopedWarn } from "../warn";
 
 extern JsValue ScopedRule;
 extern JsValue WeakSet;
-extern JsValue scopedApply;
-extern JsValue scopedCreateNullObject;
-extern JsValue scopedKeys;
+
 extern JsValue scopedSelectorParser;
 
 Regex animationNameRE = new Regex("^(?:-\\w+-)?animation-name$");

@@ -1,10 +1,10 @@
 import extern { default as AssetPath } from "node:path";
-import extern {
+import {
   ConstantTypes as AssetConstantTypes,
   NodeTypes as AssetNodeTypes,
   createSimpleExpression as assetCreateSimpleExpression
-} from "../../../packages/vuelil/compiler-core.js";
-import extern { hostAssign as assetHostAssign, hostKeys as assetHostKeys } from "../host.js";
+} from "../../package/compiler-core.lil";
+import { hostAssign as assetHostAssign, hostKeys as assetHostKeys } from "../host.lil";
 import {
   isDataUrl,
   isExternalUrl,
@@ -13,12 +13,7 @@ import {
   parseUrl
 } from "./templateUtils";
 
-extern JsValue AssetConstantTypes;
-extern JsValue AssetNodeTypes;
 extern JsValue AssetPath;
-extern JsValue assetCreateSimpleExpression;
-extern JsValue assetHostAssign;
-extern JsValue assetHostKeys;
 
 int assetLength(JsValue value) {
   return JS.number(value["length"]).toInt();

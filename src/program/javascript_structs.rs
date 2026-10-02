@@ -91,6 +91,7 @@ fn require_adapter(program: &Program<'_>, cell: CellId, feature: &'static str,
 pub(super) fn plan<'src>(
     program: &Program<'src>,
     contract: &JavaScriptCompilationContract,
+    demand: &DemandPlan<'_, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Plan<'src>, FormationError> {
     if program.structs.is_empty() && !program.absence_abi {
@@ -121,7 +122,7 @@ pub(super) fn plan<'src>(
     let mut public_units = Vec::new();
     if contract.abi.preserve_root_exports {
         budget.work(WorkKind::Render, program.exports().len() as u64)?;
-        for (_, cell) in program.value_exports() {
+        for (_, cell) in demand.value_exports() {
             budget.work(WorkKind::Render, 1)?;
             if !abi_types[program.cells[cell.index()].ty.index()]
                 || program.types[program.cells[cell.index()].ty.index()].callable_signature().is_none() {

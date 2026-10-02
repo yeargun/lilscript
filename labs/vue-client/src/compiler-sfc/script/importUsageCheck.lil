@@ -1,26 +1,17 @@
-import extern {
+import {
   NodeTypes as UsageNodeTypes,
   isSimpleIdentifier as usageIsSimpleIdentifier,
   parserOptions as usageParserOptions,
   walkIdentifiers as usageWalkIdentifiers
-} from "../../../packages/vuelil/compiler-dom.js";
-import extern {
+} from "../../package/compiler-dom.lil";
+import {
   camelize as usageCamelize,
   capitalize as usageCapitalize,
   isBuiltInDirective as usageIsBuiltInDirective
-} from "../../../packages/vuelil/shared.js";
-import extern { hostCreateSet as usageCreateSet } from "../host.js";
+} from "../../package/shared.lil";
+import { hostCreateSet as usageCreateSet } from "../host.lil";
 import { createCache } from "../cache";
 import { resolveTemplateAST } from "../template/resolveTemplateAST";
-
-extern JsValue UsageNodeTypes;
-extern JsValue usageCamelize;
-extern JsValue usageCapitalize;
-extern JsValue usageCreateSet;
-extern JsValue usageIsBuiltInDirective;
-extern JsValue usageIsSimpleIdentifier;
-extern JsValue usageParserOptions;
-extern JsValue usageWalkIdentifiers;
 
 int usageLength(JsValue value) {
   return JS.number(value["length"]).toInt();

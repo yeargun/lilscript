@@ -159,7 +159,7 @@ pub(super) fn check(
             .and_then(|bytes| u64::try_from(bytes).ok())
             .ok_or(AllocationError::Capacity)?;
         budget.work(WorkKind::Analysis, bytes)?;
-        if !identifier_name(&import.imported) {
+        if !import.imported.is_empty() && !identifier_name(&import.imported) {
             return Err("invalid imported export name".into());
         }
         let declared = imported_bindings

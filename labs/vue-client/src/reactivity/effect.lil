@@ -1,3 +1,4 @@
+import extern { hostCreateClass1, hostCreateWeakSet, hostDefineAccessor, hostDefineMethod, hostRead, hostHasOwn, hostObjectIs, hostInstanceOf } from "./host.js";
 import { DEV } from "./constants";
 import { currentGlobalVersion } from "./dep";
 import { activeEffectScope } from "./effectScope";

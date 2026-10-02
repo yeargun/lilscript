@@ -6,14 +6,14 @@
 //        [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR]
 //        [--ports-root ~] [--ledger tests/ports/expected-failures.json]
 //        [--timeout SECONDS] [--jobs N] [--codec <lilscript-codec>|none] [--keep]
-//        [--patches apply|none|DIR] [--checks production|development]
+//        [--patches none|DIR] [--checks production|development]
 //
 // For each port the runner:
 //   1. copies the port (without .git, dist, _site, .tmp, test-output; every
 //      node_modules is linked, not copied) into a scratch parent that links the
 //      sibling ports and this repository (`../lilscript`), as ports expect;
-//   2. applies finer/port-migrations/<port>.patch when present (`--patches none`
-//      skips them, for ports whose repositories already carry their rewrite);
+//   2. uses each port's owned source; an explicit --patches DIR can evaluate
+//      a proposed source change without modifying its checkout;
 //   3. with --objective other than `shipped`, rewrites `cost_model` in every
 //      copied lilscript*.toml; with --checks development, sets
 //      `javascript.checks = "development"` in each (the development-check
@@ -270,9 +270,9 @@ async function runPort(port, context) {
     return result;
   };
 
-  // `apply` takes the repository's migration patches; a directory takes its
-  // own `<port>.patch` (a batch's port patches in the work tree).
-  const patchDirectory = patches === "apply" ? join(repository, "finer", "port-migrations") : patches === "none" ? null : resolve(patches);
+  // Source migrations belong to the ports. Only an explicitly supplied
+  // experimental patch directory changes a qualification checkout.
+  const patchDirectory = patches === "none" ? null : resolve(patches);
   const patch = patchDirectory && join(patchDirectory, `${port}.patch`);
   if (patch && existsSync(patch)) {
     const applied = await run("patch", ["-p1", "--forward", "--batch", "-d", workspace, "-i", patch], { timeoutMs: 120_000 });
@@ -428,17 +428,17 @@ async function main() {
       jobs: { type: "string", default: "1" },
       codec: { type: "string" },
       keep: { type: "boolean", default: false },
-      patches: { type: "string", default: "apply" },
+      patches: { type: "string", default: "none" },
       checks: { type: "string", default: "production" },
       help: { type: "boolean", default: false },
     },
   });
   if (values.help || !values.compiler || !values.ports) {
-    process.stderr.write("usage: node scripts/ports.mjs --compiler <lilscript> --ports a,b|all [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR] [--ports-root DIR] [--ledger FILE] [--timeout SECONDS] [--jobs N] [--codec PATH|none] [--keep] [--patches apply|none|DIR] [--checks production|development]\n");
+    process.stderr.write("usage: node scripts/ports.mjs --compiler <lilscript> --ports a,b|all [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR] [--ports-root DIR] [--ledger FILE] [--timeout SECONDS] [--jobs N] [--codec PATH|none] [--keep] [--patches none|DIR] [--checks production|development]\n");
     process.exit(values.help ? 0 : 2);
   }
   if (!OBJECTIVES.includes(values.objective)) throw new Error(`--objective must be one of ${OBJECTIVES.join(", ")}`);
-  if (!["apply", "none"].includes(values.patches) && !existsSync(values.patches)) throw new Error("--patches must be apply, none or a directory of <port>.patch files");
+  if (values.patches !== "none" && !existsSync(values.patches)) throw new Error("--patches must be none or an explicit directory of <port>.patch files; the compiler migration patch layer is retired");
   if (!["production", "development"].includes(values.checks)) throw new Error("--checks must be production or development");
   const known = maintainedPorts();
   const portsRoot = resolve(values["ports-root"]);

@@ -1,6 +1,6 @@
 //! Independent objective portfolios over one checked program and ledger.
 //! Nested exclusive borrows retain all mandatory owners until the one seal;
-//! unwinding the bounded three-frame stack searches in canonical codec order.
+//! unwinding the bounded output stack searches in canonical output/codec order.
 use super::*;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
@@ -21,21 +21,31 @@ impl<'src> Compilation<'src> {
         decisions: &[Option<SavedDecision>; 3],
         mut observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<[Option<IndependentSearchResult>; 3], SearchError> {
-        assert!((2..=3).contains(&requests.len()));
-        let mut previous = None;
-        for (policy, request) in requests {
-            let codec = policy.objective().unwrap().codec;
-            assert_eq!(request.objectives, Objectives::One(codec));
-            assert!(previous.is_none_or(|prior| prior < index(codec)));
-            previous = Some(index(codec));
+        let expanded: Vec<_> = requests.iter().map(|&(policy, request)| (policy, request, decisions)).collect();
+        let results = self.search_javascript_outputs(source, &expanded, observe)?;
+        let mut by_codec = [None, None, None];
+        for ((policy, _), result) in requests.iter().zip(results) {
+            by_codec[index(policy.objective().unwrap().codec)] = result;
         }
-        let mut results = [None, None, None];
+        Ok(by_codec)
+    }
+
+    pub(crate) fn search_javascript_outputs(
+        &mut self,
+        source: SemanticId,
+        requests: &[(&ResolvedPolicy, SearchRequest, &[Option<SavedDecision>; 3])],
+        mut observe: impl FnMut(SearchObservation<'_>),
+    ) -> Result<Vec<Option<IndependentSearchResult>>, SearchError> {
+        assert!((1..=crate::config::MAX_DELIVERY_OUTPUTS * 3).contains(&requests.len()));
+        for (policy, request, _) in requests {
+            assert_eq!(request.objectives, Objectives::One(policy.objective().unwrap().codec));
+        }
+        let mut results = (0..requests.len()).map(|_| None).collect::<Vec<_>>();
         let outcome = catch_unwind(AssertUnwindSafe(|| {
             self.prepare_independent_objectives(
                 source,
                 requests,
                 requests.len(),
-                decisions,
                 &mut results,
                 &mut observe,
             )
@@ -61,19 +71,18 @@ impl<'src> Compilation<'src> {
     fn prepare_independent_objectives(
         &mut self,
         source: SemanticId,
-        requests: &[(&ResolvedPolicy, SearchRequest)],
+        requests: &[(&ResolvedPolicy, SearchRequest, &[Option<SavedDecision>; 3])],
         total: usize,
-        decisions: &[Option<SavedDecision>; 3],
-        results: &mut [Option<IndependentSearchResult>; 3],
+        results: &mut [Option<IndependentSearchResult>],
         observe: &mut dyn FnMut(SearchObservation<'_>),
     ) -> Result<BaselineSeal, SearchError> {
-        let Some((&(policy, request), earlier)) = requests.split_last() else {
+        let Some((&(policy, request, decisions), earlier)) = requests.split_last() else {
             // Every requested incumbent and score now exists. No later
             // objective needs to reopen Baseline or guess a memory reserve.
             return Ok(self.ledger.seal_baseline()?);
         };
         let codec = policy.objective().unwrap().codec;
-        let slot = index(codec);
+        let slot = requests.len() - 1;
         let observer = std::cell::RefCell::new(observe);
         let mut share = None;
         let mut allowance = 0;
@@ -82,7 +91,7 @@ impl<'src> Compilation<'src> {
             let mut search = self.prepare_effort_search(source, policy, request,
                 &mut |compilation| {
                     let ready = compilation.prepare_independent_objectives(source, earlier, total,
-                        decisions, results, &mut |event| observer.borrow_mut()(event))?;
+                        results, &mut |event| observer.borrow_mut()(event))?;
                     seal = Some(ready);
                     share = Some(compilation.ledger.begin_objective_share(total + 1 - requests.len()));
                     allowance = compilation.ledger.optional_search_work().1;

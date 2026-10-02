@@ -1,0 +1,20 @@
+TAP version 13
+# Subtest: all installed code is exactly the compiler delivery, with complete package effects
+ok 1 - all installed code is exactly the compiler delivery, with complete package effects
+  ---
+  duration_ms: 125.66308
+  ...
+# Subtest: all ten ESM and CJS entry points preserve the public export sets
+ok 2 - all ten ESM and CJS entry points preserve the public export sets
+  ---
+  duration_ms: 201.31956
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 396.044854

@@ -1,4 +1,4 @@
-import extern { includeBooleanAttr as internalIncludeBooleanAttr } from "../../packages/vuelil/shared.js";
+import { includeBooleanAttr as internalIncludeBooleanAttr } from "../package/shared.lil";
 import { renderVNode } from "./render";
 import { ssrRenderComponent } from "./helpers/ssrRenderComponent";
 import { ssrRenderSlot, ssrRenderSlotInner } from "./helpers/ssrRenderSlot";
@@ -20,8 +20,6 @@ import {
   ssrLooseEqual,
   ssrRenderDynamicModel
 } from "./helpers/ssrVModelHelpers";
-
-extern JsValue internalIncludeBooleanAttr;
 
 export JsValue ssrRenderVNode = renderVNode;
 export JsValue ssrIncludeBooleanAttr = internalIncludeBooleanAttr;

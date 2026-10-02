@@ -6,13 +6,12 @@
 //
 // Runs maintained ports' own test suites against a compiler's semantic route.
 //
-// Each port is copied to a fresh workspace (its node_modules linked, not
-// copied), the recorded source migration in finer/port-migrations/<port>.patch
-// is applied, `dist/` is removed, and the port is built and tested with
+// Each port's committed source is copied to a fresh workspace (its node_modules
+// linked, not copied), `dist/` is removed, and the port is built and tested with
 // LILSCRIPT_COMPILER pointing at a wrapper around the compiler (which adds
 // `--backend semantic` for a binary from before the migration).
 // The report pins the compiler digest, each port's git revision and dirty
-// state, and each patch digest, so a receipt of this command is replayable.
+// state, so a receipt of this command is replayable.
 //
 //   node finer/tools/semantic-port-tests.mjs --compiler <lilscript> \
 //     --ports micromarklil,zodlil --out report.json [--ports-root ~]
@@ -129,16 +128,7 @@ for (const port of ports) {
     symlinkSync(join(source, "node_modules"), join(workspace, "node_modules"))
   }
   const entry = { port, head, dirty, patch: null, build: null, test: null }
-  const patch = join(repository, "finer", "port-migrations", `${port}.patch`)
-  if (existsSync(patch)) {
-    entry.patch = { path: `finer/port-migrations/${port}.patch`, sha256: digest(patch) }
-    const applied = run("patch", ["-p1", "--forward", "-d", workspace, "-i", patch])
-    if (applied.status !== 0) {
-      entry.patch.error = (applied.stdout + applied.stderr).slice(0, 2000)
-      report.ports.push(entry)
-      continue
-    }
-  }
+  // Test the source revision owned by the port, without compiler patches.
   const wrapper = join(workspace, ".lilscript-semantic")
   const route = routeArgs(compiler).map(arg => `${arg} `).join("")
   writeFileSync(wrapper, `#!/bin/sh\nexec ${JSON.stringify(compiler)} ${route}"$@"\n`)

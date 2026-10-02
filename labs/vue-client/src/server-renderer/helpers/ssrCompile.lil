@@ -1,11 +1,12 @@
-import extern { compile as compileSsrTemplate } from "../../../packages/vuelil/compiler-ssr.js";
-import extern {
+import {read_CJS as vue_read_CJS, read_DEV as vue_read_DEV} from "../../package/build-flags.lil";
+import { compile as compileSsrTemplate } from "../../package/compiler-ssr.lil";
+import {
   NO as compileNO,
   extend as compileExtend,
   generateCodeFrame as compileGenerateCodeFrame,
   isFunction as compileIsFunction
-} from "../../../packages/vuelil/shared.js";
-import extern {
+} from "../../package/shared.lil";
+import {
   BaseTransition as compileVueBaseTransition,
   Fragment as compileVueFragment,
   KeepAlive as compileVueKeepAlive,
@@ -56,7 +57,7 @@ import extern {
   withKeys as compileVueWithKeys,
   withModifiers as compileVueWithModifiers,
   withMemo as compileVueWithMemo
-} from "../../../packages/vuelil/runtime-dom.js";
+} from "../../package/runtime-dom.lil";
 import {
   ssrGetDirectiveProps,
   ssrGetDynamicModelProps,
@@ -79,72 +80,15 @@ import {
   ssrRenderVNode
 } from "../internal";
 
-extern JsValue compileSsrTemplate;
-extern JsValue compileNO;
-extern JsValue compileExtend;
-extern string compileGenerateCodeFrame(string source, int start, int end);
-extern bool compileIsFunction(JsValue value);
-extern JsValue compileVueBaseTransition;
-extern JsValue compileVueFragment;
-extern JsValue compileVueKeepAlive;
-extern JsValue compileVueSuspense;
-extern JsValue compileVueTeleport;
-extern JsValue compileVueTransition;
-extern JsValue compileVueTransitionGroup;
-extern JsValue compileVueCamelize;
-extern JsValue compileVueCapitalize;
-extern JsValue compileVueCreateBlock;
-extern JsValue compileVueCreateCommentVNode;
-extern JsValue compileVueCreateElementBlock;
-extern JsValue compileVueCreateElementVNode;
-extern JsValue compileVueCreateSlots;
-extern JsValue compileVueCreateStaticVNode;
-extern JsValue compileVueCreateTextVNode;
-extern JsValue compileVueCreateVNode;
-extern JsValue compileVueGuardReactiveProps;
-extern JsValue compileVueIsMemoSame;
-extern JsValue compileVueIsRef;
-extern JsValue compileVueMergeProps;
-extern JsValue compileVueNormalizeClass;
-extern JsValue compileVueNormalizeProps;
-extern JsValue compileVueNormalizeStyle;
-extern JsValue compileVueOpenBlock;
-extern JsValue compileVuePopScopeId;
-extern JsValue compileVuePushScopeId;
-extern JsValue compileVueRenderList;
-extern JsValue compileVueRenderSlot;
-extern JsValue compileVueResolveComponent;
-extern JsValue compileVueResolveDirective;
-extern JsValue compileVueResolveDynamicComponent;
-extern JsValue compileVueResolveFilter;
-extern JsValue compileVueSetBlockTracking;
-extern JsValue compileVueToDisplayString;
-extern JsValue compileVueToHandlerKey;
-extern JsValue compileVueToHandlers;
-extern JsValue compileVueUnref;
-extern JsValue compileVueVModelCheckbox;
-extern JsValue compileVueVModelDynamic;
-extern JsValue compileVueVModelRadio;
-extern JsValue compileVueVModelSelect;
-extern JsValue compileVueVModelText;
-extern JsValue compileVueVShow;
-extern JsValue compileWarn;
-extern JsValue compileVueWithCtx;
-extern JsValue compileVueWithDirectives;
-extern JsValue compileVueWithKeys;
-extern JsValue compileVueWithModifiers;
-extern JsValue compileVueWithMemo;
 extern JsValue Error;
 extern JsValue Function;
 extern JsValue JSON;
 extern JsValue Object;
-extern JsValue __CJS__;
-extern JsValue __DEV__;
 
 JsValue compileCache = JS.invoke(Object, "create", null);
 
 export JsValue ssrCompile(string template, JsValue instance) {
-  if (!__CJS__.truthy()) {
+  if (!vue_read_CJS().truthy()) {
     throw JS.construct(
       Error,
       "On-the-fly template compilation is not supported in the ESM build of " +
@@ -188,16 +132,16 @@ export JsValue ssrCompile(string template, JsValue instance) {
   JsValue cached = compileCache[cacheKey];
   if (cached.truthy()) return cached;
   finalCompilerOptions["onError"] = JS.method1((JsValue _self, JsValue error) => {
-    if (__DEV__.truthy()) {
+    if (vue_read_DEV().truthy()) {
       string message = "[@vue/server-renderer] Template compilation error: " +
         JS.string(error["message"]);
       string codeFrame = "";
       if (error["loc"].truthy()) {
-        codeFrame = compileGenerateCodeFrame(
+        codeFrame = JS.string(compileGenerateCodeFrame(
           template,
           JS.number(error["loc"]["start"]["offset"]).toInt(),
           JS.number(error["loc"]["end"]["offset"]).toInt()
-        );
+        ));
       }
       if (codeFrame != "") compileWarn(message + "\n" + codeFrame);
       else compileWarn(message);

@@ -1,4 +1,4 @@
-import extern { isFunction as componentIsFunction, isObject as componentIsObject } from "../../../packages/vuelil/shared.js";
+import { isFunction as componentIsFunction, isObject as componentIsObject } from "../../package/shared.lil";
 import {
   DeprecationTypes,
   checkCompatEnabled,
@@ -6,9 +6,6 @@ import {
 } from "./compatConfig";
 import { convertLegacyAsyncComponent } from "./componentAsync";
 import { convertLegacyFunctionalComponent } from "./componentFunctional";
-
-extern bool componentIsFunction(JsValue value);
-extern bool componentIsObject(JsValue value);
 
 export JsValue convertLegacyComponent(JsValue comp, JsValue instance) {
   if (comp["__isBuiltIn"].truthy()) return comp;

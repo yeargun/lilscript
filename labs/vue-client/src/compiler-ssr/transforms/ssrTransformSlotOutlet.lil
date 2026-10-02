@@ -1,4 +1,4 @@
-import extern {
+import {
   ElementTypes,
   NodeTypes,
   TRANSITION,
@@ -8,19 +8,9 @@ import extern {
   isSlotOutlet,
   processSlotOutlet,
   resolveComponentType
-} from "../../../packages/vuelil/compiler-dom.js";
+} from "../../package/compiler-dom.lil";
 import { SSR_RENDER_SLOT, SSR_RENDER_SLOT_INNER } from "../runtimeHelpers";
 import { processChildrenAsStatement } from "../ssrCodegenTransform";
-
-extern JsValue ElementTypes;
-extern JsValue NodeTypes;
-extern JsValue TRANSITION;
-extern JsValue TRANSITION_GROUP;
-extern JsValue createCallExpression;
-extern JsValue createFunctionExpression;
-extern JsValue isSlotOutlet;
-extern JsValue processSlotOutlet;
-extern JsValue resolveComponentType;
 
 JsValue slotOutletUndefined() {
   return JS.undefined();

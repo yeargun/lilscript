@@ -29,10 +29,10 @@ extern JsValue Reflect;
 extern JsValue Proxy;
 extern JsValue Symbol;
 
-bool PUBLIC_DEV = true;
-bool PUBLIC_TEST = true;
-bool PUBLIC_COMPAT = false;
-bool PUBLIC_FEATURE_OPTIONS_API = true;
+define bool PUBLIC_DEV = true;
+define bool PUBLIC_TEST = true;
+define bool PUBLIC_COMPAT = false;
+define bool PUBLIC_FEATURE_OPTIONS_API = true;
 int PUBLIC_DEV_ROOT_FRAGMENT = JS.number(PatchFlags["DEV_ROOT_FRAGMENT"]).toInt();
 
 JsValue publicUndefined() {

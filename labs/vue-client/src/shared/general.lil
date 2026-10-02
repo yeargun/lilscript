@@ -58,6 +58,8 @@ export bool NO() {
 }
 
 export bool isOn(string key) {
+  // JS charCodeAt yields NaN beyond the string; LilScript indices are int32.
+  if (key.length < 3) return false;
   int third = key.charCodeAt(2);
   return key.charCodeAt(0) == 111 &&
     key.charCodeAt(1) == 110 &&
@@ -81,7 +83,8 @@ export bool hasOwn(JsValue value, JsValue key) {
   return JS.call(Object["prototype"]["hasOwnProperty"], value, key).truthy();
 }
 
-export JsValue isArray = Array["isArray"];
+// Native predicate identity is retained; its public result contract is boolean.
+export func(JsValue)->bool isArray = JS.assume(Array["isArray"]);
 export JsValue objectToString = Object["prototype"]["toString"];
 
 string typeString(JsValue value) {
@@ -151,16 +154,16 @@ export bool isIntegerKey(JsValue value) {
   return JS.string(parsed) == key;
 }
 
-export JsValue isReservedProp = makeMap(
+export func(JsValue)->bool isReservedProp = JS.assume(makeMap(
   ",key,ref,ref_for,ref_key," +
   "onVnodeBeforeMount,onVnodeMounted," +
   "onVnodeBeforeUpdate,onVnodeUpdated," +
   "onVnodeBeforeUnmount,onVnodeUnmounted"
-);
+));
 
-export JsValue isBuiltInDirective = makeMap(
+export func(JsValue)->bool isBuiltInDirective = JS.assume(makeMap(
   "bind,cloak,else-if,else,for,html,if,model,on,once,pre,show,slot,text,memo"
-);
+));
 
 JsValue cacheStringFunction(JsValue transform) {
   JsValue cache = JS.invoke(Object, "create", null);

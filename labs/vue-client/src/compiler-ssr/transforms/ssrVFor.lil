@@ -1,20 +1,13 @@
-import extern {
+import {
   NodeTypes,
   createCallExpression,
   createForLoopParams,
   createFunctionExpression,
   createStructuralDirectiveTransform,
   processFor
-} from "../../../packages/vuelil/compiler-dom.js";
+} from "../../package/compiler-dom.lil";
 import { SSR_RENDER_LIST } from "../runtimeHelpers";
 import { processChildrenAsStatement } from "../ssrCodegenTransform";
-
-extern JsValue NodeTypes;
-extern JsValue createCallExpression;
-extern JsValue createForLoopParams;
-extern JsValue createFunctionExpression;
-extern JsValue createStructuralDirectiveTransform;
-extern JsValue processFor;
 
 JsValue ssrForUndefined() {
   return JS.undefined();

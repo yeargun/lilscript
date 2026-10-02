@@ -86,7 +86,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         }
         self.work(self.program.exports().len())?;
         if !self
-            .program
+            .demand
             .value_exports()
             .any(|(_, exported)| exported == cell)
         {

@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: font metrics in the built dist
+    # Subtest: reference is upstream's full table
+    ok 1 - reference is upstream's full table
+      ---
+      duration_ms: 1.126761
+      ...
+    # Subtest: dist/katex.mjs decodes the pinned upstream metrics exactly
+    ok 2 - dist/katex.mjs decodes the pinned upstream metrics exactly
+      ---
+      duration_ms: 31.300219
+      ...
+    # Subtest: dist/katex.esm.js decodes the pinned upstream metrics exactly
+    ok 3 - dist/katex.esm.js decodes the pinned upstream metrics exactly
+      ---
+      duration_ms: 23.302182
+      ...
+    # Subtest: dist/katex.closed.js decodes the pinned upstream metrics exactly
+    ok 4 - dist/katex.closed.js decodes the pinned upstream metrics exactly
+      ---
+      duration_ms: 23.297904
+      ...
+    # Subtest: dist/katex.cjs decodes the pinned upstream metrics exactly
+    ok 5 - dist/katex.cjs decodes the pinned upstream metrics exactly
+      ---
+      duration_ms: 21.887452
+      ...
+    # Subtest: dist/katex.umd.js decodes the pinned upstream metrics exactly
+    ok 6 - dist/katex.umd.js decodes the pinned upstream metrics exactly
+      ---
+      duration_ms: 22.484951
+      ...
+    # Subtest: dist/katex.min.js decodes the pinned upstream metrics exactly
+    ok 7 - dist/katex.min.js decodes the pinned upstream metrics exactly
+      ---
+      duration_ms: 10.5943
+      ...
+    1..7
+ok 1 - font metrics in the built dist
+  ---
+  duration_ms: 135.617992
+  type: 'suite'
+  ...
+1..1
+# tests 7
+# suites 1
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 211.565387

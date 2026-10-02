@@ -315,7 +315,7 @@ fn exported_bodies_run_after_initialization_unless_host_code_can_call_them_early
         .foreign_imports
         .push(ForeignImport {
             span: Span::default(),
-            cell: foreign,
+            cell: Some(foreign),
             source: "./host.mjs".into(),
             imported: "host".into(),
         });

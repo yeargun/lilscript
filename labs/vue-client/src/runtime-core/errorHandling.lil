@@ -4,14 +4,12 @@ import { EMPTY_OBJ, isArray, isFunction, isPromise } from "../shared/general";
 import { console } from "../shared/makeMap";
 import { LifecycleHooks } from "./enums";
 import { popWarningContext, pushWarningContext, warn } from "./warning";
-import extern { hostIsDev } from "./host.js";
+import { read_DEV } from "../package/build-flags.lil";
 
-extern bool hostIsDev();
-
-bool TEST = true;
+define bool TEST = true;
 
 bool errorHandlingDev() {
-  return hostIsDev();
+  return read_DEV().truthy();
 }
 
 export JsValue ErrorCodes = JS.object(

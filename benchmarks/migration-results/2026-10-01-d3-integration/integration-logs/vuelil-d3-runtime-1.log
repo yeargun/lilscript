@@ -1,0 +1,628 @@
+TAP version 13
+# Subtest: compiler-core preserves its complete public surface and live export identity
+not ok 1 - compiler-core preserves its complete public surface and live export identity
+  ---
+  duration_ms: 4.551398
+  location: '/home/azureuser/lilscript/labs/vue-client/tests/compiler-core.test.mjs:23:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    baseParse
+    + actual - expected
+    
+      [
+        'baseParse',
+    +   1
+    -   2
+      ]
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'baseParse'
+    1: 2
+  actual:
+    0: 'baseParse'
+    1: 1
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/compiler-core.test.mjs:44:14)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    node:internal/test_runner/harness:255:12
+    node:internal/process/task_queues:140:7
+    AsyncResource.runInAsyncScope (node:async_hooks:206:9)
+    AsyncResource.runMicrotask (node:internal/process/task_queues:137:8)
+  ...
+# Subtest: baseParse differentially matches Vue across broad vectors
+ok 2 - baseParse differentially matches Vue across broad vectors
+  ---
+  duration_ms: 26.618657
+  ...
+# Subtest: baseParse recovery, errors, and locations match Vue
+ok 3 - baseParse recovery, errors, and locations match Vue
+  ---
+  duration_ms: 4.831693
+  ...
+# Subtest: AST enums and builders match Vue object shapes
+ok 4 - AST enums and builders match Vue object shapes
+  ---
+  duration_ms: 2.123178
+  ...
+# Subtest: compiler-core utility tranche matches representative upstream behavior
+ok 5 - compiler-core utility tranche matches representative upstream behavior
+  ---
+  duration_ms: 5.252611
+  ...
+# Subtest: publishes implemented transform, codegen, and compile APIs
+not ok 6 - publishes implemented transform, codegen, and compile APIs
+  ---
+  duration_ms: 0.663864
+  location: '/home/azureuser/lilscript/labs/vue-client/tests/compiler-core.test.mjs:203:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'processIf',
+    +   3
+    -   4
+      ]
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'processIf'
+    1: 4
+  actual:
+    0: 'processIf'
+    1: 3
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/compiler-core.test.mjs:231:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: transformOn preserves analysis, augmentation, metadata, locations, and reflection
+not ok 7 - transformOn preserves analysis, augmentation, metadata, locations, and reflection
+  ---
+  duration_ms: 0.532177
+  location: '/home/azureuser/lilscript/labs/vue-client/tests/compiler-core.test.mjs:286:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'transformOn',
+    +   3
+    -   4
+      ]
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'transformOn'
+    1: 4
+  actual:
+    0: 'transformOn'
+    1: 3
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/compiler-core.test.mjs:287:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: transformVBindShorthand preserves expansion, camelization, locations, errors, and reflection
+ok 8 - transformVBindShorthand preserves expansion, camelization, locations, errors, and reflection
+  ---
+  duration_ms: 3.271249
+  ...
+# Subtest: transformModel preserves assignment analysis, props, modifiers, caching, errors, locations, and reflection
+ok 9 - transformModel preserves assignment analysis, props, modifiers, caching, errors, locations, and reflection
+  ---
+  duration_ms: 9.027345
+  ...
+# Subtest: noop directive transform preserves shape, locations, and reflection
+ok 10 - noop directive transform preserves shape, locations, and reflection
+  ---
+  duration_ms: 0.49097
+  ...
+# Subtest: compat filter transform exactly rewrites scanned and nested expressions
+ok 11 - compat filter transform exactly rewrites scanned and nested expressions
+  ---
+  duration_ms: 20.671624
+  ...
+# Subtest: compiler compat configuration matches Vue warnings, modes, and reflection
+ok 12 - compiler compat configuration matches Vue warnings, modes, and reflection
+  ---
+  duration_ms: 1.01968
+  ...
+# Subtest: Vue 3.5.42 reactivity kernel milestone
+    # Subtest: ships only the implemented surface with matching function arities
+    not ok 1 - ships only the implemented surface with matching function arities
+      ---
+      duration_ms: 4.415643
+      location: '/home/azureuser/lilscript/labs/vue-client/tests/reactivity-core.test.mjs:74:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        computed.length
+        
+        1 !== 2
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 2
+      actual: 1
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/reactivity-core.test.mjs:90:14)
+        Test.runInAsyncScope (node:async_hooks:206:9)
+        Test.run (node:internal/test_runner/test:796:25)
+        Test.start (node:internal/test_runner/test:702:17)
+        node:internal/test_runner/test:1133:71
+        node:internal/per_context/primordials:482:82
+        new Promise (<anonymous>)
+        new SafePromise (node:internal/per_context/primordials:450:29)
+        node:internal/per_context/primordials:482:9
+        Array.map (<anonymous>)
+      ...
+    # Subtest: matches refs, dynamic effects, computed caching, stop, and identities
+    ok 2 - matches refs, dynamic effects, computed caching, stop, and identities
+      ---
+      duration_ms: 9.92677
+      ...
+    # Subtest: matches ref and shallowRef conversion and force triggering
+    ok 3 - matches ref and shallowRef conversion and force triggering
+      ---
+      duration_ms: 1.937691
+      ...
+    # Subtest: matches deep and shallow mutable/readonly proxy behavior
+    ok 4 - matches deep and shallow mutable/readonly proxy behavior
+      ---
+      duration_ms: 1.579439
+      ...
+    # Subtest: matches array index, length, iteration, search, and mutation tracking
+    ok 5 - matches array index, length, iteration, search, and mutation tracking
+      ---
+      duration_ms: 3.06893
+      ...
+    # Subtest: matches scheduler, onStop, manual runner, and branch cleanup
+    ok 6 - matches scheduler, onStop, manual runner, and branch cleanup
+      ---
+      duration_ms: 1.43044
+      ...
+    # Subtest: matches inherited raw identity, hasOwnProperty, nested effects, and effect runners
+    ok 7 - matches inherited raw identity, hasOwnProperty, nested effects, and effect runners
+      ---
+      duration_ms: 1.6224
+      ...
+    # Subtest: matches array mutators used from effects without self-recursion
+    ok 8 - matches array mutators used from effects without self-recursion
+      ---
+      duration_ms: 2.069808
+      ...
+    # Subtest: matches runner effect controls used by Vue consumers
+    ok 9 - matches runner effect controls used by Vue consumers
+      ---
+      duration_ms: 1.048174
+      ...
+    # Subtest: matches lazy, chained, unchanged, and writable computed refs
+    ok 10 - matches lazy, chained, unchanged, and writable computed refs
+      ---
+      duration_ms: 1.365919
+      ...
+    # Subtest: markRaw and non-extensible common targets retain identity
+    ok 11 - markRaw and non-extensible common targets retain identity
+      ---
+      duration_ms: 0.508683
+      ...
+    1..11
+not ok 13 - Vue 3.5.42 reactivity kernel milestone
+  ---
+  duration_ms: 101.009082
+  type: 'suite'
+  location: '/home/azureuser/lilscript/labs/vue-client/tests/reactivity-core.test.mjs:73:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: Vue 3.5.42 runtime-core tranche
+    # Subtest: keeps public and upstream-test build semantics separate
+    ok 1 - keeps public and upstream-test build semantics separate
+      ---
+      duration_ms: 1.29159
+      ...
+    # Subtest: exports the complete upstream runtime surface with matching reflection
+    not ok 2 - exports the complete upstream runtime surface with matching reflection
+      ---
+      duration_ms: 2.288077
+      location: '/home/azureuser/lilscript/labs/vue-client/tests/runtime-core-core.test.mjs:77:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        callWithAsyncErrorHandling.length
+        
+        3 !== 4
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 4
+      actual: 3
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/runtime-core-core.test.mjs:100:16)
+        Test.runInAsyncScope (node:async_hooks:206:9)
+        Test.run (node:internal/test_runner/test:796:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:526:18)
+        Test.postRun (node:internal/test_runner/test:889:19)
+        Test.run (node:internal/test_runner/test:835:12)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1135:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+      ...
+    # Subtest: matches VNode creation, cloning, normalization, props, and h
+    ok 3 - matches VNode creation, cloning, normalization, props, and h
+      ---
+      duration_ms: 3.734127
+      ...
+    # Subtest: matches block collection and memo behavior
+    ok 4 - matches block collection and memo behavior
+      ---
+      duration_ms: 0.649728
+      ...
+    # Subtest: matches renderList and toHandlers across supported inputs
+    ok 5 - matches renderList and toHandlers across supported inputs
+      ---
+      duration_ms: 1.542861
+      ...
+    # Subtest: matches nextTick callback values and receiver binding
+    ok 6 - matches nextTick callback values and receiver binding
+      ---
+      duration_ms: 0.646001
+      ...
+    # Subtest: matches renderer keyed updates and reactive component effects
+    ok 7 - matches renderer keyed updates and reactive component effects
+      ---
+      duration_ms: 12.363086
+      ...
+    # Subtest: matches app registration, plugins, config, and injection context
+    ok 8 - matches app registration, plugins, config, and injection context
+      ---
+      duration_ms: 1.475014
+      ...
+    # Subtest: registers lifecycle hooks with current-instance and tracking isolation
+    not ok 9 - registers lifecycle hooks with current-instance and tracking isolation
+      ---
+      duration_ms: 1.899509
+      location: '/home/azureuser/lilscript/labs/vue-client/tests/runtime-core-core.test.mjs:322:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly deep-equal:
+        + actual - expected
+        
+          {
+        +   effectRuns: 2,
+        +   hookRuns: 2,
+        -   effectRuns: 1,
+        -   hookRuns: 1,
+            sawCurrent: true
+          }
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+        hookRuns: 1
+        effectRuns: 1
+        sawCurrent: true
+      actual:
+        hookRuns: 2
+        effectRuns: 2
+        sawCurrent: true
+      operator: 'deepStrictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/runtime-core-core.test.mjs:358:12)
+        Test.runInAsyncScope (node:async_hooks:206:9)
+        Test.run (node:internal/test_runner/test:796:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:526:18)
+        Test.postRun (node:internal/test_runner/test:889:19)
+        Test.run (node:internal/test_runner/test:835:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:526:7)
+      ...
+    1..9
+not ok 14 - Vue 3.5.42 runtime-core tranche
+  ---
+  duration_ms: 270.303765
+  type: 'suite'
+  location: '/home/azureuser/lilscript/labs/vue-client/tests/runtime-core-core.test.mjs:55:1'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: surface, function types, arities, and constant ABI match Vue 3.5.42
+ok 15 - surface, function types, arities, and constant ABI match Vue 3.5.42
+  ---
+  duration_ms: 4.783973
+  ...
+# Subtest: map creation and general predicates match deterministic edge vectors
+not ok 16 - map creation and general predicates match deterministic edge vectors
+  ---
+  duration_ms: 2.881869
+  location: '/home/azureuser/lilscript/labs/vue-client/tests/shared.test.mjs:212:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    isOn result
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    compareCalls (file:///home/azureuser/lilscript/labs/vue-client/tests/shared.test.mjs:130:14)
+    TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/shared.test.mjs:222:3)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: string transforms, mutation helpers, and numeric conversion match
+ok 17 - string transforms, mutation helpers, and numeric conversion match
+  ---
+  duration_ms: 2.190153
+  ...
+# Subtest: compiler helpers and code frames match
+ok 18 - compiler helpers and code frames match
+  ---
+  duration_ms: 1.311207
+  ...
+# Subtest: class and style normalization match, including identity and mutation
+ok 19 - class and style normalization match, including identity and mutation
+  ---
+  duration_ms: 2.144228
+  ...
+# Subtest: tag and attribute tables match positive, negative, and case-sensitive vectors
+ok 20 - tag and attribute tables match positive, negative, and case-sensitive vectors
+  ---
+  duration_ms: 1.30803
+  ...
+# Subtest: HTML and CSS escaping match
+ok 21 - HTML and CSS escaping match
+  ---
+  duration_ms: 0.902481
+  ...
+# Subtest: loose equality and display stringification match recursive collections
+ok 22 - loose equality and display stringification match recursive collections
+  ---
+  duration_ms: 2.372165
+  ...
+# Subtest: CSS variable normalization and global allow-list aliases match
+ok 23 - CSS variable normalization and global allow-list aliases match
+  ---
+  duration_ms: 0.791353
+  ...
+# Subtest: every runtime export is exercised
+not ok 24 - every runtime export is exercised
+  ---
+  duration_ms: 2.381863
+  location: '/home/azureuser/lilscript/labs/vue-client/tests/shared.test.mjs:603:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected ... Lines skipped
+    
+      [
+        'EMPTY_ARR',
+    ...
+        'getGlobalThis',
+        'hasChanged',
+    +   'hyphenate',
+    +   'includeBooleanAttr',
+    +   'invokeArrayFns',
+    +   'isArray',
+    +   'isBooleanAttr',
+    +   'isGloballyAllowed',
+    +   'isGloballyWhitelisted',
+    +   'isHTMLTag',
+    +   'isKnownHtmlAttr',
+    +   'isKnownMathMLAttr',
+    +   'isKnownSvgAttr',
+    +   'isMathMLTag',
+    +   'isOn',
+    +   'isRenderableAttrValue',
+    +   'isSSRSafeAttrName',
+    +   'isSVGTag',
+    +   'isSpecialBooleanAttr',
+    +   'isVoidTag',
+    +   'looseEqual',
+    +   'looseIndexOf',
+    +   'looseToNumber',
+    +   'makeMap',
+    +   'normalizeClass',
+    +   'normalizeCssVarValue',
+    ...
+    -   'hasOwn',
+    -   'hyphenate',
+    -   'includeBooleanAttr',
+    -   'invokeArrayFns',
+    -   'isArray',
+    -   'isBooleanAttr',
+    -   'isBuiltInDirective',
+    -   'isDate',
+    -   'isFunction',
+    -   'isGloballyAllowed',
+    -   'isGloballyWhitelisted',
+    -   'isHTMLTag',
+    -   'isIntegerKey',
+    -   'isKnownHtmlAttr',
+    -   'isKnownMathMLAttr',
+    -   'isKnownSvgAttr',
+    -   'isMap',
+    -   'isMathMLTag',
+    -   'isModelListener',
+    -   'isObject',
+    -   'isOn',
+    -   'isPlainObject',
+    -   'isPromise',
+    -   'isRegExp',
+    ...
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'EMPTY_ARR'
+    1: 'EMPTY_OBJ'
+    2: 'NO'
+    3: 'NOOP'
+    4: 'PatchFlagNames'
+    5: 'PatchFlags'
+    6: 'ShapeFlags'
+    7: 'SlotFlags'
+    8: 'camelize'
+    9: 'capitalize'
+    10: 'cssVarNameEscapeSymbolsRE'
+    11: 'def'
+    12: 'escapeHtml'
+    13: 'escapeHtmlComment'
+    14: 'extend'
+    15: 'genCacheKey'
+    16: 'genPropsAccessExp'
+    17: 'generateCodeFrame'
+    18: 'getEscapedCssVarName'
+    19: 'getGlobalThis'
+    20: 'hasChanged'
+    21: 'hasOwn'
+    22: 'hyphenate'
+    23: 'includeBooleanAttr'
+    24: 'invokeArrayFns'
+    25: 'isArray'
+    26: 'isBooleanAttr'
+    27: 'isBuiltInDirective'
+    28: 'isDate'
+    29: 'isFunction'
+    30: 'isGloballyAllowed'
+    31: 'isGloballyWhitelisted'
+    32: 'isHTMLTag'
+    33: 'isIntegerKey'
+    34: 'isKnownHtmlAttr'
+    35: 'isKnownMathMLAttr'
+    36: 'isKnownSvgAttr'
+    37: 'isMap'
+    38: 'isMathMLTag'
+    39: 'isModelListener'
+    40: 'isObject'
+    41: 'isOn'
+    42: 'isPlainObject'
+    43: 'isPromise'
+    44: 'isRegExp'
+    45: 'isRenderableAttrValue'
+    46: 'isReservedProp'
+    47: 'isSSRSafeAttrName'
+    48: 'isSVGTag'
+    49: 'isSet'
+    50: 'isSpecialBooleanAttr'
+    51: 'isString'
+    52: 'isSymbol'
+    53: 'isVoidTag'
+    54: 'looseEqual'
+    55: 'looseIndexOf'
+    56: 'looseToNumber'
+    57: 'makeMap'
+    58: 'normalizeClass'
+    59: 'normalizeCssVarValue'
+    60: 'normalizeProps'
+    61: 'normalizeStyle'
+    62: 'objectToString'
+    63: 'parseStringStyle'
+    64: 'propsToAttrMap'
+    65: 'remove'
+    66: 'slotFlagsText'
+    67: 'stringifyStyle'
+    68: 'toDisplayString'
+    69: 'toHandlerKey'
+    70: 'toNumber'
+    71: 'toRawType'
+    72: 'toTypeString'
+  actual:
+    0: 'EMPTY_ARR'
+    1: 'EMPTY_OBJ'
+    2: 'NO'
+    3: 'NOOP'
+    4: 'PatchFlagNames'
+    5: 'PatchFlags'
+    6: 'ShapeFlags'
+    7: 'SlotFlags'
+    8: 'camelize'
+    9: 'capitalize'
+    10: 'cssVarNameEscapeSymbolsRE'
+    11: 'def'
+    12: 'escapeHtml'
+    13: 'escapeHtmlComment'
+    14: 'extend'
+    15: 'genCacheKey'
+    16: 'genPropsAccessExp'
+    17: 'generateCodeFrame'
+    18: 'getEscapedCssVarName'
+    19: 'getGlobalThis'
+    20: 'hasChanged'
+    21: 'hyphenate'
+    22: 'includeBooleanAttr'
+    23: 'invokeArrayFns'
+    24: 'isArray'
+    25: 'isBooleanAttr'
+    26: 'isGloballyAllowed'
+    27: 'isGloballyWhitelisted'
+    28: 'isHTMLTag'
+    29: 'isKnownHtmlAttr'
+    30: 'isKnownMathMLAttr'
+    31: 'isKnownSvgAttr'
+    32: 'isMathMLTag'
+    33: 'isOn'
+    34: 'isRenderableAttrValue'
+    35: 'isSSRSafeAttrName'
+    36: 'isSVGTag'
+    37: 'isSpecialBooleanAttr'
+    38: 'isVoidTag'
+    39: 'looseEqual'
+    40: 'looseIndexOf'
+    41: 'looseToNumber'
+    42: 'makeMap'
+    43: 'normalizeClass'
+    44: 'normalizeCssVarValue'
+    45: 'normalizeProps'
+    46: 'normalizeStyle'
+    47: 'objectToString'
+    48: 'parseStringStyle'
+    49: 'propsToAttrMap'
+    50: 'remove'
+    51: 'slotFlagsText'
+    52: 'stringifyStyle'
+    53: 'toDisplayString'
+    54: 'toHandlerKey'
+    55: 'toNumber'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/shared.test.mjs:604:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+1..24
+# tests 42
+# suites 2
+# pass 34
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 568.263348

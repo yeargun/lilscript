@@ -72,6 +72,24 @@ fn nothing_after_a_return_is_reached_and_a_branch_joins() {
 }
 
 #[test]
+fn d3_finally_is_reached_after_abrupt_catch_without_fallthrough() {
+    let arena = bumpalo::Bump::new();
+    let program = program(&arena, "int f(){try{return 1;}catch(JsValue error){throw error;}finally{print(3);}print(4);return 5;}print(f());");
+    let unit = unit_named(&program, "f");
+    let solution = solve(unit, &Reached, true, |_| Ok::<_, ()>(())).unwrap();
+    let mut after_try = false;
+    let mut unreachable = 0;
+    for &id in &unit.regions[unit.entry.index()].operations {
+        if after_try { assert!(!solution.before(id)); unreachable += 1; }
+        if let OperationKind::Try { finally: Some(finally), .. } = unit.operations[id.index()].kind {
+            for &cleanup in &unit.regions[finally.index()].operations { assert!(*solution.before(cleanup)); }
+            after_try = true;
+        }
+    }
+    assert!(after_try && unreachable > 0);
+}
+
+#[test]
 fn a_loop_that_never_settles_is_refused() {
     let arena = bumpalo::Bump::new();
     let program = program(

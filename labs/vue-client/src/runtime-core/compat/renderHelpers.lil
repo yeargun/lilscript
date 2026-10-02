@@ -1,4 +1,4 @@
-import extern {
+import {
   camelize as helpersCamelize,
   extend as helpersExtend,
   hyphenate as helpersHyphenate,
@@ -6,20 +6,12 @@ import extern {
   isObject as helpersIsObject,
   isReservedProp as helpersIsReservedProp,
   normalizeClass as helpersNormalizeClass
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { globalThis as renderHelpersGlobal } from "../../shared/makeMap";
 import { createSlots as coreCreateSlots } from "../helpers/createSlots";
 import { renderSlot as coreRenderSlot } from "../helpers/renderSlot";
 import { toHandlers as coreToHandlers } from "../helpers/toHandlers";
 import { mergeProps as coreMergeProps } from "../vnode";
-
-extern JsValue helpersCamelize;
-extern JsValue helpersExtend;
-extern JsValue helpersHyphenate;
-extern JsValue helpersIsReservedProp;
-extern JsValue helpersNormalizeClass;
-extern bool helpersIsArray(JsValue value);
-extern bool helpersIsObject(JsValue value);
 
 JsValue toObject(JsValue values) {
   JsValue result = JS.object();

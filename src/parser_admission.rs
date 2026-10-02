@@ -69,7 +69,7 @@ pub(crate) struct AdmittedSourcesError {
 }
 
 /// The list owns Program values and runs element destructors before the arena.
-pub(crate) struct ParsedSources<'arena, 'src>(ArenaVec<'arena, Program<'arena, 'src>>);
+pub(crate) struct ParsedSources<'arena, 'src>(ArenaVec<'arena, 'arena, Program<'arena, 'src>>);
 
 impl<'arena, 'src> ParsedSources<'arena, 'src> {
     pub(crate) fn push(
@@ -198,6 +198,62 @@ impl Drop for AdmittedArena<'_> {
     }
 }
 
+/// A request borrows an existing session arena. Charge its complete current
+/// backing while leased and pre-admit every growth through the same parser
+/// allocator. Syntax outlives this admission lease, not its caller-owned arena.
+pub(crate) struct BorrowedArena<'arena, 'budget, 'ledger> {
+    arena: &'arena Bump,
+    budget: RefCell<&'budget mut AllocationBudget<'ledger>>,
+    charged: Cell<usize>,
+    previous_limit: Option<usize>,
+}
+impl<'arena, 'budget, 'ledger> BorrowedArena<'arena, 'budget, 'ledger> {
+    pub(crate) fn new(arena: &'arena Bump, budget: &'budget mut AllocationBudget<'ledger>) -> Result<Self, AllocationError> {
+        let bytes = arena.allocated_bytes();
+        budget.retain(AllocationClass::Scratch, bytes as u64)?;
+        let previous_limit = arena.allocation_limit();
+        arena.set_allocation_limit(Some(bytes));
+        Ok(Self { arena, budget: RefCell::new(budget), charged: Cell::new(bytes), previous_limit })
+    }
+    pub(crate) fn parse<'src>(&self, source: &'src str) -> Result<Program<'arena, 'src>, AdmittedParseError> {
+        ParserCore::new(self.arena, source, Some(self))?.parse_program()
+    }
+    pub(crate) fn store(&self, source: &str) -> Result<&'arena str, AllocationError> {
+        let layout = Layout::array::<u8>(source.len()).map_err(|_| AllocationError::Capacity)?;
+        attempt(self.arena, self, layout, || self.arena.try_alloc_str(source)
+            .map(|text| &*text).map_err(|_| AllocationError::AllocationFailed))
+    }
+    pub(crate) fn with_budget<R>(&self, use_budget: impl FnOnce(&mut AllocationBudget<'ledger>) -> R) -> R {
+        use_budget(&mut self.budget.borrow_mut())
+    }
+}
+impl ArenaAdmission for BorrowedArena<'_, '_, '_> {
+    fn work(&self, units: u64) -> Result<(), AllocationError> { self.budget.borrow_mut().work(WorkKind::Analysis, units) }
+    fn reserve(&self, additional: usize) -> Result<(), AllocationError> {
+        arena_budget::reserve(self.arena, &self.charged, additional,
+            |bytes| self.budget.borrow_mut().retain(AllocationClass::Scratch, bytes))
+    }
+    fn settle(&self) {
+        arena_budget::settle(self.arena, &self.charged, |bytes| self.budget.borrow_mut()
+            .release(AllocationClass::Scratch, bytes).expect("unused borrowed arena allowance"));
+    }
+}
+impl Admission for BorrowedArena<'_, '_, '_> {
+    fn lex<'src>(&self, source: &'src str) -> Result<(Lexed<'src, Token<'src>>, u64), AdmittedLexError> {
+        crate::lexer::lex_admitted(source, &mut self.budget.borrow_mut())
+    }
+    fn release_tokens(&self, bytes: u64) {
+        self.budget.borrow_mut().release(AllocationClass::Scratch, bytes).expect("borrowed parser tokens");
+    }
+}
+impl Drop for BorrowedArena<'_, '_, '_> {
+    fn drop(&mut self) {
+        self.arena.set_allocation_limit(self.previous_limit);
+        self.budget.get_mut().release(AllocationClass::Scratch, self.charged.get() as u64)
+            .expect("session arena returns to its external epoch owner");
+    }
+}
+
 pub(super) trait Admission: ArenaAdmission {
     fn lex<'src>(
         &self,
@@ -311,14 +367,14 @@ pub(super) fn alloc<'arena, T>(
     .map_err(Into::into)
 }
 
-pub(super) struct ArenaVec<'arena, T> {
+pub(super) struct ArenaVec<'arena, 'admission, T> {
     inner: BumpVec<'arena, T>,
     arena: &'arena Bump,
-    admission: Option<&'arena dyn Admission>,
+    admission: Option<&'admission dyn Admission>,
 }
 
-impl<'arena, T> ArenaVec<'arena, T> {
-    pub(super) fn new_in(arena: &'arena Bump, admission: Option<&'arena dyn Admission>) -> Self {
+impl<'arena, 'admission, T> ArenaVec<'arena, 'admission, T> {
+    pub(super) fn new_in(arena: &'arena Bump, admission: Option<&'admission dyn Admission>) -> Self {
         Self {
             inner: BumpVec::new_in(arena),
             arena,
@@ -374,7 +430,7 @@ impl<'arena, T> ArenaVec<'arena, T> {
     }
 }
 
-impl<T> Deref for ArenaVec<'_, T> {
+impl<T> Deref for ArenaVec<'_, '_, T> {
     type Target = [T];
     fn deref(&self) -> &[T] {
         &self.inner

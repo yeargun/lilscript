@@ -38,9 +38,9 @@ extern JsValue Object;
 extern JsValue Symbol;
 extern JsValue WeakMap;
 
-bool PROPS_DEV = true;
-bool PROPS_COMPAT = false;
-bool PROPS_FEATURE_OPTIONS_API = true;
+define bool PROPS_DEV = true;
+define bool PROPS_COMPAT = false;
+define bool PROPS_FEATURE_OPTIONS_API = true;
 int PROPS_FULL_PROPS = JS.number(PatchFlags["FULL_PROPS"]).toInt();
 int PROPS_DYNAMIC_PROPS = JS.number(PatchFlags["PROPS"]).toInt();
 

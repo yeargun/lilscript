@@ -1,0 +1,26 @@
+// Browser compiler has no Babel parser or source-map backend, matching Vue.
+import extern {createHost} from "../../compiler-core/host-factory.mjs";
+extern JsValue createHost;
+JsValue parse = JS.undefined();
+JsValue parseExpression = JS.undefined();
+import extern {
+  DecodingMode,
+  EntityDecoder,
+  decodeHTML,
+  decodeHTMLAttribute,
+  htmlDecodeTree
+} from "./entities.mjs";
+extern JsValue DecodingMode;
+extern JsValue EntityDecoder;
+extern JsValue decodeHTML;
+extern JsValue decodeHTMLAttribute;
+extern JsValue htmlDecodeTree;
+JsValue SourceMapGenerator = JS.undefined();
+JsValue provider=JS.call(createHost,JS.undefined(),parse,parseExpression,DecodingMode,EntityDecoder,decodeHTML,decodeHTMLAttribute,htmlDecodeTree,SourceMapGenerator);
+export JsValue hostDecodeEntities=provider["hostDecodeEntities"];
+export JsValue hostDecodeEntity=provider["hostDecodeEntity"];
+export JsValue hostNewFunction=provider["hostNewFunction"];
+export JsValue hostParseExpression=provider["hostParseExpression"];
+export JsValue hostCreateSourceMap=provider["hostCreateSourceMap"];
+export JsValue hostAddSourceMapping=provider["hostAddSourceMapping"];
+export JsValue hostSourceMapJson=provider["hostSourceMapJson"];

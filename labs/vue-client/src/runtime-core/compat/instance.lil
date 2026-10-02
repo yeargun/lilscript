@@ -1,12 +1,12 @@
-import extern {
+import {
   NOOP as instanceNoop,
   extend as instanceExtend,
   looseEqual as instanceLooseEqual,
   looseIndexOf as instanceLooseIndexOf,
   looseToNumber as instanceLooseToNumber,
   toDisplayString as instanceToDisplayString
-} from "../../../packages/vuelil/shared.js";
-import extern { shallowReadonly as reactivityShallowReadonly } from "../../../packages/vuelil/reactivity.js";
+} from "../../package/shared.lil";
+import { shallowReadonly as reactivityShallowReadonly } from "../../package/reactivity.lil";
 import {
   Object as instanceObject,
   globalThis as instanceGlobal
@@ -38,15 +38,7 @@ import {
   legacyResolveScopedSlots
 } from "./renderHelpers";
 
-extern JsValue instanceNoop;
-extern JsValue instanceExtend;
-extern JsValue instanceLooseEqual;
-extern JsValue instanceLooseIndexOf;
-extern JsValue instanceLooseToNumber;
-extern JsValue instanceToDisplayString;
-extern JsValue reactivityShallowReadonly(JsValue value);
-
-bool INSTANCE_DEV = true;
+define bool INSTANCE_DEV = true;
 
 export void installCompatInstanceProperties(JsValue map) {
   JsValue set = JS.method3((JsValue _self, JsValue target, JsValue key, JsValue value) => {

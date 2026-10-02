@@ -1,0 +1,93 @@
+✔ compiler-core preserves its complete public surface and live export identity (2.244145ms)
+✔ baseParse differentially matches Vue across broad vectors (22.032202ms)
+✔ baseParse recovery, errors, and locations match Vue (2.67373ms)
+✔ AST enums and builders match Vue object shapes (1.233642ms)
+✔ compiler-core utility tranche matches representative upstream behavior (3.177784ms)
+✖ publishes implemented transform, codegen, and compile APIs (1.521351ms)
+✔ transformOn preserves analysis, augmentation, metadata, locations, and reflection (6.629682ms)
+✔ transformVBindShorthand preserves expansion, camelization, locations, errors, and reflection (1.695818ms)
+✔ transformModel preserves assignment analysis, props, modifiers, caching, errors, locations, and reflection (9.80884ms)
+✔ noop directive transform preserves shape, locations, and reflection (0.340979ms)
+✔ compat filter transform exactly rewrites scanned and nested expressions (12.748678ms)
+✔ compiler compat configuration matches Vue warnings, modes, and reflection (0.799168ms)
+You are running a development build of Vue.
+Make sure to use the production build (*.prod.js) when deploying for production.
+You are running a development build of Vue.
+Make sure to use the production build (*.prod.js) when deploying for production.
+You are running a development build of Vue.
+Make sure to use the production build (*.prod.js) when deploying for production.
+✔ compiler-written ESM entries share the same package implementation (154.265614ms)
+✔ compiler-written CJS entries share the same package implementation (64.636432ms)
+✔ browser ESM delivery preserves compilation and public bindings (128.623998ms)
+✔ single-file browser containers retain names, state and template compilation (91.046418ms)
+✔ selected reactivity is a compiler-owned subset with working shared state (289.482696ms)
+▶ Vue 3.5.42 reactivity kernel milestone
+  ✔ ships only the implemented surface with matching function arities (1.938101ms)
+  ✔ matches refs, dynamic effects, computed caching, stop, and identities (5.991838ms)
+  ✔ matches ref and shallowRef conversion and force triggering (1.09906ms)
+  ✔ matches deep and shallow mutable/readonly proxy behavior (0.820939ms)
+  ✔ matches array index, length, iteration, search, and mutation tracking (1.811134ms)
+  ✔ matches scheduler, onStop, manual runner, and branch cleanup (0.648304ms)
+  ✔ matches inherited raw identity, hasOwnProperty, nested effects, and effect runners (0.95512ms)
+  ✔ matches array mutators used from effects without self-recursion (1.233691ms)
+  ✔ matches runner effect controls used by Vue consumers (0.583313ms)
+  ✔ matches lazy, chained, unchanged, and writable computed refs (0.881101ms)
+  ✔ markRaw and non-extensible common targets retain identity (0.315801ms)
+✔ Vue 3.5.42 reactivity kernel milestone (29.474928ms)
+▶ Vue 3.5.42 runtime-core tranche
+  ✔ keeps public and upstream-test build semantics separate (0.86998ms)
+  ✔ exports the complete upstream runtime surface with matching reflection (1.793931ms)
+  ✔ matches VNode creation, cloning, normalization, props, and h (3.112622ms)
+  ✔ matches block collection and memo behavior (0.621645ms)
+  ✔ matches renderList and toHandlers across supported inputs (1.405664ms)
+  ✔ matches nextTick callback values and receiver binding (0.318246ms)
+  ✔ matches renderer keyed updates and reactive component effects (11.128141ms)
+  ✔ matches app registration, plugins, config, and injection context (1.448444ms)
+  ✔ registers lifecycle hooks with current-instance and tracking isolation (1.323841ms)
+✔ Vue 3.5.42 runtime-core tranche (95.440401ms)
+✔ surface, function types, arities, and constant ABI match Vue 3.5.42 (2.537284ms)
+✔ map creation and general predicates match deterministic edge vectors (1.868511ms)
+✔ string transforms, mutation helpers, and numeric conversion match (1.430911ms)
+✔ compiler helpers and code frames match (1.167648ms)
+✔ class and style normalization match, including identity and mutation (1.300748ms)
+✔ tag and attribute tables match positive, negative, and case-sensitive vectors (0.945232ms)
+✔ HTML and CSS escaping match (0.771205ms)
+✔ loose equality and display stringification match recursive collections (2.098593ms)
+✔ CSS variable normalization and global allow-list aliases match (0.588052ms)
+✔ every runtime export is exercised (0.257423ms)
+ℹ tests 47
+ℹ suites 2
+ℹ pass 46
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1910.273049
+
+✖ failing tests:
+
+test at tests/compiler-core.test.mjs:203:1
+✖ publishes implemented transform, codegen, and compile APIs (1.521351ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'transformIf',
+  -   '',
+      2
+    ]
+  
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript/labs/vue-client/tests/compiler-core.test.mjs:242:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'transformIf', 2 ],
+    expected: [ '', 2 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

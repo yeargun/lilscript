@@ -3,22 +3,16 @@ import { patchStyle } from "./modules/style";
 import { patchAttr } from "./modules/attrs";
 import { patchDOMProp } from "./modules/props";
 import { patchEvent } from "./modules/events";
-import extern {
+import {
   camelize as patchPropCamelize,
   isArray as patchPropIsArray,
   isFunction as patchPropIsFunction,
   isModelListener as patchPropIsModelListener,
   isOn as patchPropIsOn,
   isString as patchPropIsString
-} from "../../packages/vuelil/shared.js";
+} from "../package/shared.lil";
 import extern { hostCall1, hostHasProperty, hostObjectKeys, hostRead, hostString, hostWrite } from "./host.js";
 
-extern JsValue patchPropCamelize;
-extern bool patchPropIsArray(JsValue value);
-extern bool patchPropIsFunction(JsValue value);
-extern bool patchPropIsModelListener(string value);
-extern bool patchPropIsOn(string value);
-extern bool patchPropIsString(JsValue value);
 extern JsValue hostCall1(JsValue fn, JsValue first);
 extern bool hostHasProperty(JsValue value, JsValue key);
 extern JsValue hostObjectKeys(JsValue value);

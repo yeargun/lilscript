@@ -1,3 +1,4 @@
+import extern { hostCreateObject, hostRead, hostReflectGet, hostReflectSet, hostReflectDelete, hostReflectHas, hostReflectOwnKeys, hostSamePrototype, hostBuiltInSymbols, hostString } from "./host.js";
 import { hasChanged, hasOwn, isIntegerKey, isObject, isSymbol } from "../shared/general";
 import { arrayInstrumentations } from "./arrayInstrumentations";
 import { DEV } from "./constants";

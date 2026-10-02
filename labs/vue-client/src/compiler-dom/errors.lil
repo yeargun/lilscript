@@ -1,11 +1,11 @@
-import extern {
+import {
   ErrorCodes,
   createCompilerError as coreCreateCompilerError
-} from "../../packages/vuelil/compiler-core.js";
+} from "../package/compiler-core.lil";
 
-extern JsValue ErrorCodes;
+
 extern JsValue Error;
-extern JsValue coreCreateCompilerError;
+
 
 JsValue domErrorUndefined() {
   return JS.undefined();

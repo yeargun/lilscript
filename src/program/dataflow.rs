@@ -135,6 +135,8 @@ struct Target<S> {
 enum TargetKind {
     Loop,
     Try,
+    /// Abrupt paths crossing this guard must still execute its finalizer.
+    Finally,
 }
 
 // Each state's exact backing has one owner. A branch/loop temporary drops
@@ -254,16 +256,12 @@ impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b,
         let capacity = unit
             .operations
             .iter()
-            .filter(|op| {
-                matches!(
-                    op.kind,
-                    OperationKind::Loop { .. }
-                        | OperationKind::ForIn { .. }
-                        | OperationKind::ForOf { .. }
-                        | OperationKind::Try { .. }
-                )
+            .map(|op| match op.kind {
+                OperationKind::Loop { .. } | OperationKind::ForIn { .. } | OperationKind::ForOf { .. } => 1,
+                OperationKind::Try { finally, .. } => 1 + usize::from(finally.is_some()),
+                _ => 0,
             })
-            .count();
+            .sum();
         let targets = budget
             .borrow_mut()
             .vector(Scratch, capacity)
@@ -310,14 +308,14 @@ impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b,
                 self.before[operation.index()] = self.copy(&state)?;
             }
             self.analysis.before_operation(unit, operation, &state);
-            // Any operation of a `Try`'s body may throw to its catch.
-            if let Some(target) = self
-                .targets
-                .iter_mut()
-                .rev()
-                .find(|target| target.kind == TargetKind::Try)
-            {
-                self.analysis.join(&mut target.state, &state);
+            // A possible exception crosses intervening finalizers before
+            // reaching its catcher. In particular, a catch is outside the
+            // body's Try target but remains inside the same finalizer guard.
+            for target in self.targets.iter_mut().rev() {
+                if matches!(target.kind, TargetKind::Finally | TargetKind::Try) {
+                    self.analysis.join(&mut target.state, &state);
+                }
+                if target.kind == TargetKind::Try { break; }
             }
             state = self.operation(operation, state)?;
         }
@@ -415,6 +413,7 @@ impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b,
                     unit.operations[operation.index()].kind,
                     OperationKind::Break
                 );
+                self.finalizers_before(Some(TargetKind::Loop), &state);
                 if let Some(target) = self
                     .targets
                     .iter_mut()
@@ -431,10 +430,12 @@ impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b,
                 self.empty()?
             }
             OperationKind::Return => {
+                self.finalizers_before(None, &state);
                 analysis.join(&mut self.exit, &state);
                 self.empty()?
             }
             OperationKind::Throw => {
+                self.finalizers_before(Some(TargetKind::Try), &state);
                 // The innermost `Try` already joined this state, as the state
                 // before one of its body's operations.
                 if !self
@@ -511,6 +512,13 @@ impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b,
     ) -> Result<State<'b, 'c, A::State>, Stop<E>> {
         let analysis = self.analysis;
         let unit = self.unit;
+        if finally.is_some() {
+            self.targets.push(Target {
+                kind: TargetKind::Finally,
+                state: self.empty()?,
+                continues: self.empty()?,
+            });
+        }
         let target = Target {
             kind: TargetKind::Try,
             state: self.copy(&state)?,
@@ -542,6 +550,10 @@ impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b,
         let Some(finally) = finally else {
             return Ok(out);
         };
+        let guard = self.targets.pop().expect("the finalizer's own guard");
+        debug_assert!(guard.kind == TargetKind::Finally);
+        analysis.join(&mut reaching_finally, &guard.state);
+        let continues = *out != *self.empty()?;
         let finished = self.region(finally, reaching_finally)?;
         // The finally region also runs on every abrupt exit it guards, which
         // continues from its end: every enclosing target may receive it.
@@ -552,13 +564,23 @@ impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b,
             }
         }
         analysis.join(&mut self.exit, &finished);
-        Ok(finished)
+        // Executing cleanup on an abrupt path does not turn that path into a
+        // normal continuation after the try statement.
+        if continues { Ok(finished) } else { self.empty() }
+    }
+
+    fn finalizers_before(&mut self, destination: Option<TargetKind>, state: &A::State) {
+        for target in self.targets.iter_mut().rev() {
+            if Some(target.kind) == destination { break; }
+            if target.kind == TargetKind::Finally { self.analysis.join(&mut target.state, state); }
+        }
     }
 
     /// A throw leaving a `Try` without a catch reaches the next enclosing
     /// `Try`, or the unit's exit.
     fn throw_outward(&mut self, state: &A::State) {
         let analysis = self.analysis;
+        self.finalizers_before(Some(TargetKind::Try), state);
         match self
             .targets
             .iter_mut()

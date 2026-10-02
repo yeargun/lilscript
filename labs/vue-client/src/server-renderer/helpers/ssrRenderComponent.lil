@@ -1,7 +1,5 @@
-import extern { createVNode as componentCreateVNode } from "../../../packages/vuelil/runtime-dom.js";
+import { createVNode as componentCreateVNode } from "../../package/runtime-dom.lil";
 import { renderComponentVNode } from "../render";
-
-extern JsValue componentCreateVNode;
 
 export JsValue ssrRenderComponent(
   JsValue component,

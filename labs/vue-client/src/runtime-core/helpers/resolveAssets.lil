@@ -5,7 +5,7 @@ import { warn } from "../warning";
 
 extern JsValue Symbol;
 
-bool DEV = true;
+define bool DEV = true;
 
 export string COMPONENTS = "components";
 export string DIRECTIVES = "directives";

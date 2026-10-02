@@ -3,13 +3,13 @@ import { console, makeMap } from "./makeMap";
 string specialBooleanAttrs =
   "itemscope,allowfullscreen,formnovalidate,ismap,nomodule,novalidate,readonly";
 
-export JsValue isSpecialBooleanAttr = makeMap(specialBooleanAttrs);
-export JsValue isBooleanAttr = makeMap(
+export func(JsValue)->bool isSpecialBooleanAttr = JS.assume(makeMap(specialBooleanAttrs));
+export func(JsValue)->bool isBooleanAttr = JS.assume(makeMap(
   specialBooleanAttrs +
   ",async,autofocus,autoplay,controls,default,defer,disabled," +
   "inert,loop,open,required,reversed,scoped,seamless," +
   "checked,muted,multiple,selected"
-);
+));
 
 export bool includeBooleanAttr(JsValue value) {
   return value.truthy() || JS.strictEqual(value, "");
@@ -18,9 +18,9 @@ export bool includeBooleanAttr(JsValue value) {
 Regex unsafeAttributePattern = new Regex("[>/=\"'\\u0009\\u000a\\u000c\\u000d\\u0020]");
 JsValue attributeValidationCache = JS.object();
 
-export JsValue isSSRSafeAttrName(string name) {
+export bool isSSRSafeAttrName(string name) {
   if (JS.invoke(attributeValidationCache, "hasOwnProperty", name).truthy()) {
-    return attributeValidationCache[name];
+    return attributeValidationCache[name].truthy();
   }
   bool unsafeName = unsafeAttributePattern.test(name);
   if (unsafeName) {
@@ -37,7 +37,7 @@ export JsValue propsToAttrMap = JS.object(
   "httpEquiv", "http-equiv"
 );
 
-export JsValue isKnownHtmlAttr = makeMap(
+export func(JsValue)->bool isKnownHtmlAttr = JS.assume(makeMap(
   "accept,accept-charset,accesskey,action,align,allow,alt,async," +
   "autocapitalize,autocomplete,autofocus,autoplay,background,bgcolor," +
   "border,buffered,capture,challenge,charset,checked,cite,class,code," +
@@ -53,9 +53,9 @@ export JsValue isKnownHtmlAttr = makeMap(
   "selected,shape,size,sizes,slot,span,spellcheck,src,srcdoc,srclang,srcset," +
   "start,step,style,summary,tabindex,target,title,translate,type,usemap," +
   "value,width,wrap"
-);
+));
 
-export JsValue isKnownSvgAttr = makeMap(
+export func(JsValue)->bool isKnownSvgAttr = JS.assume(makeMap(
   "xmlns,accent-height,accumulate,additive,alignment-baseline,alphabetic,amplitude," +
   "arabic-form,ascent,attributeName,attributeType,azimuth,baseFrequency," +
   "baseline-shift,baseProfile,bbox,begin,bias,by,calcMode,cap-height,class," +
@@ -95,9 +95,9 @@ export JsValue isKnownSvgAttr = makeMap(
   "writing-mode,x,x-height,x1,x2,xChannelSelector,xlink:actuate,xlink:arcrole," +
   "xlink:href,xlink:role,xlink:show,xlink:title,xlink:type,xmlns:xlink,xml:base,xml:lang," +
   "xml:space,y,y1,y2,yChannelSelector,z,zoomAndPan"
-);
+));
 
-export JsValue isKnownMathMLAttr = makeMap(
+export func(JsValue)->bool isKnownMathMLAttr = JS.assume(makeMap(
   "accent,accentunder,actiontype,align,alignmentscope,altimg,altimg-height," +
   "altimg-valign,altimg-width,alttext,bevelled,close,columnsalign,columnlines," +
   "columnspan,denomalign,depth,dir,display,displaystyle,encoding," +
@@ -110,7 +110,7 @@ export JsValue isKnownMathMLAttr = makeMap(
   "scriptsizemultiplier,selection,separator,separators,shift,side," +
   "src,stackalign,stretchy,subscriptshift,superscriptshift,symmetric," +
   "voffset,width,widths,xlink:href,xlink:show,xlink:type,xmlns"
-);
+));
 
 export bool isRenderableAttrValue(JsValue value) {
   if (JS.isNullish(value)) {

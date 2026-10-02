@@ -50,10 +50,13 @@ pub mod typed_array;
 
 pub use build::{
     build_inputs, check_path, check_source, compile_entries, compile_path, compile_source,
+    configured_entries, with_checked_graph,
+    GraphSession, GraphSessionStats,
     with_checked_entries, with_checked_path, with_checked_program, with_checked_source,
     BuildInputs, CheckedProgram, CheckedSourceSession, ChunkExtension, FinishedSourceSession,
     ServiceCompilation, ServiceError, ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions,
     ServiceTarget,
+    OutputPolicies, ServiceOutput,
 };
 pub use check::{analyze, CheckError, CheckedModule, Type};
 pub use compilation_contract::{

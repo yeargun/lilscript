@@ -21,12 +21,12 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M3.3c | [D2](plan.md#d2), complete | Facts and choices |
 | M3.3d | [D2](plan.md#d2), complete | Lazy effects and cycles |
 | M3.3e | [D3](plan.md#d3) | Ports, with M12.2 for motionlil |
-| M3.4 | [D3](plan.md#d3) | Remaining graph consumers and shared formation; independent TOML/API/CLI objective sets implemented |
+| M3.4 | [D3](plan.md#d3) | Complete: shared configured graph, editor overlays, bounded module elaboration reuse and independent TOML/API/CLI output groups |
 | M3.5 | [Q3](plan.md#q3) | `-j` scoring (after M5.6) |
 | M3.7 | [C1](plan.md#c1) | Environment variables |
 | M3.8a | [D2](plan.md#d2), complete | Consumer-shakeable delivery, first half |
 | M3.8b | [D2](plan.md#d2), complete | Consumer-shakeable delivery, second half |
-| M3.9 | [Q2](plan.md#q2), [D3](plan.md#d3) | Whole-build/codec caches and explicit decision locks implemented in Q2; per-module elaboration remains D3 work under the shared module/session owner |
+| M3.9 | [Q2](plan.md#q2), [D3](plan.md#d3) | Whole-build/codec caches and explicit decision locks implemented in Q2; bounded per-module elaboration reuse completed in D3 under the shared module/session owner |
 | M4.2 | [S4](plan.md#s4) | Implemented: type-parameter identity and canonical checked types |
 | M4.3 | [S4](plan.md#s4) | Implemented: defaults evaluated in the selected declaration's scope |
 | M4.4 | [S4](plan.md#s4) | Implemented: statement ids, binder identity and canonical checked types |
@@ -97,8 +97,8 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M11.10 | [N2](plan.md#n2) | Host API |
 | M11.11 | [N1](plan.md#n1) | Native-complete definition, after M4.5 |
 | M11.12 | [N2](plan.md#n2) | Cycles |
-| M12.1 | [D3](plan.md#d3) | `finer/port-migrations/` patches, per-port config keys, a recorded reason for every `assume_*` |
-| M12.2 | [D3](plan.md#d3) | No post-minifiers: motionlil, the others |
+| M12.1 | [D3](plan.md#d3), complete | Source-owned port revisions and controls; compiler patch layer archived; assumptions documented beside their controls |
+| M12.2 | [D3](plan.md#d3), complete | Compiler-written package formats and exact-byte installers; upstream comparison tools remain independent oracles |
 | M12.3 | [V1](plan.md#v1) | Every library wins |
 | M12.4 | [V2](plan.md#v2) | Rebuild and publish |
 | M12.5 | [V2](plan.md#v2) | Receipts |
@@ -120,12 +120,12 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M3.3c | [D2](plan.md#d2), complete | interfaces escaping at the one `END`; |
 | M3.3c | [D2](plan.md#d2), complete | `RootRow::completes`; |
 | M3.3c | [D2](plan.md#d2), complete | `single` with several entries. |
-| M3.3e | [D3](plan.md#d3) | build motionlil's ten entries as one program. |
-| M3.4 | [D3](plan.md#d3) | the LSP and `lilscript-lint` check one root. |
+| M3.3e | [D3](plan.md#d3), complete | Motion's ten entries share one checked graph. |
+| M3.4 | [D3](plan.md#d3), complete | LSP and lint consume the configured multi-entry graph, including unsaved dependencies. |
 | M3.5 | [Q3](plan.md#q3), resolved | Level 0 does no optional codec or checkpoint work |
 | M3.5 | [Q3](plan.md#q3), resolved | Completed lower-effort policies retain qualified per-objective incumbents; limits and explicit locks have documented replay boundaries |
 | M3.5 | [Q3](plan.md#q3), resolved | Decoder-inclusive estimates use each objective; legal negative alternatives remain available |
-| M3.9 | [Q2](plan.md#q2), [D3](plan.md#d3) | Unchanged-file codec receipts and complete builds have bounded persistent reuse; fingerprinted choices replay through current proof/admission owners. Per-module elaboration remains owned by D3 with its graph/session integration. |
+| M3.9 | [Q2](plan.md#q2), [D3](plan.md#d3) | Unchanged-file codec receipts and complete builds have bounded persistent reuse; fingerprinted choices replay through current proof/admission owners. D3 completes bounded per-module elaboration reuse with its graph/session integration. |
 | M5.6 | [Q2](plan.md#q2), resolved | Entry graph and cycle checking use admitted shared graph routines; delivery placement/simulation/setters now admitted; source arena edits admitted; rendered bundle admission complete; source global analysis/planning admission is implemented; scope audit complete with explicit partial allocator coverage |
 | M8.5 / M3.3 | [Q4](plan.md#q4), resolved | Table decoders and const helpers have their actual owning module; preserved-module production artifacts are qualified. |
 | M8.7 | [C3](plan.md#c3), resolved | NO3's second half is empty; every retired threshold has a generic owner and historical provenance outside compiler sources. |
@@ -143,15 +143,15 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M4 / M10 | [S4](plan.md#s4), resolved | Unified defaults accept explicit `undefined` and `JS.undefined()` through functions, generic calls, constructors and `super`; native absent-to-default transport is source-diagnosed pending N2 |
 | M4 / M10 | [S4](plan.md#s4) | Resolved: detached primitive methods have a checked refusal and explicit-closure alternative; the focused `charCodeAt` audit passes. |
 | M10.14 | [G2](plan.md#g2) | Complete in G2: both wrapper-name cases explicitly select name preservation and expect anonymous adapters. |
-| M12.2 | [D3](plan.md#d3) | the nominal rename reverts (`~/lilscript-work/portwork/nominal/`); |
-| M12.2 | [D3](plan.md#d3) | mobxlil's development bundle and its host globals; |
-| M12.2 | [D3](plan.md#d3) | four site receipts. |
+| M12.2 | [D3](plan.md#d3), complete | Nominal rename workarounds reverted in Motion's source-owned integration. |
+| M12.2 | [D3](plan.md#d3), complete | MobX development flags use typed defines and explicit host bindings. |
+| M12.2 | [V2](plan.md#v2) | Four site receipts consume qualified release artifacts; D3 supplies compiler-written delivery receipts. |
 | Architecture §22 | Resolved by this replan: stale active text archived | "today the default strips it" is stale. |
 | A1 | [C3](plan.md#c3), resolved | The missing historical CPU pair is explicitly unavailable; a current repeated per-cell baseline is retained without a cross-version claim. |
 | No owner yet | [S4](plan.md#s4) | Concrete generic structs, defaults/rest, disjoint unions and invocation-only callbacks including captures are implemented. Ambiguous unions, mutable collection aliases and observable wrappers are unimplemented [ABI proposals outside this migration](s4-public-abi.md). |
 | No owner yet | [S4](plan.md#s4) | M4.1: published constructors/prototype methods with struct parameters and dual type/constructor imports/re-exports and observed generic classes are implemented; unrestricted opaque public transport is a [separate ABI proposal](s4-public-abi.md). |
 | No owner yet | [C1](plan.md#c1) | `pool_strings` and `pack_string_arrays` ignore their permissions; |
-| No owner yet | [D3](plan.md#d3) | katexlil keeps `src/fontMetricsData.js` for two scripts. |
+| No owner yet | [D3](plan.md#d3), complete | KaTeX metrics are compiler outputs from the owned LilScript table; the JavaScript duplicate is removed. |
 | Ledger rows owned by done tasks | [S4](plan.md#s4), resolved | Object.hasOwn's explicit host binding and forwarded-call contract pass eight script/module lanes; stale ledger entry removed |
 | Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | Zod ReDoS timeout remains an exact host-dependent upstream-analysis ledger entry; unchanged assertion, quiet-host C1 suite passes |
 | Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | MobX mapping committed locally at `ccccb1d`; all three affected public Jest tests pass, stale path entries removed |

@@ -1,6 +1,4 @@
-import extern { ssrUtils as directiveSsrUtils } from "../../../packages/vuelil/runtime-dom.js";
-
-extern JsValue directiveSsrUtils;
+import { ssrUtils as directiveSsrUtils } from "../../package/runtime-dom.lil";
 
 export JsValue ssrGetDirectiveProps(
   JsValue instance,

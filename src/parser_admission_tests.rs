@@ -802,7 +802,7 @@ fn arrow_binding_and_reference_decisions_admit_their_final_probe() {
         ("ref int", 3, false, 7),
         ("ref func(ref int)->void)", 3, true, 29),
     ] {
-        let inspect = |parser: &ParserCore<'_, '_>| match mode {
+        let inspect = |parser: &ParserCore<'_, '_, '_>| match mode {
             0 => parser.is_arrow_function_start(),
             1 => parser.looks_like_typed_binding(),
             2 => parser.reference_parameter_at(0, true),

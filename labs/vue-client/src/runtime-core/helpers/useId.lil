@@ -1,7 +1,7 @@
 import { getCurrentInstance } from "../component";
 import { warn } from "../warning";
 
-bool DEV = true;
+define bool DEV = true;
 
 export string useId() {
   JsValue instance = getCurrentInstance();

@@ -15,11 +15,12 @@ pub(super) fn with_entry_graph<R, E: From<AllocationError>>(
     hosts: Option<&crate::host_modules::HostDelivery>,
     integrated_hosts: bool,
     paths: &[String],
+    selected: &[String],
     budget: &mut AllocationBudget<'_>,
     inspect: impl FnOnce(&EntryGraph, &mut AllocationBudget<'_>) -> Result<R, E>,
 ) -> Result<R, E> {
     budget.with_temporary(
-        |budget| entry_graph(program, hosts, integrated_hosts, paths, budget).map_err(E::from),
+        |budget| entry_graph(program, hosts, integrated_hosts, paths, selected, budget).map_err(E::from),
         |graph, budget| inspect(graph, budget),
     )
 }
@@ -29,6 +30,7 @@ fn entry_graph(
     hosts: Option<&crate::host_modules::HostDelivery>,
     integrated_hosts: bool,
     paths: &[String],
+    selected: &[String],
     budget: &mut AllocationBudget<'_>,
 ) -> Result<EntryGraph, AllocationError> {
     let mut phase = budget.scope();
@@ -42,6 +44,16 @@ fn entry_graph(
             if integrated.is_some_and(|hosts| hosts.position(&import.source).is_some()) || foreign.iter().any(|(source, _)| source == &import.source) { continue; }
             let owner = u32::try_from(language_and_hosts + foreign.len()).map_err(|_| AllocationError::Capacity)?;
             let source = phase.string(Retained, &import.source)?;
+            phase.push(Retained, &mut foreign, (source, owner))?;
+        }
+    }
+    // Opaque host bodies still participate as individual modules. Their
+    // dependencies have one identity across every entry and lazy import.
+    if let Some(hosts) = hosts.filter(|_| !integrated_hosts) {
+        for host in &hosts.modules {
+            if foreign.iter().any(|(source, _)| source == &host.specifier) { continue; }
+            let owner = u32::try_from(language_and_hosts + foreign.len()).map_err(|_| AllocationError::Capacity)?;
+            let source = phase.string(Retained, &host.specifier)?;
             phase.push(Retained, &mut foreign, (source, owner))?;
         }
     }
@@ -92,7 +104,20 @@ fn entry_graph(
             graph.push(edges); imports.push(targets); dynamic_graph.push(Vec::new());
         }
     }
-    for _ in &foreign { graph.push(Vec::new()); imports.push(Vec::new()); dynamic_graph.push(Vec::new()); }
+    for (source, _) in &foreign {
+        let mut edges = Vec::new();
+        let mut targets = Vec::new();
+        if let Some(hosts) = hosts.filter(|_| !integrated_hosts) {
+            if let Some(index) = hosts.position(source) {
+                for &(dependency, _) in hosts.modules[index].imports() {
+                    let owner = foreign.iter().find(|(name, _)| name == &hosts.modules[dependency].specifier).expect("host dependency node").1;
+                    phase.push(Scratch, &mut edges, owner as usize)?;
+                    phase.push(Retained, &mut targets, owner)?;
+                }
+            }
+        }
+        graph.push(edges); imports.push(targets); dynamic_graph.push(Vec::new());
+    }
     let mut position = phase.filled(Retained, count, u32::MAX)?;
     phase.work(Analysis, program.initialization().len() as u64)?;
     for (index, &initializer) in program.initialization().iter().enumerate() {
@@ -103,6 +128,8 @@ fn entry_graph(
     let mut entries = phase.vector(Retained, program.entries().len())?;
     let mut roots = phase.vector(Scratch, program.entries().len())?;
     for entry in program.entries() {
+        phase.work(Analysis, selected.len() as u64 + 1)?;
+        if !selected.is_empty() && !selected.contains(&entry.name) { continue; }
         entries.push((
             phase.string(Retained, &entry.name)?,
             entry.module.index() as u32,
@@ -110,6 +137,15 @@ fn entry_graph(
         roots.push(entry.module.index());
     }
     let mut orders = crate::module::fresh_orders_admitted(&roots, &graph, &mut phase)?;
+    let mut reachable = phase.filled(Scratch, count, false)?;
+    let mut pending = phase.vector(Scratch, count)?;
+    for &root in &roots { if !std::mem::replace(&mut reachable[root], true) { pending.push(root); } }
+    while let Some(module) = pending.pop() {
+        for &target in graph[module].iter().chain(&dynamic_graph[module]) {
+            phase.work(Analysis, 1)?;
+            if !std::mem::replace(&mut reachable[target], true) { pending.push(target); }
+        }
+    }
     // Every dynamic request owns a cached namespace, including a module an
     // entry already initialized. Snapshot objects would lose live bindings and
     // repeated-import identity even when no new effects need to execute.
@@ -127,6 +163,7 @@ fn entry_graph(
     let mut dynamic = phase.vector(Retained, count)?;
     let mut dynamic_roots = phase.vector(Scratch, count)?;
     for &module in &by_position {
+        if !reachable[module] { continue; }
         for &target in &dynamic_graph[module] {
             phase.work(Analysis, 1)?;
             if std::mem::replace(&mut lazy[target], false) {
@@ -221,6 +258,8 @@ fn entry_graph(
         lazy,
         by_position,
         dynamic_roots,
+        reachable,
+        pending,
     ));
     phase.finish_retained()?;
     Ok(result)

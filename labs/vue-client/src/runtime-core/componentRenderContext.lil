@@ -1,12 +1,13 @@
+import {read_COMPAT as vue_read_COMPAT} from "../package/build-flags.lil";
 import { devtoolsComponentUpdated } from "./devtools";
 import { blockStack, closeBlock, setBlockTracking } from "./vnode";
 
-bool DEV = true;
-bool FEATURE_PROD_DEVTOOLS = false;
-extern JsValue __COMPAT__;
+define bool DEV = true;
+define bool FEATURE_PROD_DEVTOOLS = false;
+
 
 bool compatEnabled() {
-  return JS.typeOf(__COMPAT__) == "boolean" && __COMPAT__.truthy();
+  return JS.typeOf(vue_read_COMPAT()) == "boolean" && vue_read_COMPAT().truthy();
 }
 
 export JsValue currentRenderingInstance = null;

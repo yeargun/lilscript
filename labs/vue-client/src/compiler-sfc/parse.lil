@@ -1,23 +1,19 @@
-import extern {
+import {
   NodeTypes as ParseNodeTypes,
   createRoot as parseCreateRoot
-} from "../../packages/vuelil/compiler-core.js";
-import extern { parse as parseCompilerDOM } from "../../packages/vuelil/compiler-dom.js";
-import extern { genCacheKey as parseGenCacheKey } from "../../packages/vuelil/shared.js";
+} from "../package/compiler-core.lil";
+import { parse as parseCompilerDOM } from "../package/compiler-dom.lil";
+import { genCacheKey as parseGenCacheKey } from "../package/shared.lil";
 import extern { SourceMapGenerator as ParseSourceMapGenerator } from "source-map-js";
-import extern { hostAssign as parseHostAssign } from "./host.js";
+import { hostAssign as parseHostAssign } from "./host.lil";
 import { createCache } from "./cache";
 import { isImportUsed } from "./script/importUsageCheck";
 import { parseCssVars } from "./style/cssVars";
 
 extern JsValue Array;
-extern JsValue ParseNodeTypes;
+
 extern JsValue ParseSourceMapGenerator;
 extern JsValue SyntaxError;
-extern JsValue parseCompilerDOM;
-extern JsValue parseCreateRoot;
-extern JsValue parseGenCacheKey;
-extern JsValue parseHostAssign;
 
 export string DEFAULT_FILENAME = "anonymous.vue";
 export JsValue parseCache = createCache();

@@ -12,9 +12,9 @@ extern JsValue Error;
 extern JsValue console;
 extern JsValue document;
 extern JsValue setTimeout;
-bool SUSPENSE_DEV = true;
-bool SUSPENSE_TEST = true;
-bool SUSPENSE_FEATURE = true;
+define bool SUSPENSE_DEV = true;
+define bool SUSPENSE_TEST = true;
+define bool SUSPENSE_FEATURE = true;
 int suspenseLength(JsValue value) {
   return JS.number(value["length"]).toInt();
 }

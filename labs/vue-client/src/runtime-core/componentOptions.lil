@@ -72,8 +72,8 @@ bool optionsIsArray(JsValue value) {
   return JS.call(isArray, JS.undefined(), value).truthy();
 }
 
-bool OPTIONS_DEV = true;
-bool OPTIONS_COMPAT = false;
+define bool OPTIONS_DEV = true;
+define bool OPTIONS_COMPAT = false;
 
 JsValue createDuplicateChecker() {
   JsValue cache = optionsCreateNullObject();

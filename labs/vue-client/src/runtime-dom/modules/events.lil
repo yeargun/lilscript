@@ -1,14 +1,14 @@
-import extern {
+import {
   ErrorCodes as eventErrorCodes,
   callWithAsyncErrorHandling as eventCallWithAsyncErrorHandling,
   warn as eventWarn
-} from "../../../packages/vuelil/runtime-core.js";
-import extern {
+} from "../../package/runtime-core.lil";
+import {
   hyphenate as eventHyphenate,
   isArray as eventIsArray,
   isFunction as eventIsFunction,
   NOOP as eventNoop
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import extern {
   hostAddEventListener,
   hostArraySlice,
@@ -24,13 +24,6 @@ import extern {
   hostWrite
 } from "../host.js";
 
-extern JsValue eventErrorCodes;
-extern JsValue eventCallWithAsyncErrorHandling;
-extern JsValue eventWarn;
-extern JsValue eventHyphenate;
-extern bool eventIsArray(JsValue value);
-extern bool eventIsFunction(JsValue value);
-extern JsValue eventNoop;
 extern void hostAddEventListener(JsValue element, string event, JsValue handler, JsValue options);
 extern JsValue hostArraySlice(JsValue value);
 extern JsValue hostCall0(JsValue fn);
@@ -44,7 +37,7 @@ extern JsValue hostResolvedPromise();
 extern string hostString(JsValue value);
 extern void hostWrite(JsValue value, JsValue key, JsValue next);
 
-bool EVENT_DEV = true;
+define bool EVENT_DEV = true;
 JsValue invokerKey = hostCreateSymbol("_vei");
 Regex optionModifierPattern = new Regex("(Once|Passive|Capture)$");
 Regex optionModifierEventPattern = new Regex("^on:?(?:Once|Passive|Capture)$");

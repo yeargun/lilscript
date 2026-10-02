@@ -31,8 +31,8 @@ Relative `.js`, `.mjs`, `.ts`, `.mts`, `.jsx`, and `.tsx` imports are supported.
 By default (`delivery.host_modules = "external"`) the compiler validates local
 sources and emits the original specifier as a native ESM edge. With `"auto"` or
 `"embed"` the relative host modules travel with the output: the compiler parses
-them with Oxc to deliver them, and their effects stay unknown to the program
-(plan M8.4 replaces today's ESTree walk with typed host units). It does not
+them with Oxc and lowers the supported subset into typed host units. Other
+supported module bodies retain their parsed JavaScript with unknown effects. It does not
 type-check TypeScript or pretend that type erasure is sufficient for the full
 language. Bare specifiers remain package edges.
 
@@ -163,15 +163,18 @@ printed; a failure is an internal error that names the assertion.
   `delivery.mode = "single"`; that mode uses the in-file module runtime.
 - Typed embedded host modules participate in the source dependency graph,
   including separate entry reachability, mixed import order and lazy activation.
-  Carried host text outside typed lowering requires `single`, or
-  `host_modules = "external"`; each single entry carries only its host closure.
+  Carried host text outside typed lowering has compiler-written ESM/CJS module
+  files in split/preserved output. Static single-file output keeps those bodies
+  at their graph positions, sharing each dependency's identity and live state.
+  Each entry carries only its reachable host closure. Opaque lazy modules require
+  split/preserved output; typed hosts also support single-file lazy activation.
 - External module requests retain loading and named-export validation even when
   their local bindings are unused. Split/preserved delivery uses separate
   request files to preserve their place in the dependency order.
 - A single-file static import necessarily loads before that file's body. If a
   foreign request belongs only to a lazy closure, or must follow a source
   initializer, single-file delivery diagnoses the mismatch. Use split/preserved
-  delivery, or embed a host module supported by typed lowering. These cases
+  delivery, or embed a supported static host module. These cases
   never silently turn lazy effects into eager effects.
 - Native dynamic module tasks and multiple native entries have no supported
   portable module ABI yet; they receive target diagnostics.
@@ -212,6 +215,97 @@ Rebuilding with a different objective set, including returning to one objective,
 removes only obsolete regular files listed in the previous manifest. Unrelated
 files remain in place. `--target all` additionally writes one C file and native
 executable under `native`; those are not JavaScript manifest entries.
+
+### Several formats from one checked input
+
+Use additional outputs when a package needs ESM, CJS and a browser bundle. Each
+output has its own delivery plan and independent codec search. Source discovery,
+checking and conservative shared semantic rules run once:
+
+```toml
+[objective]
+codecs = ["raw", "gzip", "brotli"]
+[delivery]
+mode = "split"
+[delivery.entries]
+full = "src/full.lil"
+mini = "src/mini.lil"
+
+[[delivery.also]]
+name = "cjs"
+format = "cjs"
+
+[[delivery.also]]
+name = "browser"
+format = "iife"
+mode = "single"
+entries = ["mini"]
+global = "Mini"
+codecs = "brotli"
+```
+
+Build with `lilscript --target js-module --out-dir dist`. This example writes
+`primary/{raw,gzip,brotli}`, `cjs/{raw,gzip,brotli}` and `browser`. A group with
+one objective has no codec subdirectory. Names are unique plain path segments;
+`primary` is reserved. At most eight groups, including the primary, are admitted.
+The complete version 5 manifest includes output names, per-output policy/codec
+identities, the checked source/input hashes, and every exact delivered file.
+Cleanup follows that manifest across changes of formats, subsets and objectives.
+
+`delivery.select` selects primary entry names; `delivery.also.entries` selects
+additional ones. Empty lists select all configured roots, in name order. A
+subset publishes only its chosen interfaces and executes only their reachable
+initializers; lazy imports remain lazy. The complete configured source graph is
+still checked, including unselected entries. The compiler retains canonical
+module identities; selecting an output never rewrites source text.
+
+Additional outputs inherit primary controls unless overridden. Allowed overrides
+are `format`, `mode`, `entries`, `codecs`, `directory`, `entry_names`, `chunk_names`,
+`module_names`, `global`, `global_binding`, `globals`, `external_specifiers`, `es_module_marker`,
+`exports`, `default_interop`, `annotations`, `export_placement`,
+`source_maps`, `sources_content`, `source_root` and `preload`. An annotation or
+facade setting inherited from an ESM primary must be explicitly changed for a
+format where it is unavailable. Empty `codecs` inherits the objective set; a
+nonempty list has the same validation as `objective.codecs`. An explicit Rust
+`ServiceOptions.objectives` override applies to every output.
+
+`delivery.directory` optionally chooses a directory beneath `--out-dir`, and
+additional outputs can override it. The default for several formats is each
+output's name. Set it to `"."` to publish ESM, CJS and browser files together;
+give them distinct file templates, including their shared chunks. Absolute paths
+and parent traversal are rejected, and filename collisions fail before writing.
+This routing changes package paths and the complete build identity, not the
+relative imports or scored bytes inside an output. It adds no runtime work.
+
+`delivery.external_specifiers` maps authored external module requests to the
+requests that a consumer can resolve. For example, an ESM output can map
+`provider = "./provider.mjs"`, while a CJS output maps the same source key to
+`"./provider.cjs"`. Relative destinations are relative to that output's root;
+the printer rebases them for files in subdirectories. Internal graph links and
+embedded host code are unaffected. `delivery.globals` continues to use the
+authored request as its key for IIFE/UMD global access.
+
+Use these mappings when a package's formats have different host entry points.
+The destination must provide the declared host API and effects. The default
+empty map preserves authored requests. Mapping adds no runtime wrapper; its
+literal bytes affect compression, policy fingerprints and cache identity.
+It avoids editing emitted imports after scoring. Empty specifiers and NUL are
+rejected. An additional output's map replaces the primary map when supplied.
+
+Source assumptions, host providers, source contracts, effort, codec parameters
+and hard tactic permissions belong to the shared build and cannot be weakened
+by an output. All requested baselines coexist before optional search starts;
+remaining work is divided across output/objective pairs under one memory limit
+and deadline. More outputs save frontend work relative to separate builds but
+cost their own formation/search/encoding and retain more mandatory artifacts.
+No format or objective borrows another's winner. Explicit decision-lock files
+apply to primary outputs; use an individual build to replay an additional output.
+
+The Rust build API exposes `ServiceCompilation.outputs()` and
+`javascript_output(name, codec)`. `javascript(codec)` remains the primary result.
+Session clients call `compile_targets()` once to build the configured set.
+`--print-policy` fingerprints the complete set as well as each output policy.
+Whole-build caching checks and restores every requested group.
 
 ## Packages and lockfiles
 

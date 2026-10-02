@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "profiles": [
+    "install-shared",
+    "install-reactivity",
+    "install-runtime-core",
+    "install-runtime-dom",
+    "install-compiler-core",
+    "install-compiler-dom",
+    "install-compiler-ssr",
+    "install-compiler-sfc",
+    "install-server-renderer",
+    "install-runtime-test",
+    "install-vue-compat",
+    "install-vue-compat-runtime",
+    "install-vue",
+    "install-vue-runtime",
+    "install-jsx"
+  ]
+}

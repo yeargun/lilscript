@@ -1,18 +1,15 @@
-import extern {
+import {read_DEV as vue_read_DEV} from "../../package/build-flags.lil";
+import {
   isArray as listIsArray,
   isObject as listIsObject,
   isString as listIsString
-} from "../../../packages/vuelil/shared.js";
-import extern { warn as listWarn } from "../../../packages/vuelil/runtime-dom.js";
+} from "../../package/shared.lil";
+import { warn as listWarn } from "../../package/runtime-dom.lil";
 
-extern bool listIsArray(JsValue value);
-extern bool listIsObject(JsValue value);
-extern bool listIsString(JsValue value);
-extern void listWarn(string message);
 extern JsValue Number;
 extern JsValue Object;
 extern JsValue Symbol;
-extern JsValue __DEV__;
+
 
 export void ssrRenderList(JsValue source, JsValue renderItem) {
   if (listIsArray(source) || listIsString(source)) {
@@ -22,7 +19,7 @@ export void ssrRenderList(JsValue source, JsValue renderItem) {
     }
   } else if (JS.typeOf(source) == "number") {
     if (
-      __DEV__.truthy() &&
+      vue_read_DEV().truthy() &&
       (!JS.invoke(Number, "isInteger", source).truthy() || JS.number(source) < 0)
     ) {
       listWarn(

@@ -51,6 +51,280 @@ fn config(mode: &str, format: &str, effort: u8) -> ProjectConfig {
 }
 
 #[test]
+fn d3_single_opaque_hosts_preserve_source_order_and_shared_state() {
+    for format in ["esm", "cjs", "iife"] {
+        for effort in [0, 13] {
+            let work = Workspace::new(&format!("ordered-host-{format}-{effort}"));
+            work.source("before", "extern void note(string value);note(\"source\");export int ready=1;export int computed(int value){return value+ready;}");
+            fs::write(work.0.join("state.js"), "note('state');export let count=0;export const box={};export function bump(){count++}").unwrap();
+            fs::write(work.0.join("a.js"), "import{count}from'./state.js';import{box}from'./state.js';import{bump}from'./state.js';note('a');export const token=box;export function read(){return {...box,count}}export function add(){bump()}").unwrap();
+            fs::write(work.0.join("b.js"), "import{count,box}from'./state.js';note('b');export const token=box;export function read(){return {...box,count}}").unwrap();
+            let entry=work.source("entry", "import {ready,computed as dependencyComputed} from \"./before\";import extern {read as a,add,token as first} from \"./a.js\";import extern {read as b,token as second} from \"./b.js\";extern JsValue a;extern JsValue b;extern JsValue add;export extern JsValue first;export extern JsValue second;extern void note(string value);note(\"entry\");export {dependencyComputed as base};export int computed(int value){return dependencyComputed(value)+1;}export JsValue dependency(){return dependencyComputed;}export JsValue run(){JS.call(add,JS.undefined());return JS.array(JS.call(a,JS.undefined()),JS.call(b,JS.undefined()),ready);}");
+            let mut settings=config("single",format,effort);
+            settings.delivery.host_modules=crate::config::HostModules::Embed;
+            if format=="iife" { settings.delivery.global=Some("Example".into()); }
+            let built=compile_entries(&[entry],&settings,ServiceOptions::default()).unwrap();
+            let load=match format {
+                "esm"=>"await import('./entry.js')",
+                "cjs"=>"createRequire(import.meta.url)('./entry.cjs')",
+                _=>"(vm.runInThisContext(readFileSync(new URL('./entry.js',import.meta.url),'utf8')),globalThis.Example)",
+            };
+            work.execute(&built,&format!("import{{createRequire}}from'node:module';import{{readFileSync}}from'node:fs';import vm from'node:vm';let trace=[];globalThis.note=x=>trace.push(x);const api={load};if(trace.join(',')!=='source,state,a,b,entry')throw Error('order:'+trace);if(api.first!==api.second)throw Error('identity');if(api.computed(4)!==6||api.computed.name!=='computed'||api.dependency().name!=='computed')throw Error('colliding function names: '+api.computed(4)+','+api.computed.name+','+api.dependency().name);const values=api.run();if(values[0].count!==1||values[1].count!==1||values[2]!==1)throw Error('state');console.log('ok');"));
+        }
+    }
+}
+
+#[test]
+fn d3_public_record_fields_keep_uninitialized_construction_seeds() {
+    for effort in [0,13] {
+        let work = Workspace::new(&format!("record-seed-{effort}"));
+        let entry = work.source("entry", "struct Point{int x;int y;}class Box{Point point;init(Point value){this.point=value;}}export JsValue create(){Box value=new Box(Point{2,3});return value;}");
+        let settings=config("split","esm",effort);
+        let built=compile_entries(&[entry],&settings,ServiceOptions::default()).unwrap();
+        work.execute(&built,"const{create}=await import('./entry.js');const value=create();if(value.point.x!==2||value.point.y!==3)throw Error('construction');console.log('ok');");
+    }
+}
+
+#[test]
+fn d3_foreign_reexports_use_import_storage() {
+    for format in ["esm", "cjs"] {
+        let work = Workspace::new(&format!("extern-export-{format}"));
+        fs::write(work.0.join("host.js"), "export const value={item:9};").unwrap();
+        let entry = work.source("entry", "import extern {value} from \"./host.js\";export extern JsValue value;");
+        let mut settings = config("split", format, 0);
+        settings.delivery.host_modules = crate::config::HostModules::Embed;
+        let built = compile_entries(&[entry], &settings, ServiceOptions::default()).unwrap();
+        let load = if format == "esm" { "await import('./entry.js')" } else { "createRequire(import.meta.url)('./entry.cjs')" };
+        work.execute(&built, &format!("import{{createRequire}}from'node:module';const api={load};if(api.value.item!==9)throw Error('re-export');console.log('ok');"));
+    }
+}
+
+#[test]
+fn d3_opaque_hosts_share_dependency_identity_and_lazy_order() {
+    for mode in ["split", "preserve-modules"] {
+        for format in ["esm", "cjs"] {
+            let work = Workspace::new(&format!("opaque-{mode}-{format}"));
+            fs::write(work.0.join("state.js"), "note('state');export let count=0;export const box={};export function bump(){count++}").unwrap();
+            // Object spread and namespace reflection deliberately require the
+            // parsed opaque body, not the typed host subset.
+            fs::write(work.0.join("a.js"), "import * as ns from './state.js';note('a');export function read(){return {...ns,count:ns.count}}export function add(){ns.bump()}export const box=ns.box;").unwrap();
+            fs::write(work.0.join("b.js"), "import{count,box}from'./state.js';note('b');export function read(){return {...box,count}}export{box};").unwrap();
+            let a = work.source("a-entry", "import extern {read,add,box} from \"./a.js\";extern JsValue read;extern JsValue add;extern JsValue box;export JsValue value(){return JS.call(read,JS.undefined());}export void bump(){JS.call(add,JS.undefined());}export JsValue identity(){return box;}");
+            let b = work.source("b-entry", "import extern {read,box} from \"./b.js\";extern JsValue read;extern JsValue box;export JsValue value(){return JS.call(read,JS.undefined());}export JsValue identity(){return box;}");
+            let mut settings = config(mode, format, 0);
+            settings.delivery.host_modules = crate::config::HostModules::Embed;
+            let built = compile_entries(&[a,b], &settings, ServiceOptions::default()).unwrap();
+            let load = if format == "esm" { "const load=n=>import('./'+n+'-entry.js');" }
+                else { "const require=createRequire(import.meta.url);const load=n=>require('./'+n+'-entry.cjs');" };
+            work.execute(&built, &format!("import{{createRequire}}from'node:module';let log=[];globalThis.note=x=>log.push(x);{load}const b=await load('b');if(log.join()!=='state,b')throw Error('subset '+log);const a=await load('a');if(log.join()!=='state,b,a')throw Error('shared order '+log);if(a.identity()!==b.identity())throw Error('identity');a.bump();if(a.value().count!==1||b.value().count!==1)throw Error('live imports');console.log('ok');"));
+        }
+    }
+}
+
+#[test]
+fn d3_boundary_foreign_effect_requests_and_module_urls_keep_delivery_identity() {
+    let work = Workspace::new("effects-url");
+    fs::write(work.0.join("effect.mjs"), "globalThis.effects=(globalThis.effects||0)+1;\n").unwrap();
+    let entry = work.source("entry", r#"import extern "./effect.mjs";export string url(){return JS.moduleUrl();}"#);
+    for hosted in [crate::config::HostModules::Embed, crate::config::HostModules::External] {
+        for format in ["esm", "cjs"] {
+            if format == "cjs" && hosted == crate::config::HostModules::External { continue; }
+            let mut settings = config("split", format, 0);
+            settings.delivery.host_modules = hosted;
+            let file = if format == "esm" { "entry.js" } else { "entry.cjs" };
+            settings.delivery.entry_names = Some(file.into());
+            let built = compile_entries(std::slice::from_ref(&entry), &settings, ServiceOptions::default()).unwrap();
+            if built.javascript(Objective::Raw).unwrap().files().is_empty() {
+                fs::write(work.0.join(file), built.javascript(Objective::Raw).unwrap().javascript()).unwrap();
+            }
+            let load = if format == "esm" { "const api=await import('./entry.js');" } else { "const api=createRequire(import.meta.url)('./entry.cjs');" };
+            work.execute(&built, &format!("import{{createRequire}}from'node:module';{load}if(globalThis.effects!==1)throw Error('missing effect');if(api.url()!==new URL('./{file}',import.meta.url).href)throw Error('incorrect module URL '+api.url());console.log('ok');"));
+        }
+    }
+    let mut settings = config("single", "iife", 0);
+    settings.delivery.global = Some("Library".into());
+    settings.delivery.host_modules = crate::config::HostModules::Embed;
+    let error = compile_entries(&[entry], &settings, ServiceOptions::default()).unwrap_err();
+    assert!(format!("{error:?}").contains("moduleUrl requires"), "{error:?}");
+}
+
+#[test]
+fn d3_finalizers_keep_cleanup_calls_on_return_throw_and_loop_exits() {
+    let work = Workspace::new("finally-abrupt");
+    let entry = work.source("entry", r#"
+        int counter=0;
+        void cleanup(){counter+=1;}
+        export int run(bool fail){
+            try{if(fail)throw 1;return 2;}
+            catch(JsValue err){counter+=10;throw err;}
+            finally{cleanup();}
+            counter+=1000;return 0;
+        }
+        export int replace(){try{return 3;}finally{cleanup();return 9;}}
+        export void loops(){for(int i=0;i<2;i++){
+            try{if(i==0)continue;break;}catch(JsValue err){throw err;}finally{cleanup();}
+        }}
+        export int value(){return counter;}
+    "#);
+    for effort in [0, 13] {
+        for format in ["esm", "cjs"] {
+            let mut settings = config("single", format, effort);
+            let (file, load) = if format == "esm" {
+                ("entry.js", "import * as m from './entry.js';")
+            } else {
+                ("entry.cjs", "import{createRequire}from'node:module';const m=createRequire(import.meta.url)('./entry.cjs');")
+            };
+            settings.delivery.entry_names = Some(file.into());
+            let built = compile_entries(std::slice::from_ref(&entry), &settings, ServiceOptions::default()).unwrap();
+            if built.javascript(Objective::Raw).unwrap().files().is_empty() {
+                fs::write(work.0.join(file), built.javascript(Objective::Raw).unwrap().javascript()).unwrap();
+            }
+            work.execute(&built, &format!("{load}if(m.run(false)!==2||m.value()!==1)throw Error('return cleanup');try{{m.run(true);throw Error('missing throw')}}catch(e){{if(e!==1)throw e}}if(m.value()!==12)throw Error('catch cleanup '+m.value());if(m.replace()!==9||m.value()!==13)throw Error('replace return');m.loops();if(m.value()!==15)throw Error('loop cleanup '+m.value());console.log('ok');"));
+        }
+    }
+}
+
+#[test]
+fn d3_keyword_exports_keep_local_aliases_and_public_module_names() {
+    let work = Workspace::new("keyword-exports");
+    work.source("producer", "int value=7;export {value as number, value as class};");
+    let entry = work.source("entry", r#"import {number as numeric, class as classValue} from "./producer";
+        export {numeric as number, classValue as class};"#);
+    for format in ["esm", "cjs"] {
+        let mut settings = config("split", format, 3);
+        settings.delivery.entry_names=Some("[name].js".into());
+        let built = compile_entries(std::slice::from_ref(&entry), &settings, ServiceOptions::default()).unwrap();
+        if format == "esm" {
+            work.execute(&built, "import {number as n, class as c} from './entry.js';if(n!==7||c!==7)throw Error('exports');console.log('ok');");
+        } else {
+            settings.delivery.entry_names=Some("[name].cjs".into());
+            let built = compile_entries(std::slice::from_ref(&entry), &settings, ServiceOptions::default()).unwrap();
+            work.execute(&built, "import {createRequire} from 'node:module';const api=createRequire(import.meta.url)('./entry.cjs');if(api.number!==7||api.class!==7)throw Error('exports');console.log('ok');");
+        }
+    }
+}
+
+#[test]
+fn d3_host_constructor_factories_preserve_class_identity_and_returned_objects() {
+    let work=Workspace::new("host-constructor");
+    fs::write(work.0.join("host.js"),r#"
+        export function constructors(callback) {
+            const Base=class Base {constructor(value){this.value=value}read(){return this.value}};
+            return [class a {constructor(value){return callback(value)}},
+                    class Box {constructor(value,unused){this.value=value;this.value+=(()=>arguments[0])()} read(unused){return this.value}},
+                    class Derived extends Base {}];
+        }
+    "#).unwrap();
+    let entry=work.source("entry",r#"import extern {constructors} from "./host.js";
+        extern JsValue constructors(func(JsValue)->JsValue callback);
+        export JsValue classes=constructors((JsValue value)=>object{value:value});"#);
+    for mode in ["split","preserve-modules"] {
+        let mut settings=config(mode,"esm",13);
+        settings.delivery.host_modules=crate::config::HostModules::Embed;
+        settings.javascript.candidate_proposal_limit=Some(2);
+        settings.javascript.terminal_codec_probe_limit=Some(4);
+        let built=compile_entries(std::slice::from_ref(&entry),&settings,ServiceOptions::default()).unwrap();
+        work.execute(&built,r#"import {classes} from './entry.js';
+            const [A,B,D]=classes;const a=new A(7),b=new B(9),d=new D(11);
+            if(A.name!=='a'||A.length!==1||a.value!==7||a instanceof A||!(b instanceof B)||B.length!==2||b.read()!==18||B.name!=='Box'||b.read.name!=='read'||b.read.length!==1)throw Error('class ABI');
+            try{A(1);throw Error('call accepted')}catch(error){if(!(error instanceof TypeError))throw error}
+            if(D.name!=='Derived'||D.length!==0||d.read()!==11||!(d instanceof D)||Object.getPrototypeOf(D).name!=='Base')throw Error('derived class ABI');
+            console.log('ok');"#);
+    }
+}
+
+#[test]
+fn d3_external_specifiers_are_mapped_per_format_and_rebased_per_file() {
+    let work=Workspace::new("external-specifiers");
+    let entry=work.source("entry",r#"import extern {value} from "provider";extern int value;export int answer(){return value;}"#);
+    let settings=crate::config::parse_project_config(r#"
+        effort.level=0
+        objective.codecs='raw'
+        [delivery]
+        entry_names='nested/entry.mjs'
+        external_specifiers={provider='./provider.mjs'}
+        [[delivery.also]]
+        name='cjs'
+        format='cjs'
+        entry_names='nested/entry.cjs'
+        external_specifiers={provider='./provider.cjs'}
+        [[delivery.also]]
+        name='browser'
+        format='iife'
+        entry_names='nested/entry.js'
+        global='Mapped'
+        global_binding='property'
+        globals={provider='Provider'}
+    "#).unwrap().config;
+    let built=compile_entries(&[entry],&settings,ServiceOptions::default()).unwrap();
+    for group in built.outputs() {
+        let directory=work.0.join(group.name());fs::create_dir_all(&directory).unwrap();
+        let artifact=built.javascript_output(group.name(),Objective::Raw).unwrap();
+        for file in artifact.files() {
+            let path=directory.join(&file.name);fs::create_dir_all(path.parent().unwrap()).unwrap();fs::write(path,&file.code).unwrap();
+        }
+        fs::write(directory.join("provider.mjs"),"export const value=7").unwrap();
+        fs::write(directory.join("provider.cjs"),"exports.value=7").unwrap();
+        let load=match group.name() {
+            "primary"=>"const api=await import('./nested/entry.mjs');",
+            "cjs"=>"const api=createRequire(import.meta.url)('./nested/entry.cjs');",
+            _=>"const context={Provider:{value:7}};vm.runInNewContext(readFileSync(new URL('./nested/entry.js',import.meta.url),'utf8'),context);const api=context.Mapped;",
+        };
+        fs::write(directory.join("probe.mjs"),format!("import {{createRequire}} from 'node:module';import vm from 'node:vm';import {{readFileSync}} from 'node:fs';{load}if(api.answer()!==7)throw Error('mapped import');")).unwrap();
+        let output=Command::new("node").arg(directory.join("probe.mjs")).output().unwrap();
+        assert!(output.status.success(),"{}: {}",group.name(),String::from_utf8_lossy(&output.stderr));
+    }
+    for invalid in ["delivery.external_specifiers={provider=''}","delivery.external_specifiers={''='provider'}"] {
+        assert!(crate::config::parse_project_config(invalid).and_then(|loaded| loaded.config.delivery_contract(true)).is_err());
+    }
+}
+
+#[test]
+fn d3_preserved_imports_retain_effects_behind_unused_definitions() {
+    let work=Workspace::new("transitive-effects");
+    work.source("leaf","print(\"leaf\");export int value=7;");
+    work.source("bridge",r#"import {value} from "./leaf";export int read(){return value;}"#);
+    let a=work.source("a",r#"import {read} from "./bridge";export int answer(){return 1;}"#);
+    let b=work.source("b",r#"import {read} from "./bridge";export {read};"#);
+    for effort in [0,13] {
+        let built=compile_entries(&[a.clone(),b.clone()],&config("preserve-modules","esm",effort),ServiceOptions::default()).unwrap();
+        work.execute(&built,"const events=[];const original=console.log;console.log=(x)=>events.push(x);const a=await import('./a.js');if(events.join(',')!=='leaf'||a.answer()!==1)throw Error('missing transitive initialization');const b=await import('./b.js');if(b.read()!==7||events.length!==1)throw Error('initialization repeated');console.log=original;console.log('ok');");
+    }
+}
+
+#[test]
+fn d3_entry_subsets_only_initialize_reachable_host_modules() {
+    let work = Workspace::new("selected-hosts");
+    fs::write(work.0.join("leaf.js"), "export function answer(){return 7}").unwrap();
+    fs::write(work.0.join("a.js"), "import {answer} from './leaf.js';export function read(){return answer()}").unwrap();
+    fs::write(work.0.join("b.js"), "console.log('b-host');export function read(){return 9}").unwrap();
+    let a=work.source("a",r#"import extern {read} from "./a.js";extern int read();export int answer(){return read();}"#);
+    let b=work.source("b",r#"import extern {read} from "./b.js";extern int read();export int answer(){return read();}"#);
+    let mut settings=config("preserve-modules","esm",13);
+    settings.delivery.entry_names=Some("[name].mjs".into());
+    settings.delivery.module_names=Some("internal/[path].mjs".into());
+    settings.delivery.host_modules=crate::config::HostModules::Embed;
+    settings.javascript.candidate_proposal_limit=Some(2);
+    settings.javascript.terminal_codec_probe_limit=Some(4);
+    settings.delivery.also=crate::config::parse_project_config(r#"[[delivery.also]]
+        name='mini'
+        entries=['a']
+        format='iife'
+        mode='single'
+        global='Mini'
+        global_binding='property'
+        entry_names='mini.js'
+    "#).unwrap().config.delivery.also;
+    let built=compile_entries(&[a,b],&settings,ServiceOptions::default()).unwrap();
+    work.execute(&built,"import {answer} from './a.mjs';if(answer()!==7)throw Error('answer');console.log('ok');");
+    let mini=built.javascript_output("mini",Objective::Raw).unwrap();
+    let code=mini.files().iter().map(|file|file.code.as_str()).collect::<String>();
+    let probe=format!("const vm=require('node:vm');const events=[];const context={{console:{{log:(x)=>events.push(x)}}}};vm.runInNewContext({},context);if(context.Mini.answer()!==7||events.length)throw Error(JSON.stringify(events));",serde_json::to_string(&code).unwrap());
+    let output=Command::new("node").args(["-e",&probe]).output().unwrap();
+    assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+}
+
+#[test]
 fn d2_entries_can_be_consumed_between_other_entry_initializers() {
     for mode in ["split", "preserve-modules"] {
         for effort in [0, 13] {

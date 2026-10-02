@@ -1,0 +1,290 @@
+TAP version 13
+# Subtest: shader-processing public ABI
+    # Subtest: preserves exports and static class descriptors
+    not ok 1 - preserves exports and static class descriptors
+      ---
+      duration_ms: 5.127548
+      location: '/home/azureuser/playcanvaslil/test/shader-processing.test.mjs:76:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        ShaderProcessorGLSL
+        + actual - expected ... Lines skipped
+        
+          {
+            MARKER: {
+        ...
+              enumerable: false,
+              kind: 'function',
+        +     length: 2,
+        -     length: 1,
+              name: 'extract',
+        ...
+              writable: true
+            }
+          }
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+        length:
+          configurable: true
+          enumerable: false
+          writable: false
+          kind: 'number'
+        name:
+          configurable: true
+          enumerable: false
+          writable: false
+          kind: 'string'
+        prototype:
+          configurable: false
+          enumerable: false
+          writable: false
+          kind: 'object'
+        run:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 3
+          name: 'run'
+        extract:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 1
+          name: 'extract'
+        parseUniformLines:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 2
+          name: 'parseUniformLines'
+        processUniforms:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 4
+          name: 'processUniforms'
+        processVaryings:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 3
+          name: 'processVaryings'
+        processOuts:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 1
+          name: 'processOuts'
+        getTypeCount:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 1
+          name: 'getTypeCount'
+        processAttributes:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 4
+          name: 'processAttributes'
+        splitToWords:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 1
+          name: 'splitToWords'
+        cutOut:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 4
+          name: 'cutOut'
+        getUniformShaderDeclaration:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 3
+          name: 'getUniformShaderDeclaration'
+        getTexturesShaderDeclaration:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 2
+          name: 'getTexturesShaderDeclaration'
+        MARKER:
+          configurable: true
+          enumerable: true
+          writable: true
+          kind: 'string'
+      actual:
+        length:
+          configurable: true
+          enumerable: false
+          writable: false
+          kind: 'number'
+        name:
+          configurable: true
+          enumerable: false
+          writable: false
+          kind: 'string'
+        prototype:
+          configurable: false
+          enumerable: false
+          writable: false
+          kind: 'object'
+        run:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 3
+          name: 'run'
+        extract:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 2
+          name: 'extract'
+        parseUniformLines:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 2
+          name: 'parseUniformLines'
+        processUniforms:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 4
+          name: 'processUniforms'
+        processVaryings:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 3
+          name: 'processVaryings'
+        processOuts:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 1
+          name: 'processOuts'
+        getTypeCount:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 1
+          name: 'getTypeCount'
+        processAttributes:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 4
+          name: 'processAttributes'
+        splitToWords:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 1
+          name: 'splitToWords'
+        cutOut:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 4
+          name: 'cutOut'
+        getUniformShaderDeclaration:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 3
+          name: 'getUniformShaderDeclaration'
+        getTexturesShaderDeclaration:
+          configurable: true
+          enumerable: false
+          writable: true
+          kind: 'function'
+          length: 2
+          name: 'getTexturesShaderDeclaration'
+        MARKER:
+          configurable: true
+          enumerable: true
+          writable: true
+          kind: 'string'
+      operator: 'deepStrictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/azureuser/playcanvaslil/test/shader-processing.test.mjs:80:14)
+        Test.runInAsyncScope (node:async_hooks:206:9)
+        Test.run (node:internal/test_runner/test:796:25)
+        Test.start (node:internal/test_runner/test:702:17)
+        node:internal/test_runner/test:1133:71
+        node:internal/per_context/primordials:482:82
+        new Promise (<anonymous>)
+        new SafePromise (node:internal/per_context/primordials:450:29)
+        node:internal/per_context/primordials:482:9
+        Array.map (<anonymous>)
+      ...
+    # Subtest: preserves representative helpers
+    ok 2 - preserves representative helpers
+      ---
+      duration_ms: 1.017827
+      ...
+    1..2
+not ok 1 - shader-processing public ABI
+  ---
+  duration_ms: 7.388584
+  type: 'suite'
+  location: '/home/azureuser/playcanvaslil/test/shader-processing.test.mjs:75:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: closed-world entry
+    # Subtest: preserves exported functions and preprocessing output
+    ok 1 - preserves exported functions and preprocessing output
+      ---
+      duration_ms: 2.311311
+      ...
+    # Subtest: executes every closed entry with equivalent results
+    ok 2 - executes every closed entry with equivalent results
+      ---
+      duration_ms: 6.092375
+      ...
+    1..2
+ok 2 - closed-world entry
+  ---
+  duration_ms: 8.578795
+  type: 'suite'
+  ...
+1..2
+# tests 4
+# suites 2
+# pass 3
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 90.803912

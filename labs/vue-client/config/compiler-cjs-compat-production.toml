@@ -1,0 +1,151 @@
+# Compiler-written Vue delivery. No source staging or JavaScript rewriting.
+[policy]
+version = 3
+[optimization]
+preset = "maximum"
+[javascript]
+# Proxy traps, getters and patched globals are observable Vue behavior.
+assume_pristine_builtins = false
+assume_pure_property_reads = false
+[objective]
+codecs = "brotli"
+[effort]
+# Preserve the port's release effort. Development mode skips optional search.
+level = 15
+[execution]
+jobs = 1
+[mangle]
+identifiers = true
+properties = true
+pool_strings = true
+
+[defines]
+APP_COMPAT = true
+APP_DEV = false
+APP_FEATURE_OPTIONS_API = true
+APP_FEATURE_PROD_DEVTOOLS = false
+ATTR_COMPAT = true
+COMPAT_DEV = false
+COMPAT_TEST = false
+COMPILER_BROWSER = false
+COMPILER_DEV = false
+COMPONENT_COMPAT = true
+COMPONENT_DEV = false
+COMPONENT_ESM_BROWSER = false
+COMPONENT_ESM_BUNDLER = true
+COMPONENT_FEATURE_OPTIONS_API = true
+COMPONENT_FEATURE_PROD_DEVTOOLS = false
+COMPONENT_FEATURE_SUSPENSE = true
+COMPONENT_GLOBAL = false
+COMPONENT_SSR = true
+CREATE_COMPAT_DEV = false
+CSS_MODULE_DEV = false
+CSS_MODULE_GLOBAL = false
+CSS_VARS_BROWSER = false
+CSS_VARS_DEV = false
+CSS_VARS_FEATURE_SUSPENSE = true
+CSS_VARS_TEST = false
+CUSTOM_ELEMENT_DEV = false
+CUSTOM_ELEMENT_FEATURE_PROD_DEVTOOLS = false
+DEV = false
+DEV_BROWSER = false
+DEV_ESM_BUNDLER = true
+DIRECTIVES_COMPAT = true
+DIRECTIVES_DEV = false
+EMITS_COMPAT = true
+EMITS_DEV = false
+EMITS_FEATURE_OPTIONS_API = true
+EMITS_FEATURE_PROD_DEVTOOLS = false
+EVENT_DEV = false
+FEATURE_PROD_DEVTOOLS = false
+FEATURE_SUSPENSE = true
+GLOBAL_DEV = false
+GLOBAL_PROD_DEVTOOLS = false
+HYDRATION_FEATURE_SUSPENSE = true
+INDEX_DEV = false
+INDEX_GLOBAL = false
+INDEX_TEST = false
+INSTANCE_DEV = false
+KEEP_ALIVE_BROWSER = false
+KEEP_ALIVE_COMPAT = true
+KEEP_ALIVE_DEV = false
+KEEP_ALIVE_PROD_DEVTOOLS = false
+KEEP_ALIVE_SSR = true
+OPTIONS_COMPAT = true
+OPTIONS_DEV = false
+PROD_DEVTOOLS = false
+PROD_HYDRATION_MISMATCH_DETAILS = false
+PROPS_COMPAT = true
+PROPS_DEV = false
+PROPS_FEATURE_OPTIONS_API = true
+PROP_COMPAT = true
+PROP_DEV = false
+PUBLIC_COMPAT = true
+PUBLIC_DEV = false
+PUBLIC_FEATURE_OPTIONS_API = true
+PUBLIC_TEST = false
+RENDERER_COMPAT = true
+RENDERER_ESM_BUNDLER = true
+RENDERER_FEATURE_PROD_DEVTOOLS = false
+RENDERER_FEATURE_SUSPENSE = true
+RENDER_UTILS_COMPAT = true
+RENDER_UTILS_DEV = false
+RUNTIME_DEV = false
+RUNTIME_DOM_COMPAT = true
+RUNTIME_DOM_DEV = false
+RUNTIME_DOM_SSR = true
+RUNTIME_ESM_BROWSER = false
+RUNTIME_ESM_BUNDLER = true
+RUNTIME_GLOBAL = false
+SLOTS_COMPAT = true
+SLOTS_DEV = false
+STYLE_DEV = false
+SUSPENSE_DEV = false
+SUSPENSE_FEATURE = true
+SUSPENSE_TEST = false
+TELEPORT_FEATURE_SUSPENSE = true
+TEST = false
+TRANSITION_COMPAT = true
+TRANSITION_DEV = false
+TRANSITION_FEATURE_SUSPENSE = true
+TRANSITION_GROUP_COMPAT = true
+TRANSITION_GROUP_DEV = false
+VUE_COMPAT = true
+VUE_DEV = false
+VUE_ESM_BROWSER = false
+VUE_ESM_BUNDLER = true
+VUE_FEATURE_OPTIONS_API = true
+VUE_FEATURE_PROD_DEVTOOLS = false
+VUE_FEATURE_PROD_HYDRATION_MISMATCH_DETAILS = false
+VUE_GLOBAL = false
+VUE_HOST_FLAGS = false
+VUE_VERSION = "3.5.42"
+V_MODEL_COMPAT = true
+V_ON_COMPAT = true
+V_ON_DEV = false
+
+[delivery]
+mode = "split"
+directory = "."
+host_modules = "embed"
+entry_names = "packages/vuelil/compiler-cjs/compat/production/[name].cjs"
+chunk_names = "packages/vuelil/compiler-cjs/compat/production/chunks/[name]-[index].cjs"
+[delivery.entries]
+"compiler-core.compat" = "../src/package/compiler-core.lil"
+"compiler-dom.compat" = "../src/package/compiler-dom.lil"
+"compiler-sfc.compat" = "../src/package/compiler-sfc.lil"
+"compiler-ssr.compat" = "../src/package/compiler-ssr.lil"
+"reactivity.compat" = "../src/package/reactivity.lil"
+"runtime-core.compat" = "../src/package/runtime-core.lil"
+"runtime-dom.compat" = "../src/package/runtime-dom.lil"
+"runtime-test.compat" = "../src/package/runtime-test.lil"
+"server-renderer.compat" = "../src/package/server-renderer.lil"
+"shared.compat" = "../src/package/shared.lil"
+"vue-compat" = "../src/package/vue-compat.lil"
+"vue-compat.runtime" = "../src/package/vue-compat.runtime.lil"
+
+[dependencies]
+vue-hosts = {path="../src/providers/node",version="=1.0.0",abi=1}
+
+[target.javascript]
+format="cjs"

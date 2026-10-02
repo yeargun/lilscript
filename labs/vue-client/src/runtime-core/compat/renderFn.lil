@@ -1,4 +1,4 @@
-import extern {
+import {
   ShapeFlags as renderShapeFlags,
   extend as renderExtend,
   hyphenate as renderHyphenate,
@@ -9,7 +9,7 @@ import extern {
   normalizeClass as renderNormalizeClass,
   normalizeStyle as renderNormalizeStyle,
   toHandlerKey as renderToHandlerKey
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { Object as renderObject } from "../../shared/makeMap";
 import { arguments as renderArguments } from "../../shared/general";
 import { currentRenderingInstance as coreCurrentRenderingInstance } from "../componentRenderContext";
@@ -26,17 +26,6 @@ import {
 } from "../vnode";
 import { DeprecationTypes, checkCompatEnabled, isCompatEnabled } from "./compatConfig";
 import { compatModelEventPrefix } from "./componentVModel";
-
-extern JsValue renderShapeFlags;
-extern JsValue renderExtend;
-extern JsValue renderHyphenate;
-extern bool renderIsArray(JsValue value);
-extern bool renderIsObject(JsValue value);
-extern bool renderIsString(JsValue value);
-extern JsValue renderMakeMap;
-extern JsValue renderNormalizeClass;
-extern JsValue renderNormalizeStyle;
-extern JsValue renderToHandlerKey;
 
 export void convertLegacyRenderFn(JsValue instance) {
   JsValue component = instance["type"];

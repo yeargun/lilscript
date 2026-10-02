@@ -15,7 +15,7 @@ import {
 } from "../shared/general";
 import { JSON, Object, String, window } from "../shared/makeMap";
 
-bool DEV = true;
+define bool DEV = true;
 
 JsValue formatValue(
   JsValue value,

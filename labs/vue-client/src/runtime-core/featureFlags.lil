@@ -1,26 +1,23 @@
+import {read_FEATURE_OPTIONS_API as vue_read_FEATURE_OPTIONS_API, read_FEATURE_PROD_DEVTOOLS as vue_read_FEATURE_PROD_DEVTOOLS, read_FEATURE_PROD_HYDRATION_MISMATCH_DETAILS as vue_read_FEATURE_PROD_HYDRATION_MISMATCH_DETAILS} from "../package/build-flags.lil";
 import { getGlobalThis } from "../shared/general";
 import { console } from "../shared/makeMap";
 
-extern JsValue __FEATURE_OPTIONS_API__;
-extern JsValue __FEATURE_PROD_DEVTOOLS__;
-extern JsValue __FEATURE_PROD_HYDRATION_MISMATCH_DETAILS__;
-
-bool DEV = true;
+define bool DEV = true;
 
 export void initFeatureFlags() {
   string[] needWarn = [];
 
-  if (JS.typeOf(__FEATURE_OPTIONS_API__) != "boolean") {
+  if (JS.typeOf(vue_read_FEATURE_OPTIONS_API()) != "boolean") {
     if (DEV) needWarn.push("__VUE_OPTIONS_API__");
     getGlobalThis()["__VUE_OPTIONS_API__"] = true;
   }
 
-  if (JS.typeOf(__FEATURE_PROD_DEVTOOLS__) != "boolean") {
+  if (JS.typeOf(vue_read_FEATURE_PROD_DEVTOOLS()) != "boolean") {
     if (DEV) needWarn.push("__VUE_PROD_DEVTOOLS__");
     getGlobalThis()["__VUE_PROD_DEVTOOLS__"] = false;
   }
 
-  if (JS.typeOf(__FEATURE_PROD_HYDRATION_MISMATCH_DETAILS__) != "boolean") {
+  if (JS.typeOf(vue_read_FEATURE_PROD_HYDRATION_MISMATCH_DETAILS()) != "boolean") {
     if (DEV) needWarn.push("__VUE_PROD_HYDRATION_MISMATCH_DETAILS__");
     getGlobalThis()["__VUE_PROD_HYDRATION_MISMATCH_DETAILS__"] = false;
   }

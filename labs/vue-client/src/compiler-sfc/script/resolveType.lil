@@ -1,12 +1,12 @@
 import extern { parse as resolveBabelParse } from "@babel/parser";
-import extern {
+import {
   capitalize as resolveCapitalize,
   hasOwn as resolveHasOwn
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import extern { minimatch as resolveIsMatch } from "minimatch";
 import extern { default as resolvePath } from "node:path";
 import extern { default as resolveProcess } from "node:process";
-import extern {
+import {
   hostArrayFrom,
   hostAssign,
   hostCreateError,
@@ -16,7 +16,7 @@ import extern {
   hostHasProperty,
   hostJsonStringify,
   hostKeys
-} from "../host.js";
+} from "../host.lil";
 import { createCache } from "../cache";
 import { parse as parseSFC } from "../parse";
 import { resolveParserPlugins } from "./context";
@@ -30,18 +30,9 @@ import {
   normalizePath
 } from "./utils";
 
-extern JsValue hostArrayFrom;
-extern JsValue hostAssign;
-extern JsValue hostCreateError;
-extern JsValue hostCreateMap;
-extern JsValue hostCreateObject;
-extern JsValue hostCreateSet;
-extern JsValue hostHasProperty;
-extern JsValue hostJsonStringify;
-extern JsValue hostKeys;
 extern JsValue resolveBabelParse;
-extern JsValue resolveCapitalize;
-extern JsValue resolveHasOwn;
+
+
 extern JsValue resolveIsMatch;
 extern JsValue resolvePath;
 extern JsValue resolveProcess;

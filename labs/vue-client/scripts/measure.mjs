@@ -424,7 +424,7 @@ export function measure() {
       sha256: sha256(buildReportBytes),
     },
     methodology:
-      "Each required real application is built twice from identical source and identical Vite 8/Rolldown/Oxc production settings. Only Vue package resolution changes. Every candidate resolves through the same reusable packages/vuelil/production entries compiled with config/open-world.toml, where identifiers and properties are mangled and exports are preserved; no scenario-specific candidate module path is allowed. Vite performs downstream tree shaking. Candidate graphs contain only VueLil implementation modules, with retained inlined host-adapter code counted. Every emitted deployment asset is scored independently and summed; published Vue distribution sizes are not used as the gate.",
+      "Each required real application is built twice from identical source and identical Vite 8/Rolldown/Oxc production settings. Only Vue package resolution changes. Every candidate resolves through the same reusable packages/vuelil/production entries compiled with config/compiler-production.toml, where identifiers and properties are mangled and exports are preserved; no scenario-specific candidate module path is allowed. Vite performs downstream tree shaking. Candidate graphs contain only VueLil implementation modules, with retained inlined host-adapter code counted. Every emitted deployment asset is scored independently and summed; published Vue distribution sizes are not used as the gate.",
     objective: "Every completion-required project has a smaller candidate Brotli-11 deployment.",
     toolchain: buildReport.toolchain,
     codecs: canonicalCodecProvenance("VueLil actual-project size evidence"),

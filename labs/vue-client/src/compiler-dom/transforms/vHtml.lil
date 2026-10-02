@@ -1,11 +1,8 @@
-import extern {
+import {
   createObjectProperty,
   createSimpleExpression
-} from "../../../packages/vuelil/compiler-core.js";
+} from "../../package/compiler-core.lil";
 import { DOMErrorCodes, createDOMCompilerError } from "../errors";
-
-extern JsValue createObjectProperty;
-extern JsValue createSimpleExpression;
 
 JsValue vHtmlUndefined() {
   return JS.undefined();

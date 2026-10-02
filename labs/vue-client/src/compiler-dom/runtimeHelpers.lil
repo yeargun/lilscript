@@ -1,7 +1,7 @@
-import extern { registerRuntimeHelpers as coreRegisterRuntimeHelpers } from "../../packages/vuelil/compiler-core.js";
+import { registerRuntimeHelpers as coreRegisterRuntimeHelpers } from "../package/compiler-core.lil";
 
 extern JsValue Symbol;
-extern void coreRegisterRuntimeHelpers(JsValue helpers);
+
 
 JsValue domHelperUndefined() {
   return JS.undefined();

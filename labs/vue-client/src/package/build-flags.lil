@@ -1,0 +1,48 @@
+// TOML-owned build flags. The test profile may read injected flags live.
+define bool VUE_HOST_FLAGS = false;
+extern JsValue globalThis;
+define bool VUE_DEV = true;
+export JsValue read_DEV(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__DEV__"])) return globalThis["__DEV__"];
+  return VUE_DEV;
+}
+define bool VUE_GLOBAL = false;
+export JsValue read_GLOBAL(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__GLOBAL__"])) return globalThis["__GLOBAL__"];
+  return VUE_GLOBAL;
+}
+define bool VUE_ESM_BUNDLER = true;
+export JsValue read_ESM_BUNDLER(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__ESM_BUNDLER__"])) return globalThis["__ESM_BUNDLER__"];
+  return VUE_ESM_BUNDLER;
+}
+define bool VUE_ESM_BROWSER = false;
+export JsValue read_ESM_BROWSER(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__ESM_BROWSER__"])) return globalThis["__ESM_BROWSER__"];
+  return VUE_ESM_BROWSER;
+}
+define bool VUE_CJS = true;
+export JsValue read_CJS(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__CJS__"])) return globalThis["__CJS__"];
+  return VUE_CJS;
+}
+define bool VUE_COMPAT = false;
+export JsValue read_COMPAT(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__COMPAT__"])) return globalThis["__COMPAT__"];
+  return VUE_COMPAT;
+}
+define bool VUE_FEATURE_OPTIONS_API = true;
+export JsValue read_FEATURE_OPTIONS_API(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__FEATURE_OPTIONS_API__"])) return globalThis["__FEATURE_OPTIONS_API__"];
+  return VUE_FEATURE_OPTIONS_API;
+}
+define bool VUE_FEATURE_PROD_DEVTOOLS = false;
+export JsValue read_FEATURE_PROD_DEVTOOLS(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__FEATURE_PROD_DEVTOOLS__"])) return globalThis["__FEATURE_PROD_DEVTOOLS__"];
+  return VUE_FEATURE_PROD_DEVTOOLS;
+}
+define bool VUE_FEATURE_PROD_HYDRATION_MISMATCH_DETAILS = false;
+export JsValue read_FEATURE_PROD_HYDRATION_MISMATCH_DETAILS(){
+  if(VUE_HOST_FLAGS && !JS.isUndefined(globalThis["__FEATURE_PROD_HYDRATION_MISMATCH_DETAILS__"])) return globalThis["__FEATURE_PROD_HYDRATION_MISMATCH_DETAILS__"];
+  return VUE_FEATURE_PROD_HYDRATION_MISMATCH_DETAILS;
+}

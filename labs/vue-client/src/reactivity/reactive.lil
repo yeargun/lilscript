@@ -1,3 +1,4 @@
+import extern { hostCreateWeakMap, hostCreateProxy, hostRead, hostIsExtensible, hostString } from "./host.js";
 import { hasOwn, isObject, toRawType, def } from "../shared/general";
 import {
   mutableHandlers,

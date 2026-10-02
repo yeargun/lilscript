@@ -1,10 +1,10 @@
 import extern { default as SrcsetPath } from "node:path";
-import extern {
+import {
   ConstantTypes as SrcsetConstantTypes,
   NodeTypes as SrcsetNodeTypes,
   createCompoundExpression as srcsetCreateCompoundExpression,
   createSimpleExpression as srcsetCreateSimpleExpression
-} from "../../../packages/vuelil/compiler-core.js";
+} from "../../package/compiler-core.lil";
 import {
   isDataUrl,
   isExternalUrl,
@@ -14,11 +14,7 @@ import {
 } from "./templateUtils";
 import { defaultAssetUrlOptions } from "./transformAssetUrl";
 
-extern JsValue SrcsetConstantTypes;
-extern JsValue SrcsetNodeTypes;
 extern JsValue SrcsetPath;
-extern JsValue srcsetCreateCompoundExpression;
-extern JsValue srcsetCreateSimpleExpression;
 
 int srcsetLength(JsValue value) {
   return JS.number(value["length"]).toInt();

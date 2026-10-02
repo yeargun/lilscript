@@ -1,4 +1,4 @@
-import extern { warn as nodeOpsWarn } from "../../packages/vuelil/runtime-core.js";
+import { warn as nodeOpsWarn } from "../package/runtime-core.lil";
 import extern {
   hostAppendChild,
   hostCloneNode,
@@ -24,7 +24,7 @@ import extern {
   hostTrustedTypes
 } from "./host.js";
 
-extern JsValue nodeOpsWarn;
+
 extern void hostAppendChild(JsValue parent, JsValue child);
 extern JsValue hostCloneNode(JsValue node);
 extern JsValue hostCreateComment(string text);

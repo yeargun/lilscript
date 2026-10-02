@@ -30,19 +30,78 @@ const legacyCandidates = new Map([
   ],
 ]);
 const allowedHostAdapters = new Map([
+  ["src/package/metadata.mjs", ["public-function-descriptors"]],
+  ["src/package/jsx-factory.mjs", ["public-call-arguments", "object-rest"]],
+  ["src/providers/browser/entities.mjs", ["entity-decoding-provider"]],
   ["src/reactivity/host.js", ["ecmascript-primitives"]],
   ["src/runtime-core/host.js", ["ecmascript-primitives"]],
   ["src/runtime-dom/host.js", ["dom-primitives", "ecmascript-primitives"]],
   ["src/server-renderer/host.js", ["stream-primitives"]],
   [
-    "src/compiler-sfc/host.js",
+    "src/compiler-sfc/host-factory.mjs",
     ["ecmascript-primitives", "filesystem-module-loading"],
   ],
   ["src/compiler-dom/host.js", ["browser-entity-decoding-primitive"]],
   [
-    "src/compiler-core/host.js",
+    "src/compiler-core/host-factory.mjs",
     ["parser-primitives", "entity-decoding", "dynamic-function-primitive"],
   ],
+]);
+
+// Explicit integration owners are reported separately; none satisfies an upstream
+// algorithm mapping. New files outside this inventory still fail the audit.
+const integrationSources = new Set([
+  "src/compiler-core/host.lil",
+  "src/compiler-sfc/host.lil",
+  "src/package/build-flags.lil",
+  "src/package/compiler-core-public.lil",
+  "src/package/compiler-core.lil",
+  "src/package/compiler-dom-public.lil",
+  "src/package/compiler-dom.lil",
+  "src/package/compiler-sfc-public.lil",
+  "src/package/compiler-sfc-test.lil",
+  "src/package/compiler-sfc-warn.lil",
+  "src/package/compiler-sfc.lil",
+  "src/package/compiler-ssr-public.lil",
+  "src/package/compiler-ssr-test.lil",
+  "src/package/compiler-ssr.lil",
+  "src/package/entrypoints/compiler-core.lil",
+  "src/package/entrypoints/compiler-dom.lil",
+  "src/package/entrypoints/compiler-sfc.lil",
+  "src/package/entrypoints/compiler-ssr.lil",
+  "src/package/entrypoints/jsx.lil",
+  "src/package/entrypoints/reactivity.lil",
+  "src/package/entrypoints/runtime-core.lil",
+  "src/package/entrypoints/runtime-dom.lil",
+  "src/package/entrypoints/runtime-test.lil",
+  "src/package/entrypoints/server-renderer.lil",
+  "src/package/entrypoints/shared.lil",
+  "src/package/entrypoints/vue-compat.lil",
+  "src/package/entrypoints/vue-compat.runtime.lil",
+  "src/package/entrypoints/vue.lil",
+  "src/package/entrypoints/vue.runtime.lil",
+  "src/package/reactivity-public.lil",
+  "src/package/reactivity-test.lil",
+  "src/package/reactivity.lil",
+  "src/package/runtime-core-public.lil",
+  "src/package/runtime-core-test.lil",
+  "src/package/runtime-core.lil",
+  "src/package/runtime-dom-public.lil",
+  "src/package/runtime-dom.lil",
+  "src/package/runtime-test.lil",
+  "src/package/server-renderer-public.lil",
+  "src/package/server-renderer.lil",
+  "src/package/shared-public.lil",
+  "src/package/shared.lil",
+  "src/package/vue-compat.lil",
+  "src/package/vue-compat.runtime.lil",
+  "src/package/vue-public.lil",
+  "src/package/vue.lil",
+  "src/package/vue.runtime.lil",
+  "src/providers/browser/compiler-core.lil",
+  "src/providers/browser/compiler-sfc.lil",
+  "src/providers/node/compiler-core.lil",
+  "src/providers/node/compiler-sfc.lil"
 ]);
 
 function compareText(left, right) {
@@ -545,11 +604,19 @@ export function buildSourceParity({
       };
     });
   const unmappedCandidates = lilFiles
-    .filter((path) => !expectedCandidates.has(path) && !legacyCandidates.has(path))
+    .filter((path) => !expectedCandidates.has(path) && !legacyCandidates.has(path) && !integrationSources.has(path))
     .sort(compareText);
   for (const path of unmappedCandidates) {
     failures.push(`unmapped LilScript algorithm file ${path}`);
   }
+
+  const integrationFiles = lilFiles.filter(path => integrationSources.has(path)).map(path => {
+    const bytes = readFileSync(resolve(projectRoot, path));
+    const issues = inspectHostAdapter(path, bytes.toString("utf8"));
+    failures.push(...issues);
+    return {path, sha256:sha256(bytes), bytes:bytes.length,
+      classification:"package-interface-or-host-provider", counted:false, issues};
+  });
 
   const hostAdapters = [];
   const otherJavaScript = [];
@@ -633,7 +700,7 @@ export function buildSourceParity({
       typeOnlyRule:
         "Type-only files require the same mapped LilScript file or one explicit hash-pinned declaration-only handling record with a specific reason.",
       hostAdapterRule:
-        "Only enumerated host.js files may contain JavaScript primitives; adapters cannot satisfy an upstream algorithm mapping or import upstream Vue implementation code.",
+        "Only enumerated host adapters may contain JavaScript primitives and public ABI glue; neither adapters nor package interfaces satisfy an upstream algorithm mapping or import upstream Vue implementation code.",
     },
     totals: {
       upstreamFiles: files.length,
@@ -661,6 +728,7 @@ export function buildSourceParity({
     ),
     hostAdapters,
     supportFiles: otherJavaScript,
+    integrationFiles,
     legacyNonconforming: legacy,
     mappingConflicts: {
       deterministic: deterministicConflicts,

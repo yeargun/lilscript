@@ -1,0 +1,191 @@
+[
+  {
+    "id": "cnlil",
+    "workspace": "/home/azureuser/cnlil",
+    "branch": "main",
+    "head": "76a975fdbfdcd4b07752bb6462510bcc8a359812",
+    "status": "M dist/index.cjs\n M dist/index.js\n M dist/lite.cjs\n M dist/lite.js"
+  },
+  {
+    "id": "hast-util-to-htmllil",
+    "workspace": "/home/azureuser/hast-util-to-htmllil",
+    "branch": "main",
+    "head": "167105bec6d9756591d210442aee53594224730d",
+    "status": "M README.md\n M dist/to-html.cjs\n M dist/to-html.closed.js\n M dist/to-html.esm.js\n M dist/to-html.umd.js\n M package.json\n M site/app.js\n M site/index.html\n M site/official.js\n M site/results.json\n?? COMPARISON.md\n?? comparison/\n?? site/comparison.json\n?? site/current-delivery.js\n?? site/esm-comparison/"
+  },
+  {
+    "id": "jquerylil",
+    "workspace": "/home/azureuser/jquerylil",
+    "branch": "main",
+    "head": "2ab4b893ca1080cd760d8b3f299fc1dcdb1ee9f7",
+    "status": "M test/compat.test.mjs\n?? var1/"
+  },
+  {
+    "id": "katexlil",
+    "workspace": "/home/azureuser/katexlil",
+    "branch": "main",
+    "head": "5e47c1beae6389c3fb961f2b365e3f7a30342a70",
+    "status": "M README.md\n M comparison/build-receipt.json\n D comparison/source-build/README.md\n D comparison/source-build/compiler-invocations.jsonl\n D comparison/source-build/esm.json\n D comparison/source-build/job.json\n D comparison/source-build/lilscript-package-lock.json\n D comparison/source-build/original-yarn.lock\n D comparison/source-build/result.json\n M dist/contrib/auto-render.cjs\n M dist/contrib/auto-render.min.js\n M dist/contrib/auto-render.mjs\n M dist/contrib/copy-tex.cjs\n M dist/contrib/copy-tex.min.js\n M dist/contrib/copy-tex.mjs\n M dist/contrib/mathtex-script-type.cjs\n M dist/contrib/mathtex-script-type.min.js\n M dist/contrib/mathtex-script-type.mjs\n M dist/contrib/mhchem.cjs\n M dist/contrib/mhchem.min.js\n M dist/contrib/mhchem.mjs\n M dist/contrib/render-a11y-string.cjs\n M dist/contrib/render-a11y-string.min.js\n M dist/contrib/render-a11y-string.mjs\n M dist/katex.cjs\n M dist/katex.closed.js\n M dist/katex.contrib-test.js\n M dist/katex.esm.js\n M dist/katex.min.js\n M dist/katex.mjs\n M dist/katex.test.js\n M dist/katex.umd.js\n M scripts/build-comparison.mjs\n M scripts/measure-site.mjs\n M site/app.js\n M site/comparison.json\n M site/esm-comparison/lilscript.js\n M site/esm-comparison/original.js\n M site/index.html\n M site/results.json\n D site/source-build.json\n?? COMPARISON.md\n?? comparison/upstream-build.json\n?? site/current-delivery.js\n?? var1/"
+  },
+  {
+    "id": "markedlil",
+    "workspace": "/home/azureuser/markedlil",
+    "branch": "main",
+    "head": "019e9b449c01721f78e467ca772742c67f9ac377",
+    "status": "?? .tmp-stability.mjs"
+  },
+  {
+    "id": "mdast-util-from-markdownlil",
+    "workspace": "/home/azureuser/mdast-util-from-markdownlil",
+    "branch": "main",
+    "head": "a3485b7ef9ce1d41dd23e0275409a6e537eb2927",
+    "status": "M README.md\n M comparison/build-receipt.json\n D comparison/source-build/README.md\n D comparison/source-build/compiler-invocations.jsonl\n D comparison/source-build/esm.json\n D comparison/source-build/job.json\n D comparison/source-build/lilscript-package-lock.json\n D comparison/source-build/result.json\n M scripts/build-comparison.mjs\n M site/app.js\n M site/comparison.json\n M site/esm-comparison/original.js\n M site/index.html\n M site/official.js\n M site/results.json\n D site/source-build.json\n?? COMPARISON.md\n?? comparison/lanes/\n?? comparison/upstream-build.json\n?? site/current-delivery.js"
+  },
+  {
+    "id": "mdast-util-to-hastlil",
+    "workspace": "/home/azureuser/mdast-util-to-hastlil",
+    "branch": "main",
+    "head": "1904d9a14c8c87c8bf41b5dfd31e6429a53a13cf",
+    "status": "M README.md\n M comparison/build-receipt.json\n D comparison/source-build/README.md\n D comparison/source-build/compiler-invocations.jsonl\n D comparison/source-build/esm.json\n D comparison/source-build/job.json\n D comparison/source-build/lilscript-package-lock.json\n D comparison/source-build/result.json\n M dist/to-hast.cjs\n M dist/to-hast.closed.js\n M dist/to-hast.esm.js\n M dist/to-hast.umd.js\n M scripts/build-comparison.mjs\n M site/app.js\n M site/comparison.json\n M site/esm-comparison/lilscript.js\n M site/esm-comparison/original.js\n M site/index.html\n M site/official.js\n M site/results.json\n D site/source-build.json\n M test/site.test.mjs\n?? COMPARISON.md\n?? comparison/lanes/\n?? comparison/upstream-build.json\n?? site/current-delivery.js"
+  },
+  {
+    "id": "micromarklil",
+    "workspace": "/home/azureuser/micromarklil",
+    "branch": "main",
+    "head": "d2c2fd1e2a97da02b5a487cc894d9f4daf5ba164",
+    "status": "M README.md\n M comparison/build-receipt.json\n D comparison/source-build/README.md\n D comparison/source-build/compiler-invocations.jsonl\n D comparison/source-build/esm.json\n D comparison/source-build/job.json\n D comparison/source-build/lilscript-package-lock.json\n D comparison/source-build/result.json\n M scripts/build-comparison.mjs\n M site/app.js\n M site/comparison.json\n M site/esm-comparison/original.js\n M site/index.html\n M site/official.js\n M site/results.json\n D site/source-build.json\n?? COMPARISON.md\n?? comparison/lanes/\n?? comparison/upstream-build.json\n?? site/current-delivery.js\n?? var1/"
+  },
+  {
+    "id": "mobxlil",
+    "workspace": "/home/azureuser/mobxlil",
+    "branch": "main",
+    "head": "ccccb1db98d3f34a29d9ff626583ba355078261a",
+    "status": "M dist/mobx.cjs.development.js\n M dist/mobx.cjs.production.js\n M dist/mobx.cjs.production.min.js\n M dist/mobx.dev.esm.js\n M dist/mobx.esm.development.js\n M dist/mobx.esm.js\n M dist/mobx.esm.production.min.js\n M dist/mobx.mjs\n M dist/mobx.umd.development.js\n M dist/mobx.umd.production.js\n M dist/mobx.umd.production.min.js\n M src/dev-flag.lil"
+  },
+  {
+    "id": "monacolil",
+    "workspace": "/home/azureuser/monacolil",
+    "branch": "main",
+    "head": "e7d810ba65940d55aabd659f5d7bb08eb97cc52b",
+    "status": "M dist/monaco.cjs\n M dist/monaco.esm.js\n M dist/monaco.raw.js"
+  },
+  {
+    "id": "motionlil",
+    "workspace": "/home/azureuser/motionlil",
+    "branch": "main",
+    "head": "f6bc8907856f6a450a23ae8da4184527a89e88eb",
+    "status": ""
+  },
+  {
+    "id": "playcanvaslil",
+    "workspace": "/home/azureuser/playcanvaslil",
+    "branch": "main",
+    "head": "93b94c605684e0a6dd89da09fe217e6f1b5036c9",
+    "status": "M dist/shader-processing.closed.js\n M dist/shader-processing.js"
+  },
+  {
+    "id": "posthoglil",
+    "workspace": "/home/azureuser/posthoglil",
+    "branch": "main",
+    "head": "140790807a95c8f2be1c323bf296387b0e2a934b",
+    "status": ""
+  },
+  {
+    "id": "react-markdownlil",
+    "workspace": "/home/azureuser/react-markdownlil",
+    "branch": "main",
+    "head": "b1eb4afda1ec497b30f147fbe90602a98830878f",
+    "status": "?? var1/"
+  },
+  {
+    "id": "rehype-katexlil",
+    "workspace": "/home/azureuser/rehype-katexlil",
+    "branch": "main",
+    "head": "462b256a2766719aa132e2b84c4cd1837837a550",
+    "status": "M dist/rehype-katex.cjs\n M dist/rehype-katex.closed.js\n M dist/rehype-katex.esm.js\n M dist/rehype-katex.umd.js"
+  },
+  {
+    "id": "rehype-stringifylil",
+    "workspace": "/home/azureuser/rehype-stringifylil",
+    "branch": "main",
+    "head": "bf3b41f92103f23c05f0d76694fbf3776b81ad2f",
+    "status": "M README.md\n M dist/rehype-stringify.cjs\n M dist/rehype-stringify.closed.js\n M dist/rehype-stringify.esm.js\n M dist/rehype-stringify.umd.js\n M package.json\n M site/app.js\n M site/index.html\n M site/official.js\n M site/results.json\n?? COMPARISON.md\n?? comparison/\n?? site/comparison.json\n?? site/current-delivery.js\n?? site/esm-comparison/"
+  },
+  {
+    "id": "rehypelil",
+    "workspace": "/home/azureuser/rehypelil",
+    "branch": "main",
+    "head": "18092d446404134707385f6ba13d52b5b3a3a92a",
+    "status": "M README.md\n M dist/rehype.cjs\n M dist/rehype.closed.js\n M dist/rehype.esm.js\n M dist/rehype.umd.js\n M site/app.js\n M site/index.html\n M site/official.js\n M site/results.json\n?? COMPARISON.md\n?? comparison/\n?? site/comparison.json\n?? site/current-delivery.js\n?? site/esm-comparison/"
+  },
+  {
+    "id": "remark-breakslil",
+    "workspace": "/home/azureuser/remark-breakslil",
+    "branch": "main",
+    "head": "d7f4ff70bd1fc77a949e28d682ea67dc453d4ae4",
+    "status": "M README.md\n M dist/remark-breaks.cjs\n M dist/remark-breaks.closed.js\n M dist/remark-breaks.esm.js\n M dist/remark-breaks.umd.js\n M package.json\n M site/app.js\n M site/index.html\n M site/official.js\n M site/results.json\n?? COMPARISON.md\n?? comparison/\n?? site/comparison.json\n?? site/current-delivery.js\n?? site/esm-comparison/"
+  },
+  {
+    "id": "remark-gfmlil",
+    "workspace": "/home/azureuser/remark-gfmlil",
+    "branch": "main",
+    "head": "cb2550734ffc39296c9fb87d77665ec4ea06eba0",
+    "status": "M README.md\n M dist/remark-gfm.cjs\n M dist/remark-gfm.closed.js\n M dist/remark-gfm.esm.js\n M dist/remark-gfm.umd.js\n M package.json\n M site/app.js\n M site/index.html\n M site/official.js\n M site/results.json\n?? COMPARISON.md\n?? comparison/\n?? site/comparison.json\n?? site/current-delivery.js\n?? site/esm-comparison/"
+  },
+  {
+    "id": "remark-mathlil",
+    "workspace": "/home/azureuser/remark-mathlil",
+    "branch": "main",
+    "head": "93638861104d17d628ebd00debb272c52abb6b68",
+    "status": "M README.md\n M dist/remark-math.cjs\n M dist/remark-math.closed.js\n M dist/remark-math.esm.js\n M dist/remark-math.umd.js\n M package.json\n M site/app.js\n M site/index.html\n M site/official.js\n M site/results.json\n?? COMPARISON.md\n?? comparison/\n?? site/comparison.json\n?? site/current-delivery.js\n?? site/esm-comparison/"
+  },
+  {
+    "id": "remark-parselil",
+    "workspace": "/home/azureuser/remark-parselil",
+    "branch": "main",
+    "head": "fd629cecf4ca76501d1c6a21ce450570c1326063",
+    "status": "M README.md\n M comparison/build-receipt.json\n D comparison/source-build/README.md\n D comparison/source-build/compiler-invocations.jsonl\n D comparison/source-build/esm.json\n D comparison/source-build/job.json\n D comparison/source-build/lilscript-package-lock.json\n D comparison/source-build/result.json\n M scripts/build-comparison.mjs\n M site/app.js\n M site/comparison.json\n M site/esm-comparison/original.js\n M site/index.html\n M site/official.js\n M site/results.json\n D site/source-build.json\n?? COMPARISON.md\n?? comparison/lanes/\n?? comparison/upstream-build.json\n?? site/current-delivery.js"
+  },
+  {
+    "id": "remark-rehypelil",
+    "workspace": "/home/azureuser/remark-rehypelil",
+    "branch": "main",
+    "head": "b5ae9f79546d0bfccfc61a89e0c1aafe355ab18b",
+    "status": "M README.md\n M comparison/build-receipt.json\n D comparison/source-build/README.md\n D comparison/source-build/compiler-invocations.jsonl\n D comparison/source-build/esm.json\n D comparison/source-build/job.json\n D comparison/source-build/lilscript-package-lock.json\n D comparison/source-build/result.json\n M dist/remark-rehype.cjs\n M dist/remark-rehype.closed.js\n M dist/remark-rehype.esm.js\n M dist/remark-rehype.umd.js\n M scripts/build-comparison.mjs\n M site/app.js\n M site/comparison.json\n M site/esm-comparison/lilscript.js\n M site/esm-comparison/original.js\n M site/index.html\n M site/official.js\n M site/results.json\n D site/source-build.json\n M test/site.test.mjs\n?? COMPARISON.md\n?? comparison/lanes/\n?? comparison/upstream-build.json\n?? site/current-delivery.js"
+  },
+  {
+    "id": "remarklil",
+    "workspace": "/home/azureuser/remarklil",
+    "branch": "main",
+    "head": "eba54a85e201d3955dc2a833a1b3646f270c845d",
+    "status": "M dist/remark.cjs\n M dist/remark.closed.js\n M dist/remark.esm.js\n M dist/remark.test.js\n M dist/remark.umd.js\n?? scripts/_dump-baseline.mjs\n?? scripts/_dump2.mjs\n?? scripts/_min.mjs\n?? scripts/_mm.mjs\n?? scripts/_mm2.mjs\n?? scripts/_mm3.mjs\n?? scripts/_mmcheck.mjs\n?? scripts/_norm.mjs\n?? scripts/_rm3.mjs\n?? scripts/_terser-ours.mjs"
+  },
+  {
+    "id": "solidlil",
+    "workspace": "/home/azureuser/solidlil",
+    "branch": "main",
+    "head": "ad2a0442c418ea4feecba44074a92f0583970d14",
+    "status": "M dist/core.cjs\n M dist/core.js\n M dist/full.cjs\n M dist/full.js\n M dist/index.bundle.js\n M dist/index.cjs\n M dist/index.js\n M dist/lil-web.cjs\n M dist/lil-web.js\n M dist/solidlil.global.js\n M dist/web.cjs\n M dist/web.js"
+  },
+  {
+    "id": "unifiedlil",
+    "workspace": "/home/azureuser/unifiedlil",
+    "branch": "main",
+    "head": "7e15633a71a5eaec8ad9f9cf5ef2f5dc8128453b",
+    "status": "M README.md\n M comparison/build-receipt.json\n D comparison/source-build/README.md\n D comparison/source-build/compiler-invocations.jsonl\n D comparison/source-build/esm.json\n D comparison/source-build/job.json\n D comparison/source-build/lilscript-package-lock.json\n D comparison/source-build/result.json\n M dist/unified.cjs\n M dist/unified.closed.js\n M dist/unified.esm.js\n M dist/unified.umd.js\n M dist/vfile.cjs\n M dist/vfile.esm.js\n M scripts/build-comparison.mjs\n M site/app.js\n M site/comparison.json\n M site/esm-comparison/lilscript.js\n M site/esm-comparison/original.js\n M site/index.html\n M site/official.js\n M site/results.json\n D site/source-build.json\n?? COMPARISON.md\n?? comparison/lanes/\n?? comparison/upstream-build.json\n?? site/current-delivery.js"
+  },
+  {
+    "id": "vuelil",
+    "workspace": "/home/azureuser/lilscript/labs/vue-client",
+    "branch": "finer/059-idiom-directed-naming",
+    "head": "9a3cca297d78093ed8b3a84cae3dd6fb274c55ba",
+    "status": "M ../../docs/configuration.md\n M ../../src/bin/lilscript-lsp.rs\n M ../../src/build.rs\n M ../../src/check.rs\n M ../../src/check/modules.rs\n M ../../src/compilation_policy.rs\n M ../../src/config.rs\n M ../../src/lib.rs\n M ../../src/main.rs\n M ../../src/module.rs\n M ../../src/module_parse_once_tests.rs\n M ../../src/program/artifact_compression.rs\n M ../../src/program/search_terminal_tests.rs\n?? ../../docs/migration/d3-acceptance.md\n?? ../../src/build_graph.rs\n?? ../../src/check/module_reuse.rs\n?? ../../src/lsp_graph.rs\n?? ../../src/module_cache.rs"
+  },
+  {
+    "id": "zodlil",
+    "workspace": "/home/azureuser/zodlil",
+    "branch": "main",
+    "head": "4709ad60b36f2b8e7dc07105bcc999ab1d40d60f",
+    "status": ""
+  }
+]

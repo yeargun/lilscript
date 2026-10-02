@@ -360,7 +360,7 @@ mod persistent_tests {
     fn q2_disk_hits_replay_cold_work_and_refuse_cold_resource_limits() {
         let directory = std::env::temp_dir().join(format!("lilscript-q2-codec-replay-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&directory);
-        let on = CacheConfig { build_reuse: true, normalization_reuse: true, formation_reuse: true, codec_reuse: true, directory: Some(directory.clone()) };
+        let on = CacheConfig { directory: Some(directory.clone()), ..CacheConfig::default() };
         let off = CacheConfig { build_reuse: true, normalization_reuse: true, formation_reuse: true, codec_reuse: false, ..on.clone() };
         for model in [CompressionCostModel::Gzip, CompressionCostModel::Brotli] {
             let cold = measure(&on, model, 200_000_000, 100_000_000);
@@ -386,7 +386,7 @@ mod persistent_tests {
     fn q2_unavailable_disk_storage_falls_back_to_encoding() {
         let path = std::env::temp_dir().join(format!("lilscript-q2-codec-file-{}", std::process::id()));
         std::fs::write(&path, b"not a directory").unwrap();
-        let config = CacheConfig { build_reuse: true, normalization_reuse: true, formation_reuse: true, codec_reuse: true, directory: Some(path.clone()) };
+        let config = CacheConfig { directory: Some(path.clone()), ..CacheConfig::default() };
         let result = measure(&config, CompressionCostModel::Gzip, 200_000_000, 100_000_000);
         assert!(result.0.is_ok());
         assert_eq!(result.1.disk_write_errors, 1);

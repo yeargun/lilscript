@@ -1,4 +1,5 @@
-import extern {
+import {read_DEV as vue_read_DEV} from "../package/build-flags.lil";
+import {
   Comment as renderComment,
   ErrorCodes as renderErrorCodes,
   Fragment as renderFragment,
@@ -8,8 +9,8 @@ import extern {
   mergeProps as renderMergeProps,
   ssrUtils as renderSsrUtils,
   warn as renderWarn
-} from "../../packages/vuelil/runtime-dom.js";
-import extern {
+} from "../package/runtime-dom.lil";
+import {
   NOOP as renderNOOP,
   ShapeFlags as renderShapeFlags,
   escapeHtml as renderEscapeHtml,
@@ -20,33 +21,14 @@ import extern {
   isPromise as renderIsPromise,
   isString as renderIsString,
   isVoidTag as renderIsVoidTag
-} from "../../packages/vuelil/shared.js";
+} from "../package/shared.lil";
 import { ssrRenderAttrs } from "./helpers/ssrRenderAttrs";
 import { ssrCompile } from "./helpers/ssrCompile";
 import { ssrRenderTeleport } from "./helpers/ssrRenderTeleport";
 
-extern JsValue renderComment;
-extern JsValue renderErrorCodes;
-extern JsValue renderFragment;
-extern JsValue renderStatic;
-extern JsValue renderText;
-extern JsValue renderHandleError;
-extern JsValue renderMergeProps;
-extern JsValue renderSsrUtils;
-extern JsValue renderWarn;
-extern JsValue renderNOOP;
-extern JsValue renderShapeFlags;
-extern string renderEscapeHtml(JsValue value);
-extern string renderEscapeHtmlComment(string value);
-extern bool renderHasOwn(JsValue value, JsValue key);
-extern bool renderIsArray(JsValue value);
-extern bool renderIsFunction(JsValue value);
-extern bool renderIsPromise(JsValue value);
-extern bool renderIsString(JsValue value);
-extern bool renderIsVoidTag(string value);
 extern JsValue Object;
 extern JsValue Promise;
-extern JsValue __DEV__;
+
 
 JsValue createComponentInstance = renderSsrUtils["createComponentInstance"];
 JsValue setCurrentRenderingInstance = renderSsrUtils["setCurrentRenderingInstance"];
@@ -106,9 +88,9 @@ export JsValue renderComponentVNode(
     null
   );
   vnode["component"] = instance;
-  if (__DEV__.truthy()) JS.call(pushWarningContext, JS.undefined(), vnode);
+  if (vue_read_DEV().truthy()) JS.call(pushWarningContext, JS.undefined(), vnode);
   JsValue result = JS.call(setupComponent, JS.undefined(), instance, true);
-  if (__DEV__.truthy()) JS.call(popWarningContext, JS.undefined());
+  if (vue_read_DEV().truthy()) JS.call(popWarningContext, JS.undefined());
   bool hasAsyncSetup = renderIsPromise(result);
   JsValue prefetches = instance["sp"];
   if (hasAsyncSetup || prefetches.truthy()) {
@@ -140,7 +122,7 @@ export JsValue renderComponentVNode(
 }
 
 JsValue renderComponentSubTree(JsValue instance, JsValue slotScopeId) {
-  if (__DEV__.truthy()) {
+  if (vue_read_DEV().truthy()) {
     JS.call(pushWarningContext, JS.undefined(), instance["vnode"]);
   }
   JsValue component = instance["type"];
@@ -258,7 +240,7 @@ JsValue renderComponentSubTree(JsValue instance, JsValue slotScopeId) {
       renderPush(push, "<!---->");
     }
   }
-  if (__DEV__.truthy()) JS.call(popWarningContext, JS.undefined());
+  if (vue_read_DEV().truthy()) JS.call(popWarningContext, JS.undefined());
   return JS.call(getBuffer, JS.undefined());
 }
 

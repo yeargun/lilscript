@@ -1,17 +1,17 @@
-import extern {
+import {
   BaseTransition as dependencyBaseTransition,
   BaseTransitionPropsValidators as dependencyBaseTransitionPropsValidators,
   DeprecationTypes as dependencyDeprecationTypes,
   assertNumber as dependencyAssertNumber,
   compatUtils as dependencyCompatUtils,
   h as dependencyH
-} from "../../../packages/vuelil/runtime-core.js";
-import extern {
+} from "../../package/runtime-core.lil";
+import {
   extend as transitionExtend,
   isArray as transitionIsArray,
   isObject as transitionIsObject,
   toNumber as transitionToNumber
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import extern {
   hostBodyOffsetHeight,
   hostCall1,
@@ -34,16 +34,6 @@ import extern {
   hostWrite
 } from "../host.js";
 
-extern JsValue dependencyBaseTransition;
-extern JsValue dependencyBaseTransitionPropsValidators;
-extern JsValue dependencyDeprecationTypes;
-extern JsValue dependencyAssertNumber;
-extern JsValue dependencyCompatUtils;
-extern JsValue dependencyH;
-extern JsValue transitionExtend;
-extern bool transitionIsArray(JsValue value);
-extern bool transitionIsObject(JsValue value);
-extern JsValue transitionToNumber(JsValue value);
 extern float hostBodyOffsetHeight(JsValue node);
 extern JsValue hostCall1(JsValue fn, JsValue first);
 extern JsValue hostConstructors();
@@ -64,8 +54,8 @@ extern JsValue hostSetTimeout(JsValue callback, float timeout);
 extern string hostString(JsValue value);
 extern void hostWrite(JsValue value, JsValue key, JsValue next);
 
-bool TRANSITION_DEV = true;
-bool TRANSITION_COMPAT = false;
+define bool TRANSITION_DEV = true;
+define bool TRANSITION_COMPAT = false;
 string transitionType = "transition";
 string animationType = "animation";
 export JsValue vtcKey = hostCreateSymbol("_vtc");

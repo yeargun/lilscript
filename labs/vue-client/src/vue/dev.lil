@@ -1,12 +1,12 @@
-import extern {
+import {
   initCustomFormatter as runtimeInitCustomFormatter
-} from "../../packages/vuelil/runtime-dom.js";
+} from "../package/runtime-dom.lil";
 
 extern JsValue console;
-extern void runtimeInitCustomFormatter();
 
-bool VUE_DEV_BROWSER = true;
-bool VUE_DEV_ESM_BUNDLER = true;
+
+define bool VUE_DEV_BROWSER = true;
+define bool VUE_DEV_ESM_BUNDLER = true;
 
 export void initDev() {
   if (VUE_DEV_BROWSER) {

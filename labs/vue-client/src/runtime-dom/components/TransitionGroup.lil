@@ -8,7 +8,7 @@ import {
   vtcKey
 } from "./Transition";
 import { vShowHidden } from "../directives/vShow";
-import extern {
+import {
   DeprecationTypes as transitionGroupDeprecationTypes,
   Fragment as transitionGroupFragment,
   Text as transitionGroupText,
@@ -22,8 +22,8 @@ import extern {
   toRaw as transitionGroupToRaw,
   useTransitionState as transitionGroupUseTransitionState,
   warn as transitionGroupWarn
-} from "../../../packages/vuelil/runtime-core.js";
-import extern { extend as transitionGroupExtend } from "../../../packages/vuelil/shared.js";
+} from "../../package/runtime-core.lil";
+import { extend as transitionGroupExtend } from "../../package/shared.lil";
 import extern {
   hostArrayFrom,
   hostCloneNodeShallow,
@@ -39,20 +39,6 @@ import extern {
   hostWrite
 } from "../host.js";
 
-extern JsValue transitionGroupDeprecationTypes;
-extern JsValue transitionGroupFragment;
-extern JsValue transitionGroupText;
-extern JsValue transitionGroupCompatUtils;
-extern JsValue transitionGroupCreateVNode;
-extern JsValue transitionGroupGetCurrentInstance;
-extern JsValue transitionGroupGetTransitionRawChildren;
-extern JsValue transitionGroupOnUpdated;
-extern JsValue transitionGroupResolveTransitionHooks;
-extern JsValue transitionGroupSetTransitionHooks;
-extern JsValue transitionGroupToRaw;
-extern JsValue transitionGroupUseTransitionState;
-extern JsValue transitionGroupWarn;
-extern JsValue transitionGroupExtend;
 extern JsValue hostArrayFrom(JsValue value);
 extern JsValue hostCloneNodeShallow(JsValue node);
 extern JsValue hostConstructors();
@@ -66,8 +52,8 @@ extern JsValue hostRead(JsValue value, JsValue key);
 extern string hostString(JsValue value);
 extern void hostWrite(JsValue value, JsValue key, JsValue next);
 
-bool TRANSITION_GROUP_DEV = true;
-bool TRANSITION_GROUP_COMPAT = false;
+define bool TRANSITION_GROUP_DEV = true;
+define bool TRANSITION_GROUP_COMPAT = false;
 JsValue positionMap = hostCreateWeakMap();
 JsValue newPositionMap = hostCreateWeakMap();
 JsValue moveCbKey = hostCreateSymbol("_moveCb");

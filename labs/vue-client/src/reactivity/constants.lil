@@ -1,7 +1,7 @@
 // Build-time feature constants. Production builds copy the source graph and
 // select false values before compilation.
-export bool DEV = true;
-export bool TEST = true;
+export define bool DEV = true;
+export define bool TEST = true;
 
 export JsValue TrackOpTypes = JS.object(
   "GET", "get",

@@ -1,3 +1,4 @@
+import extern { hostCreateObject, hostRead, hostIteratorSymbol, hostIteratorFacade, hostReflectGet, hostPrototypeMethodApply, hostCollectionSize, hostDefineAccessor, hostCloneCollection, hostString } from "./host.js";
 import { hasChanged, hasOwn, isMap, toRawType } from "../shared/general";
 import { DEV } from "./constants";
 import { ITERATE_KEY, MAP_KEY_ITERATE_KEY, track, trigger } from "./dep";

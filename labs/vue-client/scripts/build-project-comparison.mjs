@@ -17,7 +17,7 @@ const outputRoot = resolve(projectRoot, "artifacts/generated/project-comparison"
 const reportPath = resolve(outputRoot, "build-report.json");
 const packageRoot = resolve(projectRoot, "packages/vuelil");
 const productionRoot = resolve(packageRoot, "production");
-const openWorldConfig = resolve(projectRoot, "config/open-world.toml");
+const openWorldConfig = resolve(projectRoot, "config/compiler-production.toml");
 const vueRuntime = resolve(productionRoot, "vue.runtime.js");
 const vueCompiler = resolve(productionRoot, "vue.js");
 const vueServerRenderer = resolve(productionRoot, "server-renderer.js");
@@ -114,21 +114,9 @@ function jsonPackage(path) {
 }
 
 function buildCandidateModules() {
-  const builds = [
-    "build-shared.mjs",
-    "build-reactivity.mjs",
-    "build-runtime-core.mjs",
-    "build-runtime-dom.mjs",
-    "build-compiler-core.mjs",
-    "build-compiler-dom.mjs",
-    "build-vue.mjs",
-    "build-compiler-ssr.mjs",
-    "build-server-renderer.mjs",
-  ];
+  const builds = ["build-vue.mjs"];
   for (const script of builds) {
-    const env = script === "build-reactivity.mjs"
-      ? { ...process.env, VUELIL_SKIP_REACTIVITY_REPORT: "1" }
-      : process.env;
+    const env = { ...process.env, VUELIL_PROFILES: "production" };
     const result = spawnSync(process.execPath, [resolve(projectRoot, "scripts", script)], {
       cwd: projectRoot,
       encoding: "utf8",

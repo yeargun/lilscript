@@ -1,0 +1,2 @@
+import {hostCreateNullObject, hostCreateObject, hostDefineProperty, hostAssign, hostKeys, hostHasProperty, hostArrayFrom, hostCreateMap, hostCreateSet, hostRequire, hostJsonParse, hostJsonStringify, hostApply, hostCreateError} from "vue-hosts/compiler-sfc";
+export {hostCreateNullObject, hostCreateObject, hostDefineProperty, hostAssign, hostKeys, hostHasProperty, hostArrayFrom, hostCreateMap, hostCreateSet, hostRequire, hostJsonParse, hostJsonStringify, hostApply, hostCreateError};

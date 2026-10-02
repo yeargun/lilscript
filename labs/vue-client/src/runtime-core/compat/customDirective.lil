@@ -1,7 +1,5 @@
-import extern { isArray as directiveIsArray } from "../../../packages/vuelil/shared.js";
+import { isArray as directiveIsArray } from "../../package/shared.lil";
 import { DeprecationTypes, softAssertCompatEnabled } from "./compatConfig";
-
-extern bool directiveIsArray(JsValue value);
 
 JsValue legacyDirectiveHookMap = JS.object(
   "beforeMount", "bind",

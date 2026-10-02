@@ -1,0 +1,6 @@
+import extern {metadata,methodMetadata} from "./metadata.mjs";
+extern void metadata(JsValue value,string name,int length);
+extern void methodMetadata(JsValue value,string key,string name,int length);
+import {compile} from "../compiler-ssr/index.lil";
+metadata(compile,"compile",1);
+export {compile};

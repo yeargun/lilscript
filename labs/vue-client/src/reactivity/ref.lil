@@ -1,3 +1,4 @@
+import extern { hostCreateObject, hostCreateArray, hostCreateProxy, hostRead, hostDefineAccessor, hostReflectSet, hostReflectGet, hostLength, hostString } from "./host.js";
 import {
   arguments,
   hasChanged,

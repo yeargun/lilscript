@@ -176,7 +176,7 @@ pub(super) fn render_with_literals_admitted(
         // The complete private frame belongs to exact scoring.
         printer.text("(()=>{");
     }
-    printer.foreign_imports(0..module.imports.len(), hosts, None);
+    printer.foreign_imports(0..module.imports.len(), hosts, None, None);
     if let Some(hosts) = hosts {
         printer.host_bindings(hosts, 0..module.imports.len());
     }
@@ -440,6 +440,7 @@ impl<'a> Printer<'a, '_, '_> {
         imports: impl Iterator<Item = usize>,
         hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
         file: Option<&str>,
+        config: Option<&crate::compilation_policy::ContainerContract>,
     ) {
         let module = self.module;
         let mut order: Vec<usize> = Vec::new();
@@ -487,6 +488,7 @@ impl<'a> Printer<'a, '_, '_> {
                     }
                 }
             }
+            group.retain(|&index| !module.imports[index].imported.is_empty());
             let default = group
                 .iter()
                 .position(|&index| module.imports[index].imported == "default");
@@ -528,10 +530,11 @@ impl<'a> Printer<'a, '_, '_> {
             } else {
                 self.text(" ");
             }
-            self.text("from");
+            if !group.is_empty() { self.text("from"); }
+            let mapped = source.as_unicode().map(|source| config.map_or(source, |config| config.external_specifier(source)));
             let Some(rebased) = self
                 .output
-                .admit(|budget| match file.zip(source.as_unicode()) {
+                .admit(|budget| match file.zip(mapped) {
                     Some((file, source)) => {
                         files::rebased_in(source, file, AllocationClass::Scratch, budget)
                     }
@@ -545,7 +548,7 @@ impl<'a> Printer<'a, '_, '_> {
                     self.unicode_string(&rebased);
                     self.output.drop_string(rebased, AllocationClass::Scratch);
                 }
-                None => self.string(source),
+                None => match mapped { Some(source) => self.unicode_string(source), None => self.string(source) },
             }
             self.text(";");
         }
@@ -618,11 +621,11 @@ impl<'a> Printer<'a, '_, '_> {
         }
         let pattern = |printer: &mut Self, group: &[usize]| {
             printer.text("{");
-            for (position, &index) in group.iter().enumerate() {
-                if position != 0 {
-                    printer.text(",");
-                }
+            let mut comma = false;
+            for &index in group {
                 let import = &printer.module.imports[index];
+                if import.imported.is_empty() { continue; }
+                if std::mem::replace(&mut comma, true) { printer.text(","); }
                 let local = printer.local(import.binding);
                 if identifier_name(&import.imported) {
                     printer.text(&import.imported);
@@ -1129,6 +1132,13 @@ impl<'a> Printer<'a, '_, '_> {
                 Literal::Undefined => self.text("void 0"),
             },
             Expr::Binding(symbol) => self.binding_read(*symbol),
+            Expr::Host(host) if host.kind == crate::catalog::HostKind::ModuleUrl => {
+                match self.container {
+                    None => self.text("import.meta.url"),
+                    Some(view) if view.commonjs => self.text("require('node:url').pathToFileURL(__filename).href"),
+                    Some(_) => { self.output.error.get_or_insert(PrintError::Container("JS.moduleUrl requires ESM or Node CommonJS delivery")); }
+                }
+            }
             Expr::Host(host) => self.text(&host.name),
             Expr::Regex(literal) => {
                 // `a/ /x/`: a division before the literal would otherwise

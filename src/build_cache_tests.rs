@@ -462,7 +462,7 @@ fn q2_build_cache_corrupt_colliding_concurrent_and_oversized_records_are_misses(
     malformed["winners"] = json!([null, null, 99999]);
     assert!(serde_json::from_value::<CachedCompilation>(malformed)
         .unwrap()
-        .restore([false, false, true], false)
+        .restore([false, false, true], false, &[])
         .is_none());
 }
 

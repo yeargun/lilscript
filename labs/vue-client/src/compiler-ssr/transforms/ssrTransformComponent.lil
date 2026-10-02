@@ -1,4 +1,4 @@
-import extern {
+import {
   CREATE_VNODE,
   DOMDirectiveTransforms,
   DOMNodeTransforms,
@@ -24,12 +24,12 @@ import extern {
   resolveComponentType,
   stringifyExpression,
   traverseNode
-} from "../../../packages/vuelil/compiler-dom.js";
-import extern {
+} from "../../package/compiler-dom.lil";
+import {
   extend as sharedExtend,
   isArray as sharedIsArray,
   isPlainObject as sharedIsPlainObject
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { SSR_RENDER_COMPONENT, SSR_RENDER_VNODE } from "../runtimeHelpers";
 import {
   processChildren,
@@ -51,37 +51,11 @@ import {
 } from "./ssrTransformTransitionGroup";
 
 extern JsValue Array;
-extern JsValue CREATE_VNODE;
-extern JsValue DOMDirectiveTransforms;
-extern JsValue DOMNodeTransforms;
-extern JsValue ElementTypes;
-extern JsValue Namespaces;
-extern JsValue NodeTypes;
+
 extern JsValue Object;
-extern JsValue RESOLVE_DYNAMIC_COMPONENT;
-extern JsValue SUSPENSE;
-extern JsValue TELEPORT;
-extern JsValue TRANSITION;
-extern JsValue TRANSITION_GROUP;
+
 extern JsValue WeakMap;
 extern JsValue Symbol;
-extern JsValue buildProps;
-extern JsValue buildSlots;
-extern JsValue createCallExpression;
-extern JsValue createFunctionExpression;
-extern JsValue createIfStatement;
-extern JsValue createReturnStatement;
-extern JsValue createRoot;
-extern JsValue createSimpleExpression;
-extern JsValue createTransformContext;
-extern JsValue getBaseTransformPreset;
-extern JsValue locStub;
-extern JsValue resolveComponentType;
-extern JsValue sharedExtend;
-extern JsValue sharedIsArray;
-extern JsValue sharedIsPlainObject;
-extern JsValue stringifyExpression;
-extern JsValue traverseNode;
 
 JsValue componentUndefined() {
   return JS.undefined();

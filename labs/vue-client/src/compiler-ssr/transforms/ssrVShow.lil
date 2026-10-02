@@ -1,18 +1,11 @@
-import extern {
+import {
   DOMErrorCodes,
   createConditionalExpression,
   createDOMCompilerError,
   createObjectExpression,
   createObjectProperty,
   createSimpleExpression
-} from "../../../packages/vuelil/compiler-dom.js";
-
-extern JsValue DOMErrorCodes;
-extern JsValue createConditionalExpression;
-extern JsValue createDOMCompilerError;
-extern JsValue createObjectExpression;
-extern JsValue createObjectProperty;
-extern JsValue createSimpleExpression;
+} from "../../package/compiler-dom.lil";
 
 JsValue ssrShowUndefined() {
   return JS.undefined();

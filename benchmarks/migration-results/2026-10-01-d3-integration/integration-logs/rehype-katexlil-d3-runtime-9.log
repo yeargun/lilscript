@@ -1,0 +1,232 @@
+TAP version 13
+# Subtest: KaTeX 0.16.22 structural parity
+    # Subtest: empty expression
+    ok 1 - empty expression
+      ---
+      duration_ms: 12.43485
+      ...
+    # Subtest: plain symbols
+    ok 2 - plain symbols
+      ---
+      duration_ms: 10.306091
+      ...
+    # Subtest: HTML line-ending preprocessing
+    ok 3 - HTML line-ending preprocessing
+      ---
+      duration_ms: 5.797072
+      ...
+    # Subtest: superscripts and subscripts
+    ok 4 - superscripts and subscripts
+      ---
+      duration_ms: 12.806536
+      ...
+    # Subtest: fractions
+    ok 5 - fractions
+      ---
+      duration_ms: 4.860056
+      ...
+    # Subtest: roots and generated SVG paths
+    ok 6 - roots and generated SVG paths
+      ---
+      duration_ms: 10.68428
+      ...
+    # Subtest: stretchy delimiters
+    ok 7 - stretchy delimiters
+      ---
+      duration_ms: 6.92193
+      ...
+    # Subtest: matrix environments
+    ok 8 - matrix environments
+      ---
+      duration_ms: 11.375856
+      ...
+    # Subtest: array rules and SVG lines
+    ok 9 - array rules and SVG lines
+      ---
+      duration_ms: 12.895573
+      ...
+    # Subtest: stretchy accents
+    ok 10 - stretchy accents
+      ---
+      duration_ms: 6.431651
+      ...
+    # Subtest: horizontal braces
+    ok 11 - horizontal braces
+      ---
+      duration_ms: 6.551225
+      ...
+    # Subtest: enclosures
+    ok 12 - enclosures
+      ---
+      duration_ms: 6.539162
+      ...
+    # Subtest: fonts and colors
+    ok 13 - fonts and colors
+      ---
+      duration_ms: 2.382184
+      ...
+    # Subtest: text and consecutive MathML text
+    ok 14 - text and consecutive MathML text
+      ---
+      duration_ms: 1.330453
+      ...
+    # Subtest: unicode fallback classes
+    ok 15 - unicode fallback classes
+      ---
+      duration_ms: 2.5936
+      ...
+    # Subtest: mathematical alphanumeric fonts
+    ok 16 - mathematical alphanumeric fonts
+      ---
+      duration_ms: 4.977727
+      ...
+    # Subtest: spacing nodes
+    ok 17 - spacing nodes
+      ---
+      duration_ms: 5.989032
+      ...
+    # Subtest: commutative diagrams
+    ok 18 - commutative diagrams
+      ---
+      duration_ms: 18.062535
+      ...
+    # Subtest: trusted anchors
+    ok 19 - trusted anchors
+      ---
+      duration_ms: 3.0266
+      ...
+    # Subtest: trusted image nodes
+    ok 20 - trusted image nodes
+      ---
+      duration_ms: 2.488382
+      ...
+    # Subtest: trusted HTML classes
+    ok 21 - trusted HTML classes
+      ---
+      duration_ms: 1.625626
+      ...
+    # Subtest: trusted HTML identifiers
+    ok 22 - trusted HTML identifiers
+      ---
+      duration_ms: 1.236136
+      ...
+    # Subtest: trusted HTML styles
+    ok 23 - trusted HTML styles
+      ---
+      duration_ms: 1.170133
+      ...
+    # Subtest: trusted data attributes
+    ok 24 - trusted data attributes
+      ---
+      duration_ms: 1.881606
+      ...
+    # Subtest: HTML-only output
+    ok 25 - HTML-only output
+      ---
+      duration_ms: 4.432706
+      ...
+    # Subtest: MathML-only output
+    ok 26 - MathML-only output
+      ---
+      duration_ms: 1.054565
+      ...
+    # Subtest: left equation numbers
+    ok 27 - left equation numbers
+      ---
+      duration_ms: 3.0956
+      ...
+    # Subtest: flush-left display
+    ok 28 - flush-left display
+      ---
+      duration_ms: 1.605118
+      ...
+    # Subtest: minimum rule thickness
+    ok 29 - minimum rule thickness
+      ---
+      duration_ms: 2.409094
+      ...
+    # Subtest: custom macros
+    ok 30 - custom macros
+      ---
+      duration_ms: 1.706337
+      ...
+    # Subtest: preserves a non-math tree and ignores scalar className
+    ok 31 - preserves a non-math tree and ignores scalar className
+      ---
+      duration_ms: 0.266068
+      ...
+    # Subtest: does not transform a matching root element without a parent
+    ok 32 - does not transform a matching root element without a parent
+      ---
+      duration_ms: 0.232495
+      ...
+    # Subtest: uses display mode when both math classes are present
+    ok 33 - uses display mode when both math classes are present
+      ---
+      duration_ms: 0.839282
+      ...
+    # Subtest: uses preformatted text and replaces the pre for language-math
+    ok 34 - uses preformatted text and replaces the pre for language-math
+      ---
+      duration_ms: 1.421934
+      ...
+    # Subtest: matches preformatted text extraction for nested HAST
+    ok 35 - matches preformatted text extraction for nested HAST
+      ---
+      duration_ms: 1.220747
+      ...
+    # Subtest: transforms each math sibling without revisiting replacements
+    ok 36 - transforms each math sibling without revisiting replacements
+      ---
+      duration_ms: 1.501563
+      ...
+    # Subtest: matches official ParseError recovery and diagnostics
+    ok 37 - matches official ParseError recovery and diagnostics
+      ---
+      duration_ms: 2.218787
+      ...
+    # Subtest: matches HTML null preprocessing in ParseError output
+    ok 38 - matches HTML null preprocessing in ParseError output
+      ---
+      duration_ms: 1.212682
+      ...
+    # Subtest: rejects invalid trusted HTML attribute names like KaTeX toMarkup
+    ok 39 - rejects invalid trusted HTML attribute names like KaTeX toMarkup
+      ---
+      duration_ms: 0.840716
+      ...
+    # Subtest: preserves upstream truthy errorColor coercion on non-parse errors
+    ok 40 - preserves upstream truthy errorColor coercion on non-parse errors
+      ---
+      duration_ms: 0.759903
+      ...
+    # Subtest: shares the runtime mhchem registry
+    ok 41 - shares the runtime mhchem registry
+      ---
+      duration_ms: 47.76007
+      ...
+    # Subtest: shares macros registered through __defineMacro
+    ok 42 - shares macros registered through __defineMacro
+      ---
+      duration_ms: 1.567217
+      ...
+    # Subtest: shares functions registered through __defineFunction
+    ok 43 - shares functions registered through __defineFunction
+      ---
+      duration_ms: 1.11007
+      ...
+    1..43
+ok 1 - KaTeX 0.16.22 structural parity
+  ---
+  duration_ms: 232.573252
+  type: 'suite'
+  ...
+1..1
+# tests 43
+# suites 1
+# pass 43
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 392.358562

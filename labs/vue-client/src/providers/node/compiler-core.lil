@@ -1,0 +1,27 @@
+import extern {createHost} from "../../compiler-core/host-factory.mjs";
+extern JsValue createHost;
+import extern { parse, parseExpression } from "@babel/parser";
+extern JsValue parse;
+extern JsValue parseExpression;
+import extern {
+  DecodingMode,
+  EntityDecoder,
+  decodeHTML,
+  decodeHTMLAttribute,
+  htmlDecodeTree
+} from "entities/decode";
+extern JsValue DecodingMode;
+extern JsValue EntityDecoder;
+extern JsValue decodeHTML;
+extern JsValue decodeHTMLAttribute;
+extern JsValue htmlDecodeTree;
+import extern { SourceMapGenerator } from "source-map-js";
+extern JsValue SourceMapGenerator;
+JsValue provider=JS.call(createHost,JS.undefined(),parse,parseExpression,DecodingMode,EntityDecoder,decodeHTML,decodeHTMLAttribute,htmlDecodeTree,SourceMapGenerator);
+export JsValue hostDecodeEntities=provider["hostDecodeEntities"];
+export JsValue hostDecodeEntity=provider["hostDecodeEntity"];
+export JsValue hostNewFunction=provider["hostNewFunction"];
+export JsValue hostParseExpression=provider["hostParseExpression"];
+export JsValue hostCreateSourceMap=provider["hostCreateSourceMap"];
+export JsValue hostAddSourceMapping=provider["hostAddSourceMapping"];
+export JsValue hostSourceMapJson=provider["hostSourceMapJson"];

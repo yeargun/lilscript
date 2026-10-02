@@ -1,15 +1,13 @@
-import extern {
+import {
   ElementTypes,
   NodeTypes,
   isCommentOrWhitespace as coreIsCommentOrWhitespace
-} from "../../../packages/vuelil/compiler-core.js";
+} from "../../package/compiler-core.lil";
 import { TRANSITION } from "../runtimeHelpers";
 import { DOMErrorCodes, createDOMCompilerError } from "../errors";
 
-extern JsValue ElementTypes;
-extern JsValue NodeTypes;
 extern JsValue Object;
-extern JsValue coreIsCommentOrWhitespace;
+
 
 JsValue transitionUndefined() {
   return JS.undefined();

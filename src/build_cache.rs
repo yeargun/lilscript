@@ -22,6 +22,7 @@ pub(super) struct Request {
     inputs: Value,
     maximum: usize,
     javascript: [bool; 3],
+    outputs: Vec<(String, [bool; 3])>,
     native: bool,
     started: Instant,
     lookup_ns: u64,
@@ -78,11 +79,20 @@ impl Request {
             [Objective::Raw, Objective::Gzip, Objective::Brotli]
                 .map(|codec| requested.iter().any(|found| found == codec))
         };
+        let mut outputs = Vec::new();
+        if !frontend.additional_outputs.is_empty() {
+            outputs.push(("primary".into(), javascript));
+            for output in &frontend.additional_outputs {
+                outputs.push((output.name.clone(), [Objective::Raw, Objective::Gzip, Objective::Brotli]
+                    .map(|codec| output.policies.iter().any(|policy| policy.objective().unwrap().codec==codec))));
+            }
+        }
+        let any = |index: usize| javascript[index] || outputs.iter().any(|(_, requested)| requested[index]);
         // A hit must not suppress the encoder's runtime identity refusal.
-        if (javascript[1]
+        if (any(1)
             && crate::compression::canonical_zlib_version().ok()
                 != Some(crate::compression::CANONICAL_ZLIB_LIBRARY_VERSION))
-            || (javascript[2]
+            || (any(2)
                 && crate::compression::canonical_brotli_version()
                     != crate::compression::CANONICAL_BROTLI_LIBRARY_VERSION)
         {
@@ -120,6 +130,7 @@ impl Request {
             inputs: Value::Null,
             maximum,
             javascript,
+            outputs,
             native: options.target != ServiceTarget::JavaScript,
             started,
             lookup_ns: 0,
@@ -212,7 +223,7 @@ impl Request {
         let serialized_bytes = payload.len();
         drop(payload);
         self.miss_reason = "invalid-handoff";
-        let mut output = cached.restore(self.javascript, self.native)?;
+        let mut output = cached.restore(self.javascript, self.native, &self.outputs)?;
         self.miss_reason = "input-mismatch";
         if output.report["inputs"] != self.inputs {
             return None;
@@ -391,6 +402,7 @@ impl Write for LimitedBytes {
 struct CachedCompilation {
     javascript: Vec<CachedJavaScript>,
     winners: [Option<usize>; 3],
+    outputs: Vec<ServiceOutput>,
     native_c: Option<String>,
     native_header: Option<String>,
     report: Value,
@@ -406,13 +418,22 @@ struct CachedJavaScript {
     details: Value,
 }
 impl CachedCompilation {
-    fn restore(self, requested: [bool; 3], native: bool) -> Option<ServiceCompilation> {
+    fn restore(self, requested: [bool; 3], native: bool, outputs: &[(String, [bool; 3])]) -> Option<ServiceCompilation> {
         if !self.report.is_object()
-            || self.javascript.len() > 3
+            || self.javascript.len() > 3 * outputs.len().max(1)
             || self.native_c.is_some() != native
         {
             return None;
         }
+        if self.outputs.len() != outputs.len() { return None; }
+        for (actual, (name, wanted)) in self.outputs.iter().zip(outputs) {
+            if actual.name() != name { return None; }
+            for (index, wanted) in wanted.iter().enumerate() {
+                if *wanted != actual.winners[index].is_some() { return None; }
+                if let Some(index) = actual.winners[index] { self.javascript.get(index)?; }
+            }
+        }
+        if self.outputs.first().is_some_and(|primary| primary.winners != self.winners) { return None; }
         if self.report["native_sha256"]
             != json!(self.native_c.as_ref().map(|text| digest(text.as_bytes())))
             || self.report["native_header_sha256"]
@@ -450,6 +471,7 @@ impl CachedCompilation {
         Some(ServiceCompilation {
             javascript,
             winners: self.winners,
+            outputs: self.outputs,
             native_c: self.native_c,
             native_header: self.native_header,
             report: self.report,

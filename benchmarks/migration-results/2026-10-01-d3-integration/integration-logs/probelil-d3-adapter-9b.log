@@ -1,0 +1,3 @@
+warning: LILSCRIPT_SEMANTIC_WORK is deprecated; use --logical-work for the service ceiling or [policy.resources] logical_work to restrict it
+warning: LILSCRIPT_SEMANTIC_WORK is deprecated; use --logical-work for the service ceiling or [policy.resources] logical_work to restrict it
+probelil: both lanes match expected.out (42 lines, 4287 B optimized)

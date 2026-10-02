@@ -1,19 +1,13 @@
-import extern {
+import {
   NodeTypes,
   createCallExpression,
   createFunctionExpression,
   createSimpleExpression,
   findProp
-} from "../../../packages/vuelil/compiler-dom.js";
+} from "../../package/compiler-dom.lil";
 import { SSRErrorCodes, createSSRCompilerError } from "../errors";
 import { SSR_RENDER_TELEPORT } from "../runtimeHelpers";
 import { processChildrenAsStatement } from "../ssrCodegenTransform";
-
-extern JsValue NodeTypes;
-extern JsValue createCallExpression;
-extern JsValue createFunctionExpression;
-extern JsValue createSimpleExpression;
-extern JsValue findProp;
 
 JsValue teleportUndefined() {
   return JS.undefined();

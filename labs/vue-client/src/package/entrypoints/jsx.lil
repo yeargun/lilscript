@@ -1,0 +1,7 @@
+import extern {Fragment,h} from "@vuelil/implementation";
+export extern JsValue Fragment;
+extern JsValue h;
+import extern {createJsx} from "../jsx-factory.mjs";
+extern JsValue createJsx;
+JsValue jsx = JS.call(createJsx,JS.undefined(),h);
+export {jsx,jsx as jsxDEV,jsx as jsxs};

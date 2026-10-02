@@ -1,3 +1,4 @@
+import { hostParseExpression } from "../host.lil";
 import {
   createCompoundExpression,
   createSimpleExpression
@@ -23,8 +24,6 @@ import {
   COMPILER_DEV,
   validateBrowserExpression
 } from "../validateExpression";
-
-extern JsValue hostParseExpression(string source, JsValue plugins, int mode);
 
 JsValue expressionUndefined() {
   return JS.undefined();
@@ -186,6 +185,7 @@ export JsValue processExpression(
   bool asRawStatements = false,
   JsValue localVars = JS.undefined()
 ) {
+  if (COMPILER_BROWSER) return node;
   if (COMPILER_BROWSER) {
     if (COMPILER_DEV) validateBrowserExpression(node, context, asParams, asRawStatements);
     return node;

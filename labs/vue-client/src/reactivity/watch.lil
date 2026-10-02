@@ -1,3 +1,4 @@
+import extern { hostCreateObject, hostCreateArray, hostCreateMap, hostCreateWeakMap, hostFunction2Rest, hostRead, hostLength, hostEnumerableSymbols, hostInfinity } from "./host.js";
 import {
   hasChanged,
   isFunction,

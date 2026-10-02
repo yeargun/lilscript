@@ -1,0 +1,109 @@
+{
+  "reason": "D3 moves maintained sources and harnesses to their owning port repositories; these patch bytes are historical evidence only.",
+  "files": [
+    {
+      "path": "rehypelil.patch",
+      "sha256": "04cc98de49e56bb37bcffb016610f78238f02047978430b187ce2dedbeb966df"
+    },
+    {
+      "path": "remark-parselil.patch",
+      "sha256": "ebc0158c73ae54524e1889af35ad2bed0343d9c4dc11c89b87c5118245607551"
+    },
+    {
+      "path": "mobxlil.patch",
+      "sha256": "613c51eb8358886deab94fb5fde92aa041bfb979c11ad3b5371af8a7b28a1476"
+    },
+    {
+      "path": "cnlil.patch",
+      "sha256": "b0181ef75a50dbc614a1066137b8af329d6f362ec8c3bfaa000c0391762cf9fd"
+    },
+    {
+      "path": "markedlil.patch",
+      "sha256": "c9c395f5983fbdd29e44085c377777a46ff27ffdb87109c6acdbe0587957054f"
+    },
+    {
+      "path": "posthoglil.patch",
+      "sha256": "9c56dfb97e0a497044fd89da08094c44b08477b461fecb91efaf8bcc2c7ca49b"
+    },
+    {
+      "path": "unifiedlil.patch",
+      "sha256": "728c1ac1034a007526ad13f13f32abfe1157ce6a285d25f5d5caf301f7a1b452"
+    },
+    {
+      "path": "jquerylil.patch",
+      "sha256": "687327d9dfe3a728e96a1682740d38fd3e6f70e284a7bf23d812ab7a4d1df9c0"
+    },
+    {
+      "path": "remarklil.patch",
+      "sha256": "2d64cd5d07acf292fa61a230be8eaecb0f9d4262b45480bd66e7c029f82f07ce"
+    },
+    {
+      "path": "mdast-util-from-markdownlil.patch",
+      "sha256": "9169696d77a068cca3a062bc1966c53494f16a0e75fe643237820020ffef4de8"
+    },
+    {
+      "path": "katexlil.patch",
+      "sha256": "608cdd9e71bb8b7fd8a26a0d3e2a0a22393871eb3d0668058ac07cf4f9d6a020"
+    },
+    {
+      "path": "react-markdownlil.patch",
+      "sha256": "5816686db2ff46a034b11bf6c26247371c3d7717bb510099aefdac13f5dd0e69"
+    },
+    {
+      "path": "katexlil-unwrap-callbacks.py",
+      "sha256": "686b36919afc7211ccfa5314fc7bd8e46424e0630c96cd9717015a9ca9d04ff7"
+    },
+    {
+      "path": "micromarklil.patch",
+      "sha256": "eafc9e5cdc98442c5a9ccaf144fb10b3aab27aaf49a02b0465be982bc3b1a968"
+    },
+    {
+      "path": "motionlil.patch",
+      "sha256": "1a6016353ba4b0ba6a902c329a5bcb9e4809ff3ae5661b3e498c8e12f93bdbb3"
+    },
+    {
+      "path": "katexlil-direct-imports.py",
+      "sha256": "a79656b8f01b7825441662137e2a78b24261cc9a27f3506de5e1767ea614995d"
+    },
+    {
+      "path": "probelil.patch",
+      "sha256": "631ba17f9656228b327073425ba30829720d7c2f991da94a409ad552ad42efec"
+    },
+    {
+      "path": "playcanvaslil.patch",
+      "sha256": "e33fad29891d0782800dc7f6950e2409fc4d94e5b61a43c7fdd97116ef63944d"
+    },
+    {
+      "path": "jquerylil-harness/README.md",
+      "sha256": "2b8520e322feae25a62add5eca018844fd04aba4b7ef42351bc95ca88c7405a8"
+    },
+    {
+      "path": "jquerylil-harness/css/diff.mjs",
+      "sha256": "c53c05c144aa66fa80cf5df9a0145d37b3e9acbdea5dec99dc5eea9b12454a92"
+    },
+    {
+      "path": "jquerylil-harness/core/harness.mjs",
+      "sha256": "fc289f4a0323dea9f7e10edcd894d7690c163b802207e56c8c7beee8b90fd822"
+    },
+    {
+      "path": "jquerylil-harness/effects/diff.mjs",
+      "sha256": "8681aa0fbd469e6f23e3d824be048bcedec4b1649e47905f27a3824600de9a62"
+    },
+    {
+      "path": "jquerylil-harness/dom/diff.mjs",
+      "sha256": "a780f1b69410bd384f213ab6f52360df45610810e028e97b7866038abc87eb59"
+    },
+    {
+      "path": "jquerylil-harness/event/diff.mjs",
+      "sha256": "e1c93aaf7ad3f54a5ff5afb3d7bbf58e510a45979acde44416e0c04b8bb0e5d7"
+    },
+    {
+      "path": "jquerylil-harness/event/scenarios.mjs",
+      "sha256": "a27f1892eaa4728380a61b617c7c36846891948ed8ecb5646af37e65cf2671a4"
+    },
+    {
+      "path": "jquerylil-harness/ajax/harness.mjs",
+      "sha256": "bf24dc50663a52c8441b43a5cac0b7bdb1867b76bd317c2c12234dfec861c965"
+    }
+  ]
+}

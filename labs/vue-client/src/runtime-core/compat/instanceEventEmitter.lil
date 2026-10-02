@@ -1,4 +1,4 @@
-import extern { isArray as emitterIsArray } from "../../../packages/vuelil/shared.js";
+import { isArray as emitterIsArray } from "../../package/shared.lil";
 import {
   Object as emitterObject,
   globalThis as emitterGlobal
@@ -8,8 +8,6 @@ import {
   callWithAsyncErrorHandling as coreCallWithAsyncErrorHandling
 } from "../errorHandling";
 import { DeprecationTypes, assertCompatEnabled } from "./compatConfig";
-
-extern bool emitterIsArray(JsValue value);
 
 JsValue eventRegistryMap = JS.construct(emitterGlobal["WeakMap"]);
 

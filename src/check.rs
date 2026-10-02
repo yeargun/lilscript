@@ -36,8 +36,7 @@ pub(crate) mod type_payload;
 pub(crate) mod type_relation;
 pub(crate) mod type_substitution;
 pub(crate) use modules::{with_analyzed_modules, with_analyzed_modules_with_contract};
-#[cfg(test)]
-pub(crate) use modules::AdmittedModuleCheckError;
+pub(crate) use modules::{analyze_modules_cached, AdmittedModuleCheckError, ElaborationCache};
 pub use modules::{
     analyze_modules, CheckedModules, InterfaceTarget, ModuleCheckError, ModuleExport, ModuleImport,
     ModuleInterface,
@@ -96,6 +95,8 @@ pub enum BuiltinCall {
     JsObject,
     JsArray,
     JsUndefined,
+    /// URL of the delivered ESM or Node CommonJS file executing this code.
+    JsModuleUrl,
     JsTypeOf,
     JsIsNullish,
     JsIsFalse,
@@ -1052,7 +1053,7 @@ enum DeclarationOrigin {
 }
 
 impl Symbol<'_> {
-    pub(crate) fn is_foreign(&self) -> bool {
+    pub fn is_foreign(&self) -> bool {
         self.origin == DeclarationOrigin::Foreign
     }
 }
@@ -2387,13 +2388,13 @@ enum BinaryContinuation<'ast, 'src> {
 
 /// A module-scoped binding: where it is declared, and the module that owns
 /// it, whose top level may not read it before that declaration.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ModuleBindingState {
     declaration: Span,
     owner: crate::module::ModuleId,
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 struct ModuleInitialization {
     bindings: AHashMap<SymbolId, ModuleBindingState>,
     initialized: AHashSet<SymbolId>,
@@ -2631,7 +2632,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         struct_cycles::validate(&self.declarations.structs).map_err(|(_, error)| error)?;
         self.define_classes(program)?;
         self.define_extern_classes(program)?;
-        self.resolve_class_hierarchies()?;
+        self.resolve_class_hierarchies().map_err(|(_, error)| error)?;
         self.declarations
             .mark_observed_classes()
             .map_err(|(_, error)| AdmittedCheckError::Semantic(error))?;
@@ -3242,7 +3243,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(())
     }
 
-    fn resolve_class_hierarchies(&mut self) -> Result<(), AdmittedCheckError> {
+    fn resolve_class_hierarchies(&mut self) -> Result<(), (Option<crate::module::ModuleId>, AdmittedCheckError)> {
         let mut visiting = AHashSet::default();
         let mut complete = AHashSet::default();
         for index in 0..self.declarations.classes.len() {
@@ -3257,16 +3258,18 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         class: NominalId,
         visiting: &mut AHashSet<NominalId>,
         complete: &mut AHashSet<NominalId>,
-    ) -> Result<(), AdmittedCheckError> {
+    ) -> Result<(), (Option<crate::module::ModuleId>, AdmittedCheckError)> {
         if complete.contains(&class) {
             return Ok(());
         }
         let info = &self.declarations.classes[class.index()];
+        let module = info.module;
+        let error = |span, message: String| (module, AdmittedCheckError::new(span, message));
         let name = info.name;
         let span = info.span;
         let external = info.external;
         if !visiting.insert(class) {
-            return Err(AdmittedCheckError::new(
+            return Err(error(
                 span,
                 format!("inheritance cycle involving class `{name}`"),
             ));
@@ -3286,9 +3289,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         // `JsValue` prototype ceremony. The reverse is still meaningless: a
         // host interface cannot inherit an implementation the host never sees.
         if external && !base.external {
-            return Err(AdmittedCheckError::new(
+            return Err(error(
                 span,
-                "an extern class cannot extend an internal class",
+                "an extern class cannot extend an internal class".into(),
             ));
         }
         self.resolve_class_hierarchy(base_class, visiting, complete)?;
@@ -3339,7 +3342,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         // Keep those maps intact through diagnostics, then move their payloads.
         for (offset, field) in info.fields.values().enumerate() {
             if fields.contains_key(field.name) || methods.contains_key(field.name) {
-                return Err(AdmittedCheckError::new(
+                return Err(error(
                     field.span,
                     format!(
                         "class `{name}` cannot shadow inherited member `{}`",
@@ -3355,24 +3358,24 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             use crate::ast::MethodDispatch;
             if let Some(inherited) = methods.get(method_name) {
                 if inherited.dispatch == MethodDispatch::Static || method.dispatch != MethodDispatch::Override {
-                    return Err(AdmittedCheckError::new(span,
+                    return Err(error(span,
                         format!("class `{name}` cannot override inherited member `{method_name}` without an explicit override of a virtual method")));
                 }
                 if !variants::override_signature(method, inherited)
                     || inherited.declared_pure && !method.declared_pure {
-                    return Err(AdmittedCheckError::new(span, "a virtual override must preserve its parameter, result, ref/default/rest and purity contract"));
+                    return Err(error(span, "a virtual override must preserve its parameter, result, ref/default/rest and purity contract".into()));
                 }
                 self.declarations.nominal_members[method.member.index()].slot =
                     self.declarations.nominal_members[inherited.member.index()].slot;
                 continue;
             }
             if method.dispatch == MethodDispatch::Override {
-                return Err(AdmittedCheckError::new(span, "an override needs an inherited virtual method"));
+                return Err(error(span, "an override needs an inherited virtual method".into()));
             }
             if fields.contains_key(method_name)
                 || info.fields.contains_key(method_name)
             {
-                return Err(AdmittedCheckError::new(
+                return Err(error(
                     span,
                     format!("class `{name}` cannot override inherited member `{method_name}`"),
                 ));
@@ -7968,6 +7971,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     let result = if self.declarations.source_contract.unified_absence()
                         && expected.is_some_and(absence::optional) { Type::Null } else { js.clone() };
                     (BuiltinCall::JsUndefined, result, Vec::new())
+                }
+                "moduleUrl" => {
+                    require_arity(0..=0)?;
+                    (BuiltinCall::JsModuleUrl, Type::String, Vec::new())
                 }
                 "typeOf" => {
                     require_arity(1..=1)?;

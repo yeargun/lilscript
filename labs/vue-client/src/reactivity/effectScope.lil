@@ -1,3 +1,4 @@
+import extern { hostCreateEffectScopeClass, hostRead, hostLength } from "./host.js";
 import { DEV } from "./constants";
 import { warn } from "./warning";
 

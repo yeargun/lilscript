@@ -421,6 +421,22 @@ impl Formation<'_, '_, '_, '_, '_> {
         }
         Ok(match builtin {
             B::JsUndefined if count == 0 => js::Expr::Literal(js::Literal::Undefined),
+            B::JsModuleUrl if count == 0 => {
+                if self.contract.execution == crate::compilation_contract::JavaScriptExecution::Script {
+                    return Err(self.error(span, "JS.moduleUrl requires ESM or Node CommonJS delivery"));
+                }
+                if self.contract.ecmascript.year() < 2020 {
+                    return Err(self.error(span, "JS.moduleUrl requires the ES2020 syntax contract or newer"));
+                }
+                // CommonJS's URL conversion reads these Node bindings. Reserve
+                // them before naming, even when this formation is later printed
+                // for several formats. The node kind owns the spelling.
+                for name in ["require", "__filename"] {
+                    let name = self.text(name)?;
+                    self.budget.push(AllocationClass::Retained, &mut self.module.reserved, name)?;
+                }
+                js::Expr::Host(js::Host { name: self.text("moduleUrl")?, kind: crate::catalog::HostKind::ModuleUrl })
+            }
             B::JsArray => js::Expr::Array(arguments),
             B::JsObject => {
                 if count % 2 != 0 {

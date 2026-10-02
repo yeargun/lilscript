@@ -1,3 +1,4 @@
+import {read_DEV as vue_read_DEV} from "../package/build-flags.lil";
 import { isReactive } from "../reactivity/reactive";
 import { TEST } from "../reactivity/constants";
 import { isKnownHtmlAttr, isKnownSvgAttr, includeBooleanAttr, isBooleanAttr, isRenderableAttrValue } from "../shared/domAttrConfig";
@@ -35,14 +36,14 @@ extern JsValue String;
 extern JsValue SVGElement;
 extern JsValue Symbol;
 extern JsValue console;
-extern JsValue __DEV__;
 
-bool PROD_DEVTOOLS = false;
-bool PROD_HYDRATION_MISMATCH_DETAILS = false;
-bool HYDRATION_FEATURE_SUSPENSE = true;
+
+define bool PROD_DEVTOOLS = false;
+define bool PROD_HYDRATION_MISMATCH_DETAILS = false;
+define bool HYDRATION_FEATURE_SUSPENSE = true;
 
 bool hydrationDev() {
-  return __DEV__.truthy();
+  return vue_read_DEV().truthy();
 }
 
 export JsValue DOMNodeTypes = JS.object(

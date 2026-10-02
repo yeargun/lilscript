@@ -1,7 +1,7 @@
-import extern {
+import {
   ShapeFlags as modelShapeFlags,
   extend as modelExtend
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { globalThis as modelGlobal } from "../../shared/makeMap";
 import { createAppContext as modelCreateAppContext } from "../apiCreateApp";
 import {
@@ -13,9 +13,6 @@ import {
   pushWarningContext as modelPushWarningContext
 } from "../warning";
 import { DeprecationTypes, isCompatEnabled, warnDeprecation } from "./compatConfig";
-
-extern JsValue modelExtend;
-extern JsValue modelShapeFlags;
 
 export string compatModelEventPrefix = "onModelCompat:";
 JsValue warnedTypes = JS.construct(modelGlobal["WeakSet"]);

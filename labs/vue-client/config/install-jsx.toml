@@ -1,0 +1,23 @@
+# Compiler-written JSX entry over the shared runtime graph.
+[policy]
+version=3
+[objective]
+codecs="brotli"
+[effort]
+level=13
+[delivery]
+mode="single"
+directory="."
+host_modules="embed"
+entry_names="packages/vuelil/jsx-runtime/index.mjs"
+[delivery.entries]
+jsx="../src/package/entrypoints/jsx.lil"
+[delivery.external_specifiers]
+"@vuelil/implementation"="./packages/vuelil/vue.runtime.js"
+[[delivery.also]]
+name="cjs"
+format="cjs"
+directory="."
+entry_names="packages/vuelil/jsx-runtime/index.js"
+[delivery.also.external_specifiers]
+"@vuelil/implementation"="./packages/vuelil/compiler-cjs/development/vue.runtime.cjs"

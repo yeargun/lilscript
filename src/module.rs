@@ -23,6 +23,10 @@ use crate::span::Span;
 mod source_arena;
 pub(crate) use source_arena::StableSourceArena;
 
+#[path = "module_cache.rs"]
+mod cache;
+pub(crate) use cache::ParsedModuleCache;
+
 pub type ModuleId = usize;
 
 /// Dependency-first evaluation order over the caller's canonical static graph.
@@ -195,6 +199,14 @@ pub struct EntrySource {
     pub path: PathBuf,
 }
 
+/// An editor or build overlay, addressed by the same canonical path as disk
+/// discovery. Overrides apply to dependencies as well as entry modules.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceOverride<'a> {
+    pub path: &'a Path,
+    pub source: &'a str,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleError {
     pub path: PathBuf,
@@ -347,15 +359,26 @@ pub(crate) fn discover_parsed_modules_admitted<'ast, 'src>(
     sources: &'src StableSourceArena,
     syntax: &'ast AdmittedArena<'_>,
 ) -> Result<(ModuleSet<&'src str>, ParsedSources<'ast, 'src>), ModuleDiscoveryError> {
-    discover_configured_with_storage(
+    discover_parsed_modules_with_overrides(entries, root_source, &[], config, sources, syntax)
+}
+
+pub(crate) fn discover_parsed_modules_with_overrides<'ast, 'src>(
+    entries: &[EntrySource],
+    root_source: Option<&str>,
+    overrides: &[SourceOverride<'_>],
+    config: &ProjectConfig,
+    sources: &'src StableSourceArena,
+    syntax: &'ast AdmittedArena<'_>,
+) -> Result<(ModuleSet<&'src str>, ParsedSources<'ast, 'src>), ModuleDiscoveryError> {
+    let resolver = load_package_resolver(config).map_err(|error| {
+        ModuleError::new(error.path, "", Span::empty(0), error.message)
+    })?;
+    discover_with_storage(
         entries,
         root_source,
-        config,
-        RetainedSources {
-            sources,
-            syntax,
-            parsed: syntax.parsed_sources(),
-        },
+        overrides,
+        resolver,
+        RetainedSources { sources, syntax, parsed: syntax.parsed_sources() },
     )
 }
 
@@ -374,7 +397,7 @@ fn discover_configured_with_storage<S: DiscoveryStorage>(
             error.message,
         )
     })?;
-    discover_with_storage(entries, root_source, resolver, storage)
+    discover_with_storage(entries, root_source, &[], resolver, storage)
 }
 
 fn discover_modules_inner(
@@ -386,6 +409,7 @@ fn discover_modules_inner(
     discover_with_storage(
         &[EntrySource::of(root)],
         root_source,
+        &[],
         package_resolver,
         OwnedSources { budget },
     )
@@ -395,6 +419,7 @@ fn discover_modules_inner(
 fn discover_with_storage<S: DiscoveryStorage>(
     entries: &[EntrySource],
     root_source: Option<&str>,
+    overlays: &[SourceOverride<'_>],
     package_resolver: Option<PackageResolver>,
     mut storage: S,
 ) -> Result<(ModuleSet<S::Source>, S::Parsed), ModuleDiscoveryError> {
@@ -424,8 +449,17 @@ fn discover_with_storage<S: DiscoveryStorage>(
         })?);
     }
     let mut overrides = AHashMap::default();
+    for overlay in overlays {
+        let path = canonical_module_path(overlay.path).map_err(|message| {
+            ModuleError::new(overlay.path, overlay.source, Span::empty(0), message)
+        })?;
+        if overrides.insert(path, overlay.source).is_some() {
+            return Err(ModuleError::new(overlay.path, overlay.source, Span::empty(0),
+                "two source overrides name one module").into());
+        }
+    }
     if let Some(source) = root_source {
-        overrides.insert(paths[0].clone(), storage.copy_override(source)?);
+        overrides.insert(paths[0].clone(), source);
     }
     let mut loader = ModuleLoader {
         modules: Vec::new(),
@@ -665,7 +699,7 @@ trait DiscoveryStorage {
     type Parsed;
     fn work(&mut self, units: u64) -> Result<(), AllocationError>;
     fn read(&mut self, path: &Path) -> Result<Self::Source, ModuleDiscoveryError>;
-    fn copy_override(&mut self, source: &str) -> Result<Self::Source, AllocationError>;
+    fn copy_override(&mut self, _path: &Path, source: &str) -> Result<Self::Source, AllocationError>;
     fn imports(
         &mut self,
         path: &Path,
@@ -687,7 +721,7 @@ impl DiscoveryStorage for OwnedSources<'_, '_> {
     fn read(&mut self, path: &Path) -> Result<String, ModuleDiscoveryError> {
         read_module_source(path, self.budget)
     }
-    fn copy_override(&mut self, source: &str) -> Result<String, AllocationError> {
+    fn copy_override(&mut self, _path: &Path, source: &str) -> Result<String, AllocationError> {
         self.budget.string(Retained, source)
     }
     fn imports(
@@ -730,7 +764,7 @@ impl<'ast, 'src> DiscoveryStorage for RetainedSources<'ast, 'src, '_> {
             stored.map_err(Into::into)
         })
     }
-    fn copy_override(&mut self, source: &str) -> Result<&'src str, AllocationError> {
+    fn copy_override(&mut self, _path: &Path, source: &str) -> Result<&'src str, AllocationError> {
         self.syntax
             .with_ledger(|ledger, _| self.sources.store(source, ledger))
     }
@@ -755,17 +789,17 @@ impl<'ast, 'src> DiscoveryStorage for RetainedSources<'ast, 'src, '_> {
     }
 }
 
-struct ModuleLoader<S: DiscoveryStorage> {
+struct ModuleLoader<'overrides, S: DiscoveryStorage> {
     modules: Vec<ModuleSource<S::Source>>,
     by_path: AHashMap<PathBuf, ModuleId>,
     states: Vec<VisitState>,
     dependency_order: Vec<ModuleId>,
-    overrides: AHashMap<PathBuf, S::Source>,
+    overrides: AHashMap<PathBuf, &'overrides str>,
     package_resolver: Option<PackageResolver>,
     storage: S,
 }
 
-impl<S: DiscoveryStorage> ModuleLoader<S> {
+impl<S: DiscoveryStorage> ModuleLoader<'_, S> {
     fn visit(
         &mut self,
         requested: &Path,
@@ -784,7 +818,7 @@ impl<S: DiscoveryStorage> ModuleLoader<S> {
         }
 
         let source = match self.overrides.remove(&path) {
-            Some(source) => source,
+            Some(source) => self.storage.copy_override(&path, source)?,
             None => self.storage.read(&path).map_err(|error| match error {
                 ModuleDiscoveryError::Module(error) => {
                     self.import_error(import_site, &path, error.message).into()

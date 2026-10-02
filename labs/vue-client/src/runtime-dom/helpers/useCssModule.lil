@@ -1,12 +1,8 @@
-import extern { getCurrentInstance as cssModuleGetCurrentInstance, warn as cssModuleWarnFunction } from "../../../packages/vuelil/runtime-core.js";
-import extern { EMPTY_OBJ as dependencyEmptyObject } from "../../../packages/vuelil/shared.js";
+import { getCurrentInstance as cssModuleGetCurrentInstance, warn as cssModuleWarnFunction } from "../../package/runtime-core.lil";
+import { EMPTY_OBJ as dependencyEmptyObject } from "../../package/shared.lil";
 
-extern JsValue cssModuleGetCurrentInstance;
-extern JsValue cssModuleWarnFunction;
-extern JsValue dependencyEmptyObject;
-
-bool CSS_MODULE_DEV = true;
-bool CSS_MODULE_GLOBAL = false;
+define bool CSS_MODULE_DEV = true;
+define bool CSS_MODULE_GLOBAL = false;
 
 void cssModuleWarn(string message) {
   JS.call(cssModuleWarnFunction, JS.undefined(), message);

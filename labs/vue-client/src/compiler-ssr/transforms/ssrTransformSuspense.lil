@@ -1,15 +1,12 @@
-import extern {
+import {
   buildSlots,
   createCallExpression,
   createFunctionExpression
-} from "../../../packages/vuelil/compiler-dom.js";
+} from "../../package/compiler-dom.lil";
 import { SSR_RENDER_SUSPENSE } from "../runtimeHelpers";
 import { processChildrenAsStatement } from "../ssrCodegenTransform";
 
 extern JsValue WeakMap;
-extern JsValue buildSlots;
-extern JsValue createCallExpression;
-extern JsValue createFunctionExpression;
 
 JsValue suspenseUndefined() {
   return JS.undefined();

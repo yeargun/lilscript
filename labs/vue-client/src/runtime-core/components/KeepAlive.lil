@@ -19,11 +19,11 @@ extern JsValue RegExp;
 extern JsValue Array;
 extern JsValue Number;
 extern JsValue parseInt;
-bool KEEP_ALIVE_DEV = true;
-bool KEEP_ALIVE_SSR = false;
-bool KEEP_ALIVE_BROWSER = false;
-bool KEEP_ALIVE_PROD_DEVTOOLS = false;
-bool KEEP_ALIVE_COMPAT = false;
+define bool KEEP_ALIVE_DEV = true;
+define bool KEEP_ALIVE_SSR = false;
+define bool KEEP_ALIVE_BROWSER = false;
+define bool KEEP_ALIVE_PROD_DEVTOOLS = false;
+define bool KEEP_ALIVE_COMPAT = false;
 int keepAliveLength(JsValue value) {
   return JS.number(value["length"]).toInt();
 }

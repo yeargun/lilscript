@@ -1,10 +1,8 @@
-import extern {
+import {
   DOMErrorCodes,
   createCompilerError as coreCreateCompilerError
-} from "../../packages/vuelil/compiler-dom.js";
+} from "../package/compiler-dom.lil";
 
-extern JsValue DOMErrorCodes;
-extern JsValue coreCreateCompilerError;
 extern JsValue Error;
 
 JsValue ssrErrorUndefined() {

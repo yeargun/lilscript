@@ -1,10 +1,7 @@
-import extern {
+import {
   escapeHtml as interpolateEscapeHtml,
   toDisplayString as interpolateToDisplayString
-} from "../../../packages/vuelil/shared.js";
-
-extern string interpolateEscapeHtml(JsValue value);
-extern string interpolateToDisplayString(JsValue value);
+} from "../../package/shared.lil";
 
 export string ssrInterpolate(JsValue value) {
   return interpolateEscapeHtml(interpolateToDisplayString(value));

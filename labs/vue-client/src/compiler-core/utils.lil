@@ -1,3 +1,5 @@
+import { COMPILER_BROWSER } from "./validateExpression";
+import { hostParseExpression } from "./host.lil";
 import { Set, createCallExpression, createObjectExpression } from "./ast";
 import { String } from "./errors";
 import {
@@ -13,7 +15,7 @@ import {
   WITH_MEMO
 } from "./runtimeHelpers";
 
-extern JsValue hostParseExpression(string source, JsValue plugins, int mode);
+
 export extern JsValue Error;
 
 JsValue utilsUndefined() {
@@ -146,7 +148,7 @@ export bool isMemberExpressionNode(JsValue exp, JsValue context) {
   }
 }
 
-export JsValue isMemberExpression = isMemberExpressionNode;
+export JsValue isMemberExpression = selectBrowserExpression(isMemberExpressionBrowser, isMemberExpressionNode);
 
 Regex fnExpRE = new Regex(
   "^\\s*(?:async\\s*)?(?:\\([^)]*?\\)|[\\w$_]+)\\s*(?::[^=]+)?=>|^\\s*(?:async\\s+)?function(?:\\s+[\\w$]+)?\\s*\\("
@@ -174,7 +176,7 @@ export bool isFnExpressionNode(JsValue exp, JsValue context) {
   }
 }
 
-export JsValue isFnExpression = isFnExpressionNode;
+export JsValue isFnExpression = selectBrowserExpression(isFnExpressionBrowser, isFnExpressionNode);
 
 export JsValue advancePositionWithClone(
   JsValue pos,
@@ -473,4 +475,9 @@ export bool isWhitespaceText(JsValue node) {
 
 export bool isCommentOrWhitespace(JsValue node) {
   return JS.number(node["type"]).toInt() == 3 || isWhitespaceText(node);
+}
+
+JsValue selectBrowserExpression(JsValue browser, JsValue node) {
+  if (COMPILER_BROWSER) return browser;
+  return node;
 }

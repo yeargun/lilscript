@@ -1,18 +1,15 @@
-import extern {
+import {
   NodeTypes,
   buildProps,
   createCallExpression,
   findProp
-} from "../../../packages/vuelil/compiler-dom.js";
+} from "../../package/compiler-dom.lil";
 import { SSR_RENDER_ATTRS } from "../runtimeHelpers";
 import { processChildren } from "../ssrCodegenTransform";
 import { buildSSRProps } from "./ssrTransformElement";
 
-extern JsValue NodeTypes;
+
 extern JsValue WeakMap;
-extern JsValue buildProps;
-extern JsValue createCallExpression;
-extern JsValue findProp;
 
 JsValue transitionGroupUndefined() {
   return JS.undefined();

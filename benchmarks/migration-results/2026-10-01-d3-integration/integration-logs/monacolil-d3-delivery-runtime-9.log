@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: compiler esm package and lazy TypeScript registration
+ok 1 - compiler esm package and lazy TypeScript registration
+  ---
+  duration_ms: 20.172218
+  ...
+# Subtest: compiler cjs package and lazy TypeScript registration
+ok 2 - compiler cjs package and lazy TypeScript registration
+  ---
+  duration_ms: 14.727886
+  ...
+# Subtest: compiler editor worker transport
+ok 3 - compiler editor worker transport
+  ---
+  duration_ms: 5.218387
+  ...
+# Subtest: compiler json worker transport
+ok 4 - compiler json worker transport
+  ---
+  duration_ms: 3.607059
+  ...
+# Subtest: compiler css worker transport
+ok 5 - compiler css worker transport
+  ---
+  duration_ms: 3.350347
+  ...
+# Subtest: compiler html worker transport
+ok 6 - compiler html worker transport
+  ---
+  duration_ms: 4.110292
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 103.735433

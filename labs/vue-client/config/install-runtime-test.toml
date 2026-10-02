@@ -1,0 +1,30 @@
+# Compiler-written forwarding entrypoints over one shared implementation graph.
+# These preserve cross-package object identity and live binding transport.
+[policy]
+version=3
+[objective]
+codecs="brotli"
+[effort]
+level=13
+[javascript]
+assume_pristine_builtins=false
+assume_pure_property_reads=false
+
+[target.javascript]
+format="esm"
+[delivery]
+mode="single"
+directory="."
+entry_names="packages/vuelil/@vue/runtime-test/dist/runtime-test.esm-bundler.js"
+[delivery.external_specifiers]
+"@vuelil/implementation"="./packages/vuelil/runtime-test.js"
+[delivery.entries]
+api="../src/package/entrypoints/runtime-test.lil"
+
+[[delivery.also]]
+name="index"
+directory="."
+format="cjs"
+entry_names="packages/vuelil/@vue/runtime-test/index.js"
+[delivery.also.external_specifiers]
+"@vuelil/implementation"="./packages/vuelil/compiler-cjs/development/runtime-test.cjs"

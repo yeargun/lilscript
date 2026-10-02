@@ -18,9 +18,12 @@ function firstExecutable(candidates, label) {
 }
 
 export function compilerPath() {
+  if (process.env.LILSCRIPT_COMPILER) {
+    accessSync(process.env.LILSCRIPT_COMPILER, constants.X_OK);
+    return resolve(process.env.LILSCRIPT_COMPILER);
+  }
   return firstExecutable(
     [
-      process.env.LILSCRIPT_COMPILER,
       resolve(lilscriptRoot, "target", "release", "lilscript"),
       resolve(lilscriptRoot, "target", "debug", "lilscript"),
     ],
@@ -29,9 +32,12 @@ export function compilerPath() {
 }
 
 export function codecPath() {
+  if (process.env.LILSCRIPT_CODEC) {
+    accessSync(process.env.LILSCRIPT_CODEC, constants.X_OK);
+    return resolve(process.env.LILSCRIPT_CODEC);
+  }
   return firstExecutable(
     [
-      process.env.LILSCRIPT_CODEC,
       resolve(lilscriptRoot, "target", "release", "lilscript-codec"),
       resolve(lilscriptRoot, "target", "debug", "lilscript-codec"),
     ],

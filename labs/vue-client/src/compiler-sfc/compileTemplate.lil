@@ -2,17 +2,17 @@ import extern {
   SourceMapConsumer as TemplateSourceMapConsumer,
   SourceMapGenerator as TemplateSourceMapGenerator
 } from "source-map-js";
-import extern {
+import {
   compile as templateDomCompile,
   parse as templateDomParse
-} from "../../packages/vuelil/compiler-dom.js";
-import extern { compile as templateSsrCompile } from "../../packages/vuelil/compiler-ssr.js";
-import extern { generateCodeFrame as templateCodeFrame } from "../../packages/vuelil/shared.js";
-import extern {
+} from "../package/compiler-dom.lil";
+import { compile as templateSsrCompile } from "../package/compiler-ssr.lil";
+import { generateCodeFrame as templateCodeFrame } from "../package/shared.lil";
+import {
   hostAssign as templateAssign,
   hostCreateError as templateCreateError,
   hostRequire as templateRequire
-} from "./host.js";
+} from "./host.lil";
 import { warnOnce } from "./warn";
 import { genCssVarsFromList } from "./style/cssVars";
 import { resolveTemplateAST } from "./template/resolveTemplateAST";
@@ -28,13 +28,6 @@ import {
 
 extern JsValue TemplateSourceMapConsumer;
 extern JsValue TemplateSourceMapGenerator;
-extern JsValue templateAssign;
-extern JsValue templateCodeFrame;
-extern JsValue templateCreateError;
-extern JsValue templateDomCompile;
-extern JsValue templateDomParse;
-extern JsValue templateRequire;
-extern JsValue templateSsrCompile;
 
 JsValue templateConsolidate = JS.call(
   templateRequire,

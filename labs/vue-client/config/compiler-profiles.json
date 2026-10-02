@@ -1,0 +1,130 @@
+{
+  "development": {
+    "config": "config/compiler-development.toml",
+    "mode": "development"
+  },
+  "production": {
+    "config": "config/compiler-production.toml",
+    "mode": "production"
+  },
+  "test": {
+    "config": "config/compiler-test.toml",
+    "mode": "development"
+  },
+  "compat": {
+    "config": "config/compiler-compat.toml",
+    "mode": "development"
+  },
+  "browser": {
+    "config": "config/browser/lilscript.toml",
+    "mode": "development"
+  },
+  "cjs-development": {
+    "config": "config/compiler-cjs-development.toml",
+    "mode": "development"
+  },
+  "cjs-production": {
+    "config": "config/compiler-cjs-production.toml",
+    "mode": "production"
+  },
+  "global": {
+    "config": "config/browser/global.toml",
+    "mode": "development"
+  },
+  "browser-production": {
+    "config": "config/browser/production.toml",
+    "mode": "production"
+  },
+  "compat-production": {
+    "config": "config/compiler-compat-production.toml",
+    "mode": "production"
+  },
+  "cjs-compat": {
+    "config": "config/compiler-cjs-compat.toml",
+    "mode": "development"
+  },
+  "cjs-compat-production": {
+    "config": "config/compiler-cjs-compat-production.toml",
+    "mode": "production"
+  },
+  "browser-compat": {
+    "config": "config/browser/compat.toml",
+    "mode": "development"
+  },
+  "browser-compat-production": {
+    "config": "config/browser/compat-production.toml",
+    "mode": "production"
+  },
+  "install-shared": {
+    "config": "config/install-shared.toml",
+    "mode": "production"
+  },
+  "install-reactivity": {
+    "config": "config/install-reactivity.toml",
+    "mode": "production"
+  },
+  "install-runtime-core": {
+    "config": "config/install-runtime-core.toml",
+    "mode": "production"
+  },
+  "install-runtime-dom": {
+    "config": "config/install-runtime-dom.toml",
+    "mode": "production"
+  },
+  "install-compiler-core": {
+    "config": "config/install-compiler-core.toml",
+    "mode": "production"
+  },
+  "install-compiler-dom": {
+    "config": "config/install-compiler-dom.toml",
+    "mode": "production"
+  },
+  "install-compiler-ssr": {
+    "config": "config/install-compiler-ssr.toml",
+    "mode": "production"
+  },
+  "install-compiler-sfc": {
+    "config": "config/install-compiler-sfc.toml",
+    "mode": "production"
+  },
+  "install-server-renderer": {
+    "config": "config/install-server-renderer.toml",
+    "mode": "production"
+  },
+  "install-runtime-test": {
+    "config": "config/install-runtime-test.toml",
+    "mode": "production"
+  },
+  "install-vue-compat": {
+    "config": "config/install-vue-compat.toml",
+    "mode": "production"
+  },
+  "install-vue-compat-runtime": {
+    "config": "config/install-vue-compat-runtime.toml",
+    "mode": "production"
+  },
+  "install-vue": {
+    "config": "config/install-vue.toml",
+    "mode": "production"
+  },
+  "install-vue-runtime": {
+    "config": "config/install-vue-runtime.toml",
+    "mode": "production"
+  },
+  "install-jsx": {
+    "config": "config/install-jsx.toml",
+    "mode": "production"
+  },
+  "global-production": {
+    "config": "config/browser/global-production.toml",
+    "mode": "production"
+  },
+  "global-compat": {
+    "config": "config/browser/global-compat.toml",
+    "mode": "development"
+  },
+  "global-compat-production": {
+    "config": "config/browser/global-compat-production.toml",
+    "mode": "production"
+  }
+}

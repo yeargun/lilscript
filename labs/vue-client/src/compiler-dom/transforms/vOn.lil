@@ -1,4 +1,4 @@
-import extern {
+import {
   CompilerDeprecationTypes,
   NodeTypes,
   checkCompatEnabled,
@@ -8,24 +8,13 @@ import extern {
   createSimpleExpression,
   isStaticExp,
   transformOn as coreTransformOn
-} from "../../../packages/vuelil/compiler-core.js";
-import extern {
+} from "../../package/compiler-core.lil";
+import {
   capitalize as sharedCapitalize,
   makeMap as sharedMakeMap
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { V_ON_WITH_KEYS, V_ON_WITH_MODIFIERS } from "../runtimeHelpers";
 
-extern JsValue CompilerDeprecationTypes;
-extern JsValue NodeTypes;
-extern JsValue checkCompatEnabled;
-extern JsValue createCallExpression;
-extern JsValue createCompoundExpression;
-extern JsValue createObjectProperty;
-extern JsValue createSimpleExpression;
-extern JsValue isStaticExp;
-extern JsValue coreTransformOn;
-extern JsValue sharedCapitalize;
-extern JsValue sharedMakeMap;
 extern JsValue JSON;
 
 JsValue domOnUndefined() {

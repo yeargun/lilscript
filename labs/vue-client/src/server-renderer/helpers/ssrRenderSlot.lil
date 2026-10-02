@@ -1,9 +1,6 @@
-import extern { ssrUtils as slotSsrUtils } from "../../../packages/vuelil/runtime-dom.js";
-import extern { isArray as slotIsArray } from "../../../packages/vuelil/shared.js";
+import { ssrUtils as slotSsrUtils } from "../../package/runtime-dom.lil";
+import { isArray as slotIsArray } from "../../package/shared.lil";
 import { renderVNodeChildren } from "../render";
-
-extern JsValue slotSsrUtils;
-extern bool slotIsArray(JsValue value);
 
 export void ssrRenderSlot(
   JsValue slots,

@@ -1,5 +1,5 @@
 import extern { walk as destructureWalk } from "estree-walker";
-import extern {
+import {
   BindingTypes as DestructureBindingTypes,
   TS_NODE_TYPES as DestructureTsNodeTypes,
   extractIdentifiers as destructureExtractIdentifiers,
@@ -9,28 +9,17 @@ import extern {
   isStaticProperty as destructureIsStaticProperty,
   unwrapTSNode as destructureUnwrapTSNode,
   walkFunctionParams as destructureWalkFunctionParams
-} from "../../../packages/vuelil/compiler-dom.js";
-import extern { genPropsAccessExp as destructureGenPropsAccessExp } from "../../../packages/vuelil/shared.js";
-import extern {
+} from "../../package/compiler-dom.lil";
+import { genPropsAccessExp as destructureGenPropsAccessExp } from "../../package/shared.lil";
+import {
   hostCreateNullObject as destructureCreateNullObject,
   hostCreateObject as destructureCreateObject
-} from "../host.js";
+} from "../host.lil";
 import { DEFINE_PROPS } from "./defineProps";
 import { isCallOf, resolveObjectKey } from "./utils";
 
-extern JsValue DestructureBindingTypes;
-extern JsValue DestructureTsNodeTypes;
-extern JsValue destructureCreateNullObject;
-extern JsValue destructureCreateObject;
-extern JsValue destructureExtractIdentifiers;
-extern JsValue destructureGenPropsAccessExp;
-extern JsValue destructureIsFunctionType;
-extern JsValue destructureIsInDestructureAssignment;
-extern JsValue destructureIsReferencedIdentifier;
-extern JsValue destructureIsStaticProperty;
-extern JsValue destructureUnwrapTSNode;
 extern JsValue destructureWalk;
-extern JsValue destructureWalkFunctionParams;
+
 extern JsValue globalThis;
 
 int destructureLength(JsValue value) {

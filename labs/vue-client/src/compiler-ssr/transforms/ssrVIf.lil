@@ -1,19 +1,12 @@
-import extern {
+import {
   NodeTypes,
   createBlockStatement,
   createCallExpression,
   createIfStatement,
   createStructuralDirectiveTransform,
   processIf
-} from "../../../packages/vuelil/compiler-dom.js";
+} from "../../package/compiler-dom.lil";
 import { processChildrenAsStatement } from "../ssrCodegenTransform";
-
-extern JsValue NodeTypes;
-extern JsValue createBlockStatement;
-extern JsValue createCallExpression;
-extern JsValue createIfStatement;
-extern JsValue createStructuralDirectiveTransform;
-extern JsValue processIf;
 
 JsValue ssrIfUndefined() {
   return JS.undefined();

@@ -6,3 +6,6 @@ upstream/
 artifacts/generated/
 packages/vuelil/*.generated.js
 .DS_Store
+
+# Compiler staging and local receipt cache (release evidence is archived separately).
+.tmp/

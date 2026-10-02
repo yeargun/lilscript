@@ -72,10 +72,10 @@ extern JsValue Array;
 extern JsValue JSON;
 extern JsValue Map;
 
-bool RENDERER_FEATURE_SUSPENSE = true;
-bool RENDERER_COMPAT = false;
-bool RENDERER_ESM_BUNDLER = false;
-bool RENDERER_FEATURE_PROD_DEVTOOLS = false;
+define bool RENDERER_FEATURE_SUSPENSE = true;
+define bool RENDERER_COMPAT = false;
+define bool RENDERER_ESM_BUNDLER = false;
+define bool RENDERER_FEATURE_PROD_DEVTOOLS = false;
 string rendererAsyncAnchorKey = "place" + "holder";
 
 export JsValue MoveType = JS.object(

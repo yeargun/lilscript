@@ -1,0 +1,2475 @@
+{
+  "version": "3.5.42",
+  "packages": {
+    "shared": {
+      "NO": {
+        "name": "NO",
+        "length": 0
+      },
+      "NOOP": {
+        "name": "NOOP",
+        "length": 0
+      },
+      "camelize": {
+        "name": "",
+        "length": 1
+      },
+      "capitalize": {
+        "name": "",
+        "length": 1
+      },
+      "def": {
+        "name": "def",
+        "length": 3
+      },
+      "escapeHtml": {
+        "name": "escapeHtml",
+        "length": 1
+      },
+      "escapeHtmlComment": {
+        "name": "escapeHtmlComment",
+        "length": 1
+      },
+      "extend": {
+        "name": "assign",
+        "length": 2
+      },
+      "genCacheKey": {
+        "name": "genCacheKey",
+        "length": 2
+      },
+      "genPropsAccessExp": {
+        "name": "genPropsAccessExp",
+        "length": 1
+      },
+      "generateCodeFrame": {
+        "name": "generateCodeFrame",
+        "length": 1
+      },
+      "getEscapedCssVarName": {
+        "name": "getEscapedCssVarName",
+        "length": 2
+      },
+      "getGlobalThis": {
+        "name": "getGlobalThis",
+        "length": 0
+      },
+      "hasChanged": {
+        "name": "hasChanged",
+        "length": 2
+      },
+      "hasOwn": {
+        "name": "hasOwn",
+        "length": 2
+      },
+      "hyphenate": {
+        "name": "",
+        "length": 1
+      },
+      "includeBooleanAttr": {
+        "name": "includeBooleanAttr",
+        "length": 1
+      },
+      "invokeArrayFns": {
+        "name": "invokeArrayFns",
+        "length": 1
+      },
+      "isArray": {
+        "name": "isArray",
+        "length": 1
+      },
+      "isBooleanAttr": {
+        "name": "",
+        "length": 1
+      },
+      "isBuiltInDirective": {
+        "name": "",
+        "length": 1
+      },
+      "isDate": {
+        "name": "isDate",
+        "length": 1
+      },
+      "isFunction": {
+        "name": "isFunction",
+        "length": 1
+      },
+      "isGloballyAllowed": {
+        "name": "",
+        "length": 1
+      },
+      "isGloballyWhitelisted": {
+        "name": "",
+        "length": 1
+      },
+      "isHTMLTag": {
+        "name": "",
+        "length": 1
+      },
+      "isIntegerKey": {
+        "name": "isIntegerKey",
+        "length": 1
+      },
+      "isKnownHtmlAttr": {
+        "name": "",
+        "length": 1
+      },
+      "isKnownMathMLAttr": {
+        "name": "",
+        "length": 1
+      },
+      "isKnownSvgAttr": {
+        "name": "",
+        "length": 1
+      },
+      "isMap": {
+        "name": "isMap",
+        "length": 1
+      },
+      "isMathMLTag": {
+        "name": "",
+        "length": 1
+      },
+      "isModelListener": {
+        "name": "isModelListener",
+        "length": 1
+      },
+      "isObject": {
+        "name": "isObject",
+        "length": 1
+      },
+      "isOn": {
+        "name": "isOn",
+        "length": 1
+      },
+      "isPlainObject": {
+        "name": "isPlainObject",
+        "length": 1
+      },
+      "isPromise": {
+        "name": "isPromise",
+        "length": 1
+      },
+      "isRegExp": {
+        "name": "isRegExp",
+        "length": 1
+      },
+      "isRenderableAttrValue": {
+        "name": "isRenderableAttrValue",
+        "length": 1
+      },
+      "isReservedProp": {
+        "name": "",
+        "length": 1
+      },
+      "isSSRSafeAttrName": {
+        "name": "isSSRSafeAttrName",
+        "length": 1
+      },
+      "isSVGTag": {
+        "name": "",
+        "length": 1
+      },
+      "isSet": {
+        "name": "isSet",
+        "length": 1
+      },
+      "isSpecialBooleanAttr": {
+        "name": "",
+        "length": 1
+      },
+      "isString": {
+        "name": "isString",
+        "length": 1
+      },
+      "isSymbol": {
+        "name": "isSymbol",
+        "length": 1
+      },
+      "isVoidTag": {
+        "name": "",
+        "length": 1
+      },
+      "looseEqual": {
+        "name": "looseEqual",
+        "length": 2
+      },
+      "looseIndexOf": {
+        "name": "looseIndexOf",
+        "length": 2
+      },
+      "looseToNumber": {
+        "name": "looseToNumber",
+        "length": 1
+      },
+      "makeMap": {
+        "name": "makeMap",
+        "length": 1
+      },
+      "normalizeClass": {
+        "name": "normalizeClass",
+        "length": 1
+      },
+      "normalizeCssVarValue": {
+        "name": "normalizeCssVarValue",
+        "length": 1
+      },
+      "normalizeProps": {
+        "name": "normalizeProps",
+        "length": 1
+      },
+      "normalizeStyle": {
+        "name": "normalizeStyle",
+        "length": 1
+      },
+      "objectToString": {
+        "name": "toString",
+        "length": 0
+      },
+      "parseStringStyle": {
+        "name": "parseStringStyle",
+        "length": 1
+      },
+      "remove": {
+        "name": "remove",
+        "length": 2
+      },
+      "stringifyStyle": {
+        "name": "stringifyStyle",
+        "length": 1
+      },
+      "toDisplayString": {
+        "name": "toDisplayString",
+        "length": 1
+      },
+      "toHandlerKey": {
+        "name": "",
+        "length": 1
+      },
+      "toNumber": {
+        "name": "toNumber",
+        "length": 1
+      },
+      "toRawType": {
+        "name": "toRawType",
+        "length": 1
+      },
+      "toTypeString": {
+        "name": "toTypeString",
+        "length": 1
+      }
+    },
+    "reactivity": {
+      "EffectScope": {
+        "name": "EffectScope",
+        "length": 0
+      },
+      "ReactiveEffect": {
+        "name": "ReactiveEffect",
+        "length": 1
+      },
+      "computed": {
+        "name": "computed",
+        "length": 2
+      },
+      "customRef": {
+        "name": "customRef",
+        "length": 1
+      },
+      "effect": {
+        "name": "effect",
+        "length": 2
+      },
+      "effectScope": {
+        "name": "effectScope",
+        "length": 1
+      },
+      "enableTracking": {
+        "name": "enableTracking",
+        "length": 0
+      },
+      "getCurrentScope": {
+        "name": "getCurrentScope",
+        "length": 0
+      },
+      "getCurrentWatcher": {
+        "name": "getCurrentWatcher",
+        "length": 0
+      },
+      "isProxy": {
+        "name": "isProxy",
+        "length": 1
+      },
+      "isReactive": {
+        "name": "isReactive",
+        "length": 1
+      },
+      "isReadonly": {
+        "name": "isReadonly",
+        "length": 1
+      },
+      "isRef": {
+        "name": "isRef",
+        "length": 1
+      },
+      "isShallow": {
+        "name": "isShallow",
+        "length": 1
+      },
+      "markRaw": {
+        "name": "markRaw",
+        "length": 1
+      },
+      "onEffectCleanup": {
+        "name": "onEffectCleanup",
+        "length": 1
+      },
+      "onScopeDispose": {
+        "name": "onScopeDispose",
+        "length": 1
+      },
+      "onWatcherCleanup": {
+        "name": "onWatcherCleanup",
+        "length": 1
+      },
+      "pauseTracking": {
+        "name": "pauseTracking",
+        "length": 0
+      },
+      "proxyRefs": {
+        "name": "proxyRefs",
+        "length": 1
+      },
+      "reactive": {
+        "name": "reactive",
+        "length": 1
+      },
+      "reactiveReadArray": {
+        "name": "reactiveReadArray",
+        "length": 1
+      },
+      "readonly": {
+        "name": "readonly",
+        "length": 1
+      },
+      "ref": {
+        "name": "ref",
+        "length": 1
+      },
+      "resetTracking": {
+        "name": "resetTracking",
+        "length": 0
+      },
+      "shallowReactive": {
+        "name": "shallowReactive",
+        "length": 1
+      },
+      "shallowReadArray": {
+        "name": "shallowReadArray",
+        "length": 1
+      },
+      "shallowReadonly": {
+        "name": "shallowReadonly",
+        "length": 1
+      },
+      "shallowRef": {
+        "name": "shallowRef",
+        "length": 1
+      },
+      "stop": {
+        "name": "stop",
+        "length": 1
+      },
+      "toRaw": {
+        "name": "toRaw",
+        "length": 1
+      },
+      "toReactive": {
+        "name": "toReactive",
+        "length": 1
+      },
+      "toReadonly": {
+        "name": "toReadonly",
+        "length": 1
+      },
+      "toRef": {
+        "name": "toRef",
+        "length": 3
+      },
+      "toRefs": {
+        "name": "toRefs",
+        "length": 1
+      },
+      "toValue": {
+        "name": "toValue",
+        "length": 1
+      },
+      "track": {
+        "name": "track",
+        "length": 3
+      },
+      "traverse": {
+        "name": "traverse",
+        "length": 1
+      },
+      "trigger": {
+        "name": "trigger",
+        "length": 6
+      },
+      "triggerRef": {
+        "name": "triggerRef",
+        "length": 1
+      },
+      "unref": {
+        "name": "unref",
+        "length": 1
+      },
+      "watch": {
+        "name": "watch",
+        "length": 2
+      }
+    },
+    "runtime-core": {
+      "EffectScope": {
+        "name": "EffectScope",
+        "length": 0
+      },
+      "ReactiveEffect": {
+        "name": "ReactiveEffect",
+        "length": 1
+      },
+      "assertNumber": {
+        "name": "assertNumber",
+        "length": 2
+      },
+      "callWithAsyncErrorHandling": {
+        "name": "callWithAsyncErrorHandling",
+        "length": 4
+      },
+      "callWithErrorHandling": {
+        "name": "callWithErrorHandling",
+        "length": 4
+      },
+      "camelize": {
+        "name": "",
+        "length": 1
+      },
+      "capitalize": {
+        "name": "",
+        "length": 1
+      },
+      "cloneVNode": {
+        "name": "cloneVNode",
+        "length": 2
+      },
+      "computed": {
+        "name": "computed",
+        "length": 2
+      },
+      "createBlock": {
+        "name": "createBlock",
+        "length": 5
+      },
+      "createCommentVNode": {
+        "name": "createCommentVNode",
+        "length": 0
+      },
+      "createElementBlock": {
+        "name": "createElementBlock",
+        "length": 6
+      },
+      "createElementVNode": {
+        "name": "createBaseVNode",
+        "length": 1
+      },
+      "createHydrationRenderer": {
+        "name": "createHydrationRenderer",
+        "length": 1
+      },
+      "createPropsRestProxy": {
+        "name": "createPropsRestProxy",
+        "length": 2
+      },
+      "createRenderer": {
+        "name": "createRenderer",
+        "length": 1
+      },
+      "createSlots": {
+        "name": "createSlots",
+        "length": 2
+      },
+      "createStaticVNode": {
+        "name": "createStaticVNode",
+        "length": 2
+      },
+      "createTextVNode": {
+        "name": "createTextVNode",
+        "length": 0
+      },
+      "createVNode": {
+        "name": "createVNodeWithArgsTransform",
+        "length": 0
+      },
+      "customRef": {
+        "name": "customRef",
+        "length": 1
+      },
+      "defineAsyncComponent": {
+        "name": "defineAsyncComponent",
+        "length": 1
+      },
+      "defineComponent": {
+        "name": "defineComponent",
+        "length": 2
+      },
+      "defineEmits": {
+        "name": "defineEmits",
+        "length": 0
+      },
+      "defineExpose": {
+        "name": "defineExpose",
+        "length": 1
+      },
+      "defineModel": {
+        "name": "defineModel",
+        "length": 0
+      },
+      "defineOptions": {
+        "name": "defineOptions",
+        "length": 1
+      },
+      "defineProps": {
+        "name": "defineProps",
+        "length": 0
+      },
+      "defineSlots": {
+        "name": "defineSlots",
+        "length": 0
+      },
+      "effect": {
+        "name": "effect",
+        "length": 2
+      },
+      "effectScope": {
+        "name": "effectScope",
+        "length": 1
+      },
+      "getCurrentInstance": {
+        "name": "getCurrentInstance",
+        "length": 0
+      },
+      "getCurrentScope": {
+        "name": "getCurrentScope",
+        "length": 0
+      },
+      "getCurrentWatcher": {
+        "name": "getCurrentWatcher",
+        "length": 0
+      },
+      "getTransitionRawChildren": {
+        "name": "getTransitionRawChildren",
+        "length": 1
+      },
+      "guardReactiveProps": {
+        "name": "guardReactiveProps",
+        "length": 1
+      },
+      "h": {
+        "name": "h",
+        "length": 3
+      },
+      "handleError": {
+        "name": "handleError",
+        "length": 3
+      },
+      "hasInjectionContext": {
+        "name": "hasInjectionContext",
+        "length": 0
+      },
+      "hydrateOnIdle": {
+        "name": "hydrateOnIdle",
+        "length": 0
+      },
+      "hydrateOnInteraction": {
+        "name": "hydrateOnInteraction",
+        "length": 0
+      },
+      "hydrateOnMediaQuery": {
+        "name": "hydrateOnMediaQuery",
+        "length": 1
+      },
+      "hydrateOnVisible": {
+        "name": "hydrateOnVisible",
+        "length": 1
+      },
+      "initCustomFormatter": {
+        "name": "initCustomFormatter",
+        "length": 0
+      },
+      "inject": {
+        "name": "inject",
+        "length": 2
+      },
+      "isMemoSame": {
+        "name": "isMemoSame",
+        "length": 2
+      },
+      "isProxy": {
+        "name": "isProxy",
+        "length": 1
+      },
+      "isReactive": {
+        "name": "isReactive",
+        "length": 1
+      },
+      "isReadonly": {
+        "name": "isReadonly",
+        "length": 1
+      },
+      "isRef": {
+        "name": "isRef",
+        "length": 1
+      },
+      "isRuntimeOnly": {
+        "name": "isRuntimeOnly",
+        "length": 0
+      },
+      "isShallow": {
+        "name": "isShallow",
+        "length": 1
+      },
+      "isVNode": {
+        "name": "isVNode",
+        "length": 1
+      },
+      "markRaw": {
+        "name": "markRaw",
+        "length": 1
+      },
+      "mergeDefaults": {
+        "name": "mergeDefaults",
+        "length": 2
+      },
+      "mergeModels": {
+        "name": "mergeModels",
+        "length": 2
+      },
+      "mergeProps": {
+        "name": "mergeProps",
+        "length": 0
+      },
+      "nextTick": {
+        "name": "nextTick",
+        "length": 1
+      },
+      "normalizeClass": {
+        "name": "normalizeClass",
+        "length": 1
+      },
+      "normalizeProps": {
+        "name": "normalizeProps",
+        "length": 1
+      },
+      "normalizeStyle": {
+        "name": "normalizeStyle",
+        "length": 1
+      },
+      "onActivated": {
+        "name": "onActivated",
+        "length": 2
+      },
+      "onBeforeMount": {
+        "name": "",
+        "length": 1
+      },
+      "onBeforeUnmount": {
+        "name": "",
+        "length": 1
+      },
+      "onBeforeUpdate": {
+        "name": "",
+        "length": 1
+      },
+      "onDeactivated": {
+        "name": "onDeactivated",
+        "length": 2
+      },
+      "onErrorCaptured": {
+        "name": "onErrorCaptured",
+        "length": 1
+      },
+      "onMounted": {
+        "name": "",
+        "length": 1
+      },
+      "onRenderTracked": {
+        "name": "",
+        "length": 1
+      },
+      "onRenderTriggered": {
+        "name": "",
+        "length": 1
+      },
+      "onScopeDispose": {
+        "name": "onScopeDispose",
+        "length": 1
+      },
+      "onServerPrefetch": {
+        "name": "",
+        "length": 1
+      },
+      "onUnmounted": {
+        "name": "",
+        "length": 1
+      },
+      "onUpdated": {
+        "name": "",
+        "length": 1
+      },
+      "onWatcherCleanup": {
+        "name": "onWatcherCleanup",
+        "length": 1
+      },
+      "openBlock": {
+        "name": "openBlock",
+        "length": 0
+      },
+      "popScopeId": {
+        "name": "popScopeId",
+        "length": 0
+      },
+      "provide": {
+        "name": "provide",
+        "length": 2
+      },
+      "proxyRefs": {
+        "name": "proxyRefs",
+        "length": 1
+      },
+      "pushScopeId": {
+        "name": "pushScopeId",
+        "length": 1
+      },
+      "queuePostFlushCb": {
+        "name": "queuePostFlushCb",
+        "length": 1
+      },
+      "reactive": {
+        "name": "reactive",
+        "length": 1
+      },
+      "readonly": {
+        "name": "readonly",
+        "length": 1
+      },
+      "ref": {
+        "name": "ref",
+        "length": 1
+      },
+      "registerRuntimeCompiler": {
+        "name": "registerRuntimeCompiler",
+        "length": 1
+      },
+      "renderList": {
+        "name": "renderList",
+        "length": 4
+      },
+      "renderSlot": {
+        "name": "renderSlot",
+        "length": 6
+      },
+      "resolveComponent": {
+        "name": "resolveComponent",
+        "length": 2
+      },
+      "resolveDirective": {
+        "name": "resolveDirective",
+        "length": 1
+      },
+      "resolveDynamicComponent": {
+        "name": "resolveDynamicComponent",
+        "length": 1
+      },
+      "resolveTransitionHooks": {
+        "name": "resolveTransitionHooks",
+        "length": 5
+      },
+      "setBlockTracking": {
+        "name": "setBlockTracking",
+        "length": 1
+      },
+      "setDevtoolsHook": {
+        "name": "setDevtoolsHook$1",
+        "length": 2
+      },
+      "setTransitionHooks": {
+        "name": "setTransitionHooks",
+        "length": 2
+      },
+      "shallowReactive": {
+        "name": "shallowReactive",
+        "length": 1
+      },
+      "shallowReadonly": {
+        "name": "shallowReadonly",
+        "length": 1
+      },
+      "shallowRef": {
+        "name": "shallowRef",
+        "length": 1
+      },
+      "stop": {
+        "name": "stop",
+        "length": 1
+      },
+      "toDisplayString": {
+        "name": "toDisplayString",
+        "length": 1
+      },
+      "toHandlerKey": {
+        "name": "",
+        "length": 1
+      },
+      "toHandlers": {
+        "name": "toHandlers",
+        "length": 2
+      },
+      "toRaw": {
+        "name": "toRaw",
+        "length": 1
+      },
+      "toRef": {
+        "name": "toRef",
+        "length": 3
+      },
+      "toRefs": {
+        "name": "toRefs",
+        "length": 1
+      },
+      "toValue": {
+        "name": "toValue",
+        "length": 1
+      },
+      "transformVNodeArgs": {
+        "name": "transformVNodeArgs",
+        "length": 1
+      },
+      "triggerRef": {
+        "name": "triggerRef",
+        "length": 1
+      },
+      "unref": {
+        "name": "unref",
+        "length": 1
+      },
+      "useAttrs": {
+        "name": "useAttrs",
+        "length": 0
+      },
+      "useId": {
+        "name": "useId",
+        "length": 0
+      },
+      "useModel": {
+        "name": "useModel",
+        "length": 2
+      },
+      "useSSRContext": {
+        "name": "useSSRContext",
+        "length": 0
+      },
+      "useSlots": {
+        "name": "useSlots",
+        "length": 0
+      },
+      "useTemplateRef": {
+        "name": "useTemplateRef",
+        "length": 1
+      },
+      "useTransitionState": {
+        "name": "useTransitionState",
+        "length": 0
+      },
+      "warn": {
+        "name": "warn$1",
+        "length": 1
+      },
+      "watch": {
+        "name": "watch",
+        "length": 3
+      },
+      "watchEffect": {
+        "name": "watchEffect",
+        "length": 2
+      },
+      "watchPostEffect": {
+        "name": "watchPostEffect",
+        "length": 2
+      },
+      "watchSyncEffect": {
+        "name": "watchSyncEffect",
+        "length": 2
+      },
+      "withAsyncContext": {
+        "name": "withAsyncContext",
+        "length": 1
+      },
+      "withCtx": {
+        "name": "withCtx",
+        "length": 1
+      },
+      "withDefaults": {
+        "name": "withDefaults",
+        "length": 2
+      },
+      "withDirectives": {
+        "name": "withDirectives",
+        "length": 2
+      },
+      "withMemo": {
+        "name": "withMemo",
+        "length": 4
+      },
+      "withScopeId": {
+        "name": "withScopeId",
+        "length": 1
+      }
+    },
+    "runtime-dom": {
+      "EffectScope": {
+        "name": "EffectScope",
+        "length": 0
+      },
+      "ReactiveEffect": {
+        "name": "ReactiveEffect",
+        "length": 1
+      },
+      "Transition": {
+        "name": "",
+        "length": 2
+      },
+      "VueElement": {
+        "name": "VueElement",
+        "length": 1
+      },
+      "assertNumber": {
+        "name": "assertNumber",
+        "length": 2
+      },
+      "callWithAsyncErrorHandling": {
+        "name": "callWithAsyncErrorHandling",
+        "length": 4
+      },
+      "callWithErrorHandling": {
+        "name": "callWithErrorHandling",
+        "length": 4
+      },
+      "camelize": {
+        "name": "",
+        "length": 1
+      },
+      "capitalize": {
+        "name": "",
+        "length": 1
+      },
+      "cloneVNode": {
+        "name": "cloneVNode",
+        "length": 2
+      },
+      "computed": {
+        "name": "computed",
+        "length": 2
+      },
+      "createApp": {
+        "name": "createApp",
+        "length": 0
+      },
+      "createBlock": {
+        "name": "createBlock",
+        "length": 5
+      },
+      "createCommentVNode": {
+        "name": "createCommentVNode",
+        "length": 0
+      },
+      "createElementBlock": {
+        "name": "createElementBlock",
+        "length": 6
+      },
+      "createElementVNode": {
+        "name": "createBaseVNode",
+        "length": 1
+      },
+      "createHydrationRenderer": {
+        "name": "createHydrationRenderer",
+        "length": 1
+      },
+      "createPropsRestProxy": {
+        "name": "createPropsRestProxy",
+        "length": 2
+      },
+      "createRenderer": {
+        "name": "createRenderer",
+        "length": 1
+      },
+      "createSSRApp": {
+        "name": "createSSRApp",
+        "length": 0
+      },
+      "createSlots": {
+        "name": "createSlots",
+        "length": 2
+      },
+      "createStaticVNode": {
+        "name": "createStaticVNode",
+        "length": 2
+      },
+      "createTextVNode": {
+        "name": "createTextVNode",
+        "length": 0
+      },
+      "createVNode": {
+        "name": "createVNodeWithArgsTransform",
+        "length": 0
+      },
+      "customRef": {
+        "name": "customRef",
+        "length": 1
+      },
+      "defineAsyncComponent": {
+        "name": "defineAsyncComponent",
+        "length": 1
+      },
+      "defineComponent": {
+        "name": "defineComponent",
+        "length": 2
+      },
+      "defineCustomElement": {
+        "name": "defineCustomElement",
+        "length": 3
+      },
+      "defineEmits": {
+        "name": "defineEmits",
+        "length": 0
+      },
+      "defineExpose": {
+        "name": "defineExpose",
+        "length": 1
+      },
+      "defineModel": {
+        "name": "defineModel",
+        "length": 0
+      },
+      "defineOptions": {
+        "name": "defineOptions",
+        "length": 1
+      },
+      "defineProps": {
+        "name": "defineProps",
+        "length": 0
+      },
+      "defineSSRCustomElement": {
+        "name": "defineSSRCustomElement",
+        "length": 2
+      },
+      "defineSlots": {
+        "name": "defineSlots",
+        "length": 0
+      },
+      "effect": {
+        "name": "effect",
+        "length": 2
+      },
+      "effectScope": {
+        "name": "effectScope",
+        "length": 1
+      },
+      "getCurrentInstance": {
+        "name": "getCurrentInstance",
+        "length": 0
+      },
+      "getCurrentScope": {
+        "name": "getCurrentScope",
+        "length": 0
+      },
+      "getCurrentWatcher": {
+        "name": "getCurrentWatcher",
+        "length": 0
+      },
+      "getTransitionRawChildren": {
+        "name": "getTransitionRawChildren",
+        "length": 1
+      },
+      "guardReactiveProps": {
+        "name": "guardReactiveProps",
+        "length": 1
+      },
+      "h": {
+        "name": "h",
+        "length": 3
+      },
+      "handleError": {
+        "name": "handleError",
+        "length": 3
+      },
+      "hasInjectionContext": {
+        "name": "hasInjectionContext",
+        "length": 0
+      },
+      "hydrate": {
+        "name": "hydrate",
+        "length": 0
+      },
+      "hydrateOnIdle": {
+        "name": "hydrateOnIdle",
+        "length": 0
+      },
+      "hydrateOnInteraction": {
+        "name": "hydrateOnInteraction",
+        "length": 0
+      },
+      "hydrateOnMediaQuery": {
+        "name": "hydrateOnMediaQuery",
+        "length": 1
+      },
+      "hydrateOnVisible": {
+        "name": "hydrateOnVisible",
+        "length": 1
+      },
+      "initCustomFormatter": {
+        "name": "initCustomFormatter",
+        "length": 0
+      },
+      "initDirectivesForSSR": {
+        "name": "initDirectivesForSSR",
+        "length": 0
+      },
+      "inject": {
+        "name": "inject",
+        "length": 2
+      },
+      "isMemoSame": {
+        "name": "isMemoSame",
+        "length": 2
+      },
+      "isProxy": {
+        "name": "isProxy",
+        "length": 1
+      },
+      "isReactive": {
+        "name": "isReactive",
+        "length": 1
+      },
+      "isReadonly": {
+        "name": "isReadonly",
+        "length": 1
+      },
+      "isRef": {
+        "name": "isRef",
+        "length": 1
+      },
+      "isRuntimeOnly": {
+        "name": "isRuntimeOnly",
+        "length": 0
+      },
+      "isShallow": {
+        "name": "isShallow",
+        "length": 1
+      },
+      "isVNode": {
+        "name": "isVNode",
+        "length": 1
+      },
+      "markRaw": {
+        "name": "markRaw",
+        "length": 1
+      },
+      "mergeDefaults": {
+        "name": "mergeDefaults",
+        "length": 2
+      },
+      "mergeModels": {
+        "name": "mergeModels",
+        "length": 2
+      },
+      "mergeProps": {
+        "name": "mergeProps",
+        "length": 0
+      },
+      "nextTick": {
+        "name": "nextTick",
+        "length": 1
+      },
+      "normalizeClass": {
+        "name": "normalizeClass",
+        "length": 1
+      },
+      "normalizeProps": {
+        "name": "normalizeProps",
+        "length": 1
+      },
+      "normalizeStyle": {
+        "name": "normalizeStyle",
+        "length": 1
+      },
+      "onActivated": {
+        "name": "onActivated",
+        "length": 2
+      },
+      "onBeforeMount": {
+        "name": "",
+        "length": 1
+      },
+      "onBeforeUnmount": {
+        "name": "",
+        "length": 1
+      },
+      "onBeforeUpdate": {
+        "name": "",
+        "length": 1
+      },
+      "onDeactivated": {
+        "name": "onDeactivated",
+        "length": 2
+      },
+      "onErrorCaptured": {
+        "name": "onErrorCaptured",
+        "length": 1
+      },
+      "onMounted": {
+        "name": "",
+        "length": 1
+      },
+      "onRenderTracked": {
+        "name": "",
+        "length": 1
+      },
+      "onRenderTriggered": {
+        "name": "",
+        "length": 1
+      },
+      "onScopeDispose": {
+        "name": "onScopeDispose",
+        "length": 1
+      },
+      "onServerPrefetch": {
+        "name": "",
+        "length": 1
+      },
+      "onUnmounted": {
+        "name": "",
+        "length": 1
+      },
+      "onUpdated": {
+        "name": "",
+        "length": 1
+      },
+      "onWatcherCleanup": {
+        "name": "onWatcherCleanup",
+        "length": 1
+      },
+      "openBlock": {
+        "name": "openBlock",
+        "length": 0
+      },
+      "patchProp": {
+        "name": "patchProp",
+        "length": 6
+      },
+      "popScopeId": {
+        "name": "popScopeId",
+        "length": 0
+      },
+      "provide": {
+        "name": "provide",
+        "length": 2
+      },
+      "proxyRefs": {
+        "name": "proxyRefs",
+        "length": 1
+      },
+      "pushScopeId": {
+        "name": "pushScopeId",
+        "length": 1
+      },
+      "queuePostFlushCb": {
+        "name": "queuePostFlushCb",
+        "length": 1
+      },
+      "reactive": {
+        "name": "reactive",
+        "length": 1
+      },
+      "readonly": {
+        "name": "readonly",
+        "length": 1
+      },
+      "ref": {
+        "name": "ref",
+        "length": 1
+      },
+      "registerRuntimeCompiler": {
+        "name": "registerRuntimeCompiler",
+        "length": 1
+      },
+      "render": {
+        "name": "render",
+        "length": 0
+      },
+      "renderList": {
+        "name": "renderList",
+        "length": 4
+      },
+      "renderSlot": {
+        "name": "renderSlot",
+        "length": 6
+      },
+      "resolveComponent": {
+        "name": "resolveComponent",
+        "length": 2
+      },
+      "resolveDirective": {
+        "name": "resolveDirective",
+        "length": 1
+      },
+      "resolveDynamicComponent": {
+        "name": "resolveDynamicComponent",
+        "length": 1
+      },
+      "resolveTransitionHooks": {
+        "name": "resolveTransitionHooks",
+        "length": 5
+      },
+      "setBlockTracking": {
+        "name": "setBlockTracking",
+        "length": 1
+      },
+      "setDevtoolsHook": {
+        "name": "setDevtoolsHook$1",
+        "length": 2
+      },
+      "setTransitionHooks": {
+        "name": "setTransitionHooks",
+        "length": 2
+      },
+      "shallowReactive": {
+        "name": "shallowReactive",
+        "length": 1
+      },
+      "shallowReadonly": {
+        "name": "shallowReadonly",
+        "length": 1
+      },
+      "shallowRef": {
+        "name": "shallowRef",
+        "length": 1
+      },
+      "stop": {
+        "name": "stop",
+        "length": 1
+      },
+      "toDisplayString": {
+        "name": "toDisplayString",
+        "length": 1
+      },
+      "toHandlerKey": {
+        "name": "",
+        "length": 1
+      },
+      "toHandlers": {
+        "name": "toHandlers",
+        "length": 2
+      },
+      "toRaw": {
+        "name": "toRaw",
+        "length": 1
+      },
+      "toRef": {
+        "name": "toRef",
+        "length": 3
+      },
+      "toRefs": {
+        "name": "toRefs",
+        "length": 1
+      },
+      "toValue": {
+        "name": "toValue",
+        "length": 1
+      },
+      "transformVNodeArgs": {
+        "name": "transformVNodeArgs",
+        "length": 1
+      },
+      "triggerRef": {
+        "name": "triggerRef",
+        "length": 1
+      },
+      "unref": {
+        "name": "unref",
+        "length": 1
+      },
+      "useAttrs": {
+        "name": "useAttrs",
+        "length": 0
+      },
+      "useCssModule": {
+        "name": "useCssModule",
+        "length": 0
+      },
+      "useCssVars": {
+        "name": "useCssVars",
+        "length": 1
+      },
+      "useHost": {
+        "name": "useHost",
+        "length": 1
+      },
+      "useId": {
+        "name": "useId",
+        "length": 0
+      },
+      "useModel": {
+        "name": "useModel",
+        "length": 2
+      },
+      "useSSRContext": {
+        "name": "useSSRContext",
+        "length": 0
+      },
+      "useShadowRoot": {
+        "name": "useShadowRoot",
+        "length": 0
+      },
+      "useSlots": {
+        "name": "useSlots",
+        "length": 0
+      },
+      "useTemplateRef": {
+        "name": "useTemplateRef",
+        "length": 1
+      },
+      "useTransitionState": {
+        "name": "useTransitionState",
+        "length": 0
+      },
+      "warn": {
+        "name": "warn$1",
+        "length": 1
+      },
+      "watch": {
+        "name": "watch",
+        "length": 3
+      },
+      "watchEffect": {
+        "name": "watchEffect",
+        "length": 2
+      },
+      "watchPostEffect": {
+        "name": "watchPostEffect",
+        "length": 2
+      },
+      "watchSyncEffect": {
+        "name": "watchSyncEffect",
+        "length": 2
+      },
+      "withAsyncContext": {
+        "name": "withAsyncContext",
+        "length": 1
+      },
+      "withCtx": {
+        "name": "withCtx",
+        "length": 1
+      },
+      "withDefaults": {
+        "name": "withDefaults",
+        "length": 2
+      },
+      "withDirectives": {
+        "name": "withDirectives",
+        "length": 2
+      },
+      "withKeys": {
+        "name": "withKeys",
+        "length": 2
+      },
+      "withMemo": {
+        "name": "withMemo",
+        "length": 4
+      },
+      "withModifiers": {
+        "name": "withModifiers",
+        "length": 2
+      },
+      "withScopeId": {
+        "name": "withScopeId",
+        "length": 1
+      }
+    },
+    "compiler-core": {
+      "advancePositionWithClone": {
+        "name": "advancePositionWithClone",
+        "length": 2
+      },
+      "advancePositionWithMutation": {
+        "name": "advancePositionWithMutation",
+        "length": 2
+      },
+      "assert": {
+        "name": "assert",
+        "length": 2
+      },
+      "baseCompile": {
+        "name": "baseCompile",
+        "length": 1
+      },
+      "baseParse": {
+        "name": "baseParse",
+        "length": 2
+      },
+      "buildDirectiveArgs": {
+        "name": "buildDirectiveArgs",
+        "length": 2
+      },
+      "buildProps": {
+        "name": "buildProps",
+        "length": 2
+      },
+      "buildSlots": {
+        "name": "buildSlots",
+        "length": 2
+      },
+      "checkCompatEnabled": {
+        "name": "checkCompatEnabled",
+        "length": 3
+      },
+      "convertToBlock": {
+        "name": "convertToBlock",
+        "length": 2
+      },
+      "createArrayExpression": {
+        "name": "createArrayExpression",
+        "length": 1
+      },
+      "createAssignmentExpression": {
+        "name": "createAssignmentExpression",
+        "length": 2
+      },
+      "createBlockStatement": {
+        "name": "createBlockStatement",
+        "length": 1
+      },
+      "createCacheExpression": {
+        "name": "createCacheExpression",
+        "length": 2
+      },
+      "createCallExpression": {
+        "name": "createCallExpression",
+        "length": 1
+      },
+      "createCompilerError": {
+        "name": "createCompilerError",
+        "length": 4
+      },
+      "createCompoundExpression": {
+        "name": "createCompoundExpression",
+        "length": 1
+      },
+      "createConditionalExpression": {
+        "name": "createConditionalExpression",
+        "length": 3
+      },
+      "createForLoopParams": {
+        "name": "createForLoopParams",
+        "length": 1
+      },
+      "createFunctionExpression": {
+        "name": "createFunctionExpression",
+        "length": 1
+      },
+      "createIfStatement": {
+        "name": "createIfStatement",
+        "length": 3
+      },
+      "createInterpolation": {
+        "name": "createInterpolation",
+        "length": 2
+      },
+      "createObjectExpression": {
+        "name": "createObjectExpression",
+        "length": 1
+      },
+      "createObjectProperty": {
+        "name": "createObjectProperty",
+        "length": 2
+      },
+      "createReturnStatement": {
+        "name": "createReturnStatement",
+        "length": 1
+      },
+      "createRoot": {
+        "name": "createRoot",
+        "length": 1
+      },
+      "createSequenceExpression": {
+        "name": "createSequenceExpression",
+        "length": 1
+      },
+      "createSimpleExpression": {
+        "name": "createSimpleExpression",
+        "length": 1
+      },
+      "createStructuralDirectiveTransform": {
+        "name": "createStructuralDirectiveTransform",
+        "length": 2
+      },
+      "createTemplateLiteral": {
+        "name": "createTemplateLiteral",
+        "length": 1
+      },
+      "createTransformContext": {
+        "name": "createTransformContext",
+        "length": 2
+      },
+      "createVNodeCall": {
+        "name": "createVNodeCall",
+        "length": 7
+      },
+      "extractIdentifiers": {
+        "name": "extractIdentifiers",
+        "length": 1
+      },
+      "findDir": {
+        "name": "findDir",
+        "length": 2
+      },
+      "findProp": {
+        "name": "findProp",
+        "length": 2
+      },
+      "generate": {
+        "name": "generate",
+        "length": 1
+      },
+      "generateCodeFrame": {
+        "name": "generateCodeFrame",
+        "length": 1
+      },
+      "getBaseTransformPreset": {
+        "name": "getBaseTransformPreset",
+        "length": 1
+      },
+      "getConstantType": {
+        "name": "getConstantType",
+        "length": 2
+      },
+      "getMemoedVNodeCall": {
+        "name": "getMemoedVNodeCall",
+        "length": 1
+      },
+      "getVNodeBlockHelper": {
+        "name": "getVNodeBlockHelper",
+        "length": 2
+      },
+      "getVNodeHelper": {
+        "name": "getVNodeHelper",
+        "length": 2
+      },
+      "hasDynamicKeyVBind": {
+        "name": "hasDynamicKeyVBind",
+        "length": 1
+      },
+      "hasScopeRef": {
+        "name": "hasScopeRef",
+        "length": 2
+      },
+      "injectProp": {
+        "name": "injectProp",
+        "length": 3
+      },
+      "isAllWhitespace": {
+        "name": "isAllWhitespace",
+        "length": 1
+      },
+      "isCommentOrWhitespace": {
+        "name": "isCommentOrWhitespace",
+        "length": 1
+      },
+      "isCoreComponent": {
+        "name": "isCoreComponent",
+        "length": 1
+      },
+      "isFnExpression": {
+        "name": "isFnExpressionNode",
+        "length": 2
+      },
+      "isFnExpressionBrowser": {
+        "name": "isFnExpressionBrowser",
+        "length": 1
+      },
+      "isFnExpressionNode": {
+        "name": "isFnExpressionNode",
+        "length": 2
+      },
+      "isFunctionType": {
+        "name": "isFunctionType",
+        "length": 1
+      },
+      "isInDestructureAssignment": {
+        "name": "isInDestructureAssignment",
+        "length": 2
+      },
+      "isInNewExpression": {
+        "name": "isInNewExpression",
+        "length": 1
+      },
+      "isMemberExpression": {
+        "name": "isMemberExpressionNode",
+        "length": 2
+      },
+      "isMemberExpressionBrowser": {
+        "name": "isMemberExpressionBrowser",
+        "length": 1
+      },
+      "isMemberExpressionNode": {
+        "name": "isMemberExpressionNode",
+        "length": 2
+      },
+      "isReferencedIdentifier": {
+        "name": "isReferencedIdentifier",
+        "length": 3
+      },
+      "isSimpleIdentifier": {
+        "name": "isSimpleIdentifier",
+        "length": 1
+      },
+      "isSlotOutlet": {
+        "name": "isSlotOutlet",
+        "length": 1
+      },
+      "isStaticArgOf": {
+        "name": "isStaticArgOf",
+        "length": 2
+      },
+      "isStaticExp": {
+        "name": "isStaticExp",
+        "length": 1
+      },
+      "isStaticProperty": {
+        "name": "isStaticProperty",
+        "length": 1
+      },
+      "isStaticPropertyKey": {
+        "name": "isStaticPropertyKey",
+        "length": 2
+      },
+      "isTemplateNode": {
+        "name": "isTemplateNode",
+        "length": 1
+      },
+      "isText": {
+        "name": "isText$1",
+        "length": 1
+      },
+      "isVPre": {
+        "name": "isVPre",
+        "length": 1
+      },
+      "isVSlot": {
+        "name": "isVSlot",
+        "length": 1
+      },
+      "isWhitespaceText": {
+        "name": "isWhitespaceText",
+        "length": 1
+      },
+      "noopDirectiveTransform": {
+        "name": "noopDirectiveTransform",
+        "length": 0
+      },
+      "processExpression": {
+        "name": "processExpression",
+        "length": 2
+      },
+      "processFor": {
+        "name": "processFor",
+        "length": 4
+      },
+      "processIf": {
+        "name": "processIf",
+        "length": 4
+      },
+      "processSlotOutlet": {
+        "name": "processSlotOutlet",
+        "length": 2
+      },
+      "registerRuntimeHelpers": {
+        "name": "registerRuntimeHelpers",
+        "length": 1
+      },
+      "resolveComponentType": {
+        "name": "resolveComponentType",
+        "length": 2
+      },
+      "stringifyExpression": {
+        "name": "stringifyExpression",
+        "length": 1
+      },
+      "toValidAssetId": {
+        "name": "toValidAssetId",
+        "length": 2
+      },
+      "trackSlotScopes": {
+        "name": "trackSlotScopes",
+        "length": 2
+      },
+      "trackVForSlotScopes": {
+        "name": "trackVForSlotScopes",
+        "length": 2
+      },
+      "transform": {
+        "name": "transform",
+        "length": 2
+      },
+      "transformBind": {
+        "name": "transformBind",
+        "length": 3
+      },
+      "transformElement": {
+        "name": "transformElement",
+        "length": 2
+      },
+      "transformExpression": {
+        "name": "transformExpression",
+        "length": 2
+      },
+      "transformModel": {
+        "name": "transformModel",
+        "length": 3
+      },
+      "transformOn": {
+        "name": "transformOn",
+        "length": 4
+      },
+      "transformVBindShorthand": {
+        "name": "transformVBindShorthand",
+        "length": 2
+      },
+      "traverseNode": {
+        "name": "traverseNode",
+        "length": 2
+      },
+      "unwrapTSNode": {
+        "name": "unwrapTSNode",
+        "length": 1
+      },
+      "walkBlockDeclarations": {
+        "name": "walkBlockDeclarations",
+        "length": 2
+      },
+      "walkFunctionParams": {
+        "name": "walkFunctionParams",
+        "length": 2
+      },
+      "walkIdentifiers": {
+        "name": "walkIdentifiers",
+        "length": 2
+      },
+      "warnDeprecation": {
+        "name": "warnDeprecation",
+        "length": 3
+      }
+    },
+    "compiler-dom": {
+      "advancePositionWithClone": {
+        "name": "advancePositionWithClone",
+        "length": 2
+      },
+      "advancePositionWithMutation": {
+        "name": "advancePositionWithMutation",
+        "length": 2
+      },
+      "assert": {
+        "name": "assert",
+        "length": 2
+      },
+      "baseCompile": {
+        "name": "baseCompile",
+        "length": 1
+      },
+      "baseParse": {
+        "name": "baseParse",
+        "length": 2
+      },
+      "buildDirectiveArgs": {
+        "name": "buildDirectiveArgs",
+        "length": 2
+      },
+      "buildProps": {
+        "name": "buildProps",
+        "length": 2
+      },
+      "buildSlots": {
+        "name": "buildSlots",
+        "length": 2
+      },
+      "checkCompatEnabled": {
+        "name": "checkCompatEnabled",
+        "length": 3
+      },
+      "compile": {
+        "name": "compile",
+        "length": 1
+      },
+      "convertToBlock": {
+        "name": "convertToBlock",
+        "length": 2
+      },
+      "createArrayExpression": {
+        "name": "createArrayExpression",
+        "length": 1
+      },
+      "createAssignmentExpression": {
+        "name": "createAssignmentExpression",
+        "length": 2
+      },
+      "createBlockStatement": {
+        "name": "createBlockStatement",
+        "length": 1
+      },
+      "createCacheExpression": {
+        "name": "createCacheExpression",
+        "length": 2
+      },
+      "createCallExpression": {
+        "name": "createCallExpression",
+        "length": 1
+      },
+      "createCompilerError": {
+        "name": "createCompilerError",
+        "length": 4
+      },
+      "createCompoundExpression": {
+        "name": "createCompoundExpression",
+        "length": 1
+      },
+      "createConditionalExpression": {
+        "name": "createConditionalExpression",
+        "length": 3
+      },
+      "createDOMCompilerError": {
+        "name": "createDOMCompilerError",
+        "length": 2
+      },
+      "createForLoopParams": {
+        "name": "createForLoopParams",
+        "length": 1
+      },
+      "createFunctionExpression": {
+        "name": "createFunctionExpression",
+        "length": 1
+      },
+      "createIfStatement": {
+        "name": "createIfStatement",
+        "length": 3
+      },
+      "createInterpolation": {
+        "name": "createInterpolation",
+        "length": 2
+      },
+      "createObjectExpression": {
+        "name": "createObjectExpression",
+        "length": 1
+      },
+      "createObjectProperty": {
+        "name": "createObjectProperty",
+        "length": 2
+      },
+      "createReturnStatement": {
+        "name": "createReturnStatement",
+        "length": 1
+      },
+      "createRoot": {
+        "name": "createRoot",
+        "length": 1
+      },
+      "createSequenceExpression": {
+        "name": "createSequenceExpression",
+        "length": 1
+      },
+      "createSimpleExpression": {
+        "name": "createSimpleExpression",
+        "length": 1
+      },
+      "createStructuralDirectiveTransform": {
+        "name": "createStructuralDirectiveTransform",
+        "length": 2
+      },
+      "createTemplateLiteral": {
+        "name": "createTemplateLiteral",
+        "length": 1
+      },
+      "createTransformContext": {
+        "name": "createTransformContext",
+        "length": 2
+      },
+      "createVNodeCall": {
+        "name": "createVNodeCall",
+        "length": 7
+      },
+      "extractIdentifiers": {
+        "name": "extractIdentifiers",
+        "length": 1
+      },
+      "findDir": {
+        "name": "findDir",
+        "length": 2
+      },
+      "findProp": {
+        "name": "findProp",
+        "length": 2
+      },
+      "generate": {
+        "name": "generate",
+        "length": 1
+      },
+      "generateCodeFrame": {
+        "name": "generateCodeFrame",
+        "length": 1
+      },
+      "getBaseTransformPreset": {
+        "name": "getBaseTransformPreset",
+        "length": 1
+      },
+      "getConstantType": {
+        "name": "getConstantType",
+        "length": 2
+      },
+      "getMemoedVNodeCall": {
+        "name": "getMemoedVNodeCall",
+        "length": 1
+      },
+      "getVNodeBlockHelper": {
+        "name": "getVNodeBlockHelper",
+        "length": 2
+      },
+      "getVNodeHelper": {
+        "name": "getVNodeHelper",
+        "length": 2
+      },
+      "hasDynamicKeyVBind": {
+        "name": "hasDynamicKeyVBind",
+        "length": 1
+      },
+      "hasScopeRef": {
+        "name": "hasScopeRef",
+        "length": 2
+      },
+      "injectProp": {
+        "name": "injectProp",
+        "length": 3
+      },
+      "isAllWhitespace": {
+        "name": "isAllWhitespace",
+        "length": 1
+      },
+      "isCommentOrWhitespace": {
+        "name": "isCommentOrWhitespace",
+        "length": 1
+      },
+      "isCoreComponent": {
+        "name": "isCoreComponent",
+        "length": 1
+      },
+      "isFnExpression": {
+        "name": "isFnExpressionNode",
+        "length": 2
+      },
+      "isFnExpressionBrowser": {
+        "name": "isFnExpressionBrowser",
+        "length": 1
+      },
+      "isFnExpressionNode": {
+        "name": "isFnExpressionNode",
+        "length": 2
+      },
+      "isFunctionType": {
+        "name": "isFunctionType",
+        "length": 1
+      },
+      "isInDestructureAssignment": {
+        "name": "isInDestructureAssignment",
+        "length": 2
+      },
+      "isInNewExpression": {
+        "name": "isInNewExpression",
+        "length": 1
+      },
+      "isMemberExpression": {
+        "name": "isMemberExpressionNode",
+        "length": 2
+      },
+      "isMemberExpressionBrowser": {
+        "name": "isMemberExpressionBrowser",
+        "length": 1
+      },
+      "isMemberExpressionNode": {
+        "name": "isMemberExpressionNode",
+        "length": 2
+      },
+      "isReferencedIdentifier": {
+        "name": "isReferencedIdentifier",
+        "length": 3
+      },
+      "isSimpleIdentifier": {
+        "name": "isSimpleIdentifier",
+        "length": 1
+      },
+      "isSlotOutlet": {
+        "name": "isSlotOutlet",
+        "length": 1
+      },
+      "isStaticArgOf": {
+        "name": "isStaticArgOf",
+        "length": 2
+      },
+      "isStaticExp": {
+        "name": "isStaticExp",
+        "length": 1
+      },
+      "isStaticProperty": {
+        "name": "isStaticProperty",
+        "length": 1
+      },
+      "isStaticPropertyKey": {
+        "name": "isStaticPropertyKey",
+        "length": 2
+      },
+      "isTemplateNode": {
+        "name": "isTemplateNode",
+        "length": 1
+      },
+      "isText": {
+        "name": "isText$1",
+        "length": 1
+      },
+      "isVPre": {
+        "name": "isVPre",
+        "length": 1
+      },
+      "isVSlot": {
+        "name": "isVSlot",
+        "length": 1
+      },
+      "isWhitespaceText": {
+        "name": "isWhitespaceText",
+        "length": 1
+      },
+      "noopDirectiveTransform": {
+        "name": "noopDirectiveTransform",
+        "length": 0
+      },
+      "parse": {
+        "name": "parse",
+        "length": 1
+      },
+      "processExpression": {
+        "name": "processExpression",
+        "length": 2
+      },
+      "processFor": {
+        "name": "processFor",
+        "length": 4
+      },
+      "processIf": {
+        "name": "processIf",
+        "length": 4
+      },
+      "processSlotOutlet": {
+        "name": "processSlotOutlet",
+        "length": 2
+      },
+      "registerRuntimeHelpers": {
+        "name": "registerRuntimeHelpers",
+        "length": 1
+      },
+      "resolveComponentType": {
+        "name": "resolveComponentType",
+        "length": 2
+      },
+      "stringifyExpression": {
+        "name": "stringifyExpression",
+        "length": 1
+      },
+      "toValidAssetId": {
+        "name": "toValidAssetId",
+        "length": 2
+      },
+      "trackSlotScopes": {
+        "name": "trackSlotScopes",
+        "length": 2
+      },
+      "trackVForSlotScopes": {
+        "name": "trackVForSlotScopes",
+        "length": 2
+      },
+      "transform": {
+        "name": "transform",
+        "length": 2
+      },
+      "transformBind": {
+        "name": "transformBind",
+        "length": 3
+      },
+      "transformElement": {
+        "name": "transformElement",
+        "length": 2
+      },
+      "transformExpression": {
+        "name": "transformExpression",
+        "length": 2
+      },
+      "transformModel": {
+        "name": "transformModel",
+        "length": 3
+      },
+      "transformOn": {
+        "name": "transformOn",
+        "length": 4
+      },
+      "transformStyle": {
+        "name": "transformStyle",
+        "length": 1
+      },
+      "transformVBindShorthand": {
+        "name": "transformVBindShorthand",
+        "length": 2
+      },
+      "traverseNode": {
+        "name": "traverseNode",
+        "length": 2
+      },
+      "unwrapTSNode": {
+        "name": "unwrapTSNode",
+        "length": 1
+      },
+      "walkBlockDeclarations": {
+        "name": "walkBlockDeclarations",
+        "length": 2
+      },
+      "walkFunctionParams": {
+        "name": "walkFunctionParams",
+        "length": 2
+      },
+      "walkIdentifiers": {
+        "name": "walkIdentifiers",
+        "length": 2
+      },
+      "warnDeprecation": {
+        "name": "warnDeprecation",
+        "length": 3
+      }
+    },
+    "compiler-ssr": {
+      "compile": {
+        "name": "compile",
+        "length": 1
+      }
+    },
+    "server-renderer": {
+      "pipeToNodeWritable": {
+        "name": "pipeToNodeWritable",
+        "length": 1
+      },
+      "pipeToWebWritable": {
+        "name": "pipeToWebWritable",
+        "length": 1
+      },
+      "renderToNodeStream": {
+        "name": "renderToNodeStream",
+        "length": 1
+      },
+      "renderToSimpleStream": {
+        "name": "renderToSimpleStream",
+        "length": 3
+      },
+      "renderToStream": {
+        "name": "renderToStream",
+        "length": 1
+      },
+      "renderToString": {
+        "name": "renderToString",
+        "length": 1
+      },
+      "renderToWebStream": {
+        "name": "renderToWebStream",
+        "length": 1
+      },
+      "ssrGetDirectiveProps": {
+        "name": "ssrGetDirectiveProps",
+        "length": 4
+      },
+      "ssrGetDynamicModelProps": {
+        "name": "ssrGetDynamicModelProps",
+        "length": 0
+      },
+      "ssrIncludeBooleanAttr": {
+        "name": "includeBooleanAttr",
+        "length": 1
+      },
+      "ssrInterpolate": {
+        "name": "ssrInterpolate",
+        "length": 1
+      },
+      "ssrLooseContain": {
+        "name": "ssrLooseContain",
+        "length": 2
+      },
+      "ssrLooseEqual": {
+        "name": "looseEqual",
+        "length": 2
+      },
+      "ssrRenderAttr": {
+        "name": "ssrRenderAttr",
+        "length": 2
+      },
+      "ssrRenderAttrs": {
+        "name": "ssrRenderAttrs",
+        "length": 2
+      },
+      "ssrRenderClass": {
+        "name": "ssrRenderClass",
+        "length": 1
+      },
+      "ssrRenderComponent": {
+        "name": "ssrRenderComponent",
+        "length": 1
+      },
+      "ssrRenderDynamicAttr": {
+        "name": "ssrRenderDynamicAttr",
+        "length": 3
+      },
+      "ssrRenderDynamicModel": {
+        "name": "ssrRenderDynamicModel",
+        "length": 3
+      },
+      "ssrRenderList": {
+        "name": "ssrRenderList",
+        "length": 2
+      },
+      "ssrRenderSlot": {
+        "name": "ssrRenderSlot",
+        "length": 7
+      },
+      "ssrRenderSlotInner": {
+        "name": "ssrRenderSlotInner",
+        "length": 8
+      },
+      "ssrRenderStyle": {
+        "name": "ssrRenderStyle",
+        "length": 1
+      },
+      "ssrRenderSuspense": {
+        "name": "ssrRenderSuspense",
+        "length": 2
+      },
+      "ssrRenderTeleport": {
+        "name": "ssrRenderTeleport",
+        "length": 5
+      },
+      "ssrRenderVNode": {
+        "name": "renderVNode",
+        "length": 4
+      }
+    },
+    "compiler-sfc": {
+      "MagicString": {
+        "name": "MagicString",
+        "length": 1
+      },
+      "babelParse": {
+        "name": "parse",
+        "length": 2
+      },
+      "compileScript": {
+        "name": "compileScript",
+        "length": 2
+      },
+      "compileStyle": {
+        "name": "compileStyle",
+        "length": 1
+      },
+      "compileStyleAsync": {
+        "name": "compileStyleAsync",
+        "length": 1
+      },
+      "compileTemplate": {
+        "name": "compileTemplate",
+        "length": 1
+      },
+      "extractIdentifiers": {
+        "name": "extractIdentifiers",
+        "length": 1
+      },
+      "extractRuntimeEmits": {
+        "name": "extractRuntimeEmits",
+        "length": 1
+      },
+      "extractRuntimeProps": {
+        "name": "extractRuntimeProps",
+        "length": 1
+      },
+      "generateCodeFrame": {
+        "name": "generateCodeFrame",
+        "length": 1
+      },
+      "inferRuntimeType": {
+        "name": "inferRuntimeType",
+        "length": 2
+      },
+      "invalidateTypeCache": {
+        "name": "invalidateTypeCache",
+        "length": 1
+      },
+      "isInDestructureAssignment": {
+        "name": "isInDestructureAssignment",
+        "length": 2
+      },
+      "isStaticProperty": {
+        "name": "isStaticProperty",
+        "length": 1
+      },
+      "parse": {
+        "name": "parse$1",
+        "length": 1
+      },
+      "registerTS": {
+        "name": "registerTS",
+        "length": 1
+      },
+      "resolveTypeElements": {
+        "name": "resolveTypeElements",
+        "length": 4
+      },
+      "rewriteDefault": {
+        "name": "rewriteDefault",
+        "length": 3
+      },
+      "rewriteDefaultAST": {
+        "name": "rewriteDefaultAST",
+        "length": 3
+      },
+      "shouldTransformRef": {
+        "name": "shouldTransformRef",
+        "length": 0
+      },
+      "walk": {
+        "name": "walk",
+        "length": 2
+      },
+      "walkIdentifiers": {
+        "name": "walkIdentifiers",
+        "length": 2
+      }
+    }
+  }
+}

@@ -1,38 +1,26 @@
 import { createCompatVue } from "./createCompatVue";
-import extern {
+import {
   compile as indexCompilerCompile,
   warnDeprecation as indexCompilerWarnDeprecation
-} from "../../packages/vuelil/compiler-dom.js";
-import extern {
+} from "../package/compiler-dom.lil";
+import {
   DeprecationTypes as indexDeprecationTypes,
   compatUtils as indexCompatUtils,
   registerRuntimeCompiler as indexRegisterRuntimeCompiler,
   warn as indexWarn
-} from "../../packages/vuelil/runtime-dom.js";
-import extern {
+} from "../package/runtime-dom.lil";
+import {
   NOOP as indexNoop,
   extend as indexExtend,
   genCacheKey as indexGenCacheKey,
   generateCodeFrame as indexGenerateCodeFrame,
   isString as indexIsString
-} from "../../packages/vuelil/shared.js";
+} from "../package/shared.lil";
 import { Object as compatObject, globalThis as compatGlobal } from "../shared/makeMap";
 
-extern JsValue indexCompilerCompile;
-extern JsValue indexCompilerWarnDeprecation;
-extern JsValue indexDeprecationTypes;
-extern JsValue indexCompatUtils;
-extern JsValue indexRegisterRuntimeCompiler;
-extern JsValue indexWarn;
-extern JsValue indexNoop;
-extern JsValue indexExtend;
-extern JsValue indexGenCacheKey;
-extern JsValue indexGenerateCodeFrame;
-extern bool indexIsString(JsValue value);
-
-bool INDEX_DEV = true;
-bool INDEX_GLOBAL = false;
-bool INDEX_TEST = false;
+define bool INDEX_DEV = true;
+define bool INDEX_GLOBAL = false;
+define bool INDEX_TEST = false;
 
 JsValue compileCache = JS.invoke(compatObject, "create", null);
 JsValue runtimeDom = JS.undefined();

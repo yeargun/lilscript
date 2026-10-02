@@ -1,17 +1,11 @@
-import extern {
+import {
   TO_DISPLAY_STRING,
   createCallExpression,
   createObjectProperty,
   createSimpleExpression,
   getConstantType
-} from "../../../packages/vuelil/compiler-core.js";
+} from "../../package/compiler-core.lil";
 import { DOMErrorCodes, createDOMCompilerError } from "../errors";
-
-extern JsValue TO_DISPLAY_STRING;
-extern JsValue createCallExpression;
-extern JsValue createObjectProperty;
-extern JsValue createSimpleExpression;
-extern JsValue getConstantType;
 
 JsValue vTextUndefined() {
   return JS.undefined();

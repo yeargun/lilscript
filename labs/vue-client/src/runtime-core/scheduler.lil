@@ -31,7 +31,7 @@ extern JsValue hostPromiseResolve();
 extern JsValue hostPromiseThen(JsValue promise, JsValue callback);
 extern JsValue hostSetFunctionName(JsValue fn, string name);
 
-bool DEV = true;
+define bool DEV = true;
 
 export JsValue SchedulerJobFlags = JS.object(
   "QUEUED", 1,

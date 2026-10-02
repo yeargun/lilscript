@@ -1,18 +1,15 @@
 import extern { default as compileStylePostcss } from "postcss";
 import extern { default as compileStyleModules } from "postcss-modules";
-import extern {
+import {
   hostAssign as compileStyleAssign,
   hostCreateError as compileStyleCreateError,
   hostCreateSet as compileStyleCreateSet
-} from "./host.js";
+} from "./host.lil";
 import { cssVarsPlugin } from "./style/cssVars";
 import { scopedPlugin } from "./style/pluginScoped";
 import { processors } from "./style/preprocessors";
 import { trimPlugin } from "./style/pluginTrim";
 
-extern JsValue compileStyleAssign;
-extern JsValue compileStyleCreateError;
-extern JsValue compileStyleCreateSet;
 extern JsValue compileStyleModules;
 extern JsValue compileStylePostcss;
 

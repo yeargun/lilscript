@@ -228,11 +228,12 @@ fn render_inner(
             let source = import.source.as_unicode().ok_or(PrintError::Container(
                 "container imports require a Unicode module specifier",
             ))?;
+            let delivered_source = config.external_specifier(source);
             let rebased =
-                admit!(|b| files::rebased_in(source, &planned.names[planned.file], Scratch, b));
+                admit!(|b| files::rebased_in(delivered_source, &planned.names[planned.file], Scratch, b));
             let path = match rebased {
                 Some(path) => path,
-                None => admit!(|b| b.string(Scratch, source)),
+                None => admit!(|b| b.string(Scratch, delivered_source)),
             };
             let global = config
                 .globals
@@ -258,6 +259,7 @@ fn render_inner(
             admit!(|b| b.push(Scratch, &mut sources, index));
             request
         };
+        if import.imported.is_empty() { continue; }
         let name = admit!(|b| b.string(Scratch, &import.imported));
         admit!(|b| b.push(
             Scratch,
@@ -406,11 +408,11 @@ fn render_inner(
             out.text(");");
         }
         if let Some(hosts) = hosts {
-            if !file.links.hosted.is_empty() {
+            if !file.links.hosted.is_empty() && !file.initializers.iter().any(|part| part.host.is_some()) {
                 out.host_bindings(hosts, file.links.hosted.iter().copied());
             }
         }
-        inline::body(&mut out, file);
+        inline::body(&mut out, file, hosts);
         out.output.mark(None);
         printer.planned_structure = std::mem::take(&mut out.planned_structure);
         out.text("return ");

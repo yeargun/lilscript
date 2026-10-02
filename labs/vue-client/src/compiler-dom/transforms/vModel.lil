@@ -1,4 +1,4 @@
-import extern {
+import {
   ElementTypes,
   NodeTypes,
   findDir,
@@ -6,7 +6,7 @@ import extern {
   hasDynamicKeyVBind,
   isStaticArgOf,
   transformModel as coreTransformModel
-} from "../../../packages/vuelil/compiler-core.js";
+} from "../../package/compiler-core.lil";
 import { DOMErrorCodes, createDOMCompilerError } from "../errors";
 import {
   V_MODEL_CHECKBOX,
@@ -15,14 +15,6 @@ import {
   V_MODEL_SELECT,
   V_MODEL_TEXT
 } from "../runtimeHelpers";
-
-extern JsValue ElementTypes;
-extern JsValue NodeTypes;
-extern JsValue findDir;
-extern JsValue findProp;
-extern JsValue hasDynamicKeyVBind;
-extern JsValue isStaticArgOf;
-extern JsValue coreTransformModel;
 
 JsValue domModelUndefined() {
   return JS.undefined();

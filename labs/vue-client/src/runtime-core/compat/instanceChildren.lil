@@ -1,7 +1,5 @@
-import extern { ShapeFlags as childrenShapeFlags } from "../../../packages/vuelil/shared.js";
+import { ShapeFlags as childrenShapeFlags } from "../../package/shared.lil";
 import { DeprecationTypes, assertCompatEnabled } from "./compatConfig";
-
-extern JsValue childrenShapeFlags;
 
 void walkCompatChildren(JsValue vnode, JsValue children) {
   if (vnode["component"].truthy()) {

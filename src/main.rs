@@ -243,6 +243,7 @@ fn run() -> Result<(), String> {
     if let Some(cache) = &args.cache {
         if cache == "off" {
             loaded.config.cache.normalization_reuse = false;
+            loaded.config.cache.elaboration_reuse = false;
             loaded.config.cache.formation_reuse = false;
             loaded.config.cache.build_reuse = false;
         }
@@ -463,9 +464,12 @@ fn build(
     options: ServiceOptions,
 ) -> Result<(), String> {
     let requested = options.requested_objectives(config)?;
-    let multiple = options.javascript_request().is_some() && requested.iter().count() > 1;
+    let multiple = options.javascript_request().is_some() && (requested.iter().count() > 1 || !config.delivery.also.is_empty());
+    if options.javascript_request().is_some() && config.delivery.directory.is_some() && args.out_dir.is_none() {
+        return Err("`delivery.directory` requires --out-dir DIR".into());
+    }
     if multiple && (args.out_dir.is_none() || args.output.is_some()) {
-        return Err("several objective results need --out-dir DIR and no -o FILE".to_string());
+        return Err("several objective or format results need --out-dir DIR and no -o FILE".to_string());
     }
     let result = lilscript::compile_entries(entries, config, options)
         .map_err(|error| render_service_error(&error))?;
@@ -609,9 +613,9 @@ fn plan_delivery<'a>(
                 directory.join("lilscript.manifest.json"),
             ),
             (None, Some(directory), _) => (
-                directory.clone(),
+                directory.join(config.delivery.directory.as_deref().unwrap_or(Path::new(""))),
                 None,
-                directory.join("lilscript.manifest.json"),
+                directory.join(config.delivery.directory.as_deref().unwrap_or(Path::new(""))).join("lilscript.manifest.json"),
             ),
             (None, None, Some(output)) => {
                 let directory = output
@@ -720,7 +724,15 @@ fn plan_delivery<'a>(
     let root_index=result.report()["inputs"]["root"].as_u64().unwrap_or(0) as usize;
     let base=modules.get(root_index).and_then(|root|Path::new(root).parent()).unwrap_or(Path::new(""));
     let modules=modules.iter().map(|path| relative_source_name(base,Path::new(path))).collect::<Vec<_>>();
-    let manifest = lilscript::manifest_v3(&outputs, &modules, codec);
+    let mut manifest = lilscript::manifest_v3(&outputs, &modules, codec);
+    manifest["source_sha256"] = result.report()["source_sha256"].clone();
+    manifest["inputs"] = result.report()["inputs"].clone();
+    for output in manifest["outputs"].as_array_mut().unwrap() {
+        output["output"] = json!("primary");
+        output["codec"] = json!(codec.name());
+        output["codec_settings"] = json!(config.objective.settings());
+        output["policy_fingerprint"] = selected.details()["policy_fingerprint"].clone();
+    }
     Ok(PlannedDelivery {
         directory,
         manifest_path,
@@ -770,6 +782,9 @@ fn write_objective_deliveries(
     result: &ServiceCompilation,
     objectives: lilscript::js::selection::Objectives,
 ) -> Result<(), String> {
+    if !result.outputs().is_empty() {
+        return write_format_deliveries(args, entries, config, result);
+    }
     let directory = args.out_dir.as_ref().unwrap();
     let mut written = Vec::new();
     let mut outputs = Vec::new();
@@ -777,7 +792,8 @@ fn write_objective_deliveries(
         let selected = result
             .javascript(codec)
             .ok_or_else(|| format!("missing {} objective result", codec.name()))?;
-        let child = directory.join(codec.name());
+        let prefix = config.delivery.directory.as_deref().unwrap_or(Path::new("")).join(codec.name());
+        let child = directory.join(&prefix);
         let mut plan = plan_delivery(args, entries, config, result, selected, codec, Some(&child))?;
         for (path, _) in &plan.written {
             let relative = path
@@ -794,7 +810,7 @@ fn write_objective_deliveries(
         }
         for output in plan.manifest["outputs"].as_array_mut().unwrap().drain(..) {
             let mut output = output;
-            prefix_manifest_paths(&mut output, codec.name());
+            prefix_manifest_paths(&mut output, &prefix.to_string_lossy());
             output["codec"] = json!(codec.name());
             output["codec_settings"] = json!(config.objective.settings());
             output["policy_fingerprint"] = selected.details()["policy_fingerprint"].clone();
@@ -807,12 +823,57 @@ fn write_objective_deliveries(
         manifest_path: directory.join("lilscript.manifest.json"),
         written,
         manifest: json!({"version": 4,
+            "source_sha256":result.report()["source_sha256"],"inputs":result.report()["inputs"],
             "codecs": objectives.iter().map(CompressionCostModel::name).collect::<Vec<_>>(),
             "outputs": outputs}),
     })
 }
 
+fn write_format_deliveries(
+    args: &Args, entries: &[EntrySource], config: &ProjectConfig, result: &ServiceCompilation,
+) -> Result<(), String> {
+    let directory = args.out_dir.as_ref().unwrap();
+    let mut written = Vec::new();
+    let mut outputs = Vec::new();
+    for group in result.outputs() {
+        let configured = if group.name()=="primary" { config.clone() } else {
+            config.delivery.also.iter().find(|output| output.name==group.name())
+                .ok_or("missing configured output")?.configuration(config)
+        };
+        let multiple = group.objectives().count() > 1;
+        for codec in group.objectives() {
+            let selected = result.javascript_output(group.name(),codec).ok_or("missing output artifact")?;
+            let base = configured.delivery.directory.as_deref().unwrap_or_else(||Path::new(group.name()));
+            let prefix = if multiple {base.join(codec.name())} else {base.to_path_buf()};
+            let prefix = prefix.components().filter_map(|part| if let std::path::Component::Normal(name)=part {Some(name.to_string_lossy())} else {None}).collect::<Vec<_>>().join("/");
+            let child = directory.join(&prefix);
+            let mut plan = plan_delivery(args,entries,&configured,result,selected,codec,Some(&child))?;
+            for (path,_) in &plan.written {
+                let relative = path.strip_prefix(&child).map_err(|_|"an output escapes its directory")?;
+                if relative.components().any(|part| !matches!(part,std::path::Component::Normal(_) | std::path::Component::CurDir)) {
+                    return Err("an output escapes its directory".into());
+                }
+            }
+            for mut output in plan.manifest["outputs"].as_array_mut().unwrap().drain(..) {
+                prefix_manifest_paths(&mut output,&prefix);
+                output["output"] = json!(group.name());
+                output["codec"] = json!(codec.name());
+                output["codec_settings"] = json!(configured.objective.settings());
+                output["policy_fingerprint"] = selected.details()["policy_fingerprint"].clone();
+                outputs.push(output);
+            }
+            written.append(&mut plan.written);
+        }
+    }
+    write_planned_delivery(PlannedDelivery {
+        directory:directory.clone(), manifest_path:directory.join("lilscript.manifest.json"), written,
+        manifest:json!({"version":5,"source_sha256":result.report()["source_sha256"],
+            "inputs":result.report()["inputs"],"outputs":outputs}),
+    })
+}
+
 fn prefix_manifest_paths(output: &mut Value, prefix: &str) {
+    if prefix.is_empty() || prefix=="." {return;}
     let path = |value: &mut Value| {
         *value = json!(format!(
             "{prefix}/{}",
@@ -979,6 +1040,14 @@ fn explain_human(report: &Value) -> String {
                         .map_or(0, Vec::len),
                 ),
             );
+        }
+        for output in report["outputs"].as_array().into_iter().flatten().filter(|output|output["name"]!="primary") {
+            for (codec,winner) in ["raw","gzip","brotli"].iter().zip(output["winners"].as_array().into_iter().flatten()) {
+                let Some(artifact) = winner.as_u64().and_then(|index|artifacts.get(index as usize)) else {continue;};
+                line(&format!("{} {codec}",text(&output["name"])),format!("raw {}, gzip {}, brotli {}; {} file(s)",
+                    text(&artifact["raw"]),text(&artifact["gzip9"]),text(&artifact["brotli11"]),
+                    artifact["details"]["delivery"]["files"].as_array().map_or(1,Vec::len)));
+            }
         }
         let search = &report["search"];
         if !search.is_null() {
@@ -1227,6 +1296,19 @@ fn policy_report(
         receipt["request"]["objectives"] = receipt["objectives"].clone();
     }
     // `--target all` also builds C, under its own policy.
+    let additional = options.resolve_additional_outputs(&loaded.config)?;
+    if !additional.is_empty() {
+        use sha2::{Digest, Sha256};
+        receipt["additional_outputs"] = json!(additional.iter().map(|output| output.receipt()).collect::<Vec<_>>());
+        let identity = json!({"kind":"independent-delivery-policies-v1","primary":receipt["fingerprint"],
+            "additional":receipt["additional_outputs"],
+            "directories":std::iter::once(("primary",loaded.config.delivery.directory.as_ref())).chain(loaded.config.delivery.also.iter().map(|output|
+                (output.name.as_str(),output.directory.as_ref().or(loaded.config.delivery.directory.as_ref())))).collect::<Vec<_>>()});
+        receipt["output_directories"] = identity["directories"].clone();
+        receipt["primary_fingerprint"] = receipt["fingerprint"].clone();
+        receipt["fingerprint"] = json!(format!("{:x}",Sha256::digest(identity.to_string().as_bytes())));
+        receipt["fingerprint_scope"] = json!("requested delivery and objective policies");
+    }
     if let (Some(_), Some((fingerprint, policy, diagnostics))) = (&javascript, native) {
         receipt["native_fingerprint"] = json!(fingerprint);
         receipt["native_policy"] = policy;

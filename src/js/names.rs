@@ -82,10 +82,10 @@ pub fn check_template(key: &str, template: &str) -> Result<(), String> {
         if let Part::Text(text) = part {
             if text
                 .chars()
-                .any(|c| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-' | '/')))
+                .any(|c| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-' | '/' | '@')))
             {
                 return Err(format!(
-                    "`delivery.{key}` = `{template}` may hold only letters, digits, `_`, `.`, `-` and `/` besides its placeholders"
+                    "`delivery.{key}` = `{template}` may hold only letters, digits, `_`, `.`, `-`, `@` and `/` besides its placeholders"
                 ));
             }
         }
@@ -257,6 +257,7 @@ mod tests {
         assert!(check_template("chunk_names", "a b.js").is_err());
         assert!(check_template("chunk_names", "[hash:0].js").is_err());
         assert!(check_template("chunk_names", "internal/[index].[ext]").is_ok());
+        assert!(check_template("entry_names", "@scope/package/[name].[ext]").is_ok());
         assert!(check_template("entry_names", "./[name].[ext]").is_err());
         assert!(check_template("entry_names", "a//[name].[ext]").is_err());
         assert!(check_template("chunk_names", "internal/").is_err());

@@ -1,13 +1,14 @@
+import {read_GLOBAL as vue_read_GLOBAL} from "../../package/build-flags.lil";
 import { inject } from "../apiInject";
 import { warn } from "../warning";
 
 extern JsValue Symbol;
 
-bool DEV = true;
-extern JsValue __GLOBAL__;
+define bool DEV = true;
+
 
 bool globalBuild() {
-  return JS.typeOf(__GLOBAL__) == "boolean" && __GLOBAL__.truthy();
+  return JS.typeOf(vue_read_GLOBAL()) == "boolean" && vue_read_GLOBAL().truthy();
 }
 
 export JsValue ssrContextKey = JS.invoke(Symbol, "for", "v-scx");

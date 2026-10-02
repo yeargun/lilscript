@@ -20,9 +20,13 @@ use serde_json::{json, Value};
 #[command(about = "Language Server Protocol implementation for LilScript.")]
 struct Args {}
 
+#[path = "../lsp_graph.rs"]
+mod graph;
+
 #[derive(Debug, Clone)]
 struct Document {
     text: String,
+    version: Option<i64>,
 }
 
 fn main() {
@@ -70,20 +74,24 @@ fn run() -> Result<(), Box<dyn Error + Send + Sync>> {
     )?;
 
     let mut documents = HashMap::<String, Document>::new();
-    for message in &connection.receiver {
-        match message {
-            Message::Request(request) => {
-                if connection.handle_shutdown(&request)? {
-                    break;
+    'connection: loop {
+        let arena = Bump::new();
+        let mut graph = graph::GraphClient::new(&arena);
+        while let Ok(message) = connection.receiver.recv() {
+            match message {
+                Message::Request(request) => {
+                    if connection.handle_shutdown(&request)? { break 'connection; }
+                    let response = handle_request(request, &documents, &mut graph);
+                    connection.sender.send(Message::Response(response))?;
                 }
-                let response = handle_request(request, &documents);
-                connection.sender.send(Message::Response(response))?;
+                Message::Notification(notification) => {
+                    handle_notification(notification, &mut documents, &connection, &mut graph)?;
+                }
+                Message::Response(_) => {}
             }
-            Message::Notification(notification) => {
-                handle_notification(notification, &mut documents, &connection)?;
-            }
-            Message::Response(_) => {}
+            if graph.reset { continue 'connection; }
         }
+        break;
     }
 
     drop(connection);
@@ -95,6 +103,7 @@ fn handle_notification(
     notification: Notification,
     documents: &mut HashMap<String, Document>,
     connection: &Connection,
+    graph: &mut graph::GraphClient<'_>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     match notification.method.as_str() {
         "textDocument/didOpen" => {
@@ -109,9 +118,10 @@ fn handle_notification(
                 uri.to_string(),
                 Document {
                     text: text.to_string(),
+                    version,
                 },
             );
-            publish_diagnostics(connection, uri, text, version)?;
+            graph.publish(connection, documents, uri)?;
         }
         "textDocument/didChange" => {
             let Some(uri) = string_at(&notification.params, "/textDocument/uri") else {
@@ -132,15 +142,17 @@ fn handle_notification(
                 uri.to_string(),
                 Document {
                     text: text.to_string(),
+                    version,
                 },
             );
-            publish_diagnostics(connection, uri, text, version)?;
+            graph.publish(connection, documents, uri)?;
         }
         "textDocument/didClose" => {
             let Some(uri) = string_at(&notification.params, "/textDocument/uri") else {
                 return Ok(());
             };
             documents.remove(uri);
+            graph.publish(connection, documents, uri)?;
             send_notification(
                 connection,
                 "textDocument/publishDiagnostics",
@@ -152,20 +164,15 @@ fn handle_notification(
     Ok(())
 }
 
-fn handle_request(request: Request, documents: &HashMap<String, Document>) -> Response {
+fn handle_request(request: Request, documents: &HashMap<String, Document>, graph: &mut graph::GraphClient<'_>) -> Response {
     let result = match request.method.as_str() {
-        "textDocument/completion" => {
-            let source = request_uri(&request.params)
-                .and_then(|uri| documents.get(uri))
-                .map(|document| document.text.as_str());
-            Ok(completion_result(source))
-        }
-        "textDocument/hover" => Ok(hover_result(&request.params, documents)),
+        "textDocument/completion" => Ok(graph.completion(&request.params, documents)),
+        "textDocument/hover" => Ok(graph.hover(&request.params, documents)),
         "textDocument/documentSymbol" => Ok(document_symbol_result(&request.params, documents)),
         "textDocument/formatting" => Ok(formatting_result(&request.params, documents)),
         "textDocument/codeAction" => Ok(code_action_result(&request.params, documents)),
-        "textDocument/references" => Ok(references_result(&request.params, documents)),
-        "textDocument/rename" => rename_result(&request.params, documents),
+        "textDocument/references" => Ok(graph.references(&request.params, documents)),
+        "textDocument/rename" => graph.rename(&request.params, documents),
         "textDocument/semanticTokens/full" => {
             Ok(semantic_tokens_result(&request.params, documents))
         }
@@ -1331,6 +1338,7 @@ mod tests {
             uri.to_string(),
             Document {
                 text: "// note\nint value=1;".to_string(),
+                version: None,
             },
         );
         let tokens = semantic_tokens_result(&json!({ "textDocument": { "uri": uri } }), &documents);

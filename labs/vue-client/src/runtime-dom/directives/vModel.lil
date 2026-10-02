@@ -1,12 +1,12 @@
-import extern { nextTick as modelNextTick, warn as modelWarn } from "../../../packages/vuelil/runtime-core.js";
-import extern {
+import { nextTick as modelNextTick, warn as modelWarn } from "../../package/runtime-core.lil";
+import {
   isArray as modelIsArray,
   isSet as modelIsSet,
   invokeArrayFns as modelInvokeArrayFns,
   looseEqual as modelLooseEqual,
   looseIndexOf as modelLooseIndexOf,
   looseToNumber as modelLooseToNumber
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { addEventListener } from "../modules/events";
 import extern {
   hostActiveElementIs,
@@ -31,14 +31,6 @@ import extern {
   hostWrite
 } from "../host.js";
 
-extern JsValue modelNextTick;
-extern JsValue modelWarn;
-extern bool modelIsArray(JsValue value);
-extern bool modelIsSet(JsValue value);
-extern JsValue modelInvokeArrayFns;
-extern bool modelLooseEqual(JsValue left, JsValue right);
-extern int modelLooseIndexOf(JsValue values, JsValue value);
-extern JsValue modelLooseToNumber(JsValue value);
 extern bool hostActiveElementIs(JsValue element);
 extern JsValue hostArraySlice(JsValue value);
 extern void hostArraySplice(JsValue value, int index, int count);
@@ -60,7 +52,7 @@ extern int hostSetSize(JsValue value);
 extern string hostString(JsValue value);
 extern void hostWrite(JsValue value, JsValue key, JsValue next);
 
-bool V_MODEL_COMPAT = false;
+define bool V_MODEL_COMPAT = false;
 JsValue assignKey = hostCreateSymbol("_assign");
 JsValue initialValueKey = hostCreateSymbol("_initialValue");
 Regex textLineBreaks = new Regex("[\\r\\n]", "g");

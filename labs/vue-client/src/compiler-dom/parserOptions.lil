@@ -1,22 +1,15 @@
-import extern {
+import {
   Namespaces,
   NodeTypes
-} from "../../packages/vuelil/compiler-core.js";
-import extern {
+} from "../package/compiler-core.lil";
+import {
   isHTMLTag as sharedIsHTMLTag,
   isMathMLTag as sharedIsMathMLTag,
   isSVGTag as sharedIsSVGTag,
   isVoidTag as sharedIsVoidTag
-} from "../../packages/vuelil/shared.js";
+} from "../package/shared.lil";
 import { decodeHtmlBrowser } from "./decodeHtmlBrowser";
 import { TRANSITION, TRANSITION_GROUP } from "./runtimeHelpers";
-
-extern JsValue Namespaces;
-extern JsValue NodeTypes;
-extern JsValue sharedIsHTMLTag;
-extern JsValue sharedIsMathMLTag;
-extern JsValue sharedIsSVGTag;
-extern JsValue sharedIsVoidTag;
 
 JsValue parserOptionUndefined() {
   return JS.undefined();

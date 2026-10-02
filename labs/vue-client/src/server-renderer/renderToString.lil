@@ -1,21 +1,14 @@
-import extern {
+import {
   createApp as stringCreateApp,
   createVNode as stringCreateVNode,
   ssrContextKey as stringContextKey,
   ssrUtils as stringSsrUtils
-} from "../../packages/vuelil/runtime-dom.js";
-import extern {
+} from "../package/runtime-dom.lil";
+import {
   isPromise as stringIsPromise,
   isString as stringIsString
-} from "../../packages/vuelil/shared.js";
+} from "../package/shared.lil";
 import { renderComponentVNode } from "./render";
-
-extern JsValue stringCreateApp;
-extern JsValue stringCreateVNode;
-extern JsValue stringContextKey;
-extern JsValue stringSsrUtils;
-extern bool stringIsPromise(JsValue value);
-extern bool stringIsString(JsValue value);
 
 JsValue stringIsVNode = stringSsrUtils["isVNode"];
 

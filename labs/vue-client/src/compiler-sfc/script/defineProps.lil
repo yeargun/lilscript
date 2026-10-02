@@ -1,8 +1,8 @@
-import extern {
+import {
   BindingTypes as PropsBindingTypes,
   isFunctionType as propsIsFunctionType,
   unwrapTSNode as propsUnwrapTSNode
-} from "../../../packages/vuelil/compiler-dom.js";
+} from "../../package/compiler-dom.lil";
 import { getObjectOrArrayExpressionKeys } from "./analyzeScriptBindings";
 import { genModelProps } from "./defineModel";
 import { processPropsDestructure } from "./definePropsDestructure";
@@ -16,10 +16,6 @@ import {
   resolveObjectKey,
   toRuntimeTypeString
 } from "./utils";
-
-extern JsValue PropsBindingTypes;
-extern JsValue propsIsFunctionType;
-extern JsValue propsUnwrapTSNode;
 
 int propsLength(JsValue value) {
   return JS.number(value["length"]).toInt();

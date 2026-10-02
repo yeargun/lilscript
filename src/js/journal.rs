@@ -481,6 +481,7 @@ mod check {
             let tables = self.imports != before.imports
                 || self.exports != before.exports
                 || self.root_rows != before.root_rows
+                || self.integrated_hosts != before.integrated_hosts
                 || self.scopes.get(..before.scopes.len()) != Some(&before.scopes[..]);
             changed |= tables;
             if tables && !journal.tables {

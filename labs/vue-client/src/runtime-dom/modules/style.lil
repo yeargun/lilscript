@@ -1,11 +1,11 @@
-import extern {
+import {
   camelize as styleCamelize,
   capitalize as styleCapitalize,
   hyphenate as styleHyphenate,
   isArray as styleIsArray,
   isString as styleIsString
-} from "../../../packages/vuelil/shared.js";
-import extern { warn as styleWarn } from "../../../packages/vuelil/runtime-core.js";
+} from "../../package/shared.lil";
+import { warn as styleWarn } from "../../package/runtime-core.lil";
 import { vShowHidden, vShowOriginalDisplay } from "../directives/vShow";
 import { CSS_VAR_TEXT } from "../helpers/useCssVars";
 import extern {
@@ -19,12 +19,6 @@ import extern {
   hostWrite
 } from "../host.js";
 
-extern JsValue styleCamelize;
-extern JsValue styleCapitalize;
-extern JsValue styleHyphenate;
-extern bool styleIsArray(JsValue value);
-extern bool styleIsString(JsValue value);
-extern JsValue styleWarn;
 extern JsValue hostCall1(JsValue fn, JsValue first);
 extern JsValue hostCallMethod2(JsValue receiver, string name, JsValue first, JsValue second);
 extern JsValue hostCallMethod3(JsValue receiver, string name, JsValue first, JsValue second, JsValue third);
@@ -34,7 +28,7 @@ extern void hostRemoveAttribute(JsValue element, string name);
 extern string hostString(JsValue value);
 extern void hostWrite(JsValue value, JsValue key, JsValue next);
 
-bool STYLE_DEV = true;
+define bool STYLE_DEV = true;
 Regex displayPattern = new Regex("(?:^|;)\\s*display\\s*:");
 Regex semicolonPattern = new Regex("[^\\\\];\\s*$");
 Regex importantPattern = new Regex("\\s*!important$");

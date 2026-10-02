@@ -1,14 +1,9 @@
-import extern {
+import {
   NodeTypes as TemplateAstNodeTypes,
   createRoot as templateAstCreateRoot
-} from "../../../packages/vuelil/compiler-core.js";
-import extern { parse as templateAstDomParse } from "../../../packages/vuelil/compiler-dom.js";
-import extern { hostAssign as templateAstHostAssign } from "../host.js";
-
-extern JsValue TemplateAstNodeTypes;
-extern JsValue templateAstCreateRoot;
-extern JsValue templateAstDomParse;
-extern JsValue templateAstHostAssign;
+} from "../../package/compiler-core.lil";
+import { parse as templateAstDomParse } from "../../package/compiler-dom.lil";
+import { hostAssign as templateAstHostAssign } from "../host.lil";
 
 export JsValue resolveTemplateAST(JsValue inAST, JsValue options) {
   if (JS.isNullish(inAST) || !inAST["transformed"].truthy()) return inAST;

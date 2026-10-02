@@ -1,0 +1,2 @@
+import {hostDecodeEntities, hostDecodeEntity, hostNewFunction, hostParseExpression, hostCreateSourceMap, hostAddSourceMapping, hostSourceMapJson} from "vue-hosts/compiler-core";
+export {hostDecodeEntities, hostDecodeEntity, hostNewFunction, hostParseExpression, hostCreateSourceMap, hostAddSourceMapping, hostSourceMapJson};

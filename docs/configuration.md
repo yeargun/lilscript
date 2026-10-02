@@ -1146,10 +1146,12 @@ Unknown external module initialization is an ordering barrier. Split output
 keeps separate request files when necessary; an unused imported binding does
 not grant permission to omit module loading or named-export validation. This
 can increase file count and bytes. Single-file output is diagnosed when a
-foreign module must run lazily or after a source initializer, because a static
-import would change that order. Choose split/preserved delivery or typed host
-embedding for those graphs. Embedded hosts have individual dependency/entry
-ownership and can run lazily inside the single-file module runtime.
+external module must run lazily or after a source initializer, because a static
+import would change that order. Choose split/preserved delivery or embedding
+for supported static hosts. Embedded opaque modules retain graph order in
+single-file output and share their dependencies' identities and live internal
+bindings. Opaque lazy modules need split/preserved output; typed embedded hosts
+can also run lazily inside the single-file module runtime.
 
 
 
@@ -1232,6 +1234,13 @@ product unions and unsupported stored graph schemas are diagnosed.
   namespace or AMD/browser provider with that surface. This explicit choice
   avoids guessing from a user-controlled `__esModule` property. Internal links
   always follow the compiler's live namespace convention. ESM uses native imports.
+- `external_specifiers` maps external source requests to delivered specifiers.
+  The default empty map preserves requests; use per-output maps when ESM and
+  CJS hosts have different entry files. Relative destinations start at the
+  output root and are rebased for nested files. The destination must provide
+  the declared host API/effects. Internal links and embedded hosts do not
+  change. Mappings add no runtime wrapper and their exact strings are scored;
+  IIFE/UMD `globals` maps still use the original source key.
 - Container/global/import settings participate in policy identity, replay and
   complete artifact scoring. They apply at every effort, including zero. Wrapper
   and getter costs are real bytes and runtime operations; select ESM when the
@@ -1270,6 +1279,20 @@ ABI, package-root confinement and SHA-256 source checksums without changing the
 lockfile. See [modules-and-delivery](modules-and-delivery.md).
 
 ## Lint and format policy
+
+CLI checks, lint and editor queries resolve `[delivery.entries]` as one graph.
+Opening a private dependency does not make it another public entry. All open
+file buffers override disk together, so changing a dependency refreshes its
+consumers' diagnostics, imported completion and hover types. References and
+value renames use checked binding identities across the graph; explicit import
+aliases keep their local names when the provider is renamed. Invalid/incomplete
+syntax may use lexical completion without claiming a checked type.
+
+Rust clients can use `configured_entries`, `with_checked_graph` and
+`SourceOverride` for this same graph. `GraphSession::new(&Bump)` retains guarded
+source/checker reuse; inspect `stats()` and replace both session and arena when
+`needs_new_epoch(config)` returns true. The caller owns the epoch; no source
+references escape into a later one.
 
 `lilscript-lint` runs the same frontend a build runs, then checks each module's
 syntax, the module-graph checker's results and the program they elaborate to.
@@ -1330,12 +1353,34 @@ lilscript-fmt src --check
 
 ```toml
 [cache]
+elaboration_reuse = true
+frontend_cache_bytes = 67108864
 build_reuse = true
 normalization_reuse = true
 formation_reuse = true
 codec_reuse = true
 # directory = ".lilscript/cache"
 ```
+
+`elaboration_reuse` controls source/syntax and checked-module reuse in a retained
+graph session, including the editor. Set it to false for cold/reused diagnostic
+audits. The compiler still checks declaration interfaces and graph validity;
+unchanged dependency modules can reuse a checkpoint before the edited module.
+Changes to signatures, default expressions, schemas, top-level initializers,
+source-node numbering, dependency order or language contracts discard that
+checkpoint. Later unchanged modules may be checked again. This conservative
+boundary preserves shared nominal identities and cyclic initialization without
+retaining a declaration-table copy per source file. It changes compiler work,
+not runtime behavior, search effort or compression objectives.
+
+`frontend_cache_bytes` is a soft source/syntax arena threshold for an editor
+session epoch, 64 MiB by default. The editor replaces the session between requests
+when this threshold or 64 requests is reached, releasing old source revisions.
+One request can exceed the threshold; this is not a hard compiler-memory ceiling
+and does not include every nested checker allocation. Set it to zero to rotate
+after every request. Lower values bound retained history sooner and reduce reuse;
+higher values may save parsing/checking at the cost of memory. Build/output
+resource limits remain the separate `[policy.resources]` contract.
 
 `cache.build_reuse` defaults to `true` and requires `cache.directory`. It stores
 completed build outputs and their logical receipts. A warm identical build skips
@@ -1550,12 +1595,12 @@ dependent on elapsed time. Report fields `codec_cache.memory_hits`,
 `--cache DIR` enables persistent codec reuse at that directory and allows build
 reuse when `build_reuse` remains true; relative CLI paths start in the current
 working directory. It preserves explicit `build_reuse=false` and
-`normalization_reuse=false`. `--cache off` disables build, codec, formation and normalization
+`normalization_reuse=false`. `--cache off` disables elaboration, build, codec, formation and normalization
 reuse and disk access. Explicit CLI settings override their TOML counterparts. `--print-policy` reports the effective
 settings under execution/resolution, outside the semantic fingerprint. Unknown
-keys, non-boolean reuse flags and an empty directory are errors. Per-module
-elaboration caching remains migration work; decision-lock replay is documented
-above.
+keys, non-boolean reuse flags and an empty directory are errors. Graph-session
+elaboration controls are documented above, alongside their conservative reuse
+boundary; decision-lock replay has its separate configuration.
 
 ### Objective search and scoring workers
 

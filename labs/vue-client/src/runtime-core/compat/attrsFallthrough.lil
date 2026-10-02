@@ -1,7 +1,5 @@
-import extern { isOn as attrsIsOn } from "../../../packages/vuelil/shared.js";
+import { isOn as attrsIsOn } from "../../package/shared.lil";
 import { DeprecationTypes, isCompatEnabled } from "./compatConfig";
-
-extern bool attrsIsOn(string key);
 
 export bool shouldSkipAttr(string key, JsValue instance) {
   if (key == "is") return true;

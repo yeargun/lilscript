@@ -28,10 +28,10 @@ extern void appDefineAccessor(JsValue value, JsValue key, JsValue get, JsValue s
 extern bool appHostDelete(JsValue value, JsValue key);
 extern JsValue appFunction1Rest(JsValue callback);
 extern JsValue appSetFunctionName(JsValue fn, string name);
-bool APP_DEV = true;
-bool APP_FEATURE_OPTIONS_API = true;
-bool APP_FEATURE_PROD_DEVTOOLS = false;
-bool APP_COMPAT = false;
+define bool APP_DEV = true;
+define bool APP_FEATURE_OPTIONS_API = true;
+define bool APP_FEATURE_PROD_DEVTOOLS = false;
+define bool APP_COMPAT = false;
 
 export JsValue createAppContext() {
   return JS.object(

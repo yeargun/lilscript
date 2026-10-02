@@ -12,7 +12,7 @@ import { warn } from "../warning";
 
 extern JsValue Symbol;
 
-bool DEV = true;
+define bool DEV = true;
 
 JsValue invokeRenderItem(
   JsValue renderItem,

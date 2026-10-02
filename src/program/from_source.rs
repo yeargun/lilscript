@@ -2314,7 +2314,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         for (import, specifier) in source.foreign_imports.iter().zip(sources) {
             self.work(1)?;
             if import.specifiers.is_empty() {
-                return self.unsupported(import.span, "foreign side-effect import conversion");
+                let source = self.budget.string(Retained, specifier)?;
+                self.budget.push(Retained, &mut building_table(&mut self.program.modules)[module].foreign_imports,
+                    ForeignImport { span: import.span, cell: None, source, imported: String::new() })?;
             }
             for binding in import.specifiers {
                 self.work(source.items.len())?;
@@ -2341,7 +2343,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     &mut building_table(&mut self.program.modules)[module].foreign_imports,
                     ForeignImport {
                         span: import.span,
-                        cell,
+                        cell: Some(cell),
                         source,
                         imported,
                     },

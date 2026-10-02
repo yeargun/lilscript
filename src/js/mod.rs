@@ -936,6 +936,7 @@ pub enum ValueClass {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Import {
     pub source: StringValue,
+    /// Empty for a side-effect-only request; its unused binding identifies the edge.
     pub imported: String,
     pub binding: BindingId,
 }
@@ -1110,6 +1111,9 @@ pub struct Module {
     /// every rule that inserts, removes, moves or fuses a root statement
     /// carries them. Placement reads them.
     pub root_rows: Vec<RootRow>,
+    /// Host modules have been incorporated into this tree. This remains true
+    /// when optimization removes every host statement.
+    pub(crate) integrated_hosts: bool,
     /// Each entry's public exports, as positions in `exports`, when the
     /// program has several entries; empty for one (every export is its).
     pub entries: Vec<EntryPublic>,
@@ -1306,7 +1310,7 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         let root = self.root.index();
-        let recorded = !self.root_rows.is_empty();
+        let recorded = self.root_rows.len() == self.regions[root].statements.len();
         self.journal_region(root);
         budget.push(
             AllocationClass::Retained,
@@ -1326,7 +1330,7 @@ impl Module {
         rows: impl IntoIterator<Item = RootRow>,
     ) {
         let root = self.root.index();
-        let recorded = !self.root_rows.is_empty();
+        let recorded = self.root_rows.len() == self.regions[root].statements.len();
         self.journal_region(root);
         self.regions[root].statements.splice(0..0, statements);
         if recorded {
@@ -3209,6 +3213,7 @@ impl Module {
             pure_property_reads: false,
             unconstructed_callbacks: false,
             root_rows: vec![],
+            integrated_hosts: false,
             entries: vec![],
             consumer_annotations: crate::config::ConsumerAnnotations::Off,
             discardable_functions: Vec::new(),

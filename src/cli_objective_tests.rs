@@ -3,6 +3,55 @@ use lilscript::js::selection::Objective;
 use sha2::{Digest, Sha256};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[test]
+fn d3_cli_format_manifests_preserve_judged_bytes_and_remove_retired_outputs() {
+    let scratch=Scratch::new();
+    let entry=scratch.write("entry.lil","export int answer(){return 42;}");
+    let entries=[EntrySource{name:"main".into(),path:entry}];
+    let args=arguments(&scratch,"js-module");
+    let options=service_options_with_environment(&args,None).unwrap();
+    let mut config=lilscript::config::parse_project_config(r#"
+        effort.level=3
+        objective.codecs=['raw','gzip']
+        [delivery]
+        entry_names='[name].mjs'
+        [[delivery.also]]
+        name='cjs'
+        directory='.'
+        format='cjs'
+        codecs='gzip'
+        entry_names='[name].cjs'
+    "#).unwrap().config;
+    let result=lilscript::compile_entries(&entries,&config,options).unwrap();
+    write_format_deliveries(&args,&entries,&config,&result).unwrap();
+    let out=scratch.0.join("out");
+    let manifest:Value=serde_json::from_slice(&fs::read(out.join("lilscript.manifest.json")).unwrap()).unwrap();
+    assert_eq!(manifest["version"],5);
+    assert_eq!(manifest["source_sha256"],result.report()["source_sha256"]);
+    assert_eq!(manifest["outputs"].as_array().unwrap().len(),3);
+    for output in manifest["outputs"].as_array().unwrap() {
+        let codec=if output["codec"]=="raw" {Objective::Raw} else {Objective::Gzip};
+        let name=output["output"].as_str().unwrap();
+        let artifact=result.javascript_output(name,codec).unwrap();
+        assert_eq!(output["policy_fingerprint"],artifact.details()["policy_fingerprint"]);
+        for file in output["files"].as_array().unwrap() {
+            let bytes=fs::read(out.join(file["file"].as_str().unwrap())).unwrap();
+            assert_eq!(file["sha256"],format!("{:x}",Sha256::digest(&bytes)));
+            assert_eq!(file["codec_bytes"],lilscript::compression::measure(&bytes,codec).unwrap());
+        }
+    }
+    assert_eq!(execute(&out,"import {createRequire} from 'node:module';console.log(createRequire(import.meta.url)('./main.cjs').answer());"),"42\n");
+    scratch.write("out/keep.txt","untouched");
+    config.delivery.also.clear();
+    config.objective.codecs=vec![Objective::Raw];
+    let result=lilscript::compile_entries(&entries,&config,options).unwrap();
+    write_delivery(&args,&entries,&config,&result,result.javascript(Objective::Raw).unwrap(),Objective::Raw).unwrap();
+    assert!(!out.join("main.cjs").exists());
+    assert!(!out.join("primary/raw/main.mjs").exists());
+    assert!(out.join("main.mjs").exists());
+    assert_eq!(fs::read_to_string(out.join("keep.txt")).unwrap(),"untouched");
+}
+
 struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {

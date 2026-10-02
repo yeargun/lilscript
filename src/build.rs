@@ -4,6 +4,12 @@
 mod cache;
 #[path = "build_decisions.rs"]
 mod decisions;
+#[path = "build_graph.rs"]
+mod graph;
+pub use graph::{GraphSession, GraphSessionStats};
+#[path = "build_outputs.rs"]
+mod outputs;
+pub use outputs::{OutputPolicies, ServiceOutput};
 
 use std::fmt;
 use std::path::Path;
@@ -316,6 +322,7 @@ impl ServiceJavaScript {
 pub struct ServiceCompilation {
     javascript: Vec<ServiceJavaScript>,
     winners: [Option<usize>; 3],
+    outputs: Vec<ServiceOutput>,
     native_c: Option<String>,
     native_header: Option<String>,
     report: Value,
@@ -339,6 +346,7 @@ struct Frontend {
     options: ServiceOptions,
     javascript: Option<ResolvedPolicy>,
     independent_javascript: Option<Vec<ResolvedPolicy>>,
+    additional_outputs: Vec<OutputPolicies>,
     native: Option<ResolvedPolicy>,
     ledger: BudgetLedger,
     phases: Value,
@@ -364,7 +372,7 @@ thread_local! {
 
 impl Frontend {
     fn wants_source_maps(&self) -> bool {
-        self.javascript.as_ref().into_iter().chain(self.independent_javascript.iter().flatten())
+        self.javascript.as_ref().into_iter().chain(self.independent_javascript.iter().flatten()).chain(self.additional_outputs.iter().flat_map(|output| &output.policies))
             .any(|policy| policy.delivery().is_some_and(|delivery| delivery.container.source_maps != crate::config::SourceMaps::Off))
     }
     fn trap_index_reads(&self) -> bool {
@@ -388,6 +396,7 @@ impl Frontend {
             .into_iter()
             .flatten()
             .chain(self.independent_javascript.iter().flatten())
+            .chain(self.additional_outputs.iter().flat_map(|output| &output.policies))
             .collect();
         if policies.is_empty() {
             return None;
@@ -434,6 +443,8 @@ impl Frontend {
 
     fn new(config: &ProjectConfig, options: ServiceOptions) -> Result<Self, ServiceError> {
         let started = Instant::now();
+        let additional_outputs = options.resolve_additional_outputs(config)
+            .map_err(|error| ServiceError::new("policy", error))?;
         let mut options = options;
         if options.javascript_request().is_some() {
             options.objectives = Some(
@@ -475,6 +486,7 @@ impl Frontend {
             options,
             javascript,
             independent_javascript,
+            additional_outputs,
             native,
             ledger,
             phases: json!({"policy_ns": nanos(started)}),
@@ -511,6 +523,7 @@ impl Frontend {
             options,
             javascript,
             independent_javascript,
+            additional_outputs,
             native,
             ledger,
             mut phases,
@@ -578,6 +591,7 @@ impl Frontend {
             options,
             javascript,
             independent_javascript,
+            additional_outputs,
             native,
             compilation,
             source,
@@ -600,6 +614,7 @@ pub struct CheckedSourceSession<'src> {
     options: ServiceOptions,
     javascript: Option<ResolvedPolicy>,
     independent_javascript: Option<Vec<ResolvedPolicy>>,
+    additional_outputs: Vec<OutputPolicies>,
     native: Option<ResolvedPolicy>,
     compilation: Compilation<'src>,
     source: SemanticId,
@@ -961,7 +976,9 @@ impl<'src> CheckedSourceSession<'src> {
             .map_err(|error| ServiceError::new("native", error))
     }
 
-    fn compile_targets(&mut self) -> Result<ServiceCompilation, ServiceError> {
+    /// Compile every configured output/objective through this session's one
+    /// baseline-sealing transition. Call once, after any source edits.
+    pub fn compile_targets(&mut self) -> Result<ServiceCompilation, ServiceError> {
         let started = self.started;
         let mut first_artifact_ns = None;
         let native = if self.native.is_some() {
@@ -976,6 +993,7 @@ impl<'src> CheckedSourceSession<'src> {
         let mut output = ServiceCompilation {
             javascript: Vec::new(),
             winners: [None; 3],
+            outputs: Vec::new(),
             native_c: None,
             native_header: None,
             report: Value::Null,
@@ -983,12 +1001,18 @@ impl<'src> CheckedSourceSession<'src> {
         let mut search_report = Value::Null;
         if self.javascript.is_some() {
             let phase = Instant::now();
-            let batch = self.search_javascript(self.source, |observation| {
-                if observation.baseline && first_artifact_ns.is_none() {
-                    first_artifact_ns = Some(nanos(started));
-                }
-            })?;
-            (output.javascript, output.winners, search_report) = batch.into_parts();
+            if self.additional_outputs.is_empty() {
+                let batch = self.search_javascript(self.source, |observation| {
+                    if observation.baseline && first_artifact_ns.is_none() {
+                        first_artifact_ns = Some(nanos(started));
+                    }
+                })?;
+                (output.javascript, output.winners, search_report) = batch.into_parts();
+            } else {
+                search_report = self.compile_javascript_outputs(&mut output, |observation| {
+                    if observation.baseline && first_artifact_ns.is_none() { first_artifact_ns = Some(nanos(started)); }
+                })?;
+            }
             self.phases["javascript_ns"] = json!(nanos(phase));
         }
         let native_cost = if let Some(artifact) = native {
@@ -1020,6 +1044,7 @@ impl<'src> CheckedSourceSession<'src> {
             "brotli11":artifact.sizes.brotli11, "details":artifact.details,
         })).collect::<Vec<_>>());
         output.report["winners"] = json!(output.winners);
+        output.report["outputs"] = json!(output.outputs);
         output.report["native_sha256"] =
             json!(output.native_c.as_ref().map(|text| digest(text.as_bytes())));
         output.report["native_header_sha256"] = json!(output.native_header.as_ref().map(|text| digest(text.as_bytes())));
@@ -1036,6 +1061,7 @@ impl<'src> CheckedSourceSession<'src> {
             options,
             javascript,
             independent_javascript,
+            additional_outputs,
             native,
             compilation,
             phases,
@@ -1107,6 +1133,7 @@ impl<'src> CheckedSourceSession<'src> {
                 "scope":"admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate"
             }
         });
+        report["additional_outputs"] = json!(additional_outputs.iter().map(|output| output.receipt()).collect::<Vec<_>>());
         report["resources"]["target_allocation_accounting"] = json!("partial");
         report["resources"]["target_allocation_scope"] = json!("complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact");
         report["codec_cache"] = json!(codec_cache);
@@ -1381,6 +1408,58 @@ pub struct CheckedProgram<'a, 'ast, 'src> {
     pub program: &'a crate::program::Program<'src>,
 }
 
+struct GraphConversion<'a> {
+    source_contract: crate::config::LanguageConfig,
+    hosts: &'a crate::config::HostConfig,
+    defines: &'a crate::config::Defines,
+    javascript: Option<&'a crate::compilation_contract::JavaScriptCompilationContract>,
+    native: bool,
+    library: bool,
+    rules: Option<RuleRequest>,
+    trap_index_reads: bool,
+}
+struct PreparedGraph<'src> {
+    program: PreparedProgram<'src>,
+    rules: crate::program::rules::RuleReceipt,
+    native_bindings: Vec<(crate::program::CellId, String)>,
+    conversion_ns: u64,
+}
+/// Capability and conversion ownership shared by cold compilation and retained
+/// graph sessions. A warm editor must report the same language/target refusal.
+fn prepare_checked_graph<'ast, 'src>(
+    modules: &ModuleSet<&'src str>, syntax: &[crate::ast::Program<'ast, 'src>],
+    semantics: &CheckedModules<'ast, 'src>, request: GraphConversion<'_>, budget: &mut AllocationBudget<'_>,
+) -> Result<PreparedGraph<'src>, ServiceError> {
+    for (module, input) in modules.modules.iter().enumerate() {
+        crate::check::capabilities::language(semantics.view(module).expect("checked source"),
+            Some(module), request.source_contract, budget)
+            .map_err(|error| native_check_error(&input.path, input.source, error))?;
+        if request.native {
+            crate::check::capabilities::native(&syntax[module], semantics.view(module).unwrap(), Some(module),
+                if request.library && semantics.roots().contains(&module) { &semantics.interfaces()[module].exports } else { &[] },
+                request.hosts, budget).map_err(|error| native_check_error(&input.path, input.source, error))?;
+        }
+    }
+    let native_bindings = if request.native { configured_native_bindings(semantics.symbols(), request.hosts)? } else { Vec::new() };
+    budget.work(WorkKind::Analysis, modules.modules.iter().map(|m| m.source.len() as u64).sum())
+        .map_err(|error| ServiceError::resources("frontend resources", error))?;
+    let started = Instant::now();
+    let (program, rules) = from_checked_modules_with_rules(syntax, semantics, request.rules, request.trap_index_reads,
+        request.hosts, request.defines, request.javascript, budget).map_err(|error| match error.error {
+        ConversionError::Unsupported(unsupported) => {
+            let module = &modules.modules[error.module];
+            ServiceError::module("conversion", ModuleError::new(&module.path, module.source,
+                unsupported.span, format!("unsupported source: {}", unsupported.feature)))
+        }
+        ConversionError::Contract(violation) => {
+            let module = &modules.modules[error.module];
+            ServiceError::module("check", ModuleError::new(&module.path, module.source, violation.span, violation.message))
+        }
+        ConversionError::Resources(error) => ServiceError::resources("conversion resources", error),
+    })?;
+    Ok(PreparedGraph { program, rules, native_bindings, conversion_ns: nanos(started) })
+}
+
 /// The single-source frontend: parsing, checking and conversion under the
 /// frontend's ledger. Syntax and checker storage are gone when it returns.
 fn check_source_frontend<'src>(
@@ -1508,6 +1587,7 @@ fn check_path_frontend<'src, T>(
     frontend: &mut Frontend,
     entries: &[EntrySource],
     root_source: Option<&str>,
+    overlays: &[crate::module::SourceOverride<'_>],
     config: &ProjectConfig,
     sources: &'src StableSourceArena,
     build: bool,
@@ -1522,7 +1602,7 @@ fn check_path_frontend<'src, T>(
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let (modules, syntax) =
-        discover_parsed_modules_admitted(entries, root_source, config, sources, &arena).map_err(
+        crate::module::discover_parsed_modules_with_overrides(entries, root_source, overlays, config, sources, &arena).map_err(
             |error| match error {
                 ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
                 ModuleDiscoveryError::Resources(error) => {
@@ -1577,68 +1657,16 @@ fn check_path_frontend<'src, T>(
                 source_contract,
                 &mut AllocationBudget::new(Some((ledger, domain))),
                 |semantics, budget| -> Result<_, ServiceError> {
-                    for (module,input) in modules.modules.iter().enumerate() {
-                        crate::check::capabilities::language(semantics.view(module).expect("checked source"),
-                            Some(module),source_contract,budget)
-                            .map_err(|error|native_check_error(&input.path,input.source,error))?;
-                    }
-                    if frontend.native.is_some() {
-                        for (module, source) in syntax.iter().enumerate() {
-                            let input = &modules.modules[module];
-                            crate::check::capabilities::native(
-                                source,
-                                semantics.view(module).expect("checked source"),
-                                Some(module),
-                                if frontend.options.preserve_root_exports && semantics.roots().contains(&module) {
-                                    &semantics.interfaces()[module].exports
-                                } else { &[] },
-                                &host_config,
-                                budget,
-                            )
-                            .map_err(|error| {
-                                native_check_error(&input.path, input.source, error)
-                            })?;
-                        }
-                        frontend.native_bindings = configured_native_bindings(semantics.symbols(), &host_config)?;
-                    }
-                    frontend.phases["check_ns"] = json!(nanos(phase));
-                    budget
-                        .work(WorkKind::Analysis, bytes)
-                        .map_err(|error| ServiceError::resources("frontend resources", error))?;
-                    let phase = Instant::now();
-                    let (program, rules) =
-                        from_checked_modules_with_rules(&syntax, semantics, rules, trap_index_reads, &host_config, &defines, javascript_contract.as_ref(), budget)
-                            .map_err(|error| match error.error {
-                                ConversionError::Unsupported(unsupported) => {
-                                    let module = &modules.modules[error.module];
-                                    ServiceError::module(
-                                        "conversion",
-                                        ModuleError::new(
-                                            &module.path,
-                                            module.source,
-                                            unsupported.span,
-                                            format!("unsupported source: {}", unsupported.feature),
-                                        ),
-                                    )
-                                }
-                                ConversionError::Contract(violation) => {
-                                    let module = &modules.modules[error.module];
-                                    ServiceError::module(
-                                        "check",
-                                        ModuleError::new(
-                                            &module.path,
-                                            module.source,
-                                            violation.span,
-                                            violation.message,
-                                        ),
-                                    )
-                                }
-                                ConversionError::Resources(error) => {
-                                    ServiceError::resources("conversion resources", error)
-                                }
-                            })?;
-                    frontend.phases["convert_ns"] = json!(nanos(phase));
-                    frontend.phases["rules"] = rules.json();
+                    let prepared = prepare_checked_graph(&modules, &syntax, semantics, GraphConversion {
+                        source_contract, hosts: &host_config, defines: &defines, javascript: javascript_contract.as_ref(),
+                        native: frontend.native.is_some(), library: frontend.options.preserve_root_exports,
+                        rules, trap_index_reads,
+                    }, budget)?;
+                    frontend.native_bindings = prepared.native_bindings;
+                    frontend.phases["check_ns"] = json!(nanos(phase).saturating_sub(prepared.conversion_ns));
+                    frontend.phases["convert_ns"] = json!(prepared.conversion_ns);
+                    frontend.phases["rules"] = prepared.rules.json();
+                    let program = prepared.program;
                     let inspected = inspect(&CheckedProgram {
                         modules: &modules,
                         syntax: &syntax,
@@ -1721,6 +1749,7 @@ pub fn with_checked_entries<R>(
         &mut frontend,
         &entries,
         None,
+        &[],
         config,
         &sources,
         true,
@@ -1957,12 +1986,36 @@ pub fn with_checked_program<R>(
     config: &ProjectConfig,
     client: impl for<'a, 'ast, 'src> FnOnce(&CheckedProgram<'a, 'ast, 'src>) -> R,
 ) -> Result<R, ServiceError> {
+    let overlays = source.map(|source| crate::module::SourceOverride { path, source });
+    with_checked_graph(&configured_entries(path, config), overlays.as_slice(), config, client)
+}
+
+/// Entries used by editor/lint graph clients. Configured entries define the
+/// public surfaces; opening a private dependency does not publish another root.
+pub fn configured_entries(path: &Path, config: &ProjectConfig) -> Vec<EntrySource> {
+    if config.delivery.entries.is_empty() { return vec![EntrySource::of(path)]; }
+    let base = config.config_dir.as_deref().unwrap_or_else(|| Path::new("."));
+    config.delivery.entries.iter().map(|(name, path)| EntrySource {
+        name: name.clone(), path: base.join(path),
+    }).collect()
+}
+
+/// Inspect one configured graph with simultaneous source overrides. This is
+/// the same discovery, checking, capability and conversion path as compilation.
+pub fn with_checked_graph<R>(
+    entries: &[EntrySource],
+    overlays: &[crate::module::SourceOverride<'_>],
+    config: &ProjectConfig,
+    client: impl for<'a, 'ast, 'src> FnOnce(&CheckedProgram<'a, 'ast, 'src>) -> R,
+) -> Result<R, ServiceError> {
+    let entries = sorted_entries(entries)?;
     let mut frontend = Frontend::new(config, check_options())?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let checked = check_path_frontend(
         &mut frontend,
-        &[EntrySource::of(path)],
-        source,
+        &entries,
+        None,
+        overlays,
         config,
         &sources,
         false,

@@ -1,3 +1,4 @@
+import {read_COMPAT as vue_read_COMPAT} from "../package/build-flags.lil";
 import { isProxy, toRaw } from "../reactivity/reactive";
 import { isRef } from "../reactivity/ref";
 import {
@@ -34,13 +35,13 @@ import { isInternalObject } from "./internalObject";
 
 extern JsValue Symbol;
 extern JsValue arguments;
-extern JsValue __COMPAT__;
 
-bool DEV = true;
-bool FEATURE_SUSPENSE = true;
+
+define bool DEV = true;
+define bool FEATURE_SUSPENSE = true;
 
 bool compatEnabled() {
-  return JS.typeOf(__COMPAT__) == "boolean" && __COMPAT__.truthy();
+  return JS.typeOf(vue_read_COMPAT()) == "boolean" && vue_read_COMPAT().truthy();
 }
 
 bool arrayValue(JsValue value) {

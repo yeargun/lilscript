@@ -72,8 +72,14 @@ impl Printer<'_, '_, '_> {
     }
 }
 
-pub(super) fn body(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile) {
-    if let Some(view) = printer.inline {
+pub(super) fn body(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile,
+    hosts: Option<(&crate::host_modules::HostDelivery, bool)>) {
+    if file.initializers.iter().any(|part| part.host.is_some()) {
+        let Some(hosts) = hosts else { printer.output.error = Some(PrintError::Container("missing ordered host bodies")); return; };
+        ordered_body(printer, file, hosts);
+        return;
+    }
+    if let Some(view) = printer.inline.filter(|view| view.activations || view.modules.iter().any(|part| part.publish)) {
         if view.activations {
             printer.inline_text("let $i=[],$f=[],$d=[],$s=[],$e=[],$n=[],$p=[];");
         } else {
@@ -164,7 +170,7 @@ pub(super) fn body(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile) {
 }
 
 fn core(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile, source: Option<u32>) {
-    use AllocationClass::{Retained, Scratch};
+    use AllocationClass::Scratch;
     let Some(mut statements) = printer
         .output
         .admit(|budget| budget.vector(Scratch, file.statements.len()))
@@ -182,6 +188,14 @@ fn core(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile, source: Option<u3
             statements.push(index);
         }
     }
+    core_statements(printer, file, source, &statements);
+    printer.output.drop_vec(statements, Scratch);
+}
+
+fn core_statements(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile,
+    source: Option<u32>, statements: &[u32]) {
+    use AllocationClass::{Retained, Scratch};
+    if statements.is_empty() { return; }
     let start = printer.output.text.len();
     let root = &printer.module.regions[printer.module.root.index()].statements;
     printer.statement_list(root, statements.iter().map(|&index| index as usize));
@@ -212,7 +226,7 @@ fn core(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile, source: Option<u3
     }
     let expected = crate::js::admission::planned_core_digest(
         printer.module,
-        &statements,
+        statements,
         &members,
         printer.lazy,
         printer.container.is_some_and(|view| view.commonjs),
@@ -229,5 +243,68 @@ fn core(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile, source: Option<u3
         .output
         .admit(|budget| budget.push(Retained, &mut printer.planned_structure.parts, part));
     printer.output.drop_vec(members, Scratch);
-    printer.output.drop_vec(statements, Scratch);
+}
+
+/// Static opaque bodies keep their exact graph positions. Hoisted source
+/// functions and synthetic helpers remain available before any initialization;
+/// lexical source cells and immutable host import cells initialize in order.
+/// Each shared host dependency has one namespace in this entry's instance.
+fn ordered_body(printer: &mut Printer<'_, '_, '_>, file: &PlannedFile,
+    (hosts, strict): (&crate::host_modules::HostDelivery, bool)) {
+    use AllocationClass::{Retained, Scratch};
+    let Some(view) = printer.inline else { printer.output.error = Some(PrintError::Container("missing ordered source graph")); return; };
+    if view.activations || view.modules.iter().any(|part| !part.eager || part.publish) {
+        printer.output.error = Some(PrintError::Container("opaque lazy modules require split delivery")); return;
+    }
+    let root = &printer.module.regions[printer.module.root.index()].statements;
+    let Some(mut pending) = printer.output.admit(|budget| budget.vector(Scratch, file.statements.len())) else { return; };
+    let Some(mut done) = printer.output.admit(|budget| budget.filled(Scratch, root.len(), false)) else { return; };
+    for &index in &file.statements {
+        let row = printer.module.root_rows[index as usize];
+        if row.origin == RowOrigin::Synthetic || matches!(root[index as usize], Statement::Function { .. })
+            || hoisted(printer.module, &root[index as usize]).is_some() {
+            done[index as usize] = true;
+            pending.push(index);
+        }
+    }
+    core_statements(printer, file, None, &pending);
+    pending.clear();
+    for part in view.modules {
+        if let Some(host) = part.host {
+            let Some(local) = printer.output.admit(|budget| budget.format(Scratch, format_args!("{}h{host}", view.prefix))) else { return; };
+            let Some(mut arguments) = printer.output.admit(|budget| budget.vector(Scratch, hosts.modules[host].imports().len())) else { return; };
+            for &(dependency, _) in hosts.modules[host].imports() {
+                // Several import/re-export declarations can name one module.
+                // It still has one namespace argument and one formal parameter.
+                if arguments.iter().any(|(index, _)| *index == dependency) { continue; }
+                let Some(name) = printer.output.admit(|budget| budget.format(Scratch, format_args!("{}h{dependency}", view.prefix))) else { return; };
+                arguments.push((dependency, name));
+            }
+            let Some(expression) = printer.output.admit(|budget| hosts.module_expression_in(host, strict, &arguments, budget)) else { return; };
+            printer.text("let "); printer.text(&local); printer.text("="); printer.text(&expression); printer.text(";");
+            printer.output.drop_string(expression, Retained);
+            for &index in &file.links.hosted {
+                let import = &printer.module.imports[index];
+                if import.source.as_unicode() != Some(hosts.modules[host].specifier.as_str()) || import.imported.is_empty() { continue; }
+                printer.text("let "); printer.text(printer.local(import.binding)); printer.text("="); printer.text(&local);
+                printer.text("["); printer.unicode_string(&import.imported); printer.text("];");
+            }
+            for (_, name) in arguments.drain(..) { printer.output.drop_string(name, Scratch); }
+            printer.output.drop_vec(arguments, Scratch);
+            printer.output.drop_string(local, Scratch);
+        }
+        for &index in &file.statements {
+            if !printer.output.work(1) { return; }
+            if !done[index as usize] && printer.module.root_rows[index as usize].module == part.source {
+                done[index as usize] = true; pending.push(index);
+            }
+        }
+        core_statements(printer, file, None, &pending);
+        pending.clear();
+    }
+    if file.statements.iter().any(|&index| !done[index as usize]) {
+        printer.output.error = Some(PrintError::Container("ordered host plan lost a source statement"));
+    }
+    printer.output.drop_vec(done, Scratch);
+    printer.output.drop_vec(pending, Scratch);
 }

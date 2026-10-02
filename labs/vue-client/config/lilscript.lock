@@ -1,0 +1,15 @@
+version = 1
+compiler_abi = 1
+
+[root_dependencies]
+vue-hosts = "=1.0.0"
+
+[[packages]]
+name = "vue-hosts"
+version = "1.0.0"
+abi = 1
+source = "../src/providers/node"
+entry = "compiler-core.lil"
+checksum = "sha256:87859fed9af1ded1f2aba8472752326ab704eb71c88f720c25575642fd8e2ae6"
+
+[packages.dependencies]

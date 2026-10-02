@@ -52,15 +52,15 @@ Type-only files are identified from their parsed TypeScript module body and do
 not disappear from the gate. They require a normal verified `.lil` mapping or
 an explicit `declarationOnlyHandling` record containing the exact upstream
 hash, `handling: "declaration-only"`, and a specific reason. JavaScript files
-cannot satisfy source mappings. The seven enumerated `host.js` files are audited
-separately as primitive host adapters and may not import upstream Vue code.
+cannot satisfy source mappings. Enumerated host adapters and package interfaces are audited separately and may
+not import upstream Vue code. They do not satisfy algorithm mappings.
 
-The current evidence in
-[`compatibility/source-parity.json`](compatibility/source-parity.json) covers all
+The pre-migration evidence in
+[`compatibility/source-parity.json`](compatibility/source-parity.json) records
 234 files through 232 deterministic mappings and two strict declaration-only
-records. The separate package compatibility build preserves the pinned
-declarations, verifies every inventoried entrypoint and format, and writes
-hash-pinned evidence to `artifacts/compatibility-report.json`.
+records. Its source hashes and `artifacts/compatibility-report.json` are historical
+until requalified against the compiler-delivery migration. The source auditor
+continues to reject stale algorithm claims; delivery alone does not refresh them.
 
 ## Setup
 
@@ -89,8 +89,32 @@ npm run benchmark
 npm run build:pages
 ```
 
+`npm run build:compatibility` installs compiler-written ESM, CJS and browser
+outputs using `config/compiler-profiles.json`. Public facades, function metadata,
+build flags and host providers are source-owned under `src/package` and
+`src/providers`; builds no longer rewrite emitted JavaScript or run a second
+minifier. The previous builders are retained in `migration/old-history`.
+
+TOML profiles choose the behavior: development/test flags, production flags,
+compatibility APIs, the browser or Node host provider, output format and public
+entry selection. Pristine-built-in and pure-property-read assumptions remain
+disabled because getters, proxies and patched globals are observable. Production
+implementation profiles retain effort 15; small forwarding entries use 13.
+`LILSCRIPT_COMPILER` pins an executable, and `VUELIL_PROFILES` selects a comma
+separated subset. `LILSCRIPT_BUILD_MODE=development` skips optional search while
+checking integration; it does not change a profile's source defines and is not
+release compression evidence.
+
+The installer validates every artifact against the compiler manifest before
+installation. Its local cache checks compiler, source, configuration, dependency
+lock and output hashes; changing source during compilation fails the install.
+`artifacts/compiler-delivery-report.json` records delivery provenance. Existing
+compatibility, source-parity, performance and site reports require separate
+requalification after this migration; a delivery receipt does not establish
+their acceptance gates.
+
 The final `npm run measure` gate requires one reusable
-`packages/vuelil/production` graph built with `config/open-world.toml`.
+`packages/vuelil/production` graph built with `config/compiler-production.toml`.
 Runtime-only and SFC must resolve the same `vue.runtime.js`; Vite must perform
 all scenario-level tree shaking. The gate rejects scenario-specific candidate
 paths and records source, bundle, module-graph, toolchain, package-lock, codec,

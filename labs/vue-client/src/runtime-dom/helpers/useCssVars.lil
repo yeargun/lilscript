@@ -1,4 +1,4 @@
-import extern {
+import {
   Fragment as cssVarsFragment,
   Static as cssVarsStatic,
   getCurrentInstance as cssVarsGetCurrentInstance,
@@ -8,12 +8,12 @@ import extern {
   queuePostFlushCb as cssVarsQueuePostFlushCb,
   warn as cssVarsWarn,
   watch as cssVarsWatch
-} from "../../../packages/vuelil/runtime-core.js";
-import extern {
+} from "../../package/runtime-core.lil";
+import {
   NOOP as cssVarsNoop,
   ShapeFlags as cssVarsShapeFlags,
   normalizeCssVarValue as cssVarsNormalizeCssVarValue
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import extern {
   hostArrayFrom,
   hostCall0,
@@ -27,18 +27,6 @@ import extern {
   hostWrite
 } from "../host.js";
 
-extern JsValue cssVarsFragment;
-extern JsValue cssVarsStatic;
-extern JsValue cssVarsGetCurrentInstance;
-extern JsValue cssVarsOnBeforeUpdate;
-extern JsValue cssVarsOnMounted;
-extern JsValue cssVarsOnUnmounted;
-extern JsValue cssVarsQueuePostFlushCb;
-extern JsValue cssVarsWarn;
-extern JsValue cssVarsWatch;
-extern JsValue cssVarsNoop;
-extern JsValue cssVarsShapeFlags;
-extern string cssVarsNormalizeCssVarValue(JsValue value);
 extern JsValue hostArrayFrom(JsValue value);
 extern JsValue hostCall0(JsValue fn);
 extern JsValue hostCall1(JsValue fn, JsValue first);
@@ -50,10 +38,10 @@ extern JsValue hostRead(JsValue value, JsValue key);
 extern string hostString(JsValue value);
 extern void hostWrite(JsValue value, JsValue key, JsValue next);
 
-bool CSS_VARS_BROWSER = false;
-bool CSS_VARS_TEST = true;
-bool CSS_VARS_DEV = true;
-bool CSS_VARS_FEATURE_SUSPENSE = true;
+define bool CSS_VARS_BROWSER = false;
+define bool CSS_VARS_TEST = true;
+define bool CSS_VARS_DEV = true;
+define bool CSS_VARS_FEATURE_SUSPENSE = true;
 
 export JsValue CSS_VAR_TEXT = hostCreateSymbol("CSS_VAR_TEXT");
 

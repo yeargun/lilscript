@@ -1,0 +1,31 @@
+✔ compiler-core preserves its complete public surface and live export identity (2.213598ms)
+✔ baseParse differentially matches Vue across broad vectors (24.78509ms)
+✔ baseParse recovery, errors, and locations match Vue (2.698065ms)
+✔ AST enums and builders match Vue object shapes (1.37715ms)
+✔ compiler-core utility tranche matches representative upstream behavior (3.004099ms)
+✔ publishes implemented transform, codegen, and compile APIs (6.957036ms)
+✔ transformOn preserves analysis, augmentation, metadata, locations, and reflection (5.778387ms)
+✔ transformVBindShorthand preserves expansion, camelization, locations, errors, and reflection (1.37178ms)
+✔ transformModel preserves assignment analysis, props, modifiers, caching, errors, locations, and reflection (4.84084ms)
+✔ noop directive transform preserves shape, locations, and reflection (0.309409ms)
+✔ compat filter transform exactly rewrites scanned and nested expressions (7.855619ms)
+✔ compiler compat configuration matches Vue warnings, modes, and reflection (0.816139ms)
+You are running a development build of Vue.
+Make sure to use the production build (*.prod.js) when deploying for production.
+You are running a development build of Vue.
+Make sure to use the production build (*.prod.js) when deploying for production.
+You are running a development build of Vue.
+Make sure to use the production build (*.prod.js) when deploying for production.
+✔ compiler-written ESM entries share the same package implementation (151.821551ms)
+✔ compiler-written CJS entries share the same package implementation (114.053173ms)
+✔ browser ESM delivery preserves compilation and public bindings (118.947631ms)
+✔ single-file browser containers retain names, state and template compilation (79.996401ms)
+✔ selected reactivity is a compiler-owned subset with working shared state (263.708627ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1000.429916

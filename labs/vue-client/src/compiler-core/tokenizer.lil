@@ -1,6 +1,7 @@
+import { hostDecodeEntity } from "./host.lil";
 import { ErrorCodes } from "./errors";
 
-extern JsValue hostDecodeEntity(string source, int offset, bool attribute);
+
 extern JsValue Uint8Array;
 
 JsValue tokenizerUndefined() {

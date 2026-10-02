@@ -1,3 +1,4 @@
+import extern { hostCreateNullObject, hostRead, hostLength, hostIteratorSymbol, hostIteratorFacade, hostArrayPrototypeMethod, hostArrayApply } from "./host.js";
 import { isFunction } from "../shared/general";
 import { ARRAY_ITERATE_KEY, track } from "./dep";
 import { endBatch, pauseTracking, resetTracking, startBatch } from "./effect";

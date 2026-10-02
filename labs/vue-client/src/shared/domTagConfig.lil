@@ -30,9 +30,9 @@ string mathTags =
   "mscarries,mscarry,msgroup,msline,mspace,msqrt,msrow,mstack,mstyle,msub," +
   "msubsup,msup,mtable,mtd,mtext,mtr,munder,munderover,none,semantics";
 
-export JsValue isHTMLTag = makeMap(htmlTags);
-export JsValue isSVGTag = makeMap(svgTags);
-export JsValue isMathMLTag = makeMap(mathTags);
-export JsValue isVoidTag = makeMap(
+export func(JsValue)->bool isHTMLTag = JS.assume(makeMap(htmlTags));
+export func(JsValue)->bool isSVGTag = JS.assume(makeMap(svgTags));
+export func(JsValue)->bool isMathMLTag = JS.assume(makeMap(mathTags));
+export func(JsValue)->bool isVoidTag = JS.assume(makeMap(
   "area,base,br,col,embed,hr,img,input,link,meta,param,source,track,wbr"
-);
+));

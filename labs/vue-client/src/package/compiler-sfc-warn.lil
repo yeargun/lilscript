@@ -1,0 +1,2 @@
+import {warn, warnOnce} from "../compiler-sfc/warn.lil";
+export {warn, warnOnce};

@@ -899,7 +899,7 @@ fn prepare_delivery_in(
         module.consumer_annotations = contract.container.annotations;
         let entries = semantic.program.entries().len();
         if module.delivery.is_none()
-            && (entries > 1 || !module.imports.is_empty() || module.root_rows.iter().any(|row| row.origin == crate::js::RowOrigin::Host) || module.expressions.iter().any(|node| matches!(node, crate::js::Expr::LoadModule { .. }))
+            && (entries > 1 || !contract.select.is_empty() || !module.imports.is_empty() || module.root_rows.iter().any(|row| row.origin == crate::js::RowOrigin::Host) || module.expressions.iter().any(|node| matches!(node, crate::js::Expr::LoadModule { .. }))
                 || contract.mode != crate::config::DeliveryMode::Single
                 || contract.container.annotations != crate::config::ConsumerAnnotations::Off
                 || contract.container.source_maps != crate::config::SourceMaps::Off
@@ -919,8 +919,9 @@ fn prepare_delivery_in(
             module.delivery = super::entries::with_entry_graph(
                 &semantic.program,
                 delivered_hosts,
-                module.root_rows.iter().any(|row| row.origin == crate::js::RowOrigin::Host),
+                module.integrated_hosts,
                 module_names,
+                &contract.select,
                 budget,
                 |graph, budget| {
                     crate::js::delivery::plan(module, graph, contract, dynamic_import, ext, budget)
@@ -2633,6 +2634,7 @@ impl<'src> Compilation<'src> {
             &choices.choices,
             self.host_modules.as_ref().map(|(delivery, _)| delivery),
             policy.cache().normalization_reuse,
+            &policy.delivery().unwrap().select,
             &mut budget,
         )
         .map_err(formation_error)?;
@@ -2731,7 +2733,7 @@ impl<'src> Compilation<'src> {
         } else {
             super::demand::DemandMode::Preserve
         };
-        let demand = super::demand::DemandPlan::build_with_reuse(
+        let demand = super::demand::DemandPlan::build_selected(
             &semantic.program,
             Some(&semantic.uses),
             Some(map),
@@ -2739,6 +2741,7 @@ impl<'src> Compilation<'src> {
             mode,
             Some((&mut *ledger, domain)),
             policy.cache().normalization_reuse,
+            &policy.delivery().unwrap().select,
         )
         .map_err(|error| formation_error(error.into()))?;
         let hosts = host_modules.as_ref().map(|(delivery, _)| delivery);
@@ -2788,7 +2791,7 @@ impl<'src> Compilation<'src> {
             chunk_extension: *chunk_extension,
             hosts,
             source_maps: source_maps.as_ref().map(|(sources, _)| sources),
-            contract: &target.contract,
+            contract: policy.contract(),
             semantic,
             implementations: map,
             identity,
@@ -2868,7 +2871,7 @@ impl<'src> Compilation<'src> {
         self.check_existing_javascript_contract(policy, domain)?;
         self.artifacts.qualify(
             artifact,
-            &self.javascript.as_ref().unwrap().contract,
+            policy.contract(),
             policy,
             codec,
             runtime,
@@ -2988,7 +2991,7 @@ impl<'src> Compilation<'src> {
             .as_ref()
             .ok_or(CandidateError::UnknownCandidate)?;
         admitted_contract_payload(policy.contract(), &mut self.ledger, domain)?;
-        if target.contract != *policy.contract() {
+        if !compatible_output_contracts(&target.contract, policy.contract()) {
             return Err(CandidateError::ContractMismatch);
         }
         Ok(())
@@ -3008,7 +3011,7 @@ impl<'src> Compilation<'src> {
                 .bind_codec_settings(objective.codec_settings)?;
         }
         if let Some(target) = &self.javascript {
-            if target.contract != *policy.contract() {
+            if !compatible_output_contracts(&target.contract, policy.contract()) {
                 return Err(CandidateError::ContractMismatch);
             }
             return Ok(None);
@@ -3352,19 +3355,45 @@ fn copy_javascript_contract(
         let mut value_copy=String::new(); value_copy.try_reserve_exact(value.len()).map_err(|_|CandidateError::AllocationFailed)?;value_copy.push_str(value);
         globals.push((key_copy,value_copy));
     }
+    let mut selected = Vec::new();
+    let mut external_specifiers = Vec::new();
+    external_specifiers.try_reserve_exact(delivery.container.external_specifiers.len()).map_err(|_|CandidateError::AllocationFailed)?;
+    for (key,value) in &delivery.container.external_specifiers {
+        let mut key_copy=String::new(); key_copy.try_reserve_exact(key.len()).map_err(|_|CandidateError::AllocationFailed)?;key_copy.push_str(key);
+        let mut value_copy=String::new(); value_copy.try_reserve_exact(value.len()).map_err(|_|CandidateError::AllocationFailed)?;value_copy.push_str(value);
+        external_specifiers.push((key_copy,value_copy));
+    }
+    selected.try_reserve_exact(delivery.select.len()).map_err(|_| CandidateError::AllocationFailed)?;
+    for name in &delivery.select {
+        let mut copied = String::new();
+        copied.try_reserve_exact(name.len()).map_err(|_| CandidateError::AllocationFailed)?;
+        copied.push_str(name);
+        selected.push(copied);
+    }
     Ok(CompilationContract::JavaScript {
         language: *language,
         preserved_properties: names,
         delivery: crate::compilation_policy::DeliveryContract {
+            select: selected,
             entry_names: copy(&delivery.entry_names)?,
             chunk_names: copy(&delivery.chunk_names)?,
             module_names: copy(&delivery.module_names)?,
             container: crate::compilation_policy::ContainerContract {
-                global:copy(&delivery.container.global)?,source_root:copy(&delivery.container.source_root)?,globals,..delivery.container
+                global:copy(&delivery.container.global)?,source_root:copy(&delivery.container.source_root)?,globals,external_specifiers,..delivery.container
             },
             ..*delivery
         },
     })
+}
+// A compilation binds semantic meaning and public-name permissions. Each
+// artifact still owns and qualifies against its exact packaging contract.
+fn compatible_output_contracts(a: &CompilationContract, b: &CompilationContract) -> bool {
+    match (a, b) {
+        (CompilationContract::JavaScript { language: a, preserved_properties: ap, delivery: ad },
+         CompilationContract::JavaScript { language: b, preserved_properties: bp, delivery: bd }) =>
+            a == b && ap == bp && ad.host_modules == bd.host_modules,
+        _ => false,
+    }
 }
 fn candidate_permission(error: crate::compilation_policy::AdmissionError) -> CandidateError {
     match error {

@@ -39,7 +39,7 @@ pub(super) fn apply(
             if module
                 .foreign_imports
                 .iter()
-                .any(|import| import.cell.index() == index)
+                .any(|import| import.cell.is_some_and(|cell| cell.index() == index))
             {
                 return Err((
                     owner,

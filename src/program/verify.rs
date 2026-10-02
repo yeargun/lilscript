@@ -1501,9 +1501,15 @@ fn verify_modules(
         }
         work(budget, module.foreign_imports.len())?;
         for import in &module.foreign_imports {
+            let Some(cell) = import.cell else {
+                if import.source.is_empty() || !import.imported.is_empty() {
+                    return Err("side-effect import must name a source without a binding".into());
+                }
+                continue;
+            };
             let cell = program
                 .cells
-                .get(import.cell.index())
+                .get(cell.index())
                 .ok_or("foreign import names a dangling cell")?;
             if cell.binding != CellBinding::Foreign
                 || import.source.is_empty()

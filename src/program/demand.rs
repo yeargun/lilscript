@@ -294,6 +294,7 @@ pub(super) struct DemandPlan<'program, 'src> {
     /// allocated before any initializer is seeded, so module cells have one
     /// canonical storage owner even in cycles.
     roots: Vec<ContextId>,
+    entries: Vec<usize>,
     owned_cells: Vec<Vec<CellId>>,
     cell_ordinals: Vec<usize>,
     summaries: Vec<Option<UnitSummary>>,
@@ -351,8 +352,42 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         budget: Option<(&mut BudgetLedger, WorkDomain)>,
         reuse_effects: bool,
     ) -> Result<Self, DemandError> {
+        Self::build_selected(program, uses, implementations, contract, mode, budget, reuse_effects, &[])
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn build_selected(
+        program: &'program Program<'src>,
+        uses: Option<&'program UseIndex>,
+        implementations: Option<&'program ImplementationMap>,
+        contract: &JavaScriptCompilationContract,
+        mode: DemandMode,
+        budget: Option<(&mut BudgetLedger, WorkDomain)>,
+        reuse_effects: bool,
+        selected: &[String],
+    ) -> Result<Self, DemandError> {
         let _timing = crate::timing::JS_DEMAND.scope(0);
         let mut budget = Budget::new(budget);
+        let mut entries = budget.vector(program.entries().len())?;
+        for (index, entry) in program.entries().iter().enumerate() {
+            budget.work(selected.len() + 1)?;
+            if selected.is_empty() || selected.contains(&entry.name) { entries.push(index); }
+        }
+        if entries.is_empty() || (!selected.is_empty() && entries.len() != selected.len()) {
+            return Err(unsupported("unknown selected delivery entry"));
+        }
+        let mut reachable = budget.filled(program.modules().len(), false)?;
+        let mut pending_modules = budget.vector(program.modules().len())?;
+        for &entry in &entries {
+            let module = program.entries()[entry].module.index();
+            if !std::mem::replace(&mut reachable[module], true) { pending_modules.push(module); }
+        }
+        while let Some(module) = pending_modules.pop() {
+            for dependency in program.modules()[module].dependencies.iter().chain(&program.modules()[module].dynamic_dependencies) {
+                budget.work(1)?;
+                if !std::mem::replace(&mut reachable[dependency.index()], true) { pending_modules.push(dependency.index()); }
+            }
+        }
         if let Some(implementations) = implementations {
             budget.work(1)?;
             // Private transport and private inputs change a function's
@@ -430,6 +465,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             mode,
             contexts: Vec::new(),
             roots: budget.vector(program.initialization.len())?,
+            entries,
             owned_cells,
             cell_ordinals,
             summaries,
@@ -460,6 +496,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         plan.index_implementations(implementations, &mut budget)?;
         for &unit in program.initialization.iter() {
             budget.work(1)?;
+            if !reachable[program.units[unit.index()].data().module.index()] { continue; }
             let context =
                 plan.allocate_context(unit, None, None, ContextKind::Named, &mut budget)?;
             plan.roots.push(context);
@@ -471,9 +508,11 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         let root = plan.root();
         if contract.abi.preserve_root_exports {
             // The borrowed runtime filter visits type exports too.
-            budget.work(program.exports().len())?;
-            for (_, cell) in program.value_exports() {
-                plan.need_cell(root, cell, &mut budget)?;
+            for index in 0..plan.entries.len() {
+                for export in program.entry_exports(plan.entries[index]) {
+                    budget.work(1)?;
+                    if let InterfaceTarget::Value(cell) = export.target { plan.need_cell(root, cell, &mut budget)?; }
+                }
             }
         }
         let mut cursor = 0;
@@ -482,6 +521,9 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         // their exact payload rather than claiming retained demand owns them.
         let bytes = counts.capacity() as u64 * size_of::<usize>() as u64;
         drop(counts);
+        budget.release(bytes)?;
+        let bytes = reachable.capacity() as u64 + pending_modules.capacity() as u64 * size_of::<usize>() as u64;
+        drop((reachable, pending_modules));
         budget.release(bytes)?;
         plan.work = DemandWork {
             steps: budget.steps,
@@ -518,11 +560,21 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         Ok(())
     }
     pub(super) fn root(&self) -> ContextId {
-        self.module_context(self.program.modules[self.program.entry_module().index()].initializer)
+        self.module_context(self.program.modules[self.program.entries()[self.entries[0]].module.index()].initializer)
             .expect("verified entry has an initializer context")
     }
     pub(super) fn roots(&self) -> &[ContextId] {
         &self.roots
+    }
+    pub(super) fn entries(&self) -> &[usize] { &self.entries }
+    pub(super) fn exports(&self) -> impl Iterator<Item = &Export> {
+        self.entries.iter().flat_map(|&entry| self.program.entry_exports(entry))
+    }
+    pub(super) fn value_exports(&self) -> impl Iterator<Item = (&str, CellId)> {
+        self.exports().filter_map(|export| match export.target {
+            InterfaceTarget::Value(cell) => Some((export.name.as_str(), cell)),
+            _ => None,
+        })
     }
     /// Initializer storage is shared by the artifact, independent of the
     /// lexical creation chain used by ordinary and inlined callable contexts.
@@ -2717,7 +2769,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                     module
                         .foreign_imports
                         .iter()
-                        .any(|import| import.cell == cell)
+                        .any(|import| import.cell == Some(cell))
                 })
         })
     }

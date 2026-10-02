@@ -1,0 +1,3 @@
+import extern {compile as imported_0} from "@vuelil/implementation";
+extern JsValue imported_0;
+export {imported_0 as compile};

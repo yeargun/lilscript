@@ -1,4 +1,4 @@
-import extern {
+import {
   baseParse,
   generate,
   noopDirectiveTransform,
@@ -11,7 +11,7 @@ import extern {
   transformOn,
   transformStyle,
   transformVBindShorthand
-} from "../../packages/vuelil/compiler-dom.js";
+} from "../package/compiler-dom.lil";
 import { ssrCodegenTransform } from "./ssrCodegenTransform";
 import { rawOptionsMap, ssrTransformComponent } from "./transforms/ssrTransformComponent";
 import { ssrTransformElement } from "./transforms/ssrTransformElement";
@@ -24,18 +24,6 @@ import { ssrInjectCssVars } from "./transforms/ssrInjectCssVars";
 import { ssrInjectFallthroughAttrs } from "./transforms/ssrInjectFallthroughAttrs";
 
 extern JsValue Object;
-extern JsValue baseParse;
-extern JsValue generate;
-extern JsValue noopDirectiveTransform;
-extern JsValue parserOptions;
-extern JsValue trackSlotScopes;
-extern JsValue trackVForSlotScopes;
-extern JsValue transform;
-extern JsValue transformBind;
-extern JsValue transformExpression;
-extern JsValue transformOn;
-extern JsValue transformStyle;
-extern JsValue transformVBindShorthand;
 
 JsValue ssrCompileUndefined() {
   return JS.undefined();

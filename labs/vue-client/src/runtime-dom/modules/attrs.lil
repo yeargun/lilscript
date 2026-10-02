@@ -1,9 +1,9 @@
-import extern {
+import {
   includeBooleanAttr as attrIncludeBooleanAttr,
   isSpecialBooleanAttr as attrIsSpecialBooleanAttr,
   isSymbol as attrIsSymbol
-} from "../../../packages/vuelil/shared.js";
-import extern { DeprecationTypes as attrDeprecationTypes, compatUtils as attrCompatUtils } from "../../../packages/vuelil/runtime-core.js";
+} from "../../package/shared.lil";
+import { DeprecationTypes as attrDeprecationTypes, compatUtils as attrCompatUtils } from "../../package/runtime-core.lil";
 import extern {
   hostCall1,
   hostRemoveAttribute,
@@ -13,11 +13,6 @@ import extern {
   hostString
 } from "../host.js";
 
-extern bool attrIncludeBooleanAttr(JsValue value);
-extern JsValue attrIsSpecialBooleanAttr;
-extern bool attrIsSymbol(JsValue value);
-extern JsValue attrDeprecationTypes;
-extern JsValue attrCompatUtils;
 extern JsValue hostCall1(JsValue fn, JsValue first);
 extern void hostRemoveAttribute(JsValue element, string name);
 extern void hostRemoveAttributeNS(JsValue element, string namespace, string name);
@@ -25,7 +20,7 @@ extern void hostSetAttribute(JsValue element, string name, JsValue value);
 extern void hostSetAttributeNS(JsValue element, string namespace, string name, JsValue value);
 extern string hostString(JsValue value);
 
-bool ATTR_COMPAT = false;
+define bool ATTR_COMPAT = false;
 export string xlinkNS = "http://www.w3.org/1999/xlink";
 
 bool specialBoolean(string key) {

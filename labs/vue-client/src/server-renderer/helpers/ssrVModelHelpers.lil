@@ -1,13 +1,9 @@
-import extern {
+import {
   isArray as modelIsArray,
   looseEqual as modelLooseEqual,
   looseIndexOf as modelLooseIndexOf
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { ssrRenderAttr } from "./ssrRenderAttrs";
-
-extern bool modelIsArray(JsValue value);
-extern JsValue modelLooseEqual;
-extern int modelLooseIndexOf(JsValue values, JsValue value);
 
 export JsValue ssrLooseEqual = modelLooseEqual;
 

@@ -1,12 +1,12 @@
-import extern {
+import {
   createVNode as customElementCreateVNode,
   defineComponent as customElementDefineComponent,
   getCurrentInstance as customElementGetCurrentInstance,
   nextTick as customElementNextTick,
   unref as customElementUnref,
   warn as customElementWarn
-} from "../../packages/vuelil/runtime-core.js";
-import extern {
+} from "../package/runtime-core.lil";
+import {
   camelize as customElementCamelize,
   extend as customElementExtend,
   hasOwn as customElementHasOwn,
@@ -14,7 +14,7 @@ import extern {
   isArray as customElementIsArray,
   isPlainObject as customElementIsPlainObject,
   toNumber as customElementToNumber
-} from "../../packages/vuelil/shared.js";
+} from "../package/shared.lil";
 import { createApp, createSSRApp, render } from "./index";
 import extern {
   hostArgumentsSlice,
@@ -48,19 +48,6 @@ import extern {
   hostWrite
 } from "./host.js";
 
-extern JsValue customElementCreateVNode;
-extern JsValue customElementDefineComponent;
-extern JsValue customElementGetCurrentInstance;
-extern JsValue customElementNextTick;
-extern JsValue customElementUnref;
-extern JsValue customElementWarn;
-extern JsValue customElementCamelize;
-extern JsValue customElementExtend;
-extern bool customElementHasOwn(JsValue value, JsValue key);
-extern JsValue customElementHyphenate;
-extern bool customElementIsArray(JsValue value);
-extern bool customElementIsPlainObject(JsValue value);
-extern JsValue customElementToNumber(JsValue value);
 extern JsValue hostArgumentsSlice(JsValue value, int start);
 extern JsValue hostArrayFrom(JsValue value);
 extern JsValue hostCall0(JsValue fn);
@@ -91,8 +78,8 @@ extern void hostSetPrototypeOf(JsValue value, JsValue prototype);
 extern string hostString(JsValue value);
 extern void hostWrite(JsValue value, JsValue key, JsValue next);
 
-bool CUSTOM_ELEMENT_DEV = true;
-bool CUSTOM_ELEMENT_FEATURE_PROD_DEVTOOLS = false;
+define bool CUSTOM_ELEMENT_DEV = true;
+define bool CUSTOM_ELEMENT_FEATURE_PROD_DEVTOOLS = false;
 JsValue REMOVAL = hostCreateObject();
 export JsValue VueElement = JS.undefined();
 

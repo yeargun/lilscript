@@ -1,7 +1,5 @@
-import extern { isOn as listenersIsOn } from "../../../packages/vuelil/shared.js";
+import { isOn as listenersIsOn } from "../../package/shared.lil";
 import { DeprecationTypes, assertCompatEnabled } from "./compatConfig";
-
-extern bool listenersIsOn(string key);
 
 export JsValue getCompatListeners(JsValue instance) {
   assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_LISTENERS"]), instance);

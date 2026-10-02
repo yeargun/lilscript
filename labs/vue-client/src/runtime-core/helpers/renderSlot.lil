@@ -16,7 +16,7 @@ import {
 } from "../vnode";
 import { warn } from "../warning";
 
-bool DEV = true;
+define bool DEV = true;
 
 export JsValue renderSlot(
   JsValue slots,

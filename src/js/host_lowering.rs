@@ -12,7 +12,11 @@
 //!   statement runs, so references resolve as hoisting does. A block's
 //!   function declarations become its first statements, as `let f=function…`:
 //!   strict code creates them on entry to the block, and creating a function
-//!   runs nothing. `var` and classes are refused.
+//!   runs nothing. `var` and class declarations are refused. Named root-class
+//!   expressions with plain constructors/methods are represented directly;
+//!   class self-references, fields, accessors, static and computed members,
+//!   decorators and explicit `super` operations retain the ordinary fallback.
+//!   An implicit derived constructor keeps JavaScript's native forwarding.
 //! * The statements the tree has: returns, `if`, blocks, `throw`,
 //!   `try`/`catch`/`finally`, `while`, `for` (unless a closure could capture
 //!   its per-iteration `let`), `for…in`/`for…of` over one `let`/`const`,
@@ -34,7 +38,7 @@
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 use crate::host_modules::HostDelivery;
-use oxc_ast::{AstKind, ast};
+use oxc_ast::{ast, AstKind};
 use oxc_ast_visit::Visit;
 
 /// Why lowering stopped: a construct the tree does not represent, or the
@@ -76,7 +80,7 @@ struct Lowering<'m, 'b> {
 }
 
 impl Module {
-    /// Lower every module `delivery` carries ahead of the root's statements,
+    /// Lower the reachable modules `delivery` carries ahead of the root's statements,
     /// in dependency order, and point this module's imports of them at the
     /// lowered bindings. Returns whether it did: a module the tree cannot
     /// represent leaves the whole delivery as text. Nodes lowered before such
@@ -90,6 +94,43 @@ impl Module {
         if delivery.is_empty() {
             return Ok(false);
         }
+        let mut needed = budget.filled(AllocationClass::Scratch, delivery.modules.len(), false)?;
+        for import in &self.imports {
+            budget.work(Analysis, delivery.modules.len() as u64 + 1)?;
+            if let Some(index) = import.source.as_unicode().and_then(|source| delivery.position(source)) {
+                needed[index] = true;
+            }
+        }
+        // Delivery is in dependency order, so one reverse walk closes the set.
+        for index in (0..needed.len()).rev() {
+            if needed[index] {
+                for &(dependency, _) in delivery.modules[index].imports() {
+                    budget.work(Analysis, 1)?;
+                    needed[dependency] = true;
+                }
+            }
+        }
+        let result = self.lower_needed_hosts(delivery, source_modules, &needed, budget);
+        let bytes = crate::output_budget::vector_bytes(&needed)?;
+        drop(needed);
+        budget.release(AllocationClass::Scratch, bytes)?;
+        if matches!(result, Ok(true)) { self.tables_mut().integrated_hosts = true; }
+        result
+    }
+
+    fn lower_needed_hosts(
+        &mut self,
+        delivery: &HostDelivery,
+        source_modules: usize,
+        needed: &[bool],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        // Namespace reflection needs the module namespace implementation in
+        // opaque delivery, including its read-only exotic operations.
+        if delivery.modules.iter().enumerate().any(|(index, module)| needed[index] &&
+            module.imports().iter().any(|(_, bindings)| bindings.iter().any(|(name, _)| name.is_none()))) {
+            return Ok(false);
+        }
         let root_scope = self.regions[self.root.index()].scope;
         // Each lowered module's exports: exported name and binding.
         let mut exports: Vec<Vec<(String, BindingId)>> = Vec::new();
@@ -99,6 +140,10 @@ impl Module {
         // host code the program cannot see into (anchored).
         let mut anchors = Vec::new();
         for (host_index, host) in delivery.modules.iter().enumerate() {
+            if !needed[host_index] {
+                exports.push(Vec::new());
+                continue;
+            }
             budget.work(Analysis, host.body().len() as u64)?;
             let arena = oxc_allocator::Allocator::default();
             let Ok(tree) = crate::host_modules::parse_program(&arena, host.body()) else {
@@ -141,8 +186,22 @@ impl Module {
             let lowered = lowering.block_statements(&tree.body);
             match lowered {
                 Ok(lowered) => {
-                    let owner = u32::try_from(source_modules.checked_add(host_index).ok_or(AllocationError::Capacity)?).map_err(|_| AllocationError::Capacity)?;
-                    anchors.extend((0..lowered.len()).map(|position| (owner, if position < declared { Anchor::Definition } else { Anchor::Anchored })));
+                    let owner = u32::try_from(
+                        source_modules
+                            .checked_add(host_index)
+                            .ok_or(AllocationError::Capacity)?,
+                    )
+                    .map_err(|_| AllocationError::Capacity)?;
+                    anchors.extend((0..lowered.len()).map(|position| {
+                        (
+                            owner,
+                            if position < declared {
+                                Anchor::Definition
+                            } else {
+                                Anchor::Anchored
+                            },
+                        )
+                    }));
                     statements.extend(lowered)
                 }
                 Err(Stop::Refused) => return Ok(false),
@@ -166,6 +225,7 @@ impl Module {
         let mut redirect = Vec::new();
         for import in &self.imports {
             budget.work(Analysis, 1)?;
+            if import.imported.is_empty() { continue; }
             let Some(position) = import
                 .source
                 .as_unicode()
@@ -225,7 +285,7 @@ impl Module {
             count,
         )?;
         // Host code: rows of their own origin (design §7.9).
-        if !self.root_rows.is_empty() {
+        if self.root_rows.len() == self.regions[root].statements.len() {
             budget.reserve_vec(AllocationClass::Retained, &mut self.root_rows, count)?;
         }
         self.prepend_roots(
@@ -621,6 +681,68 @@ impl Lowering<'_, '_> {
             false,
         )
     }
+    fn class_expression(&mut self, node: &ast::Class<'_>) -> Lowered<Expr> {
+        let name = node.id.as_ref().ok_or(Stop::Refused)?.name.as_str();
+        if !node.decorators.is_empty() {
+            return Err(Stop::Refused);
+        }
+        // The target's class name is observable but not a lexical binding ID.
+        // Refuse self-reference and reserve its spelling against capture by a
+        // renamed outer binding in the class's inner name environment.
+        let mut observations = Observations::new(name);
+        observations.visit_class(node);
+        if observations.mentioned {
+            return Err(Stop::Refused);
+        }
+        self.budget.work(Analysis, node.span.size() as u64)?;
+        let reserved = self.budget.string(AllocationClass::Retained, name)?;
+        self.budget.push(
+            AllocationClass::Retained,
+            &mut self.module.reserved,
+            reserved,
+        )?;
+        let mut constructor = None;
+        let mut methods = Vec::new();
+        for element in &node.body.body {
+            let ast::ClassElement::MethodDefinition(method) = element else {
+                return Err(Stop::Refused);
+            };
+            if method.computed || method.r#static || !method.decorators.is_empty() {
+                return Err(Stop::Refused);
+            }
+            let ast::PropertyKey::StaticIdentifier(key) = &method.key else {
+                return Err(Stop::Refused);
+            };
+            match method.kind {
+                ast::MethodDefinitionKind::Constructor if constructor.is_none() => {
+                    constructor = Some(self.class_method(&method.value, name)?)
+                }
+                ast::MethodDefinitionKind::Method => methods.push((
+                    key.name.to_string(),
+                    self.class_method(&method.value, key.name.as_str())?,
+                )),
+                _ => return Err(Stop::Refused),
+            }
+        }
+        let base = node
+            .super_class
+            .as_ref()
+            .map(|base| self.expr(base))
+            .transpose()?;
+        Ok(Expr::Class {
+            name: name.into(),
+            base,
+            constructor,
+            methods,
+        })
+    }
+    fn class_method(&mut self, node: &ast::Function<'_>, name: &str) -> Lowered<FunctionId> {
+        let function = self.function(node)?;
+        // A returned constructor and its prototype methods are observable
+        // host values. Keep even unused formals in their public arity.
+        self.module.functions[function.index()].name = FunctionName::Exact(name.into());
+        Ok(function)
+    }
     fn callable(
         &mut self,
         params: &ast::FormalParameters<'_>,
@@ -697,6 +819,7 @@ impl Lowering<'_, '_> {
                 Expr::Regex(node.raw.as_ref().ok_or(Stop::Refused)?.to_string())
             }
             E::ThisExpression(_) if self.functions.iter().any(|arrow| !arrow) => Expr::This,
+            E::ClassExpression(node) => self.class_expression(node)?,
             E::TemplateLiteral(node) => {
                 let mut parts = Vec::new();
                 for (index, quasi) in node.quasis.iter().enumerate() {
@@ -940,7 +1063,8 @@ impl Lowering<'_, '_> {
         }
     }
     fn target(&mut self, node: &ast::AssignmentTarget<'_>) -> Lowered<ExprId> {
-        if let Some(name) = node.get_identifier_name() {
+        if let ast::AssignmentTarget::AssignmentTargetIdentifier(identifier) = node {
+            let name = identifier.name.as_str();
             let found = self
                 .lookup(name)
                 .filter(|found| !found.constant)
@@ -955,8 +1079,8 @@ impl Lowering<'_, '_> {
         self.expression(expression)
     }
     fn reread(&mut self, node: &ast::AssignmentTarget<'_>) -> Lowered<ExprId> {
-        if let Some(name) = node.get_identifier_name() {
-            return self.reference(name);
+        if let ast::AssignmentTarget::AssignmentTargetIdentifier(identifier) = node {
+            return self.reference(identifier.name.as_str());
         }
         let member = node.as_member_expression().ok_or(Stop::Refused)?;
         let fixed = match member {
@@ -985,7 +1109,11 @@ impl Lowering<'_, '_> {
         let ast::Expression::UpdateExpression(node) = node else {
             return self.expr(node);
         };
-        let name = node.argument.get_identifier_name().ok_or(Stop::Refused)?;
+        let ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(identifier) = &node.argument
+        else {
+            return Err(Stop::Refused);
+        };
+        let name = identifier.name.as_str();
         let found = self
             .lookup(name)
             .filter(|found| !found.constant && self.numeric.contains(&found.binding))
@@ -1079,7 +1207,8 @@ impl<'a> Visit<'a> for Observations<'_> {
                 self.captured |= self.depth != 0;
             }
             AstKind::AssignmentExpression(node) => {
-                if node.left.get_identifier_name() == Some(self.target) {
+                if matches!(&node.left, ast::AssignmentTarget::AssignmentTargetIdentifier(identifier) if identifier.name == self.target)
+                {
                     self.numeric &= matches!(node.operator.as_str(), "=" | "+=" | "-=")
                         && numeric_literal(Some(&node.right));
                 } else {

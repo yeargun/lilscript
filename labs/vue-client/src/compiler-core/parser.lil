@@ -1,3 +1,5 @@
+import { COMPILER_BROWSER } from "./validateExpression";
+import { hostDecodeEntities, hostParseExpression } from "./host.lil";
 import { createRoot, createSimpleExpression } from "./ast";
 import {
   console,
@@ -20,9 +22,6 @@ import {
   isSimpleIdentifier,
   isVPre
 } from "./utils";
-
-extern JsValue hostDecodeEntities(string source, bool attribute);
-extern JsValue hostParseExpression(string source, JsValue plugins, int mode);
 
 JsValue parserUndefined() {
   return JS.undefined();
@@ -241,7 +240,7 @@ JsValue createExpression(
   int parseMode = 0
 ) {
   JsValue expression = createSimpleExpression(content, isStatic, loc, constType);
-  if (!isStatic && currentOptions["prefixIdentifiers"].truthy() && parseMode != 3 && content.trim() != "") {
+  if (!COMPILER_BROWSER && !isStatic && currentOptions["prefixIdentifiers"].truthy() && parseMode != 3 && content.trim() != "") {
     if (isSimpleIdentifier(content)) {
       expression["ast"] = null;
       return expression;

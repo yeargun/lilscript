@@ -1,20 +1,15 @@
 import extern { default as cssVarsHash } from "hash-sum";
-import extern {
+import {
   NodeTypes as CssVarsNodeTypes,
   createRoot as cssVarsCreateRoot,
   createSimpleExpression as cssVarsCreateSimpleExpression,
   createTransformContext as cssVarsCreateTransformContext,
   processExpression as cssVarsProcessExpression
-} from "../../../packages/vuelil/compiler-dom.js";
-import extern { getEscapedCssVarName as cssVarsEscapeName } from "../../../packages/vuelil/shared.js";
+} from "../../package/compiler-dom.lil";
+import { getEscapedCssVarName as cssVarsEscapeName } from "../../package/shared.lil";
 
-extern JsValue CssVarsNodeTypes;
-extern JsValue cssVarsCreateRoot;
-extern JsValue cssVarsCreateSimpleExpression;
-extern JsValue cssVarsCreateTransformContext;
-extern JsValue cssVarsEscapeName;
 extern JsValue cssVarsHash;
-extern JsValue cssVarsProcessExpression;
+
 extern JsValue RegExp;
 
 export string CSS_VARS_HELPER = "useCssVars";

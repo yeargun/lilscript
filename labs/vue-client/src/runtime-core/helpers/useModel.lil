@@ -6,7 +6,7 @@ import { warn } from "../warning";
 
 extern JsValue Symbol;
 
-bool DEV = true;
+define bool DEV = true;
 
 string camelizeName(string name) {
   return JS.string(JS.call(camelize, JS.undefined(), name));

@@ -1,9 +1,9 @@
-import extern {
+import {
   extend as sharedExtend,
   hasOwn as sharedHasOwn,
   isArray as sharedIsArray,
   isFunction as sharedIsFunction
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import {
   Array as compatArray,
   Object as compatObject,
@@ -18,13 +18,8 @@ import {
 } from "../component";
 import { warn as compatWarn } from "../warning";
 
-extern JsValue sharedExtend;
-extern bool sharedHasOwn(JsValue value, JsValue key);
-extern bool sharedIsArray(JsValue value);
-extern bool sharedIsFunction(JsValue value);
-
-bool COMPAT_DEV = true;
-bool COMPAT_TEST = false;
+define bool COMPAT_DEV = true;
+define bool COMPAT_TEST = false;
 
 export JsValue DeprecationTypes = JS.object(
   "GLOBAL_MOUNT", "GLOBAL_MOUNT",

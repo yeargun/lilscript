@@ -5,5 +5,5 @@ string globalsAllowed =
   "decodeURIComponent,encodeURI,encodeURIComponent,Math,Number,Date,Array," +
   "Object,Boolean,String,RegExp,Map,Set,JSON,Intl,BigInt,console,Error,Symbol";
 
-export JsValue isGloballyAllowed = makeMap(globalsAllowed);
+export func(JsValue)->bool isGloballyAllowed = JS.assume(makeMap(globalsAllowed));
 export JsValue isGloballyWhitelisted = isGloballyAllowed;

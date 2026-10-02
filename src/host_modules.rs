@@ -21,6 +21,8 @@ use oxc_ast_visit::Visit;
 use oxc_span::{ContentEq, GetSpan};
 use std::path::{Path, PathBuf};
 
+const MODULE_NAMESPACE_HELPER: &str = "s=>{const t=Object.create(null),k=Object.keys(s).sort(),d=Object.getOwnPropertyDescriptor;for(const p of k)Object.defineProperty(t,p,{value:void 0,writable:true,enumerable:true});Object.defineProperty(t,Symbol.toStringTag,{value:'Module'});Object.preventExtensions(t);return new Proxy(t,{get:(t,p)=>typeof p==='string'&&d(t,p)?s[p]:t[p],set:()=>false,ownKeys:()=>[...k,Symbol.toStringTag],getOwnPropertyDescriptor:(t,p)=>{const c=d(t,p);if(c&&typeof p==='string')c.value=s[p];return c},defineProperty:(t,p,c)=>typeof p==='symbol'?Reflect.defineProperty(t,p,c):!!d(t,p)&&!('get'in c)&&!('set'in c)&&!c.configurable&&c.enumerable!==false&&c.writable!==false&&(!('value'in c)||Object.is(s[p],c.value))})};";
+
 /// One delivered host module.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HostModule {
@@ -211,6 +213,7 @@ impl HostDelivery {
         &self, strict: bool, requested: impl Iterator<Item=usize>, budget: &mut AllocationBudget<'_>,
     ) -> Result<String, AllocationError> {
         budget.retained_phase(|budget| {
+            let mut namespaces = budget.filled(Scratch, self.modules.len(), false)?;
             let mut selected = budget.filled(Scratch, self.modules.len(), false)?;
             let mut pending = Vec::new();
             let mut order = Vec::new();
@@ -228,6 +231,22 @@ impl HostDelivery {
             let mut text = budget.string(Retained, "(()=>{")?;
             if strict {
                 budget.push_str(Retained, &mut text, "\"use strict\";")?;
+            }
+            for &index in &order {
+                for (dependency, bindings) in &self.modules[index].imports {
+                    if bindings.iter().any(|(name, _)| name.is_none()) { namespaces[*dependency] = true; }
+                }
+            }
+            let namespace = &names[self.modules.len()];
+            if namespaces.iter().any(|&needed| needed) {
+                budget.push_str(Retained, &mut text, "const ")?;
+                budget.push_str(Retained, &mut text, namespace)?;
+                // A namespace is not an object with accessor descriptors. Its
+                // own descriptors are live writable data descriptors, but its
+                // internal [[Set]] always refuses. A proxy preserves those
+                // operations, null prototype, sorted keys and sealed identity.
+                budget.push_char(Retained, &mut text, '=')?;
+                budget.push_str(Retained, &mut text, MODULE_NAMESPACE_HELPER)?;
             }
             budget.push_str(Retained, &mut text, "let ")?;
             let mut comma = false;
@@ -251,9 +270,16 @@ impl HostDelivery {
                     }
                 }
                 module.write_body(&names, &mut text, budget)?;
-                budget.push_str(Retained, &mut text, ";return{")?;
+                budget.push_str(Retained, &mut text, ";return ")?;
+                if namespaces[index] {
+                    budget.push_str(Retained, &mut text, namespace)?;
+                    budget.push_char(Retained, &mut text, '(')?;
+                }
+                budget.push_char(Retained, &mut text, '{')?;
                 module.write_exports(&names, &mut text, budget)?;
-                budget.push_str(Retained, &mut text, "}})()")?;
+                budget.push_char(Retained, &mut text, '}')?;
+                if namespaces[index] { budget.push_char(Retained, &mut text, ')')?; }
+                budget.push_str(Retained, &mut text, "})()")?;
             }
             budget.push_str(Retained, &mut text, ";return[")?;
             for index in 0..self.modules.len() {
@@ -264,7 +290,59 @@ impl HostDelivery {
                 else { budget.push_str(Retained, &mut text, "void 0")?; }
             }
             budget.push_str(Retained, &mut text, "]})()")?;
-            drop((selected, pending, order));
+            drop((selected, pending, order, namespaces));
+            Ok(text)
+        })
+    }
+
+    /// One module body with dependency namespaces supplied by the delivery
+    /// linker. Dependencies remain native file requests, so initialization,
+    /// sharing and entry subsets have the same ownership as source modules.
+    pub(crate) fn module_expression_in(&self, index: usize, strict: bool,
+        arguments: &[(usize, String)], budget: &mut AllocationBudget<'_>) -> Result<String, AllocationError> {
+        budget.retained_phase(|budget| {
+            let module = &self.modules[index];
+            let names = self.scope_names_in(budget)?;
+            let namespace = &names[self.modules.len()];
+            let reflected = self.modules.iter().any(|module| module.imports.iter().any(|(source, bindings)|
+                *source == index && bindings.iter().any(|(name, _)| name.is_none())));
+            let mut text = budget.string(Retained, "(function(")?;
+            for (position, (dependency, _)) in arguments.iter().enumerate() {
+                if position != 0 { budget.push_char(Retained, &mut text, ',')?; }
+                budget.push_str(Retained, &mut text, &names[*dependency])?;
+            }
+            budget.push_str(Retained, &mut text, "){" )?;
+            if strict { budget.push_str(Retained, &mut text, "\"use strict\";")?; }
+            if reflected {
+                budget.push_str(Retained, &mut text, "const ")?;
+                budget.push_str(Retained, &mut text, namespace)?;
+                budget.push_char(Retained, &mut text, '=')?;
+                budget.push_str(Retained, &mut text, MODULE_NAMESPACE_HELPER)?;
+            }
+            for (source, bindings) in &module.imports {
+                for (imported, local) in bindings {
+                    if imported.is_none() {
+                        budget.push_str(Retained, &mut text, "const ")?;
+                        budget.push_str(Retained, &mut text, local)?;
+                        budget.push_char(Retained, &mut text, '=')?;
+                        budget.push_str(Retained, &mut text, &names[*source])?;
+                        budget.push_char(Retained, &mut text, ';')?;
+                    }
+                }
+            }
+            module.write_body(&names, &mut text, budget)?;
+            budget.push_str(Retained, &mut text, ";return ")?;
+            if reflected { budget.push_str(Retained, &mut text, namespace)?; budget.push_char(Retained, &mut text, '(')?; }
+            budget.push_char(Retained, &mut text, '{')?;
+            module.write_exports(&names, &mut text, budget)?;
+            budget.push_char(Retained, &mut text, '}')?;
+            if reflected { budget.push_char(Retained, &mut text, ')')?; }
+            budget.push_str(Retained, &mut text, "})(")?;
+            for (position, (_, argument)) in arguments.iter().enumerate() {
+                if position != 0 { budget.push_char(Retained, &mut text, ',')?; }
+                budget.push_str(Retained, &mut text, argument)?;
+            }
+            budget.push_char(Retained, &mut text, ')')?;
             Ok(text)
         })
     }
@@ -305,9 +383,9 @@ impl HostDelivery {
         &self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<String>, AllocationError> {
-        let mut names = budget.vector(Scratch, self.modules.len())?;
+        let mut names = budget.vector(Scratch, self.modules.len() + 1)?;
         let mut counter = 0usize;
-        while names.len() < self.modules.len() {
+        while names.len() <= self.modules.len() {
             let candidate = budget.format(Scratch, format_args!("h{counter}"))?;
             let scan = self.reserved.iter().map(String::len).sum::<usize>()
                 + self
@@ -392,6 +470,9 @@ fn deliver_with_files(
             return Err("host module exports a mutable binding across the embedded source boundary; retain this module as external".into());
         }
     }
+    if delivery.modules.iter().any(|module| module.imports.iter().any(|(_, bindings)| bindings.iter().any(|(name, _)| name.is_none()))) {
+        reserved.extend(["Object", "Proxy", "Reflect", "Symbol"].map(str::to_owned));
+    }
     delivery.reserved = reserved.into_iter().collect();
     Ok((delivery, paths))
 }
@@ -438,7 +519,7 @@ fn visit(
     } else {
         source.clone()
     };
-    let analyzed = analyze(&stripped)?;
+    let mut analyzed = analyze(&stripped).map_err(|error| format!("host module `{}`: {error}", path.display()))?;
     if let Some(feature) = syntax_beyond(&stripped, edition)? {
         return Err(format!(
             "host module `{}` uses {}, beyond the {} syntax target",
@@ -461,6 +542,13 @@ fn visit(
             modules,
             reserved,
         )?;
+        for (name, _) in bindings {
+            if let Some(name) = name {
+                if !modules[index].exports.iter().any(|(exported, _)| exported == name) {
+                    return Err(format!("host module `{}` imports missing export `{name}` from `{specifier}`", path.display()));
+                }
+            }
+        }
         let bindings = bindings
             .iter()
             .map(|(imported, local)| {
@@ -473,6 +561,31 @@ fn visit(
         imports.push((index, bindings));
     }
     stack.pop();
+    // A star contributes every non-default binding except an explicit export.
+    // Two paths to the same binding agree; distinct bindings make that name
+    // ambiguous, as in an ordinary ESM namespace. Their side effects still run.
+    let mut stars = std::collections::BTreeMap::new();
+    for &import in &analyzed.stars {
+        let dependency = imports[import].0;
+        for (name, _) in &modules[dependency].exports {
+            if name == "default" || analyzed.exports.iter().any(|(explicit, _)| explicit == name) { continue; }
+            let origin = export_origin(modules, dependency, name);
+            stars.entry(name.clone()).and_modify(|found: &mut Option<(ExportOrigin, usize)>| {
+                if found.as_ref().is_some_and(|(previous, _)| *previous != origin) { *found = None; }
+            }).or_insert(Some((origin, import)));
+        }
+    }
+    for (name, source) in stars {
+        let Some((_, import)) = source else { continue; };
+        let mut serial = analyzed.exports.len();
+        let local = loop {
+            let candidate = format!("__lil_host_star_{serial}");
+            serial += 1;
+            if !stripped.contains(&candidate) && !analyzed.exports.iter().any(|(_, name)| *name == candidate) { break candidate; }
+        };
+        imports[import].1.push((Some(name.clone()), local.clone()));
+        analyzed.exports.push((name, local));
+    }
     reserved.extend(analyzed.free);
     let mut volatile = analyzed.volatile;
     for (exported, local) in &analyzed.exports {
@@ -516,13 +629,33 @@ fn visit(
     Ok(modules.len() - 1)
 }
 
+#[derive(PartialEq, Eq)]
+enum ExportOrigin {
+    Binding(usize, String),
+    Namespace(usize),
+}
+
+fn export_origin(modules: &[HostModule], mut module: usize, name: &str) -> ExportOrigin {
+    let mut name = name.to_owned();
+    loop {
+        let local = &modules[module].exports.iter().find(|(exported, _)| *exported == name).expect("checked export").1;
+        let imported = modules[module].imports.iter().find_map(|(source, bindings)| {
+            bindings.iter().find(|(_, binding)| binding == local).map(|(imported, _)| (*source, imported))
+        });
+        match imported {
+            Some((source, Some(imported))) => { module = source; name = imported.clone(); }
+            Some((source, None)) => return ExportOrigin::Namespace(source),
+            None => return ExportOrigin::Binding(module, local.clone()),
+        }
+    }
+}
+
 /// A host module's own relative import, resolved as the linker resolves a
 /// foreign import.
 fn resolve(parent: &Path, specifier: &str) -> Result<PathBuf, String> {
+    if specifier.starts_with('#') { return resolve_package_import(parent, specifier); }
     if !specifier.starts_with('.') {
-        return Err(format!(
-            "host module import `{specifier}` names a package; only relative host modules are delivered"
-        ));
+        return resolve_package(parent, specifier);
     }
     let requested = parent.join(specifier);
     if requested.extension().is_some() && requested.is_file() {
@@ -533,6 +666,82 @@ fn resolve(parent: &Path, specifier: &str) -> Result<PathBuf, String> {
         .map(|extension| requested.with_extension(extension))
         .find(|candidate| candidate.is_file())
         .ok_or_else(|| format!("cannot resolve host module import `{specifier}`"))
+}
+
+/// Package-private aliases are resolved in the importing file's own scope.
+/// Wildcards and platform-specific branches require an explicit provider.
+fn resolve_package_import(parent: &Path, specifier: &str) -> Result<PathBuf, String> {
+    let directory = parent.ancestors().find(|directory| directory.join("package.json").is_file())
+        .ok_or_else(|| format!("host import `{specifier}` has no package scope"))?;
+    let manifest: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(directory.join("package.json")).map_err(|error| error.to_string())?).map_err(|error| error.to_string())?;
+    let target = manifest.get("imports").and_then(|imports| imports.get(specifier)).and_then(portable_package_entry)
+        .ok_or_else(|| format!("host import `{specifier}` has no exact portable entry; use an explicit external provider"))?;
+    if Path::new(target).components().any(|part| matches!(part, std::path::Component::ParentDir)) {
+        return Err(format!("host import `{specifier}` escapes its package"));
+    }
+    let resolved = directory.join(target).canonicalize().map_err(|error| format!("cannot resolve host import `{specifier}`: {error}"))?;
+    if !resolved.starts_with(directory.canonicalize().map_err(|error| error.to_string())?) {
+        return Err(format!("host import `{specifier}` escapes its package"));
+    }
+    if resolved.extension().is_some_and(|extension| extension == "js") && manifest.get("type").and_then(serde_json::Value::as_str) != Some("module") {
+        return Err(format!("host import `{specifier}` is not an ESM package entry"));
+    }
+    Ok(resolved)
+}
+
+/// Embedded host dependencies use their portable ESM package entry. Platform
+/// conditions and patterns require an explicit source entry, rather than
+/// silently choosing a different browser/Node implementation for an output.
+fn resolve_package(parent: &Path, specifier: &str) -> Result<PathBuf, String> {
+    let builtin = matches!(specifier.split('/').next().unwrap_or(""), "assert" | "async_hooks" | "buffer" | "child_process" | "cluster" | "console" | "constants" | "crypto" | "dgram" | "diagnostics_channel" | "dns" | "domain" | "events" | "fs" | "http" | "http2" | "https" | "inspector" | "module" | "net" | "os" | "path" | "perf_hooks" | "process" | "punycode" | "querystring" | "readline" | "repl" | "sqlite" | "stream" | "string_decoder" | "sys" | "test" | "timers" | "tls" | "trace_events" | "tty" | "url" | "util" | "v8" | "vm" | "wasi" | "worker_threads" | "zlib") || specifier.starts_with("_http_") || specifier.starts_with("_stream_") || specifier.starts_with("_tls_");
+    if builtin || specifier.contains(':') || specifier.starts_with('#') || specifier.starts_with('/') || specifier.split('/').any(|part| part.is_empty() || part == ".." || part == ".") {
+        return Err(format!("host dependency `{specifier}` needs an explicit external provider"));
+    }
+    let parts: Vec<_> = specifier.split('/').collect();
+    let count = if specifier.starts_with('@') { 2 } else { 1 };
+    if parts.len() < count { return Err(format!("invalid host package `{specifier}`")); }
+    let package = parts[..count].join("/");
+    let subpath = if parts.len() == count { ".".to_owned() } else { format!("./{}", parts[count..].join("/")) };
+    let directory = parent.ancestors().map(|directory| directory.join("node_modules").join(&package)).find(|directory| directory.join("package.json").is_file()).ok_or_else(|| format!("cannot resolve host package `{specifier}`"))?;
+    let manifest = std::fs::read_to_string(directory.join("package.json")).map_err(|error| error.to_string())?;
+    let manifest: serde_json::Value = serde_json::from_str(&manifest).map_err(|error| format!("host package `{package}`: {error}"))?;
+    let target = if let Some(exports) = manifest.get("exports") {
+        let entry = if exports.as_object().is_some_and(|entries| entries.keys().any(|key| key.starts_with('.'))) {
+            exports.get(&subpath).ok_or_else(|| format!("host package `{specifier}` has no exact exported entry; choose an explicit relative file"))?
+        } else if subpath == "." { exports } else { return Err(format!("host package `{specifier}` does not export `{subpath}`")); };
+        portable_package_entry(entry).ok_or_else(|| format!("host package `{specifier}` has no unambiguous portable ESM entry; choose an explicit relative file"))?.to_owned()
+    } else if subpath != "." { subpath } else {
+        manifest.get("main").and_then(serde_json::Value::as_str).unwrap_or("./index.js").to_owned()
+    };
+    if Path::new(&target).is_absolute() || Path::new(&target).components().any(|part| matches!(part, std::path::Component::ParentDir)) {
+        return Err(format!("host package `{specifier}` has an escaping entry"));
+    }
+    let requested = directory.join(target);
+    let resolved = [requested.clone(), requested.with_extension("js"), requested.join("index.js")].into_iter().find(|path| path.is_file()).ok_or_else(|| format!("cannot read host package entry `{specifier}`"))?;
+    if resolved.extension().is_some_and(|extension| extension == "js") {
+        let scope = resolved.parent().into_iter().flat_map(Path::ancestors).map(|scope| scope.join("package.json")).find(|manifest| manifest.is_file()).ok_or_else(|| format!("host package `{specifier}` has no module scope"))?;
+        let scope: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(scope).map_err(|error| error.to_string())?).map_err(|error| error.to_string())?;
+        if scope.get("type").and_then(serde_json::Value::as_str) != Some("module") {
+            return Err(format!("host package `{specifier}` selects CommonJS; retain an external provider or choose an ESM entry"));
+        }
+    }
+    Ok(resolved)
+}
+
+fn portable_package_entry(value: &serde_json::Value) -> Option<&str> {
+    if let Some(path) = value.as_str() { return path.starts_with("./").then_some(path); }
+    let conditions = value.as_object()?;
+    // Embedding is platform-neutral ESM: custom, browser, Node, require and
+    // type-only conditions are inactive. Ambiguous active ordering is refused.
+    match (conditions.get("import"), conditions.get("default")) {
+        (Some(import), Some(default)) => {
+            let imported = portable_package_entry(import)?;
+            (portable_package_entry(default)? == imported).then_some(imported)
+        }
+        (Some(import), None) => portable_package_entry(import),
+        (None, Some(default)) => portable_package_entry(default),
+        _ => None,
+    }
 }
 
 /// The first syntax feature the module uses that `edition` lacks.
@@ -880,7 +1089,7 @@ pub(crate) fn compact(source: &str) -> Result<String, String> {
     let compacted = parse_with(&allocator, &text, false, true)
         .map_err(|error| format!("compacted host module does not parse: {error}"))?;
     if !original.content_eq(&compacted) {
-        return Err("compacting a host module changed its tree".to_string());
+        return Ok(format!("{source}\n"));
     }
     Ok(text)
 }
@@ -968,6 +1177,7 @@ struct Analyzed {
     volatile: Vec<String>,
     /// Relative imports: specifier, then imported (None: namespace) and local.
     imports: Vec<(String, Vec<(Option<String>, Option<String>)>)>,
+    stars: Vec<usize>,
     free: Vec<String>,
 }
 
@@ -982,7 +1192,74 @@ fn export_name(node: &ast::ModuleExportName<'_>) -> Result<String, String> {
     }
 }
 
+/// Normalize export syntax into the binding contract used by both host renderers.
+/// Dependencies remain live imports. Default expressions use a property named
+/// `default` so JavaScript's inferred function/class name stays observable.
+fn normalize_exports(source: &str) -> Result<Option<String>, String> {
+    let arena = oxc_allocator::Allocator::default();
+    let tree = parse_with(&arena, source, false, true)?;
+    let mut edits = Vec::new();
+    let mut serial = 0usize;
+    let mut fresh = || loop {
+        let name = format!("__lil_host_export_{serial}");
+        serial += 1;
+        if !source.contains(&name) { break name; }
+    };
+    let spelling = |name: &ast::ModuleExportName<'_>| -> Result<String, String> {
+        let name = export_name(name)?;
+        Ok(if crate::js::identifier_name(&name) { name } else { serde_json::to_string(&name).expect("export name") })
+    };
+    for statement in &tree.body {
+        let replacement = match statement {
+            ast::Statement::ExportDefaultDeclaration(node) => {
+                let body = node.declaration.span();
+                let body = &source[body.start as usize..body.end as usize];
+                let named = match &node.declaration {
+                    ast::ExportDefaultDeclarationKind::FunctionDeclaration(function) => function.id.as_ref().map(|name| name.name.as_str()),
+                    ast::ExportDefaultDeclarationKind::ClassDeclaration(class) => class.id.as_ref().map(|name| name.name.as_str()),
+                    _ => None,
+                };
+                match named {
+                    Some(name) => format!("{body};export{{{name} as default}};"),
+                    None => {
+                        let local = fresh();
+                        format!("const{{default:{local}}}={{default:({body})}};export{{{local} as default}};")
+                    }
+                }
+            }
+            ast::Statement::ExportFromDeclaration(node) => {
+                if node.with_clause.is_some() { return Err("host module uses export attributes".into()); }
+                let specifier = serde_json::to_string(node.source.value.as_str()).expect("specifier");
+                let mut text = format!("import {specifier};");
+                for item in &node.specifiers {
+                    let local = fresh();
+                    let imported = spelling(&item.local)?;
+                    let exported = spelling(&item.exported)?;
+                    text.push_str(&format!("import{{{imported} as {local}}}from {specifier};export{{{local} as {exported}}};"));
+                }
+                text
+            }
+            ast::Statement::ExportAllDeclaration(node) if node.exported.is_some() => {
+                if node.with_clause.is_some() { return Err("host module uses export attributes".into()); }
+                let local = fresh();
+                let exported = spelling(node.exported.as_ref().expect("namespace export"))?;
+                let specifier = serde_json::to_string(node.source.value.as_str()).expect("specifier");
+                format!("import*as {local} from {specifier};export{{{local} as {exported}}};")
+            }
+            _ => continue,
+        };
+        let span = statement.span();
+        edits.push((span.start as usize, span.end as usize, replacement));
+    }
+    if edits.is_empty() { return Ok(None); }
+    let mut result = source.to_owned();
+    for (start, end, replacement) in edits.into_iter().rev() { result.replace_range(start..end, &replacement); }
+    Ok(Some(result))
+}
+
 fn analyze(source: &str) -> Result<Analyzed, String> {
+    let normalized = normalize_exports(source)?;
+    let source = normalized.as_deref().unwrap_or(source);
     let arena = oxc_allocator::Allocator::default();
     let tree = parse_with(&arena, source, false, true)?;
     let checked = oxc_semantic::SemanticBuilder::new()
@@ -994,6 +1271,7 @@ fn analyze(source: &str) -> Result<Analyzed, String> {
     let mut erase = Vec::new();
     let mut exports = Vec::new();
     let mut imports = Vec::new();
+    let mut stars = Vec::new();
     let mut import_source = String::new();
     for statement in &tree.body {
         let span = statement.span();
@@ -1055,48 +1333,75 @@ fn analyze(source: &str) -> Result<Analyzed, String> {
             ast::Statement::ExportFromDeclaration(_) => {
                 return Err("host module re-exports another module".into());
             }
-            ast::Statement::ExportDefaultDeclaration(_)
-            | ast::Statement::ExportAllDeclaration(_) => {
-                return Err("host module uses a default or star export".into());
+            ast::Statement::ExportAllDeclaration(node) if node.exported.is_none() => {
+                if node.with_clause.is_some() { return Err("host module uses export attributes".into()); }
+                stars.push(imports.len());
+                imports.push((node.source.value.to_string(), Vec::new()));
+                erase.push((span.start as usize, span.end as usize));
+            }
+            ast::Statement::ExportDefaultDeclaration(_) | ast::Statement::ExportAllDeclaration(_) => {
+                return Err("host export normalization was incomplete".into());
             }
             _ => {}
         }
     }
     struct Context {
         invalid: Option<&'static str>,
+        functions: usize,
     }
     impl<'a> Visit<'a> for Context {
         fn enter_node(&mut self, node: AstKind<'a>) {
+            if matches!(node, AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)) { self.functions += 1; }
             if matches!(node, AstKind::ImportMeta(_)) {
                 self.invalid = Some("host module reads import.meta");
             }
+            if matches!(node, AstKind::ImportExpression(_)) {
+                self.invalid = Some("host dynamic import needs an explicit lazy source/provider boundary; retain this module as external");
+            }
+            if self.functions == 0 && matches!(node, AstKind::AwaitExpression(_)) {
+                self.invalid = Some("host top-level await requires an external async module");
+            }
+        }
+        fn leave_node(&mut self, node: AstKind<'a>) {
+            if matches!(node, AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)) { self.functions -= 1; }
         }
     }
-    let mut context = Context { invalid: None };
+    let mut context = Context { invalid: None, functions: 0 };
     context.visit_program(&tree);
     if let Some(error) = context.invalid {
         return Err(error.into());
     }
     // Binding-aware lookup: a nested declaration must not hide an outer free
     // read when reserving names in the embedding scope.
-    let free: Vec<String> = checked
-        .semantic
-        .scoping()
+    let scoping = checked.semantic.scoping();
+    // Oxc reports the implicit `arguments` object as an unresolved reference.
+    // A normal function owns it; an arrow inherits the nearest normal frame.
+    // Only a read without that frame would capture the delivery wrapper.
+    if let Some(references) = scoping.root_unresolved_references().get("arguments") {
+        for &reference in references {
+            let scope = scoping.get_reference(reference).scope_id();
+            let owns_arguments = scoping.scope_ancestors(scope).any(|scope| {
+                let flags = scoping.scope_flags(scope);
+                flags.is_function() && !flags.is_arrow()
+            });
+            if !owns_arguments {
+                return Err("host module reads unbound arguments; retain this module as external".into());
+            }
+        }
+    }
+    let free: Vec<String> = scoping
         .root_unresolved_references()
         .keys()
+        .filter(|name| name.as_str() != "arguments")
         .map(|name| name.to_string())
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect();
-    if free.iter().any(|name| name == "arguments") {
-        return Err("host module reads unbound arguments; retain this module as external".into());
-    }
-    if !imports.is_empty() && free.iter().any(|name| name == "eval") {
+    if (!imports.is_empty() || normalized.is_some()) && free.iter().any(|name| name == "eval") {
         return Err(
-            "host module with imports uses eval, whose lexical lookup cannot be relocated".into(),
+            "host module with relocated imports/exports uses eval, whose lexical lookup cannot be relocated".into(),
         );
     }
-    let scoping = checked.semantic.scoping();
     let mut volatile = Vec::new();
     for (exported, local) in &exports {
         if scoping
@@ -1113,6 +1418,7 @@ fn analyze(source: &str) -> Result<Analyzed, String> {
         exports,
         volatile,
         imports,
+        stars,
         free,
         reads,
     })
@@ -1257,6 +1563,119 @@ mod tests {
         );
         let _ = std::fs::remove_dir_all(directory);
     }
+    #[test]
+    fn d3_boundary_host_namespace_reflection_matches_native_esm() {
+        let directory = std::env::temp_dir().join(format!("lilscript-d3-namespace-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(directory.join("state.mjs"), "export let value=1;export function bump(){value++}const n=7;export{n as '10',n as '2',n as '__proto__'}").unwrap();
+        std::fs::write(directory.join("empty.mjs"), "").unwrap();
+        std::fs::write(directory.join("entry.mjs"), "import*as ns from './state.mjs';import*as empty from './empty.mjs';export{ns,empty}").unwrap();
+        let delivery = deliver(&directory, &[directory.join("entry.mjs")], crate::js_syntax_target::EcmaScriptEdition::Es2022).unwrap();
+        let position = delivery.position("./entry.mjs").unwrap();
+        let script = format!(r#"
+            import assert from 'node:assert/strict';
+            import * as original from './entry.mjs';
+            const embedded=({})[{position}];
+            function observe(api) {{
+                const ns=api.ns, result=[];
+                result.push(Object.getPrototypeOf(ns),Object.isExtensible(ns),Object.isSealed(ns),Object.isFrozen(ns),Object.prototype.toString.call(ns));
+                result.push(Reflect.ownKeys(ns).map(String));
+                result.push(Object.getOwnPropertyDescriptor(ns,'value'));
+                result.push(Reflect.set(ns,'value',3),Reflect.deleteProperty(ns,'value'),Reflect.deleteProperty(ns,'missing'));
+                result.push(Reflect.defineProperty(ns,'value',{{value:1}}),Reflect.defineProperty(ns,'value',{{value:2}}),Reflect.defineProperty(ns,'value',{{get:()=>1}}));
+                result.push(Reflect.defineProperty(ns,'value',{{writable:false}}),Reflect.defineProperty(ns,'new',{{value:1}}));
+                ns.bump();result.push(Object.getOwnPropertyDescriptor(ns,'value'),ns.value);
+                result.push(Reflect.setPrototypeOf(ns,null),Reflect.setPrototypeOf(ns,{{}}));
+                result.push(Object.isFrozen(Object.freeze(api.empty)));
+                return result;
+            }}
+            const expected=observe(original);
+            // ES 10.4.6.11-12 requires lexicographic code-unit order, including
+            // integer-shaped export names. Node 20 enumerates these two as
+            // ordinary object indices instead; retain the specification here.
+            // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-ownpropertykeys
+            expected[5]=['10','2','__proto__','bump','value','Symbol(Symbol.toStringTag)'];
+            assert.deepEqual(observe(embedded),expected);
+        "#, delivery.expression(true));
+        std::fs::write(directory.join("probe.mjs"), script).unwrap();
+        let output=std::process::Command::new("node").arg(directory.join("probe.mjs")).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn d3_host_arguments_require_a_real_function_frame() {
+        for source in ["export const value=arguments;", "export const value=()=>arguments[0];", "function local(){return arguments;}export const value=()=>arguments[0];"] {
+            assert!(analyze(source).err().unwrap().contains("unbound arguments"), "{source}");
+        }
+        for source in ["export function value(){return arguments[0];}", "export function value(){return ()=>arguments[0];}", "export const C=class C{method(){return arguments[0];}};"] {
+            assert!(analyze(source).unwrap().free.is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    fn d3_host_default_exports_and_reexports_keep_names_and_live_reads() {
+        let directory = std::env::temp_dir().join(format!("lilscript-d3-host-exports-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).unwrap();
+        for (name, source) in [
+            ("state.js", "export let value=1;export function bump(){value++}export default function named(){return value}"),
+            ("anonymous.js", "export default ()=>7"),
+            ("class.js", "export default class{method(){return 9}}"),
+            ("snapshot.js", "let value=2;export default value;value=8;"),
+            ("barrel.js", "export {value as renamed,bump,default as named} from './state.js';export * as state from './state.js';"),
+            ("entry.js", "import anon from './anonymous.js';import C from './class.js';import snapshot from './snapshot.js';import {renamed,bump,named,state} from './barrel.js';export function run(){const before=renamed;bump();return [anon.name,anon(),C.name,new C().method(),snapshot,named.name,named(),before,renamed,state.value]}"),
+        ] {
+            std::fs::write(directory.join(name), source).unwrap();
+        }
+        let delivery = deliver(&directory, &[directory.join("entry.js")], crate::js_syntax_target::EcmaScriptEdition::Es2022).unwrap();
+        let position = delivery.position("./entry.js").unwrap();
+        let expression = delivery.expression(true);
+        let script = format!("const value=({expression})[{position}].run();if(JSON.stringify(value)!=='[\"default\",7,\"default\",9,2,\"named\",2,1,2,2]')throw Error(JSON.stringify(value));");
+        let output = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn d3_package_private_imports_select_portable_scope() {
+        let root = std::env::temp_dir().join(format!("lil-host-imports-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("lib")).unwrap();
+        std::fs::write(root.join("package.json"), r##"{"type":"module","imports":{"#path":{"node":"./node.cjs","default":"./lib/path.js"},"#bad":"../outside.js"}}"##).unwrap();
+        std::fs::write(root.join("lib/path.js"), "export const value=3;").unwrap();
+        assert_eq!(resolve(&root.join("lib"), "#path").unwrap(), root.join("lib/path.js").canonicalize().unwrap());
+        assert!(resolve(&root.join("lib"), "#bad").is_err());
+        assert!(resolve(&root.join("lib"), "#missing").is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn d3_host_star_bindings_and_portable_package_entries() {
+        let directory = std::env::temp_dir().join(format!("lilscript-d3-host-stars-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(directory.join("node_modules/provider")).unwrap();
+        for (name, source) in [
+            ("node_modules/provider/package.json", r#"{"type":"module","exports":{".":{"types":"./index.d.ts","import":"./index.js","require":"./index.cjs"},"./tool":"./tool.js"}}"#),
+            ("node_modules/provider/index.js", "export let value=1;export function bump(){value++}"),
+            ("node_modules/provider/tool.js", "export const tool=8;"),
+            ("a.js", "export{value,bump}from 'provider';export const clash=1;export default 99;"),
+            ("b.js", "export{value,bump}from 'provider';export const clash=2;"),
+            ("star.js", "export*from './a.js';export*from './b.js';export const clash=3;"),
+            ("ambiguous.js", "export*from './a.js';export*from './b.js';"),
+            ("entry.js", "import{value,bump,clash}from './star.js';import{tool}from 'provider/tool';export function run(){bump();return [value,clash,tool]}"),
+            ("invalid.js", "import{clash}from './ambiguous.js';export const result=clash;"),
+        ] { std::fs::write(directory.join(name), source).unwrap(); }
+        let delivery = deliver(&directory, &[directory.join("entry.js")], crate::js_syntax_target::EcmaScriptEdition::Es2022).unwrap();
+        let position = delivery.position("./entry.js").unwrap();
+        let script = format!("const value=({})[{position}].run();if(JSON.stringify(value)!=='[2,3,8]')throw Error(JSON.stringify(value));", delivery.expression(true));
+        let output = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        assert!(deliver(&directory, &[directory.join("invalid.js")], crate::js_syntax_target::EcmaScriptEdition::Es2022).unwrap_err().contains("missing export `clash`"));
+        assert!(portable_package_entry(&serde_json::json!({"import":"./one.js","default":"./two.js"})).is_none());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
     #[test]
     fn d2_host_text_uses_live_imports_and_resolves_shadowing() {
         let directory =

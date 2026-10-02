@@ -1,4 +1,4 @@
-import extern {
+import {
   escapeHtml as attrsEscapeHtml,
   includeBooleanAttr as attrsIncludeBooleanAttr,
   isArray as attrsIsArray,
@@ -15,24 +15,8 @@ import extern {
   normalizeStyle as attrsNormalizeStyle,
   propsToAttrMap as attrsPropsToAttrMap,
   stringifyStyle as attrsStringifyStyle
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 
-extern string attrsEscapeHtml(JsValue value);
-extern bool attrsIncludeBooleanAttr(JsValue value);
-extern bool attrsIsArray(JsValue value);
-extern bool attrsIsBooleanAttr(string value);
-extern bool attrsIsObject(JsValue value);
-extern bool attrsIsOn(string value);
-extern bool attrsIsRenderableAttrValue(JsValue value);
-extern bool attrsIsSSRSafeAttrName(string value);
-extern bool attrsIsSVGTag(string value);
-extern bool attrsIsString(JsValue value);
-extern JsValue attrsMakeMap(string source);
-extern string attrsNormalizeClass(JsValue value);
-extern JsValue attrsNormalizeCssVarValue(JsValue value);
-extern JsValue attrsNormalizeStyle(JsValue value);
-extern JsValue attrsPropsToAttrMap;
-extern string attrsStringifyStyle(JsValue value);
 extern JsValue console;
 extern JsValue String;
 

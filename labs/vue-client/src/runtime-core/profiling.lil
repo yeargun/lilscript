@@ -4,8 +4,8 @@ import { window } from "../shared/makeMap";
 
 extern JsValue Date;
 
-bool DEV = true;
-bool FEATURE_PROD_DEVTOOLS = false;
+define bool DEV = true;
+define bool FEATURE_PROD_DEVTOOLS = false;
 JsValue supported = JS.undefined();
 JsValue performanceApi = JS.undefined();
 

@@ -1,14 +1,14 @@
-import extern {
+import {
   TrackOpTypes as globalTrackOpTypes,
   TriggerOpTypes as globalTriggerOpTypes,
   isReactive as reactivityIsReactive,
   reactive as reactivityReactive
-} from "../../../packages/vuelil/reactivity.js";
+} from "../../package/reactivity.lil";
 import {
   track as reactivityTrack,
   trigger as reactivityTrigger
 } from "../../reactivity/dep";
-import extern {
+import {
   NOOP as globalNoop,
   extend as globalExtend,
   invokeArrayFns as globalInvokeArrayFns,
@@ -16,7 +16,7 @@ import extern {
   isFunction as globalIsFunction,
   isObject as globalIsObject,
   isString as globalIsString
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import {
   Array as globalArray,
   Object as globalObject,
@@ -53,20 +53,8 @@ import {
   warnDeprecation
 } from "./compatConfig";
 
-extern JsValue globalTrackOpTypes;
-extern JsValue globalTriggerOpTypes;
-extern bool reactivityIsReactive(JsValue value);
-extern JsValue reactivityReactive(JsValue value);
-extern JsValue globalNoop;
-extern JsValue globalExtend;
-extern void globalInvokeArrayFns(JsValue functions);
-extern bool globalIsArray(JsValue value);
-extern bool globalIsFunction(JsValue value);
-extern bool globalIsObject(JsValue value);
-extern bool globalIsString(JsValue value);
-
-bool GLOBAL_DEV = true;
-bool GLOBAL_PROD_DEVTOOLS = false;
+define bool GLOBAL_DEV = true;
+define bool GLOBAL_PROD_DEVTOOLS = false;
 
 export bool isCopyingConfig = false;
 export JsValue singletonApp = JS.undefined();

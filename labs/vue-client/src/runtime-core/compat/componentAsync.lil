@@ -1,15 +1,11 @@
-import extern {
+import {
   isArray as asyncIsArray,
   isObject as asyncIsObject,
   isPromise as asyncIsPromise
-} from "../../../packages/vuelil/shared.js";
+} from "../../package/shared.lil";
 import { globalThis as asyncGlobal } from "../../shared/makeMap";
 import { defineAsyncComponent as asyncDefineComponent } from "../apiAsyncComponent";
 import { isVNode as asyncIsVNode } from "../vnode";
-
-extern bool asyncIsArray(JsValue value);
-extern bool asyncIsObject(JsValue value);
-extern bool asyncIsPromise(JsValue value);
 
 JsValue normalizedAsyncComponentMap = JS.construct(asyncGlobal["WeakMap"]);
 

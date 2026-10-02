@@ -1,7 +1,7 @@
 import { computed as dependencyComputed } from "../reactivity/computed";
 import { getCurrentInstance, isInSSRComponentSetup } from "./component";
 
-bool DEV = true;
+define bool DEV = true;
 
 export JsValue computed(
   JsValue getterOrOptions,

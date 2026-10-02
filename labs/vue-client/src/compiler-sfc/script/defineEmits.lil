@@ -1,16 +1,11 @@
-import extern {
+import {
   hostArrayFrom as emitsArrayFrom,
   hostCreateSet as emitsCreateSet,
   hostJsonStringify as emitsJsonStringify,
   hostKeys as emitsKeys
-} from "../host.js";
+} from "../host.lil";
 import { resolveTypeElements, resolveUnionType } from "./resolveType";
 import { isCallOf } from "./utils";
-
-extern JsValue emitsArrayFrom;
-extern JsValue emitsCreateSet;
-extern JsValue emitsJsonStringify;
-extern JsValue emitsKeys;
 
 int emitsLength(JsValue value) {
   return JS.number(value["length"]).toInt();

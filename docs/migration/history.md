@@ -1785,3 +1785,29 @@ bytes included. These are fixture costs, not a fleet or compilation-speed claim.
 Failures and the accidentally broad aborted host test selection remain recorded.
 No full library/fleet rerun. D2 is complete under [its contract](d2-acceptance.md);
 D3 follows with shared graph/session reuse and compiler-written port integration.
+
+## 2026-10-02: D3 graph, session and port integration completion
+
+Algorithm72 unifies configured build/check/editor graphs, unsaved dependency
+overlays and bounded module elaboration reuse. TOML/API/CLI output groups share
+checked input while keeping format, entry subset and objective decisions
+independent. Exact manifests include current source/configuration/artifact
+identities. Integration repairs cover host ownership/order, namespace and
+package linkage, finally cleanup, record construction and colliding function
+names in single-file output.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-d3-integration/README.md)
+records the focused graph/format/consumer checks and 26 pushed source-owning
+port repositories, plus Vue and the local probe. Compiler-side patches are
+archived; package builders install compiler-written files. Vue's 32 profiles
+built, its corrected 17 affected checks passed after a 46/47 initial batch,
+and PlayCanvas's public checks plus 14 GLSL and 13 definition fixtures passed.
+Other representative port checks and their actual compiler pins are retained.
+No full library/fleet rerun or production compression win is claimed.
+
+Ports whose remote main branches had advanced retain their audited versions on
+`codex/d3-compiler-delivery`; the revision map identifies every destination.
+Generated release artifacts, current site reports and broad compatibility
+requalification remain V1/V2. Site receipts move from the old D3 mapping to V2
+because they consume qualified releases, not merely the installed build adapter.
+D3 is complete under [its contract](d3-acceptance.md); N1 follows.

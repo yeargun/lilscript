@@ -25,10 +25,10 @@ extern JsValue WeakMap;
 extern JsValue arguments;
 extern JsValue emitsArraySlice(JsValue value, int start);
 
-bool EMITS_DEV = true;
-bool EMITS_COMPAT = false;
-bool EMITS_FEATURE_OPTIONS_API = true;
-bool EMITS_FEATURE_PROD_DEVTOOLS = false;
+define bool EMITS_DEV = true;
+define bool EMITS_COMPAT = false;
+define bool EMITS_FEATURE_OPTIONS_API = true;
+define bool EMITS_FEATURE_PROD_DEVTOOLS = false;
 
 int emitsLength(JsValue value) {
   return JS.number(value["length"]).toInt();

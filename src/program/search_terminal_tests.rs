@@ -270,10 +270,10 @@ fn q2_configured_codec_cache_preserves_each_objectives_search_and_bytes() {
         let policy = policy(codec, 13);
         let objective = Objectives::One(policy.objective().unwrap().codec);
         let enabled = policy.clone().with_cache(crate::config::CacheConfig {
-            build_reuse: true, normalization_reuse: true, formation_reuse: true, codec_reuse: true, directory: Some(directory.clone()),
+            directory: Some(directory.clone()), ..Default::default()
         });
         let disabled = policy.with_cache(crate::config::CacheConfig {
-            build_reuse: true, normalization_reuse: true, formation_reuse: true, codec_reuse: false, directory: Some(directory.clone()),
+            codec_reuse: false, directory: Some(directory.clone()), ..Default::default()
         });
         let cold = search(&enabled, objective, true);
         let warm = search(&enabled, objective, true);

@@ -1,3 +1,4 @@
+import {read_DEV as vue_read_DEV} from "../../package/build-flags.lil";
 import { MoveType, queuePostRenderEffect, traverseStaticChildren } from "../renderer";
 import { SchedulerJobFlags } from "../scheduler";
 import { ShapeFlags as dependencyShapeFlags } from "../../shared/shapeFlags";
@@ -9,11 +10,11 @@ extern JsValue Symbol;
 extern JsValue Set;
 extern JsValue SVGElement;
 extern JsValue MathMLElement;
-extern JsValue __DEV__;
+
 bool teleportDev() {
-  return __DEV__.truthy();
+  return vue_read_DEV().truthy();
 }
-bool TELEPORT_FEATURE_SUSPENSE = true;
+define bool TELEPORT_FEATURE_SUSPENSE = true;
 int teleportLength(JsValue value) {
   return JS.number(value["length"]).toInt();
 }

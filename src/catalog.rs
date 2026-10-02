@@ -539,6 +539,8 @@ pub enum HostKind {
     Eval,
     /// `arguments`: the running function's arguments object.
     Arguments,
+    /// The current delivery file's URL, spelled by its format owner.
+    ModuleUrl,
     /// Any other host name an extern declares.
     Declared,
 }

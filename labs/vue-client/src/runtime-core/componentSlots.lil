@@ -12,8 +12,8 @@ import { isHmrUpdating } from "./hmr";
 import { DeprecationTypes, isCompatEnabled } from "./compat/compatConfig";
 import { createInternalObject } from "./internalObject";
 
-bool SLOTS_DEV = true;
-bool SLOTS_COMPAT = false;
+define bool SLOTS_DEV = true;
+define bool SLOTS_COMPAT = false;
 int SLOTS_CHILDREN = JS.number(ShapeFlags["SLOTS_CHILDREN"]).toInt();
 int SLOTS_STABLE = JS.number(SlotFlags["STABLE"]).toInt();
 

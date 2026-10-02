@@ -1,9 +1,6 @@
-import extern { BindingTypes } from "../../../packages/vuelil/compiler-dom.js";
-import extern { hostDefineProperty } from "../host.js";
+import { BindingTypes } from "../../package/compiler-dom.lil";
+import { hostDefineProperty } from "../host.lil";
 import { resolveObjectKey } from "./utils";
-
-extern JsValue BindingTypes;
-extern JsValue hostDefineProperty;
 
 int bindingsLength(JsValue value) {
   return JS.number(value["length"]).toInt();

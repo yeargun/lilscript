@@ -30,8 +30,8 @@ extern JsValue Proxy;
 extern JsValue Reflect;
 extern JsValue String;
 
-bool RENDER_UTILS_DEV = true;
-bool RENDER_UTILS_COMPAT = false;
+define bool RENDER_UTILS_DEV = true;
+define bool RENDER_UTILS_COMPAT = false;
 int RENDER_STATEFUL_COMPONENT = JS.number(ShapeFlags["STATEFUL_COMPONENT"]).toInt();
 int RENDER_ELEMENT = JS.number(ShapeFlags["ELEMENT"]).toInt();
 int RENDER_COMPONENT = JS.number(ShapeFlags["COMPONENT"]).toInt();

@@ -6,8 +6,8 @@ import { mapCompatDirectiveHook } from "./compat/customDirective";
 import { pauseTracking as dependencyPauseTracking, resetTracking as dependencyResetTracking } from "../reactivity/effect";
 import { traverse as dependencyTraverse } from "../reactivity/watch";
 import { warn } from "./warning";
-bool DIRECTIVES_DEV = true;
-bool DIRECTIVES_COMPAT = false;
+define bool DIRECTIVES_DEV = true;
+define bool DIRECTIVES_COMPAT = false;
 int directiveLength(JsValue value) {
   return JS.number(value["length"]).toInt();
 }

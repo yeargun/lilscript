@@ -1,4 +1,4 @@
-import extern {
+import {
   DOMErrorCodes,
   ElementTypes,
   NodeTypes,
@@ -11,7 +11,7 @@ import extern {
   findProp,
   hasDynamicKeyVBind,
   transformModel as coreTransformModel
-} from "../../../packages/vuelil/compiler-dom.js";
+} from "../../package/compiler-dom.lil";
 import {
   SSR_INCLUDE_BOOLEAN_ATTR,
   SSR_LOOSE_CONTAIN,
@@ -19,19 +19,7 @@ import {
   SSR_RENDER_DYNAMIC_MODEL
 } from "../runtimeHelpers";
 
-extern JsValue DOMErrorCodes;
-extern JsValue ElementTypes;
 extern JsValue JSON;
-extern JsValue NodeTypes;
-extern JsValue createCallExpression;
-extern JsValue createConditionalExpression;
-extern JsValue createDOMCompilerError;
-extern JsValue createInterpolation;
-extern JsValue createObjectProperty;
-extern JsValue createSimpleExpression;
-extern JsValue findProp;
-extern JsValue hasDynamicKeyVBind;
-extern JsValue coreTransformModel;
 
 JsValue ssrModelUndefined() {
   return JS.undefined();

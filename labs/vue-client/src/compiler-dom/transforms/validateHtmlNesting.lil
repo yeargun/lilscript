@@ -1,11 +1,9 @@
-import extern {
+import {
   ElementTypes,
   NodeTypes
-} from "../../../packages/vuelil/compiler-core.js";
+} from "../../package/compiler-core.lil";
 import { isValidHTMLNesting } from "../htmlNesting";
 
-extern JsValue ElementTypes;
-extern JsValue NodeTypes;
 extern JsValue Object;
 extern JsValue SyntaxError;
 
