@@ -110,7 +110,10 @@ pub(super) fn plan<'src>(
             &mut references::Meter(budget),
         )?;
         budget.push(AllocationClass::Scratch, &mut boundary_types, contains)?;
-        let abi = contains || super::public_structs::carries_absence(program, ty, budget)?;
+        // A callable whose crossings convert nothing needs no D2 adapter.
+        let abi = contains
+            || super::public_structs::carries_absence(program, ty, budget)?
+                && !super::public_structs::identity_signature(contract, ty);
         budget.push(AllocationClass::Scratch, &mut abi_types, abi)?;
     }
     let bytes = pending

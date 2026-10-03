@@ -155,10 +155,34 @@ impl Module {
                 Some(node(*value).clone())
             }
             Expr::Binary {
-                op: op @ (Binary::Or | Binary::And),
+                op: op @ (Binary::Or | Binary::And | Binary::Nullish),
                 left,
                 right,
-            } => self.nullish_pair(*op, *left, *right),
+            } => {
+                // A literal left operand decides: `!1||x` is `x`, `!0&&x` is
+                // `x`, `!0||x` is `!0`, and `null??x` is `x` (inlined tests
+                // leave these behind).
+                if let Expr::Literal(literal) = node(*left) {
+                    let decides = match literal {
+                        Literal::Null | Literal::Undefined => Some(false),
+                        Literal::Bool(value) => Some(*value),
+                        Literal::Number(value) => Some(*value != 0.0 && !value.is_nan()),
+                        Literal::String(value) => Some(!value.is_empty()),
+                    };
+                    if let Some(truthy) = decides {
+                        let right_wins = match op {
+                            Binary::Or => !truthy,
+                            Binary::And => truthy,
+                            _ => matches!(literal, Literal::Null | Literal::Undefined),
+                        };
+                        return Some(node(if right_wins { *right } else { *left }).clone());
+                    }
+                }
+                if *op == Binary::Nullish {
+                    return None;
+                }
+                self.nullish_pair(*op, *left, *right)
+            }
             // Operands of one primitive type compare alike either way:
             // `typeof x==="string"` is `typeof x=="string"`.
             Expr::Binary {

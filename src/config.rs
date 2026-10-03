@@ -1051,6 +1051,7 @@ impl ProjectConfig {
                         pure_property_reads: self.javascript.assume_pure_property_reads,
                         unconstructed_callbacks: self.javascript.assume_unconstructed_callbacks,
                         private_underscore_properties: self.javascript.assume_private_underscore_properties,
+                        no_document_all: self.javascript.assume_no_document_all,
                         numeric_lengths: self
                             .javascript
                             .compression_enabled(CompressionDecision::LengthToNumberElision),
@@ -1803,6 +1804,14 @@ pub struct JavaScriptConfig {
     /// are not renamed. False by default: it is a naming contract the port
     /// states, never something the compiler can prove.
     pub assume_private_underscore_properties: bool,
+    /// No value the program meets is `document.all`, the one host object
+    /// that is `== null` (HTMLDDA). A loose null test is then exactly a test
+    /// for `null` or `undefined`, so `x == null ? undefined : x.a.b()` prints
+    /// as the optional chain `x?.a.b()` (ES2020). Terser's compress makes the
+    /// same assumption when it folds `x === null || x === undefined` into
+    /// `null == x`, and so do down-levelling compilers that lower `x?.a` to
+    /// `x == null ? void 0 : x.a`. False by default.
+    pub assume_no_document_all: bool,
     /// Keep the exact source `name` of every function whose name some code
     /// could read, not only of published exports. Off by default: an exported
     /// function always keeps its source name (D2), while an internal function
@@ -1851,6 +1860,7 @@ impl Default for JavaScriptConfig {
             assume_pure_property_reads: false,
             assume_unconstructed_callbacks: false,
             assume_private_underscore_properties: false,
+            assume_no_document_all: false,
             keep_function_names: false,
             keep_published_function_names: true,
             strip_debug: false,

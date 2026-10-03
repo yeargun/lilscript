@@ -986,6 +986,119 @@ impl Module {
         let (b, bk) = part(right)?;
         (a == b && ak != bk).then_some(a)
     }
+    /// The binding a null test examines and whether the test is true for
+    /// `null`/`undefined` (`x == null`) rather than false (`x != null`): the
+    /// exact strict pair always, a loose test when no value is `document.all`.
+    fn nullish_test(&self, condition: ExprId) -> Option<(BindingId, bool)> {
+        if let Some(binding) = self.exact_nullish_binding(condition) {
+            return Some((binding, true));
+        }
+        let Expr::Binary { op, left, right } = self.expressions[condition.index()] else {
+            return None;
+        };
+        let absent = match op {
+            Binary::Equal if self.no_document_all => true,
+            Binary::NotEqual if self.no_document_all => false,
+            Binary::And => {
+                // `x !== null && x !== void 0`: the exact pair's negation.
+                let part = |id: ExprId| {
+                    let Expr::Binary { op: Binary::StrictNotEqual, left, right } =
+                        self.expressions[id.index()]
+                    else {
+                        return None;
+                    };
+                    for (value, nothing) in [(left, right), (right, left)] {
+                        if let Expr::Binding(binding) = self.expressions[value.index()] {
+                            match self.expressions[nothing.index()] {
+                                Expr::Literal(Literal::Null) => return Some((binding, false)),
+                                Expr::Literal(Literal::Undefined) => return Some((binding, true)),
+                                _ => {}
+                            }
+                        }
+                    }
+                    None
+                };
+                let (a, ak) = part(left)?;
+                let (b, bk) = part(right)?;
+                return (a == b && ak != bk).then_some((a, false));
+            }
+            _ => return None,
+        };
+        for (value, nothing) in [(left, right), (right, left)] {
+            if let (Expr::Binding(binding), Expr::Literal(Literal::Null | Literal::Undefined)) =
+                (&self.expressions[value.index()], &self.expressions[nothing.index()])
+            {
+                return Some((*binding, absent));
+            }
+        }
+        None
+    }
+    /// A loose null test of a host global (`window == null`), when reading
+    /// it runs no code: the chain then reads it once instead of twice.
+    fn nullish_host_test(&self, condition: ExprId) -> Option<(&str, bool)> {
+        if !self.no_document_all || !self.pure_property_reads {
+            return None;
+        }
+        let Expr::Binary { op, left, right } = self.expressions[condition.index()] else {
+            return None;
+        };
+        let absent = match op {
+            Binary::Equal => true,
+            Binary::NotEqual => false,
+            _ => return None,
+        };
+        for (value, nothing) in [(left, right), (right, left)] {
+            if let (Expr::Host(host), Expr::Literal(Literal::Null | Literal::Undefined)) =
+                (&self.expressions[value.index()], &self.expressions[nothing.index()])
+            {
+                return Some((host.name.as_str(), absent));
+            }
+        }
+        None
+    }
+    /// `optional_link` for a chain read from a host global.
+    fn optional_host_link(&self, chain: ExprId, name: &str) -> Option<ExprId> {
+        let mut id = chain;
+        loop {
+            match &self.expressions[id.index()] {
+                Expr::Member { object, .. } => {
+                    if matches!(&self.expressions[object.index()], Expr::Host(host) if host.name == name) {
+                        return Some(id);
+                    }
+                    id = *object;
+                }
+                Expr::Call { callee, invocation: Invocation::Reference, .. }
+                    if matches!(self.expressions[callee.index()], Expr::Member { .. }) =>
+                {
+                    id = *callee
+                }
+                _ => return None,
+            }
+        }
+    }
+    /// The first link of a member chain read from `binding`: the member whose
+    /// object is the binding, reached through member objects and method-call
+    /// callees (a call that passes its receiver, so `x?.a.b()` keeps it in the
+    /// chain). `None` when the chain does not start at the binding.
+    pub(super) fn optional_link(&self, chain: ExprId, binding: BindingId) -> Option<ExprId> {
+        let mut id = chain;
+        loop {
+            match &self.expressions[id.index()] {
+                Expr::Member { object, .. } => {
+                    if matches!(self.expressions[object.index()], Expr::Binding(found) if found == binding) {
+                        return Some(id);
+                    }
+                    id = *object;
+                }
+                Expr::Call { callee, invocation: Invocation::Reference, .. }
+                    if matches!(self.expressions[callee.index()], Expr::Member { .. }) =>
+                {
+                    id = *callee
+                }
+                _ => return None,
+            }
+        }
+    }
     fn form_modern_spellings(
         &mut self,
         forms: &mut PrintForms,
@@ -999,32 +1112,38 @@ impl Module {
                 let Expr::Conditional { condition, yes, no } = self.expressions[index] else {
                     continue;
                 };
-                if !matches!(
-                    self.expressions[yes.index()],
-                    Expr::Literal(Literal::Undefined)
-                ) {
-                    continue;
-                }
-                let Some(binding) = self.exact_nullish_binding(condition) else {
+                // `x == null ? undefined : x.a.b()` and `x != null ? x.a.b() :
+                // undefined` are both `x?.a.b()`.
+                let link = if let Some((binding, absent)) = self.nullish_test(condition) {
+                    let (nothing, chain) = if absent { (yes, no) } else { (no, yes) };
+                    if !matches!(self.expressions[nothing.index()], Expr::Literal(Literal::Undefined)) {
+                        continue;
+                    }
+                    self.optional_link(chain, binding)
+                } else if let Some((name, absent)) = self.nullish_host_test(condition) {
+                    let (nothing, chain) = if absent { (yes, no) } else { (no, yes) };
+                    if !matches!(self.expressions[nothing.index()], Expr::Literal(Literal::Undefined)) {
+                        continue;
+                    }
+                    self.optional_host_link(chain, name)
+                } else {
+                    None
+                };
+                let Some(link) = link else {
                     continue;
                 };
-                let Expr::Member { object, .. } = self.expressions[no.index()] else {
-                    continue;
-                };
-                if !matches!(self.expressions[object.index()],Expr::Binding(found) if found==binding)
-                {
-                    continue;
-                }
+                // Shorter in every codec: the test and one read of the
+                // binding go. The search may still prefer the long form.
                 if self.site_choice(
                     self.expression_site(ExprId::new(index)),
                     ChoiceFamily::OptionalChain,
-                    false,
+                    true,
                     "optional-member",
                     8,
                     Some(choices),
                     budget,
                 )? {
-                    forms.optional[index] = Some(no);
+                    forms.optional[index] = Some(link);
                 }
             }
         }

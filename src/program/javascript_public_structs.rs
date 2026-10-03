@@ -77,6 +77,50 @@ pub(super) fn carries_absence(
     }
 }
 
+/// Whether every call of a function of type `ty` crosses the public boundary
+/// unchanged in production: each parameter is received as it is passed and
+/// the result returned as it is, so a D2 wrapper would only forward and the
+/// function itself is its public face (its `length` still stops at the first
+/// default). Development checks convert defaulted arguments, so they keep it.
+pub(super) fn identity_signature(contract: &JavaScriptCompilationContract, ty: &Type<'_>) -> bool {
+    if contract.checks == crate::compilation_contract::PreconditionChecks::Development {
+        return false;
+    }
+    let Type::Function(signature) = ty else {
+        return false;
+    };
+    signature.params.iter().all(|parameter| {
+        !parameter.receiver
+            && parameter.passing == crate::primitive::ParameterPassing::Value
+            && plain_crossing(&parameter.ty, true)
+    }) && plain_crossing(&signature.return_type, false)
+}
+
+/// A value of type `ty` that `public_value` passes through unchanged: no
+/// product, enum or callable to adapt and, outgoing, no absence to pin.
+fn plain_crossing(ty: &Type<'_>, incoming: bool) -> bool {
+    match ty {
+        Type::Int | Type::Float | Type::String | Type::Bool | Type::Void | Type::Null
+        | Type::Dynamic | Type::Unknown | Type::Regex | Type::Symbol | Type::ArrayBuffer
+        | Type::SharedArrayBuffer | Type::Int8Array | Type::Uint8Array
+        | Type::Uint8ClampedArray | Type::Int16Array | Type::Uint16Array | Type::Int32Array
+        | Type::Uint32Array | Type::Float32Array | Type::Float64Array => true,
+        Type::Array(element) | Type::Set(element) | Type::Record(element) => {
+            !matches!(**element, Type::Nullable(_)) && plain_crossing(element, incoming)
+        }
+        Type::Map(key, value) => {
+            !matches!(**key, Type::Nullable(_))
+                && !matches!(**value, Type::Nullable(_))
+                && plain_crossing(key, incoming)
+                && plain_crossing(value, incoming)
+        }
+        Type::Task(value) => !incoming && plain_crossing(value, false),
+        // An incoming optional is accepted as either absence in production.
+        Type::Nullable(inner) => incoming && plain_crossing(inner, true),
+        _ => false,
+    }
+}
+
 /// Whether `ty` crosses the public boundary exactly under the object ABI.
 pub(super) fn adaptable(
     program: &Program<'_>,
@@ -638,6 +682,10 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             }
             let binding = self.cell_binding(context, cell)?;
             let value = self.public_parameter(parameter, binding)?;
+            // An identity crossing (`p=p`) converts nothing.
+            if matches!(self.module.expressions[value.index()], js::Expr::Binding(read) if read == binding) {
+                continue;
+            }
             let target = self.reference(binding)?;
             let assign = self.expression(js::Expr::Assign { target, value })?;
             self.statement(body, js::Statement::Evaluate(assign))?;

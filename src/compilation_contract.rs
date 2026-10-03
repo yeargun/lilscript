@@ -45,6 +45,10 @@ pub struct JavaScriptUnsafeAssumptions {
     /// to the program wherever it occurs, so one program-wide map may rename
     /// it (Terser's `mangle.properties.regex`, as posthog-js builds with it).
     pub private_underscore_properties: bool,
+    /// No value is `document.all`, the one object that is `== null`: a loose
+    /// null test is exactly a test for `null` or `undefined` (Terser's compress
+    /// folds `x === null || x === undefined` into `null == x`).
+    pub no_document_all: bool,
     /// A host value's `length` is an int32 Number, as it is for strings,
     /// arrays, typed arrays, `arguments` and functions: size-first's
     /// length-to-number decision.

@@ -326,6 +326,8 @@ checks = "production"         # "development" throws where a precondition fails:
 assume_pristine_builtins = false
 assume_pure_property_reads = false
 assume_unconstructed_callbacks = false
+assume_private_underscore_properties = false
+assume_no_document_all = false
 keep_function_names = false
 keep_published_function_names = true
 operand_order_fusion = true   # false turns the target-compaction tactic off
@@ -481,8 +483,14 @@ exception is described below.
   typed operations mean the originals whatever it says, language rule R10),
   `assume_pure_property_reads` (a dynamic member read runs no getter, Terser's
   `pure_getters`), `assume_unconstructed_callbacks` (callers never construct a
-  lambda the program hands them, Terser's `unsafe_arrows`). A port that sets one
-  records why.
+  lambda the program hands them, Terser's `unsafe_arrows`),
+  `assume_private_underscore_properties` (a `^_(?!_)` property name outside
+  `mangle.preserve_properties` is private to the program, Terser's
+  `mangle.properties.regex`; a name read only from an undeclared global keeps
+  its spelling, as Terser keeps it), `assume_no_document_all` (no value is
+  `document.all`, so a loose null test is exact and `x == null ? undefined :
+  x.a.b()` prints `x?.a.b()`; Terser folds `x === null || x === undefined` into
+  `null == x` on the same assumption). A port that sets one records why.
 - `compression` entry `length-to-number-elision` (on under `size-first` when
   the list is omitted) is the assumption that a host value's `length` is an
   int32 Number.

@@ -151,6 +151,7 @@ pub(super) fn render_with_literals_admitted(
     let private = private_map(module);
     let mut printer = Printer {
         private: private.as_ref(),
+        optional_link: None,
         module,
         names,
         literal_alternatives,
@@ -413,6 +414,9 @@ struct Printer<'a, 'budget, 'ledger> {
     /// Spellings of program-private property names for this render
     /// (`private_map`), when the naming contract holds.
     private: Option<&'a std::collections::HashMap<String, String>>,
+    /// The first link of the optional chain being printed (`forms.optional`):
+    /// that member prints `?.` instead of `.`.
+    optional_link: Option<ExprId>,
 }
 
 /// Host property names a generated private spelling never takes: protocol
@@ -442,11 +446,36 @@ pub(super) fn private_map(module: &Module) -> Option<std::collections::HashMap<S
         name.len() > 1 && name.starts_with('_') && !name.starts_with("__")
             && !preserved.iter().any(|kept| kept == name)
     };
+    // Terser's `mangle.properties` (its default `undeclared: false`) does not
+    // collect a name read only from an undeclared global (`globalThis._x`,
+    // `window._x`): host code shares such names. A member chain's root is
+    // found as Terser finds it, through receivers, callees and constructors.
+    let host_rooted = |mut id: ExprId| loop {
+        match &module.expressions[id.index()] {
+            Expr::Member { object, .. } => id = *object,
+            Expr::Call { callee, .. } | Expr::Construct { callee, .. } => id = *callee,
+            Expr::Intrinsic { receiver, .. } => id = *receiver,
+            Expr::Host(_) => break true,
+            _ => break false,
+        }
+    };
+    // Computed member keys print through the same map (`o["_k"]` is `o._k`).
+    let mut computed_keys: HashSet<usize> = HashSet::new();
+    for expression in &module.expressions {
+        if let Expr::Member { property: Property::Computed(key), .. } = expression {
+            computed_keys.insert(key.index());
+        }
+    }
     let mut counts: HashMap<&str, usize> = HashMap::new();
     let mut taken: HashSet<&str> = PRIVATE_SPELLING_AVOIDS.iter().copied().collect();
     let mut keys: Vec<&str> = Vec::new();
-    for expression in &module.expressions {
+    let mut shared: Vec<&str> = Vec::new();
+    let mut loose: HashSet<&str> = HashSet::new();
+    for (index, expression) in module.expressions.iter().enumerate() {
         match expression {
+            Expr::Member { object, property: Property::Named(name) } if host_rooted(*object) => {
+                shared.push(name)
+            }
             Expr::Member { property: Property::Named(name), .. } => keys.push(name),
             Expr::Object(entries) => {
                 for (key, _) in entries {
@@ -461,11 +490,14 @@ pub(super) fn private_map(module: &Module) -> Option<std::collections::HashMap<S
                 }
             }
             // A string may be a key elsewhere (`o[k]`, `k in o`, a host call):
-            // no private spelling takes it.
+            // no private spelling takes it, and a private name spelled by a
+            // string anywhere but a member key keeps its spelling everywhere.
             Expr::Literal(Literal::String(value)) => {
                 if let Some(text) = value.as_unicode() {
                     if !private(text) {
                         taken.insert(text);
+                    } else if !computed_keys.contains(&index) {
+                        loose.insert(text);
                     }
                 }
             }
@@ -473,8 +505,17 @@ pub(super) fn private_map(module: &Module) -> Option<std::collections::HashMap<S
         }
     }
     for name in keys {
-        if private(name) {
+        if private(name) && !loose.contains(name) {
             *counts.entry(name).or_default() += 1;
+        } else {
+            taken.insert(name);
+        }
+    }
+    // A host-rooted read of a collected name is renamed with it, as Terser
+    // renames every occurrence of a collected name.
+    for name in shared {
+        if let Some(count) = counts.get_mut(name) {
+            *count += 1;
         } else {
             taken.insert(name);
         }
@@ -913,6 +954,9 @@ impl<'a> Printer<'a, '_, '_> {
         }
         match expression {
             Expr::Function(id) if self.module.functions[id.index()].arrow => 2,
+            // An optional chain is a left-hand-side expression that a member
+            // access, call or `new` must not extend: `(x?.a).b` is not `x?.a.b`.
+            Expr::Conditional { .. } if self.forms.optional[id.index()].is_some() => 16,
             _ => precedence(expression),
         }
     }
@@ -1353,6 +1397,26 @@ impl<'a> Printer<'a, '_, '_> {
                 self.binary_operand(*right, *op, level + 1);
                 self.output.separate_sign(at);
             }
+            Expr::Member { object, property } if self.optional_link == Some(id) => {
+                self.optional_link = None;
+                self.receiver(*object);
+                self.text("?");
+                match property {
+                    // `?.[k]`; any other key prints as `property` prints it.
+                    Property::Computed(key)
+                        if self.identifier_key(*key).is_none() && self.number_key(*key, true).is_none() =>
+                    {
+                        self.text(".[");
+                        self.expression(*key, 0);
+                        self.text("]");
+                    }
+                    Property::Computed(key) if self.identifier_key(*key).is_none() => {
+                        self.text(".");
+                        self.property(property);
+                    }
+                    _ => self.property(property),
+                }
+            }
             Expr::Member { object, property } => {
                 self.receiver(*object);
                 self.property(property);
@@ -1407,25 +1471,18 @@ impl<'a> Printer<'a, '_, '_> {
                     self.arguments(arguments);
                 }
             }
-            Expr::Conditional { .. } if self.forms.optional[id.index()].is_some() => {
-                let member = self.forms.optional[id.index()].unwrap();
-                let Expr::Member { object, property } = &self.module.expressions[member.index()]
-                else {
-                    unreachable!("proved optional member")
+            Expr::Conditional { yes, no, .. } if self.forms.optional[id.index()].is_some() => {
+                // The chain is the branch that is not `undefined`; its first
+                // link, read from the tested binding, prints `?.`.
+                let link = self.forms.optional[id.index()].unwrap();
+                let chain = if matches!(self.module.expressions[yes.index()], Expr::Literal(Literal::Undefined)) {
+                    *no
+                } else {
+                    *yes
                 };
-                self.expression(*object, 18);
-                self.text("?.");
-                match property {
-                    Property::Named(name) => {
-                        let name = self.property_spelling(name);
-                        self.text(name)
-                    }
-                    Property::Computed(key) => {
-                        self.text("[");
-                        self.expression(*key, 0);
-                        self.text("]");
-                    }
-                }
+                let outer = self.optional_link.replace(link);
+                self.expression(chain, 0);
+                self.optional_link = outer;
             }
             Expr::Conditional { condition, yes, no } => {
                 self.expression(*condition, 4);

@@ -125,6 +125,7 @@ pub(in crate::js) fn render_planned_file_admitted(
     let private = super::print::private_map(module);
     let mut printer = Printer {
         private: private.as_ref(),
+        optional_link: None,
         module,
         names,
         literal_alternatives,

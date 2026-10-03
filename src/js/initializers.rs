@@ -189,7 +189,7 @@ impl Module {
         &mut self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        self.with_reach_tree(budget, |module, reach, budget| {
+        let dropped = self.with_reach_tree(budget, |module, reach, budget| {
             // Every construction: its initializer, its literal, and where its
             // call stands.
             let mut constructions: Vec<(Initialized, ExprId, Site)> = Vec::new();
@@ -389,8 +389,165 @@ impl Module {
                     }
                 }
             }
-            Ok(dropped)
-        })?
+            Ok::<usize, AllocationError>(dropped)
+        })??;
+        Ok(dropped + self.drop_constructor_placeholders(budget)?)
+    }
+
+    /// A published class's constructor first stores each field's default
+    /// (`this.f=null`), then its body stores the fields (R3). A default store
+    /// is dead when the body stores the field before anything else can see
+    /// the instance: no statement in between mentions `this` (an instance
+    /// that has not escaped is visible to nothing), and the store's value
+    /// does not either. Removing a suffix of the defaults whose own stores
+    /// come in the same order keeps the order in which the fields are
+    /// created, the key order `Object.keys` observes.
+    pub(crate) fn drop_constructor_placeholders(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut dropped = 0;
+        for index in 0..self.expressions.len() {
+            budget.work(Analysis, 1)?;
+            let Expr::Class { constructor: Some(constructor), .. } = &self.expressions[index] else {
+                continue;
+            };
+            let body = self.functions[constructor.index()].body;
+            let statements = &self.regions[body.index()].statements;
+            // A derived class's defaults follow its `super(...)`.
+            let mut start = 0;
+            while start < statements.len() && !matches!(statements[start], Statement::Evaluate(store) if self.this_store(store).is_some()) {
+                if self.statement_observes_this(&statements[start], budget)? {
+                    break;
+                }
+                start += 1;
+            }
+            let mut defaults: Vec<(usize, &str)> = Vec::new();
+            let mut at = start;
+            while at < statements.len() {
+                budget.work(Analysis, 1)?;
+                let Statement::Evaluate(store) = statements[at] else { break };
+                let Some((name, value)) = self.this_store(store) else { break };
+                if !self.placeholder_value(value, budget)? || defaults.iter().any(|(_, seen)| *seen == name) {
+                    break;
+                }
+                defaults.push((at, name));
+                at += 1;
+            }
+            if defaults.is_empty() {
+                continue;
+            }
+            // Where the body first stores each default's field.
+            let mut first: Vec<Option<usize>> = vec![None; defaults.len()];
+            while at < statements.len() {
+                budget.work(Analysis, 1)?;
+                if let Statement::Evaluate(store) = statements[at] {
+                    if let Some((name, value)) = self.this_store(store) {
+                        if !self.expression_observes_this(value, budget)? {
+                            if let Some(k) = defaults.iter().position(|(_, field)| *field == name) {
+                                first[k].get_or_insert(at);
+                            }
+                            at += 1;
+                            continue;
+                        }
+                    }
+                }
+                if self.statement_observes_this(&statements[at], budget)? {
+                    break;
+                }
+                at += 1;
+            }
+            // The longest suffix of defaults stored again, in their order.
+            let mut keep = defaults.len();
+            let mut next: Option<usize> = None;
+            while keep > 0 {
+                let Some(position) = first[keep - 1] else { break };
+                if next.is_some_and(|next| position >= next) {
+                    break;
+                }
+                next = Some(position);
+                keep -= 1;
+            }
+            let removed: Vec<usize> = defaults[keep..].iter().map(|(at, _)| *at).collect();
+            for &at in removed.iter().rev() {
+                self.remove_statement(body.index(), at);
+            }
+            dropped += removed.len();
+        }
+        Ok(dropped)
+    }
+
+    /// `this.name=value`: a named store into the instance.
+    fn this_store(&self, store: ExprId) -> Option<(&str, ExprId)> {
+        let Expr::Assign { target, value } = self.expressions[store.index()] else {
+            return None;
+        };
+        let Expr::Member { object, property: Property::Named(name) } = &self.expressions[target.index()] else {
+            return None;
+        };
+        (matches!(self.expressions[object.index()], Expr::This) && name != "__proto__").then_some((name.as_str(), value))
+    }
+
+    /// A default whose evaluation does nothing: a literal, or an array or
+    /// object of them (`inert_value` without its functions, which close over
+    /// `this` in an arrow).
+    fn placeholder_value(&self, value: ExprId, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+        Ok(!self.expression_observes_this(value, budget)? && self.inert_value(value, budget)?)
+    }
+
+    fn expression_observes_this(&self, value: ExprId, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+        let mut pending = vec![value];
+        let mut regions: Vec<RegionId> = Vec::new();
+        loop {
+            if let Some(id) = pending.pop() {
+                budget.work(Analysis, 1)?;
+                let expression = &self.expressions[id.index()];
+                match expression {
+                    Expr::This | Expr::SuperCall { .. } | Expr::Function(_) | Expr::Class { .. } => return Ok(true),
+                    Expr::Call { invocation: Invocation::DirectEval, .. } => return Ok(true),
+                    _ => {}
+                }
+                expression.visit_children(|child| {
+                    pending.push(child);
+                    Ok::<_, AllocationError>(())
+                })?;
+            } else if let Some(region) = regions.pop() {
+                for statement in &self.regions[region.index()].statements {
+                    statement.visit_expressions(|id| pending.push(id));
+                    statement.visit_regions(|id| regions.push(id));
+                }
+            } else {
+                return Ok(false);
+            }
+        }
+    }
+
+    /// Whether a statement mentions the instance anywhere, in its nested
+    /// blocks and in any function it creates included.
+    fn statement_observes_this(&self, statement: &Statement, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+        if matches!(statement, Statement::Function { .. }) {
+            return Ok(true);
+        }
+        let mut roots: Vec<ExprId> = Vec::new();
+        let mut regions: Vec<RegionId> = Vec::new();
+        statement.visit_expressions(|id| roots.push(id));
+        statement.visit_regions(|id| regions.push(id));
+        while let Some(region) = regions.pop() {
+            budget.work(Analysis, 1)?;
+            for statement in &self.regions[region.index()].statements {
+                if matches!(statement, Statement::Function { .. }) {
+                    return Ok(true);
+                }
+                statement.visit_expressions(|id| roots.push(id));
+                statement.visit_regions(|id| regions.push(id));
+            }
+        }
+        for root in roots {
+            if self.expression_observes_this(root, budget)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// A construction: `init(o,…)` right after `o` receives the literal,

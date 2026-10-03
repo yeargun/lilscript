@@ -264,6 +264,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             pure_property_reads: false,
             unconstructed_callbacks: false,
             private_underscore_properties: false,
+            no_document_all: false,
             numeric_lengths: false,
         },
         effects: JavaScriptEffectPolicy {
@@ -740,6 +741,7 @@ fn form_head(
     module.pristine_builtins = contract.assumptions.pristine_builtins;
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
+    module.no_document_all = contract.assumptions.no_document_all;
     if contract.assumptions.private_underscore_properties {
         module.private_names = Some(preserved_properties.iter().cloned().collect::<Vec<_>>().into());
     }

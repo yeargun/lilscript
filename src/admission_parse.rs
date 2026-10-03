@@ -86,6 +86,8 @@ pub(crate) enum Canon {
     /// Object and computed key; `None` is a literal key (`.k`, `["k"]`, `[0]`).
     Member(Box<Canon>, Option<Box<Canon>>),
     OptionalMember(Box<Canon>, Option<Box<Canon>>),
+    /// An optional chain (`ChainExpression`): its links, one `OptionalMember`.
+    Chain(Box<Canon>),
     LogicalAssign(&'static str, Box<Canon>, Box<Canon>),
     Sequence(Vec<Canon>),
     Template(Vec<Canon>),
@@ -391,6 +393,9 @@ fn write(canon: &Canon, out: &mut Vec<u8>) {
         }
         Canon::OptionalMember(object, key) => {
             tag(out, 41);write(object,out);option(out,key.as_deref());
+        }
+        Canon::Chain(links) => {
+            tag(out, 43);write(links,out);
         }
         Canon::LogicalAssign(operator,target,value) => {
             tag(out,42);text(out,operator);write(target,out);write(value,out);
@@ -820,6 +825,37 @@ fn oxc_property_key(key: &PropertyKey<'_>, computed: bool) -> Option<Canon> {
     }
 }
 
+/// A link of an optional chain: members keep their `optional` flag.
+fn oxc_chain_link(expression: &Expression<'_>) -> Canon {
+    match expression {
+        Expression::CallExpression(call) => oxc_chain_call(call),
+        Expression::StaticMemberExpression(member) => oxc_chain_static(member),
+        Expression::ComputedMemberExpression(member) => oxc_chain_computed(member),
+        _ => oxc_expression(expression),
+    }
+}
+fn oxc_chain_call(call: &oxc_ast::ast::CallExpression<'_>) -> Canon {
+    if call.optional {
+        Canon::Other("optional-call")
+    } else {
+        Canon::Call(Box::new(oxc_chain_link(&call.callee)), oxc_arguments(&call.arguments))
+    }
+}
+fn oxc_chain_static(member: &oxc_ast::ast::StaticMemberExpression<'_>) -> Canon {
+    if member.optional {
+        Canon::OptionalMember(Box::new(oxc_expression(&member.object)), None)
+    } else {
+        Canon::member(oxc_chain_link(&member.object), None)
+    }
+}
+fn oxc_chain_computed(member: &oxc_ast::ast::ComputedMemberExpression<'_>) -> Canon {
+    let key = Canon::key(oxc_expression(&member.expression));
+    if member.optional {
+        Canon::OptionalMember(Box::new(oxc_expression(&member.object)), key.map(Box::new))
+    } else {
+        Canon::member(oxc_chain_link(&member.object), key)
+    }
+}
 fn oxc_expression(expression: &Expression<'_>) -> Canon {
     match expression {
         Expression::BooleanLiteral(_)
@@ -934,13 +970,12 @@ fn oxc_expression(expression: &Expression<'_>) -> Canon {
             Box::new(oxc_expression(&new.callee)),
             oxc_arguments(&new.arguments),
         ),
-        Expression::ChainExpression(chain) => match &chain.expression {
-            oxc_ast::ast::ChainElement::StaticMemberExpression(member) if member.optional =>
-                Canon::OptionalMember(Box::new(oxc_expression(&member.object)),None),
-            oxc_ast::ast::ChainElement::ComputedMemberExpression(member) if member.optional =>
-                Canon::OptionalMember(Box::new(oxc_expression(&member.object)),Canon::key(oxc_expression(&member.expression)).map(Box::new)),
+        Expression::ChainExpression(chain) => Canon::Chain(Box::new(match &chain.expression {
+            oxc_ast::ast::ChainElement::CallExpression(call) => oxc_chain_call(call),
+            oxc_ast::ast::ChainElement::StaticMemberExpression(member) => oxc_chain_static(member),
+            oxc_ast::ast::ChainElement::ComputedMemberExpression(member) => oxc_chain_computed(member),
             _=>Canon::Other("chain"),
-        },
+        })),
         Expression::ClassExpression(class) => {
             let mut methods = Vec::new();
             for element in &class.body.body {

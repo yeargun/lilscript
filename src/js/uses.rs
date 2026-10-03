@@ -77,7 +77,8 @@ impl UseIndex {
                     Statement::Let {
                         binding,
                         value: Some(value),
-                    } if module.inert_value(value, budget)? => Some(binding),
+                    } if module.inert_value(value, budget)?
+                        || module.pure_property_reads && module.discardable_read(value) => Some(binding),
                     _ => None,
                 };
                 let owner = if let Some(binding) = deferred {

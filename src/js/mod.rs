@@ -1110,6 +1110,9 @@ pub struct Module {
     /// (`assume_private_underscore_properties`): present when it holds, with
     /// the preserved names it must not touch. The printer derives the map.
     pub private_names: Option<std::sync::Arc<[String]>>,
+    /// The contract assumes no value is `document.all`
+    /// (`assume_no_document_all`): a loose null test is an exact one.
+    pub no_document_all: bool,
     /// One row per root statement, aligned with the root region (plan
     /// M3.3): its source module and its anchor. Formation writes the rows;
     /// every rule that inserts, removes, moves or fuses a root statement
@@ -1502,11 +1505,20 @@ impl Module {
                     // null-guarded property read when member reads run no code.
                     if self.inert_value(value, budget)?
                         || self.pristine_builtins && self.standard_member(value)
-                        || self.pure_property_reads && self.guarded_read(value)
+                        || self.pure_property_reads && self.discardable_read(value)
                     {
                         self.remove_statement(region, index);
                         edits += 1;
                         continue;
+                    }
+                    // An unused `c?a:b` or `c&&a` whose discarded operands do
+                    // nothing evaluates its test alone.
+                    if self.pure_property_reads {
+                        if let Some(test) = self.discarded_test(value, budget)? {
+                            self.set_statement(region, index, Statement::Evaluate(test));
+                            edits += 1;
+                            continue;
+                        }
                     }
                 }
                 index += 1;
@@ -1606,6 +1618,48 @@ impl Module {
         matches!(node(absent), Expr::Literal(Literal::Undefined | Literal::Null))
             && matches!(node(read), Expr::Member { object, property: Property::Named(_) }
                 if matches!(node(*object), Expr::Binding(binding) if *binding == tested))
+    }
+
+    /// A read whose value may go unused when member reads run no code
+    /// (`assume_pure_property_reads`, Terser's `pure_getters`): the guarded
+    /// form, or a named member read whose receiver is a program binding,
+    /// `this`, a standard global under pristine builtins, or such a read.
+    pub(crate) fn discardable_read(&self, value: ExprId) -> bool {
+        if self.guarded_read(value) {
+            return true;
+        }
+        let Expr::Member { object, property } = &self.expressions[value.index()] else {
+            return false;
+        };
+        if !self.static_property_key(property) {
+            return false;
+        }
+        match &self.expressions[object.index()] {
+            Expr::Binding(binding) => !self.bindings[binding.index()].pinned
+                || self.pristine_builtins && self.standard_global(*binding),
+            Expr::This => true,
+            Expr::Host(_) => self.pristine_builtins && self.standard_member(*object),
+            Expr::Member { .. } => self.discardable_read(*object),
+            _ => false,
+        }
+    }
+
+    /// The test of an unused `c?a:b`, `c&&a` or `c||a` whose other operands
+    /// are inert or discardable reads.
+    fn discarded_test(
+        &self,
+        value: ExprId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Option<ExprId>, AllocationError> {
+        let discarded = |module: &Self, id: ExprId, budget: &mut AllocationBudget<'_>| -> Result<bool, AllocationError> {
+            Ok(module.inert_value(id, budget)? || module.discardable_read(id))
+        };
+        Ok(match self.expressions[value.index()] {
+            Expr::Conditional { condition, yes, no }
+                if discarded(self, yes, budget)? && discarded(self, no, budget)? => Some(condition),
+            Expr::Binary { op: Binary::And | Binary::Or, left, right } if discarded(self, right, budget)? => Some(left),
+            _ => None,
+        })
     }
 
     /// Whether evaluating `value` only creates literals and functions.
@@ -2630,7 +2684,67 @@ impl Module {
             mentions.discard(budget)?;
         }
         if disordered { self.renumber(budget)?; }
+        forwarded += self.collapse_sequence_temps(budget)?;
         Ok(forwarded)
+    }
+
+    /// `(…,t=v,t)` is `(…,v)` when that write and that read are the only
+    /// mentions of `t`: the same evaluation at the same point, one temporary
+    /// fewer, whose declaration is then unused. A function that owns a name
+    /// keeps the binding that would spell it.
+    fn collapse_sequence_temps(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut counts = budget.filled(AllocationClass::Scratch, self.bindings.len(), (0u32, 0u32))?;
+        self.walk_mentions(&mut vec![self.root], &mut Vec::new(), budget, |binding, write| {
+            let count = &mut counts[binding.index()];
+            if write {
+                count.1 = count.1.saturating_add(1);
+            } else {
+                count.0 = count.0.saturating_add(1);
+            }
+        })?;
+        for export in &self.exports {
+            counts[export.binding.index()] = (u32::MAX, u32::MAX);
+        }
+        let mut collapsed = 0;
+        for index in 0..self.expressions.len() {
+            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            let Expr::Sequence(items) = &self.expressions[index] else {
+                continue;
+            };
+            let [.., assign, read] = items.as_slice() else {
+                continue;
+            };
+            let Expr::Binding(temp) = self.expressions[read.index()] else {
+                continue;
+            };
+            let Expr::Assign { target, value } = self.expressions[assign.index()] else {
+                continue;
+            };
+            if !matches!(self.expressions[target.index()], Expr::Binding(found) if found == temp)
+                || counts[temp.index()] != (1, 1)
+                || self.bindings[temp.index()].pinned
+                || matches!(&self.expressions[value.index()], Expr::Function(function)
+                    if self.functions[function.index()].name.exact().is_some_and(|name| !name.is_empty()))
+                || matches!(self.expressions[value.index()], Expr::Class { .. })
+            {
+                continue;
+            }
+            let mut items = items.clone();
+            items.truncate(items.len() - 2);
+            let node = if items.is_empty() {
+                self.expressions[value.index()].clone()
+            } else {
+                items.push(value);
+                Expr::Sequence(items)
+            };
+            *self.expression_mut(ExprId::new(index)) = node;
+            counts[temp.index()] = (0, 0);
+            collapsed += 1;
+        }
+        Ok(collapsed)
     }
 
     fn frames(&self, budget: &mut AllocationBudget<'_>) -> Result<Frames, AllocationError> {
@@ -3247,6 +3361,7 @@ impl Module {
             pure_property_reads: false,
             unconstructed_callbacks: false,
             private_names: None,
+            no_document_all: false,
             root_rows: vec![],
             integrated_hosts: false,
             entries: vec![],

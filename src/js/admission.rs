@@ -309,21 +309,43 @@ impl Walk<'_> {
         values.iter().map(|value| self.expression(*value)).collect()
     }
 
+    /// An optional chain's links as printed: `link` is the optional member.
+    fn chain(&self, id: ExprId, link: ExprId) -> Canon {
+        match &self.module.expressions[id.index()] {
+            Expr::Member { object, property } => {
+                let key = match property {
+                    Property::Named(_) => None,
+                    Property::Computed(key) => Canon::key(self.expression(*key)),
+                };
+                if id == link {
+                    Canon::OptionalMember(Box::new(self.expression(*object)), key.map(Box::new))
+                } else {
+                    Canon::member(self.chain(*object, link), key)
+                }
+            }
+            Expr::Call { callee, arguments, .. } => {
+                Canon::Call(Box::new(self.chain(*callee, link)), self.expressions(arguments))
+            }
+            _ => self.expression(id),
+        }
+    }
+
     fn expression(&self, id: ExprId) -> Canon {
-        if let Some(member) = self
+        if let Some(link) = self
             .module
             .print_forms
             .as_ref()
             .and_then(|forms| forms.optional[id.index()])
         {
-            let Expr::Member { object, property } = &self.module.expressions[member.index()] else {
-                unreachable!("proved optional member")
+            let Expr::Conditional { yes, no, .. } = &self.module.expressions[id.index()] else {
+                unreachable!("proved optional chain")
             };
-            let key = match property {
-                Property::Named(_) => None,
-                Property::Computed(key) => Canon::key(self.expression(*key)).map(Box::new),
+            let chain = if matches!(self.module.expressions[yes.index()], Expr::Literal(Literal::Undefined)) {
+                *no
+            } else {
+                *yes
             };
-            return Canon::OptionalMember(Box::new(self.expression(*object)), key);
+            return Canon::Chain(Box::new(self.chain(chain, link)));
         }
         match &self.module.expressions[id.index()] {
             Expr::Literal(Literal::Number(value)) if !value.is_finite() => {
