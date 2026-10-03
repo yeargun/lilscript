@@ -81,40 +81,12 @@ test("property stress proves a Brotli-objective property-mangling delta", () => 
   assert.equal(project.verification.native, false);
 });
 
-test("catalog publishes exact SolidLil surfaces with explicit Web scopes", () => {
-  const surfaces = ["core", "store", "web-client", "web-full"].map((id) =>
-    catalog.projects.find(
-      (candidate) => candidate.key === `framework:solidlil-${id}`,
-    ),
-  );
-  assert.ok(surfaces.every(Boolean));
-  assert.deepEqual(
-    surfaces.map(({ status }) => status),
-    ["eligible", "eligible", "eligible", "blocked"],
-  );
-  for (const project of surfaces) {
-    assert.deepEqual(
-      project.artifacts.map(({ id }) => id),
-      ["solid", "solidlil"],
-    );
-    assert.equal(project.verification.exactExports, true);
-    assert.equal(project.verification.behaviorEquivalent, true);
-    assert.equal(project.verification.boundary, "open-world-distribution");
-    const solid = project.artifacts.find(({ id }) => id === "solid");
-    const solidlil = project.artifacts.find(({ id }) => id === "solidlil");
-    assert.equal(
-      project.verification.objectiveSuperior ?? solidlil.brotli < solid.brotli,
-      project.id !== "solidlil-web-full",
-    );
-  }
-  assert.match(
-    surfaces.find(({ id }) => id === "solidlil-web-client").summary,
-    /SSR and hydration are explicitly outside this target/,
-  );
-  assert.match(
-    surfaces.find(({ id }) => id === "solidlil-web-full").blockers[0],
-    /Brotli-objective gate is open/,
-  );
+test("the current Solid library row states its experimental compatibility boundary", async () => {
+  const releases=JSON.parse(await readFile(new URL("../src/library-releases.json",import.meta.url),"utf8"));
+  const solid=releases.libraries.find(row=>row.name==="solidlil");
+  assert.match(solid.scope,/Experimental Solid 2 compatibility/);
+  assert.match(solid.scope,/JavaScript providers/);
+  assert.equal(solid.objectives.length,3);
 });
 
 test("catalog publishes complete client LSX parity with explicit server exclusions", () => {
@@ -140,45 +112,13 @@ test("catalog publishes complete client LSX parity with explicit server exclusio
   assert.ok(candidate.brotli < baseline.brotli);
 });
 
-test("detail and explorer pages keep project navigation in new tabs", async () => {
-  const explorer = await readFile(
-    new URL("../explorer.html", import.meta.url),
-    "utf8",
-  );
-  const script = await readFile(
-    new URL("../src/explorer.js", import.meta.url),
-    "utf8",
-  );
-  const detail = await readFile(
-    new URL("../benchmark-detail.html", import.meta.url),
-    "utf8",
-  );
-  assert.match(explorer, /data-filter-category/);
-  assert.match(explorer, /data-column-view/);
-  assert.match(explorer, /value="core">Core comparison/);
-  assert.match(explorer, /data-sort/);
-  assert.match(explorer, /value="core">Core evidence first/);
-  assert.match(script, /show-all-columns/);
-  assert.match(script, /projectIndex - right\.projectIndex/);
-  assert.match(script, /target="_blank"/);
-  assert.match(script, /benchmark-detail\.html\?project=/);
-  assert.match(detail, /data-project-detail/);
-});
-
-test("explorer explains aggregate compression rates and fair comparison", async () => {
-  const explorer = await readFile(
-    new URL("../explorer.html", import.meta.url),
-    "utf8",
-  );
-  const script = await readFile(
-    new URL("../src/explorer.js", import.meta.url),
-    "utf8",
-  );
-  assert.match(explorer, /data-aggregate-summary/);
-  assert.match(explorer, /Overall averages/);
-  assert.match(explorer, /compression saved =/);
-  assert.match(explorer, /Global averages are descriptive/);
-  assert.match(explorer, /Compare inside one project/);
-  assert.match(script, /weightedGzipReduction/);
-  assert.match(script, /metric-rate/);
+test("legacy explorer and detail routes expose the current comparison index", async () => {
+  for (const name of ["explorer.html", "benchmark-detail.html"]) {
+    const page = await readFile(new URL(`../${name}`, import.meta.url), "utf8");
+    assert.match(page, /Current LilScript versus the minified original/);
+    assert.match(page, /id="ports"/);
+    assert.match(page, /id="build-times"/);
+    assert.match(page, /library-releases.json/);
+    assert.doesNotMatch(page, /previous compiler|previous version/);
+  }
 });

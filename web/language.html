@@ -234,12 +234,12 @@ pure int square(int value) {
         <h2>Codec objective</h2>
         <p>
           Served bytes are the product.
-          <code>javascript.cost_model</code> is the score:
+          <code>objective.codecs</code> is the score:
         </p>
         <table class="lang-table">
           <thead>
             <tr>
-              <th>cost_model</th>
+              <th>codecs</th>
               <th>What is measured</th>
             </tr>
           </thead>
@@ -266,111 +266,30 @@ pure int square(int value) {
         </p>
       </section>
 
-      <section class="landing-section lang-block" id="performance">
-        <h2>Performance is an objective too</h2>
-        <p>
-          Compression is the reason the language exists. It is not the only
-          ranking key. <code>javascript.priority</code> trades transfer size
-          against a static model of parse, compile, allocation, and indirect
-          calls:
-        </p>
-        <table class="lang-table">
-          <thead>
-            <tr>
-              <th>priority</th>
-              <th>Ranks</th>
-              <th>Typical effect</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>size-first</code></td>
-              <td>Transfer first</td>
-              <td>Broadest search, property mangling, packing, layout search</td>
-            </tr>
-            <tr>
-              <td><code>balanced</code></td>
-              <td>Mix of size and shape</td>
-              <td>Fewer size-only tactics</td>
-            </tr>
-            <tr>
-              <td><code>performance-first</code></td>
-              <td>Shape first</td>
-              <td>Keeps <code>|0</code>, less packing, hotter lowering</td>
-            </tr>
-          </tbody>
-        </table>
-        <p>
-          Array-backed structs and scalar replacement are also runtime choices:
-          fewer hidden classes, less pointer chasing, sometimes less heap.
-          That is why the same rewrite can be smaller on the wire and a little
-          cheaper in memory.
-        </p>
-      </section>
+      <section class="landing-section lang-block" id="performance"><h2>Runtime performance must be measured</h2><p>The compiler optimizes transfer size under <code>objective.codecs</code>. <code>effort.level</code> controls search effort, not a runtime speed guarantee. Scalar replacement, devirtualization and inlining can remove allocations or calls; compression-oriented layout and reconstruction can introduce other costs.</p><p>Benchmark the emitted artifact against the original on the same workload and engine. Keep optional runtime features and public API behavior in the tests.</p></section>
 
-      <section class="landing-section lang-block" id="config">
-        <h2>Configuration</h2>
-        <p>
-          The compiler discovers <code>lilscript.toml</code> from the entry
-          file. Unknown keys are errors. There are a lot of knobs — that is
-          intentional. A reusable package and a closed app are not the same
-          product.
-        </p>
-        <pre class="landing-code"><code>[javascript]
-priority = "size-first"
-cost_model = "brotli"
-optimization_level = 15
-candidate_search = "production"
+      <section class="landing-section lang-block" id="config"><h2>Configuration</h2><p>The compiler reads <code>lilscript.toml</code>. Policy version 3 makes transformation permissions explicit; effort controls search, resources bound work, and execution settings control scheduling.</p><pre class="landing-code"><code>[policy]
+version = 3
 
-[optimization]
-preset = "maximum"
-inlining = true
-scalar_replacement = true
-dead_code_elimination = true
+[objective]
+codecs = &quot;brotli&quot; # or &quot;raw&quot; / &quot;gzip&quot;
+
+[effort]
+level = 13 # 0..16; default 13
+
+[policy.resources]
+logical_work = 2000000000
+
+[execution]
+jobs = 1
 
 [mangle]
+identifiers = true
 properties = true
-exports = false
 
-[bundle]
-mode = "split"</code></pre>
-        <div class="config-grid">
-          <article>
-            <h3>Public vs closed</h3>
-            <p>
-              Keep export names for an npm-shaped library. Turn
-              <code>mangle.exports</code> on when the whole consumer graph is
-              LilScript.
-            </p>
-          </article>
-          <article>
-            <h3>Development</h3>
-            <p>
-              <code>--mode development</code> and <code>lilpack dev</code> skip
-              the multi-candidate search so reloads stay usable.
-            </p>
-          </article>
-          <article>
-            <h3>Exact allowlists</h3>
-            <p>
-              <code>javascript.compression</code> and
-              <code>javascript.optimizations</code> can name the tactics that
-              are even legal. Omit them to use the profile defaults.
-            </p>
-          </article>
-          <article>
-            <h3>Native</h3>
-            <p>
-              The same IR can emit C11 or a native binary. Host-only features
-              are rejected there rather than approximated.
-            </p>
-          </article>
-        </div>
-        <p>
-          The schema dump lives in the
-          <a href="/docs.html#configuration">configuration docs</a>.
-        </p>
-      </section>
+[javascript]
+assume_pristine_builtins = false
+assume_pure_property_reads = false</code></pre><p>Use separate raw, gzip and Brotli objectives to compare their best artifacts. Increasing effort can take longer without producing a smaller result. Public and external names retain their ABI; property mangling targets owned fields.</p><p><code>assume_pristine_builtins</code> and <code>assume_pure_property_reads</code> are semantic assumptions. Enable them only when the integration guarantees those contracts. <code>--mode development</code> selects faster development behavior.</p><p><a href="/docs.html#configuration">Configuration reference</a> · <a href="https://github.com/yeargun/lilscript/blob/finer/059-idiom-directed-naming/docs/configuration.md">Full compiler schema</a></p></section>
 
       <section class="landing-section lang-block" id="tooling">
         <h2>Toolchain</h2>

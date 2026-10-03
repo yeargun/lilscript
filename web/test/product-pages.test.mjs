@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const [
@@ -28,94 +29,46 @@ const [
   read("src/solid-api-parity.json").then(JSON.parse),
   read("src/solid-lsx-parity.json").then(JSON.parse),
 ]);
+const releases = JSON.parse(await read("src/library-releases.json"));
 
-test("the product site gives every major surface a production entry", () => {
-  for (const entry of [
-    "home",
-    "language",
-    "compare",
-    "demos",
-    "playground",
-    "lilastro",
-    "lastro",
-    "solidlil",
-    "marketplace",
-  ]) {
-    assert.match(config, new RegExp(`${entry}: resolve`), entry);
+test("current library evidence covers every listed port and codec", async () => {
+  assert.equal(releases.libraries.length, 26);
+  assert.equal(new Set(releases.libraries.map(row => row.name)).size, 26);
+  assert.deepEqual(JSON.parse(await read("public/library-releases.json")), releases);
+  for (const row of releases.libraries) {
+    assert.deepEqual(row.objectives.map(item => item.objective), ["raw", "gzip", "brotli"]);
+    assert.ok(row.scope.length > 20);
+    assert.ok(row.packageEvidence && row.packageVersion);
+    for (const item of row.objectives) {
+      assert.ok(item.originalBytes > 0 && item.lilscriptBytes > 0);
+      assert.ok(item.originalBuildSeconds > 0 && item.lilscriptBuildSeconds > 0);
+      assert.match(item.lilscriptSha256, /^[a-f0-9]{64}$/);
+      assert.match(item.originalSha256, /^[a-f0-9]{64}$/);
+    }
+    assert.ok(home.includes(row.homepage), row.name);
+    assert.ok(compare.includes(row.homepage), row.name);
   }
-    assert.match(home, /LilScript is a typed, compression-first language/);
-    assert.match(home, /href="\/language\.html"/);
-    assert.match(home, /href="\/compare\.html"/);
-    assert.match(home, /href="\/demos\.html"/);
-    assert.match(home, /href="\/playground\.html"/);
-    assert.match(home, /href="\/lilastro\.html"/);
-    assert.match(home, /href="\/lastro\.html"/);
-    assert.match(home, /href="\/solidlil\.html"/);
-    assert.match(home, /href="\/demos\.html#lastro"/);
-    assert.match(home, /href="\/demos\.html#solidlil-keyed"/);
-    assert.match(home, /href="\/demos\.html#motion-showcase-carousel"/);
-    assert.match(home, /https:\/\/yeargun\.github\.io\/solidlil\//);
-    assert.match(home, /https:\/\/yeargun\.github\.io\/motionlil\//);
-    assert.match(home, /https:\/\/yeargun\.github\.io\/mobxlil\//);
-    assert.match(home, /https:\/\/yeargun\.github\.io\/jquerylil\//);
-    assert.match(home, /https:\/\/yeargun\.github\.io\/markedlil\//);
-    assert.match(home, /https:\/\/yeargun\.github\.io\/zodlil\//);
-    assert.match(home, /https:\/\/yeargun\.github\.io\/posthoglil\//);
-    assert.match(home, /https:\/\/yeargun\.github\.io\/monacolil\//);
-    assert.match(home, /href="\/delivery\.html"/);
-    assert.match(home, /https:\/\/github\.com\/yeargun\/lilscript/);
-    assert.match(home, /Star the repo/);
-    assert.match(home, /class="repo-star"/);
-    assert.match(home, /class="repo-star-chip"/);
-    assert.match(home, /class="repo-star-label"/);
-    assert.match(home, /id="latest-title"/);
-    assert.match(home, /Global compression search/);
-    assert.match(home, /posthog-js adds two browser packs/);
 });
 
-test("every comparable landing project publishes recalculated gzip and Brotli rates", () => {
-  const ratePattern = /<div class="(?:win|loss|hold) compression-rate" data-compression-rate data-baseline="(\d+)" data-candidate="(\d+)">\s*<small>([^<]+)<\/small><b>([^<]+)<\/b>/g;
-  const rates = [...home.matchAll(ratePattern)].map((match) => ({
-    baseline: Number(match[1]),
-    candidate: Number(match[2]),
-    codec: match[3],
-    displayed: match[4],
-  }));
-
-  assert.equal((home.match(/class="lib-card"/g) ?? []).length, 16);
-  assert.equal(rates.length, 28);
-  const zodCard = home.match(/<a\s+[^>]*href="https:\/\/yeargun\.github\.io\/zodlil\/"[^>]*>[\s\S]*?<\/a>/)?.[0];
-  assert.ok(zodCard);
-  assert.doesNotMatch(zodCard, /data-compression-rate/);
-  assert.match(zodCard, /Size claim<\/small><b>Withdrawn/);
-  const solidlilCard = home.match(/<a\s+[^>]*href="https:\/\/yeargun\.github\.io\/solidlil\/"[^>]*>[\s\S]*?<\/a>/)?.[0];
-  assert.ok(solidlilCard);
-  assert.doesNotMatch(solidlilCard, /data-compression-rate/);
-  assert.match(solidlilCard, /comparison withheld/);
-
-  for (const rate of rates) {
-    const delta = ((rate.candidate - rate.baseline) / rate.baseline) * 100;
-    const displayed = delta === 0
-      ? "0.0%"
-      : `${delta < 0 ? "−" : "+"}${Math.abs(delta).toFixed(1)}%`;
-    assert.equal(rate.displayed, displayed, `${rate.codec}: ${rate.baseline} → ${rate.candidate}`);
+test("landing cards show all raw, gzip and Brotli rates, including losses", () => {
+  const rates = [...home.matchAll(/<div class="(win|loss|hold) compression-rate" data-compression-rate data-baseline="(\d+)" data-candidate="(\d+)"><small>([^<]+)<\/small><b>([^<]+)<\/b>/g)];
+  assert.equal(rates.length, 26 * 3);
+  for (const [,kind,baseline,candidate,codec,displayed] of rates) {
+    const delta = (Number(candidate) / Number(baseline) - 1) * 100;
+    assert.equal(displayed, `${delta < 0 ? "−" : delta > 0 ? "+" : ""}${Math.abs(delta).toFixed(1)}%`, codec);
+    assert.equal(kind, delta < 0 ? "win" : delta > 0 ? "loss" : "hold");
   }
+});
 
-  const medianReduction = (codec) => {
-    const reductions = rates
-      .filter((rate) => rate.codec.startsWith(codec))
-      .map((rate) => ((rate.baseline - rate.candidate) / rate.baseline) * 100)
-      .sort((a, b) => a - b);
-    const middle = Math.floor(reductions.length / 2);
-    return reductions.length % 2 === 1
-      ? reductions[middle]
-      : (reductions[middle - 1] + reductions[middle]) / 2;
-  };
-
-  assert.equal(medianReduction("gzip").toFixed(1), "5.3");
-  assert.equal(medianReduction("Brotli").toFixed(1), "6.6");
-  assert.match(home, /median project result is 5\.3% smaller under\s+gzip-9 and 6\.6% smaller under Brotli-11/);
-  assert.match(home, /Zod and SolidLil stay visible but have no\s+vote/);
+test("public comparison pages are generated from the published evidence index", () => {
+  const result = spawnSync(process.execPath, [new URL("../scripts/landing-cards.mjs", import.meta.url).pathname, "--check"], {encoding: "utf8"});
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(compare, /id="build-times"/);
+  assert.match(compare, /bundle.*minif/i);
+  assert.match(compare, /separate.*compil/i);
+  for (const page of [home, compare, language]) {
+    assert.doesNotMatch(page, /previous compiler|previous version|worse than before|renames no properties|javascript\.cost_model/i);
+  }
 });
 
 test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", () => {
@@ -125,8 +78,6 @@ test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", 
   assert.match(lastro, /no separate Lastro compiler package/i);
   assert.match(lastro, /application experiment/i);
   assert.match(solidlil, /https:\/\/yeargun\.github\.io\/solidlil\//);
-  assert.match(solidlil, /47-module browser runtime/);
-  assert.match(solidlil, /size comparisons remain withheld/i);
   assert.match(solidlil, /Compatibility coverage is not exact parity/);
   assert.doesNotMatch(solidlil, /data-solid-api-parity/);
   assert.doesNotMatch(solidlil, /data-solid-runtime-results/);
@@ -141,60 +92,12 @@ test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", 
   assert.equal(lsxParity.counts.runtimeVerified, 21);
 });
 
-test("language and compare pages cover syntax, config, and measured ports", () => {
-  assert.match(language, /id="syntax"/);
-  assert.match(language, /id="aggregates"/);
-  assert.match(language, /id="mangling"/);
-  assert.match(language, /javascript\.cost_model/);
-  assert.match(language, /href="\/docs.html"/);
-  assert.match(language, /href="\/delivery.html"/);
-    assert.match(compare, /id="monaco"/);
-  assert.match(compare, /887,420/);
-  assert.match(compare, /413,607/);
-  assert.match(compare, /Required modules<\/small><b>47/);
-  assert.match(compare, /Comparison<\/small><b>withheld/);
-  assert.match(compare, /30,741/);
-  assert.match(compare, /9,515/);
-  assert.match(compare, /id="jquery"/);
-  assert.match(compare, /id="marked"/);
-  assert.match(compare, /id="zod"/);
-  assert.match(compare, /id="posthog"/);
-  assert.match(compare, /62,763/);
-  assert.match(compare, /52,583/);
-  assert.match(compare, /192 ESM names versus 240/);
-  assert.match(compare, /Size claim[\s\S]*Withdrawn/);
-  assert.match(compare, /5,622/);
-  assert.match(compare, /5,985/);
-  assert.match(compare, /4,215/);
-  assert.match(compare, /3,186/);
-  assert.match(compare, /4,258/);
-  assert.match(compare, /3,465/);
-  assert.match(home, /887,420/);
-  assert.match(home, /Upstream modules<\/small><b>47/);
-  assert.match(home, /comparison withheld/);
-  assert.match(home, /30,741/);
-  assert.match(home, /9,515/);
-  assert.match(home, /62,763/);
-  assert.match(home, /52,583/);
-  assert.match(home, /Official exports<\/small><b>240/);
-  assert.match(home, /Port exports<\/small><b>192/);
-  assert.match(home, /5,622/);
-  assert.match(home, /5,985/);
-  assert.match(home, /24\.4%/);
-  assert.match(home, /18\.6%/);
-  assert.match(compare, /href="\/demos.html#solidlil-keyed"/);
-  assert.match(compare, /href="\/demos.html#motion-showcase-carousel"/);
-  assert.match(compare, /https:\/\/yeargun\.github\.io\/solidlil\//);
-  assert.match(compare, /https:\/\/yeargun\.github\.io\/monacolil\//);
-  assert.match(compare, /https:\/\/yeargun\.github\.io\/markedlil\//);
-  assert.match(compare, /https:\/\/yeargun\.github\.io\/zodlil\//);
-  assert.match(compare, /https:\/\/yeargun\.github\.io\/posthoglil\//);
-  assert.match(compare, /href="\/delivery.html"/);
-  assert.match(compare, /mangle: true<\/code> means identifier mangling only/);
-  assert.match(compare, /Terser property mangling is a\s+separate option and is off here/);
-  assert.doesNotMatch(compare, /Oxc closer-world/);
-  assert.doesNotMatch(compare, /Oxc mangle<\/small>/);
-  assert.doesNotMatch(home, /5–10%/);
+test("language documentation uses the current compiler policy and objective", () => {
+  for (const id of ["syntax", "aggregates", "mangling"]) assert.ok(language.includes(`id="${id}"`));
+  assert.match(language, /objective/);
+  assert.match(language, /codecs/);
+  assert.match(language, /version = 3/);
+  assert.match(language, /jobs = 1/);
 });
 
 test("Parcel Market starts accessibly and keeps the fake-payment boundary explicit", () => {

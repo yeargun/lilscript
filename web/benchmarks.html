@@ -5,17 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Scoped LilScript compiler and Vite ecosystem bundle comparisons."
+      content="Current LilScript library bundles versus their minified originals: raw, gzip, Brotli, tested boundaries and build times."
     />
     <title>Benchmarks | LilScript</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/landing.css" />
   </head>
-  <body class="content-page">
+  <body class="content-page landing-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
-      <a class="wordmark" href="/" aria-label="LilScript playground">
-        <span class="wordmark-mark" aria-hidden="true">L</span>
-        <span>LilScript</span>
-      </a>
+      <a class="wordmark" href="/" aria-label="LilScript home"
+        ><span class="wordmark-mark" aria-hidden="true">L</span
+        ><span>LilScript</span></a
+      >
       <button
         class="nav-toggle icon-button"
         type="button"
@@ -24,822 +32,85 @@
       >
         <i data-lucide="menu" aria-hidden="true"></i>
       </button>
-      <nav class="site-nav" aria-label="Primary navigation">
-        <a href="/">Playground</a>
-        <a href="/docs.html">Docs</a>
-        <a class="active" href="/benchmarks.html">Benchmarks</a>
-        <a href="/explorer.html">Explorer</a>
-        <a href="/delivery.html">Delivery</a>
-        <a href="/roadmap.html">Roadmap</a>
-        <a href="/about.html">About</a>
-      </nav>
+      <nav class="site-nav" aria-label="Primary navigation"></nav>
     </header>
 
-    <main class="comparison-main content-width">
-      <section class="comparison-intro comparison-intro-simple">
-        <p class="eyebrow">The straight answer</p>
-        <h1>Where Lilscript wins—and where it mostly ties.</h1>
-        <p class="lead">
-          Small typed programs currently show clear size wins. Complete package
-          entrypoints are usually much closer. SolidLil’s exact Core, Store,
-          client Web, and full Web-compatibility distribution bundles pass their
-          Brotli objective. Raw and gzip remain visible diagnostics for those
-          Brotli-selected artifacts. Its historical LSX app stays outside the
-          verified aggregate. The accessible Lilastro marketplace is effectively
-          the same compressed size as Astro.
-        </p>
-        <div class="overall-verdict" data-overall-verdict aria-live="polite">
-          <strong>Calculating verified comparisons…</strong>
-        </div>
-        <nav class="comparison-jumps" aria-label="Comparison page sections">
-          <a href="#small-scripts">Small scripts</a
-          ><a href="#package-projects">Packages</a
-          ><a href="#framework-runtimes">Framework runtimes</a
-          ><a href="#ui-projects">UI projects</a
-          ><a href="#technical-evidence">Technical evidence</a>
-        </nav>
-      </section>
-
-      <section
-        class="scale-comparison"
-        id="framework-runtimes"
-        aria-labelledby="framework-runtimes-title"
-      >
-        <header class="scale-heading">
-          <div>
-            <p class="eyebrow">Exact framework browser entries</p>
-            <h2 id="framework-runtimes-title">
-              Parity and optimization are separate columns
-            </h2>
-          </div>
-          <p>
-            All four SolidLil rows preserve their declared public ABI and pass
-            differential behavior. Client Web excludes SSR and hydration; full
-            Web compatibility keeps all 73 browser exports as a separate row.
-            Every row passes the declared Brotli objective; raw and gzip are
-            reported as diagnostics for that Brotli-selected artifact.
-          </p>
-        </header>
-        <div class="scale-card-grid" data-framework-runtime-cards></div>
-        <div class="tradeoff-strip">
-          <strong>The gate</strong>
-          <p>
-            135/135 Core, Web, and Store exports and 469/469 unchanged upstream
-            tests.
-          </p>
-          <strong>The boundary</strong>
-          <p>
-            These are reusable open-world bundles. The separate closed-world
-            diagnostic verifies that every runtime export can be mangled when
-            the consumer graph is complete.
-          </p>
-        </div>
-        <a
-          class="secondary-link comparison-more-link"
-          href="/libraries.html?scope=exact&amp;libs=solidlil-core%2Csolidlil-store%2Csolidlil-web-client%2Csolidlil-web-full#compare"
-          >Select and compare the SolidLil surfaces<i
-            data-lucide="arrow-right"
-            aria-hidden="true"
-          ></i
-        ></a>
-      </section>
-
-      <section class="comparison-overview" aria-labelledby="overview-title">
-        <div class="section-heading">
-          <p class="eyebrow">Across every publishable row</p>
-          <h2 id="overview-title">
-            A useful average, with the warning attached
-          </h2>
-          <p>
-            The overview normalizes each verified case against its fair control,
-            then averages the percentage differences. It is a directional
-            scorecard—not a promise that an arbitrary JavaScript app becomes
-            that much smaller.
-          </p>
-        </div>
-        <div class="overview-score-grid" data-overview-scores></div>
-        <p class="method-warning">
-          <strong>Selection warning:</strong> this includes only
-          behavior-verified rows whose scope is publishable. Unsupported and
-          partial package experiments are excluded rather than counted as wins.
-          Different categories use different fair controls, so the category
-          results below matter more than the single overall number.
-        </p>
-      </section>
-
-      <section
-        class="scale-comparison"
-        id="small-scripts"
-        aria-labelledby="small-scripts-title"
-      >
-        <header class="scale-heading">
-          <div>
-            <p class="eyebrow">Small scripts and compiler kernels</p>
-            <h2 id="small-scripts-title">
-              Double-digit savings are common here
-            </h2>
-          </div>
-          <p>
-            These are the cleanest compiler comparisons: the algorithms and
-            outputs match, Closure receives the readable JavaScript control, and
-            Lilscript owns the typed whole-program input.
-          </p>
-        </header>
-        <div class="scale-card-grid" data-small-script-cards></div>
-        <div class="tradeoff-strip">
-          <strong>What this proves</strong>
-          <p>
-            Lilscript can erase typed abstractions and select compact output
-            better than Closure on these bounded cases.
-          </p>
-          <strong>What it does not prove</strong>
-          <p>
-            Six tiny scripts and five compiler workloads do not predict
-            framework overhead, network waterfalls, rendering speed, or
-            arbitrary npm compatibility.
-          </p>
-        </div>
-      </section>
-
-      <section
-        class="scale-comparison"
-        id="package-projects"
-        aria-labelledby="package-projects-title"
-      >
-        <header class="scale-heading">
-          <div>
-            <p class="eyebrow">Complete package work</p>
-            <h2 id="package-projects-title">
-              The advantage shrinks as compatibility becomes stricter
-            </h2>
-          </div>
-          <p>
-            Two views matter: translated complete package surfaces show what
-            deeper language knowledge can remove; exact published ESM
-            entrypoints show the cost when the public JavaScript boundary must
-            remain intact.
-          </p>
-        </header>
-        <div class="scale-card-grid" data-package-cards></div>
-        <div class="tradeoff-strip">
-          <strong>The win</strong>
-          <p>
-            Complete selected ports are smaller without exceeding the lab’s 5%
-            material runtime or retained-memory gate.
-          </p>
-          <strong>The tradeoff</strong>
-          <p>
-            Only four of ten audited popular root entrypoints currently qualify
-            as exact. Partial Preact, Solid, Immer, Redux Toolkit, Zod, and
-            Acorn work is not counted as compatibility.
-          </p>
-        </div>
-        <a class="secondary-link comparison-more-link" href="/libraries.html"
-          >Open the package-by-package evidence<i
-            data-lucide="arrow-right"
-            aria-hidden="true"
-          ></i
-        ></a>
-      </section>
-
-      <section
-        class="scale-comparison"
-        id="ui-projects"
-        aria-labelledby="ui-projects-title"
-      >
-        <header class="scale-heading">
-          <div>
-            <p class="eyebrow">Larger UI projects</p>
-            <h2 id="ui-projects-title">
-              The two real apps tell different stories
-            </h2>
-          </div>
-          <p>
-            A large percentage is only meaningful beside its compatibility
-            boundary. A tiny percentage can still be valuable when both sides
-            implement the same complete experience.
-          </p>
-        </header>
-        <div class="app-comparison-grid" data-app-comparisons></div>
-        <p class="comparison-note">
-          Lastro is the application experiment represented by Parcel Market; it
-          uses the Lilastro result and is not counted as a second bundle win.
-          Neither UI project currently supplies a browser-rendering performance
-          comparison.
-        </p>
-      </section>
-
-      <section
-        class="detailed-evidence-intro"
-        id="technical-evidence"
-        aria-labelledby="technical-title"
-      >
-        <p class="eyebrow">Reproducible detail</p>
-        <h2 id="technical-title">Open the evidence you need</h2>
-        <p>
-          The tables, per-workload results, confidence gates, and optimizer
-          ablations remain below. They are collapsed so methodology does not
-          hide the answer.
-        </p>
-      </section>
-
-      <details class="evidence-disclosure">
-        <summary>
-          <span>Five readable compiler workloads</span
-          ><small>Totals, codecs, runtime ratios, and per-compiler rows</small>
-        </summary>
-        <section class="benchmark-project" aria-labelledby="corpus-title">
-          <header>
-            <p class="eyebrow">Five-workload compiler corpus</p>
-            <h2 id="corpus-title">Comparable totals</h2>
-            <p data-corpus-summary>Loading generated benchmark summary.</p>
-          </header>
-          <div
-            class="benchmark-table-wrap corpus-table"
-            data-corpus-table
-          ></div>
-        </section>
-      </details>
-
-      <details class="evidence-disclosure">
-        <summary>
-          <span>Six mechanically paired small scripts</span
-          ><small>Brotli gate and 400-sample browser confidence gate</small>
-        </summary>
-        <section class="benchmark-project" aria-labelledby="paired-title">
-          <header>
-            <p class="eyebrow">Mechanical source parity</p>
-            <h2 id="paired-title">Generated Closure gate</h2>
-            <p data-paired-method>
-              Loading generated paired benchmark metadata.
-            </p>
-            <p>
-              Both readable sources come from the same typed integer expression
-              and statement schema. This lane compiles a Brotli-target LilScript
-              artifact and gates its Brotli-11 size against Closure ADVANCED.
-              Raw and gzip-9 measurements of that same deploy artifact are
-              diagnostics, not additional objectives.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap" data-paired-table></div>
-        </section>
-      </details>
-
-      <details class="evidence-disclosure">
-        <summary>
-          <span>Optimizer ablations</span
-          ><small>Isolated pass wins, ties, and codec tradeoffs</small>
-        </summary>
-        <section
-          class="benchmark-project"
-          aria-labelledby="finite-values-title"
-        >
-          <header>
-            <p class="eyebrow">Single-pass ablation</p>
-            <h2 id="finite-values-title">Interprocedural finite values</h2>
-            <p>
-              Both artifacts disable inlining and scalar replacement and execute
-              the same JavaScript/native contract. Only
-              <code>finite_value_propagation</code> changes, isolating branch,
-              field, and signature cleanup exposed by the bounded lattice.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Finite values enabled</th>
-                  <td>77</td>
-                  <td>108</td>
-                  <td>143</td>
-                </tr>
-                <tr>
-                  <th>Finite values disabled</th>
-                  <td>118</td>
-                  <td>155</td>
-                  <td>216</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section
-          class="benchmark-project"
-          aria-labelledby="function-folding-title"
-        >
-          <header>
-            <p class="eyebrow">Whole-program ablation</p>
-            <h2 id="function-folding-title">Identical private functions</h2>
-            <p>
-              Both builds disable inlining and execute to 95660. The enabled
-              build folds one residual directly called private implementation
-              after specialization settles; observable function identities are
-              excluded.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Folding enabled</th>
-                  <td>105</td>
-                  <td>129</td>
-                  <td>123</td>
-                </tr>
-                <tr>
-                  <th>Folding disabled</th>
-                  <td>111</td>
-                  <td>139</td>
-                  <td>177</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section
-          class="benchmark-project"
-          aria-labelledby="function-subsumption-title"
-        >
-          <header>
-            <p class="eyebrow">Proof-driven IR ablation</p>
-            <h2 id="function-subsumption-title">
-              Private implementation sharing
-            </h2>
-            <p>
-              Specialized private functions are redirected to existing broader
-              scalar and higher-order implementations only after typed bindings
-              make their normalized SSA/CFG exactly equal. Both builds execute
-              to 3940336; observable function identities remain excluded.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Subsumption enabled</th>
-                  <td>172</td>
-                  <td>201</td>
-                  <td>351</td>
-                </tr>
-                <tr>
-                  <th>Subsumption disabled</th>
-                  <td>179</td>
-                  <td>217</td>
-                  <td>445</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section
-          class="benchmark-project"
-          aria-labelledby="function-layout-title"
-        >
-          <header>
-            <p class="eyebrow">Codec-layout ablation</p>
-            <h2 id="function-layout-title">Declaration clustering</h2>
-            <p>
-              Dynamic programming proposes an order for four interleaved
-              function families. Source order remains a complete-artifact
-              candidate, both builds execute to -1393288640, and raw bytes
-              remain unchanged.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Layout search enabled</th>
-                  <td>362</td>
-                  <td>454</td>
-                  <td>1,133</td>
-                </tr>
-                <tr>
-                  <th>Source order</th>
-                  <td>369</td>
-                  <td>460</td>
-                  <td>1,133</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section
-          class="benchmark-project"
-          aria-labelledby="profile-guided-title"
-        >
-          <header>
-            <p class="eyebrow">External-profile ablation</p>
-            <h2 id="profile-guided-title">Higher-order specialization</h2>
-            <p>
-              Both builds disable ordinary inlining and execute the same
-              10,000-iteration callback contract. The enabled build uses a
-              versioned hot-loop profile and bounded call-site specialization;
-              the static build omits that pass.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Profile-guided specialization</th>
-                  <td>77</td>
-                  <td>104</td>
-                  <td>107</td>
-                </tr>
-                <tr>
-                  <th>Static higher-order call</th>
-                  <td>80</td>
-                  <td>107</td>
-                  <td>111</td>
-                </tr>
-              </tbody>
-            </table>
-            <p>
-              This isolated fixture wins four raw bytes and three bytes under
-              both codecs. It demonstrates one bounded decision, not a universal
-              PGO advantage.
-            </p>
-          </div>
-        </section>
-
-        <section class="benchmark-project" aria-labelledby="ir-variants-title">
-          <header>
-            <p class="eyebrow">Optimizer-IR ablation</p>
-            <h2 id="ir-variants-title">Codec-selected inlining</h2>
-            <p>
-              Both artifacts execute the same JavaScript/native contract with
-              identical final-emission search. The enabled build lets configured
-              inlining compete with an outlined IR; Brotli retains the shared
-              helper.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Inlining IR variants enabled</th>
-                  <td>83</td>
-                  <td>113</td>
-                  <td>219</td>
-                </tr>
-                <tr>
-                  <th>Inlining IR variants disabled</th>
-                  <td>109</td>
-                  <td>144</td>
-                  <td>267</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section
-          class="benchmark-project"
-          aria-labelledby="loop-spelling-title"
-        >
-          <header>
-            <p class="eyebrow">Emitter ablation</p>
-            <h2 id="loop-spelling-title">Codec-selected loop spelling</h2>
-            <p>
-              An order-sensitive control-flow fixture executes to 137 in both
-              builds. The broader do/update/structural search now reaches the
-              same artifact with the legacy while/for dimension enabled or
-              disabled, so this is a non-regression gate rather than a size-win
-              claim. The complete MurmurHash port is also byte-identical.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Codec-selected spelling</th>
-                  <td>178</td>
-                  <td>243</td>
-                  <td>527</td>
-                </tr>
-                <tr>
-                  <th>Frequency heuristic</th>
-                  <td>178</td>
-                  <td>243</td>
-                  <td>527</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section
-          class="benchmark-project"
-          aria-labelledby="closure-factory-title"
-        >
-          <header>
-            <p class="eyebrow">Partial-inlining ablation</p>
-            <h2 id="closure-factory-title">Reusable closure factories</h2>
-            <p>
-              Twelve capture signatures execute through JavaScript, C, and
-              native outputs. The enabled build adds a factory-preserving IR
-              while retaining both configured and fully outlined optimizer
-              baselines.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Factory IR variants enabled</th>
-                  <td>176</td>
-                  <td>255</td>
-                  <td>648</td>
-                </tr>
-                <tr>
-                  <th>Factory IR variants disabled</th>
-                  <td>177</td>
-                  <td>244</td>
-                  <td>677</td>
-                </tr>
-              </tbody>
-            </table>
-            <p>
-              The default objective is Brotli-11: factory preservation wins raw
-              and Brotli while spending 11 gzip bytes. Gzip-targeted builds
-              score the fully outlined IR independently.
-            </p>
-          </div>
-        </section>
-
-        <section
-          class="benchmark-project"
-          aria-labelledby="mutation-spelling-title"
-        >
-          <header>
-            <p class="eyebrow">SSA emitter ablation</p>
-            <h2 id="mutation-spelling-title">Range-proven increments</h2>
-            <p>
-              The complete Levenshtein port executes in both builds. Prefix and
-              postfix forms compete only for one-use loop-carried adds whose
-              range proves signed-i32 normalization unnecessary.
-            </p>
-          </header>
-          <div class="benchmark-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Brotli-11 · primary</th>
-                  <th>Gzip-9</th>
-                  <th>Raw</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="lilscript-row">
-                  <th>Mutation spelling selected</th>
-                  <td>777</td>
-                  <td>900</td>
-                  <td>1582</td>
-                </tr>
-                <tr>
-                  <th>Assignment spelling only</th>
-                  <td>780</td>
-                  <td>899</td>
-                  <td>1583</td>
-                </tr>
-              </tbody>
-            </table>
-            <p>
-              The default Brotli objective wins one raw byte and three Brotli
-              bytes while spending one gzip byte. Assignment spelling remains
-              available when gzip is selected.
-            </p>
-          </div>
-        </section>
-      </details>
-
-      <section
-        class="benchmark-project library-lab-callout"
-        aria-labelledby="library-lab-title"
-      >
-        <header>
-          <p class="eyebrow">Complete npm ports</p>
-          <h2 id="library-lab-title">Library compatibility lab</h2>
-          <p>
-            Six version-pinned apps covering Motion easing, clamp, lerp, string
-            hashing, edit distance, and MurmurHash run translated upstream
-            assertions, dense differential tests, Vite and Closure builds, and
-            LilScript JavaScript/C/native outputs.
-          </p>
-          <a class="primary-link" href="/libraries.html"
-            >Open library results<i
-              data-lucide="arrow-right"
-              aria-hidden="true"
-            ></i
-          ></a>
-        </header>
-      </section>
-
-      <details class="evidence-disclosure">
-        <summary>
-          <span>Per-workload compiler tables</span
-          ><small
-            >Reactive store, events, binary memory, modules, and motion
-            helpers</small
-          >
-        </summary>
-        <section class="benchmark-project" id="reactive-store">
-          <header>
-            <p class="eyebrow">Typed signal graph</p>
-            <h2>Reactive store</h2>
-            <p>
-              The compiler comparison uses equivalent signal classes. A real
-              Alien Signals application appears only in the separate Vite
-              context.
-            </p>
-            <code class="benchmark-contract">reactive:1890621774:408</code>
-          </header>
-          <div
-            class="benchmark-table-wrap"
-            data-compiler-table="reactive-store"
-          ></div>
-          <div data-ecosystem="reactive-store"></div>
-        </section>
-
-        <section class="benchmark-project" id="event-pipeline">
-          <header>
-            <p class="eyebrow">Typed event dispatcher</p>
-            <h2>Event pipeline</h2>
-            <p>
-              The compiler comparison uses equivalent dispatchers. A real mitt
-              application appears only in the separate Vite context.
-            </p>
-            <code class="benchmark-contract">events:975625712:9718960</code>
-          </header>
-          <div
-            class="benchmark-table-wrap"
-            data-compiler-table="event-pipeline"
-          ></div>
-          <div data-ecosystem="event-pipeline"></div>
-        </section>
-
-        <section class="benchmark-project" id="binary-telemetry">
-          <header>
-            <p class="eyebrow">Binary memory</p>
-            <h2>Binary telemetry</h2>
-            <p>
-              Equivalent ArrayBuffer, SharedArrayBuffer, Uint8Array, checksum,
-              and signed-integer behavior without a dependency.
-            </p>
-            <code class="benchmark-contract">binary:446359193:32</code>
-          </header>
-          <div
-            class="benchmark-table-wrap"
-            data-compiler-table="binary-telemetry"
-          ></div>
-        </section>
-
-        <section class="benchmark-project" id="module-pricing">
-          <header>
-            <p class="eyebrow">Static modules</p>
-            <h2>Module pricing</h2>
-            <p>
-              Equivalent side effects, imports, aggregates, unused exports,
-              cross-file inlining, and dead-code elimination.
-            </p>
-            <code class="benchmark-contract"
-              >module:init / modules:593759979:4940</code
-            >
-          </header>
-          <div
-            class="benchmark-table-wrap"
-            data-compiler-table="module-pricing"
-          ></div>
-        </section>
-
-        <section class="benchmark-project" id="motion-values">
-          <header>
-            <p class="eyebrow">Animation compiler kernel</p>
-            <h2>Value mixing, wrapping, and staggering</h2>
-            <p>
-              The comparable rows implement the same three-helper value
-              algorithm. The specialized LilScript row diagnoses optimizer
-              headroom. A separate Motion 13 Vite app also exercises its
-              deterministic spring generator as context only.
-            </p>
-            <code class="benchmark-contract"
-              >motion:14400000:28719240:880000</code
-            >
-          </header>
-          <div
-            class="benchmark-table-wrap"
-            data-compiler-table="motion-values"
-          ></div>
-          <div data-ecosystem="motion-values"></div>
-        </section>
-      </details>
-
-      <section class="comparison-method">
-        <p class="eyebrow">Compatibility status</p>
-        <h2>Motion 13 is a candidate surface, not a full port</h2>
-        <p>
-          The current npm package exposes 312 root exports and spans
-          approximately 64,000 source lines across Motion, Motion Utils, Motion
-          DOM, and Framer Motion. The monorepo now contains open/closed-world
-          Motion JS/DOM work and openable paired fixtures, while React/Vue
-          entrypoints and the full published root contract remain outside the
-          claim. The independently published two-export
-          <code>@motionone/easing</code> package has a separate complete
-          measured port.
-        </p>
-        <p>
-          The versioned scope, missing language/platform facilities, port
-          sequence, and no-false-claim gates are documented in
-          <code>docs/knowledge/evidence/motion-compatibility.md</code>.
-        </p>
-      </section>
-
-      <section class="comparison-method">
-        <p class="eyebrow">Method</p>
-        <h2>Generated from checked evidence</h2>
-        <p data-benchmark-method>Loading benchmark metadata.</p>
-        <p>
-          All displayed measurements come from
-          <code>benchmarks/apps/RESULTS.md</code> through checked-in generated
-          data. The harness runs methodology tests after behavior verification.
-        </p>
-      </section>
+    <main id="main-content">
+      <section class="compare-intro landing-wrap"><p class="landing-kicker">Library comparisons</p><h1>Current LilScript versus the minified original.</h1><p>Every raw, gzip and Brotli result comes from a separate compilation with its own optimization objective. Compare the exact supported surface, download the artifacts and inspect their build receipts.</p><nav class="compare-nav"><a href="#ports">All libraries</a><a href="#build-times">Build times</a><a href="#method">Method</a></nav></section>
+      <section class="landing-section landing-wrap" id="ports"><div class="landing-heading"><h2>Original → LilScript, in bytes</h2><p>Larger outputs remain in the table. Each library page lists all minifier lanes, hashes, settings, tests and exclusions.</p></div><div class="benchmark-table-wrap landing-ports"><table><thead><tr><th>Library and boundary</th><th>Raw</th><th>gzip-9</th><th>Brotli-11</th><th>Evidence</th></tr></thead><tbody>
+<!-- landing-ports:start -->
+<tr><th scope="row"><a href="https://yeargun.github.io/katexlil/">KaTeX</a><small>Main ESM; fonts and CSS excluded.</small></th><td><span>263,473 → 248,998 B</span><small>−5.5% · Oxc</small></td><td><span>76,117 → 73,936 B</span><small>−2.9% · Oxc</small></td><td><span>62,959 → 61,503 B</span><small>−2.3% · Terser</small></td><td><a href="https://yeargun.github.io/katexlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/react-markdownlil/">react-markdown</a><small>Markdown-to-React pipeline; React external.</small></th><td><span>146,329 → 117,050 B</span><small>−20.0% · Terser</small></td><td><span>46,814 → 44,398 B</span><small>−5.2% · Terser</small></td><td><span>41,092 → 37,684 B</span><small>−8.3% · Terser</small></td><td><a href="https://yeargun.github.io/react-markdownlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/markedlil/">Marked</a><small>Parse API; extension-only exports excluded.</small></th><td><span>42,650 → 31,834 B</span><small>−25.4% · Oxc</small></td><td><span>12,530 → 9,834 B</span><small>−21.5% · Oxc</small></td><td><span>11,488 → 8,851 B</span><small>−23.0% · Terser</small></td><td><a href="https://yeargun.github.io/markedlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/zodlil/">Zod</a><small>Node package root; locale provider external.</small></th><td><span>132,160 → 87,282 B</span><small>−34.0% · Oxc</small></td><td><span>35,532 → 32,437 B</span><small>−8.7% · Oxc</small></td><td><span>29,956 → 28,807 B</span><small>−3.8% · Oxc</small></td><td><a href="https://yeargun.github.io/zodlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/motionlil/">Motion</a><small>Full Motion DOM entry; no React integration.</small></th><td><span>135,340 → 114,011 B</span><small>−15.8% · Oxc</small></td><td><span>45,028 → 41,768 B</span><small>−7.2% · Terser</small></td><td><span>40,188 → 36,405 B</span><small>−9.4% · Terser</small></td><td><a href="https://yeargun.github.io/motionlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/jquerylil/">jQuery</a><small>Browser singleton and jQuery API.</small></th><td><span>87,344 → 73,493 B</span><small>−15.9% · Oxc</small></td><td><span>30,458 → 28,626 B</span><small>−6.0% · Terser</small></td><td><span>27,631 → 25,873 B</span><small>−6.4% · Terser</small></td><td><a href="https://yeargun.github.io/jquerylil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/posthoglil/">PostHog</a><small>Standard browser SDK; optional extension downloads excluded.</small></th><td><span>263,722 → 262,261 B</span><small>−0.6% · terser-oxc-pooled</small></td><td><span>96,534 → 96,394 B</span><small>−0.1% · terser-oxc</small></td><td><span>82,183 → 81,981 B</span><small>−0.2% · terser-oxc</small></td><td><a href="https://yeargun.github.io/posthoglil/evidence/sdk.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/monacolil/">Monaco</a><small>Partial editor namespace; CSS and workers excluded.</small></th><td><span>4,528,715 → 228,019 B</span><small>−95.0% · Oxc</small></td><td><span>1,143,993 → 62,291 B</span><small>−94.6% · Oxc</small></td><td><span>883,285 → 54,211 B</span><small>−93.9% · Terser</small></td><td><a href="https://yeargun.github.io/monacolil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/mobxlil/">MobX</a><small>Production MobX 7 API.</small></th><td><span>51,334 → 56,508 B</span><small>+10.1% · Oxc</small></td><td><span>14,705 → 16,796 B</span><small>+14.2% · Oxc</small></td><td><span>13,342 → 15,159 B</span><small>+13.6% · Oxc</small></td><td><a href="https://yeargun.github.io/mobxlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/cnlil/">cn</a><small>Main class-merging API, including its tables.</small></th><td><span>26,617 → 26,427 B</span><small>−0.7% · Oxc</small></td><td><span>10,493 → 10,431 B</span><small>−0.6% · Oxc</small></td><td><span>9,288 → 9,262 B</span><small>−0.3% · Oxc</small></td><td><a href="https://yeargun.github.io/cnlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/playcanvaslil/">PlayCanvas</a><small>Shader-processing subsystem; not the complete engine.</small></th><td><span>46,667 → 109,574 B</span><small>+134.8% · Terser</small></td><td><span>14,012 → 26,305 B</span><small>+87.7% · Terser</small></td><td><span>12,522 → 22,673 B</span><small>+81.1% · Terser</small></td><td><a href="https://yeargun.github.io/playcanvaslil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/solidlil/">Solid compatibility runtime</a><small>Experimental Solid 2 compatibility, including JavaScript providers.</small></th><td><span>76,862 → 33,732 B</span><small>−56.1% · Oxc</small></td><td><span>27,284 → 9,591 B</span><small>−64.8% · Oxc</small></td><td><span>24,632 → 8,629 B</span><small>−65.0% · Terser</small></td><td><a href="https://yeargun.github.io/solidlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/rehypelil/">rehype</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>218,304 → 159,668 B</span><small>−26.9% · Oxc</small></td><td><span>67,636 → 57,442 B</span><small>−15.1% · Terser</small></td><td><span>54,909 → 48,371 B</span><small>−11.9% · Terser</small></td><td><a href="https://yeargun.github.io/rehypelil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remarklil/">remark</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>118,946 → 124,185 B</span><small>+4.4% · Terser</small></td><td><span>37,039 → 43,205 B</span><small>+16.6% · Terser</small></td><td><span>32,318 → 36,698 B</span><small>+13.6% · Terser</small></td><td><a href="https://yeargun.github.io/remarklil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/micromarklil/">micromark</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>81,809 → 72,238 B</span><small>−11.7% · Terser</small></td><td><span>26,621 → 27,195 B</span><small>+2.2% · Terser</small></td><td><span>23,008 → 22,898 B</span><small>−0.5% · Terser</small></td><td><a href="https://yeargun.github.io/micromarklil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/mdast-util-from-markdownlil/">mdast-util-from-markdown</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>84,774 → 74,532 B</span><small>−12.1% · Terser</small></td><td><span>27,170 → 27,466 B</span><small>+1.1% · Terser</small></td><td><span>23,436 → 23,118 B</span><small>−1.4% · Terser</small></td><td><a href="https://yeargun.github.io/mdast-util-from-markdownlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-parselil/">remark-parse</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>84,959 → 73,380 B</span><small>−13.6% · Terser</small></td><td><span>27,233 → 27,228 B</span><small>−0.0% · Terser</small></td><td><span>23,499 → 23,215 B</span><small>−1.2% · Terser</small></td><td><a href="https://yeargun.github.io/remark-parselil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/unifiedlil/">unified</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>14,375 → 11,667 B</span><small>−18.8% · Oxc</small></td><td><span>5,264 → 4,457 B</span><small>−15.3% · Oxc</small></td><td><span>4,791 → 4,041 B</span><small>−15.7% · Terser</small></td><td><a href="https://yeargun.github.io/unifiedlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/mdast-util-to-hastlil/">mdast-util-to-hast</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>16,904 → 17,373 B</span><small>+2.8% · Terser</small></td><td><span>5,472 → 6,018 B</span><small>+10.0% · Terser</small></td><td><span>4,947 → 5,369 B</span><small>+8.5% · Terser</small></td><td><a href="https://yeargun.github.io/mdast-util-to-hastlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-rehypelil/">remark-rehype</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>17,050 → 17,535 B</span><small>+2.8% · Terser</small></td><td><span>5,527 → 5,998 B</span><small>+8.5% · Terser</small></td><td><span>4,998 → 5,446 B</span><small>+9.0% · Terser</small></td><td><a href="https://yeargun.github.io/remark-rehypelil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/rehype-katexlil/">rehype-katex</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>1,246 → 1,503 B</span><small>+20.6% · Oxc</small></td><td><span>700 → 847 B</span><small>+21.0% · Oxc</small></td><td><span>613 → 729 B</span><small>+18.9% · Oxc</small></td><td><a href="https://yeargun.github.io/rehype-katexlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/hast-util-to-htmllil/">hast-util-to-html</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>31,627 → 28,483 B</span><small>−9.9% · Oxc</small></td><td><span>11,217 → 9,274 B</span><small>−17.3% · esbuild</small></td><td><span>9,833 → 8,235 B</span><small>−16.3% · Terser</small></td><td><a href="https://yeargun.github.io/hast-util-to-htmllil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/rehype-stringifylil/">rehype-stringify</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>31,728 → 28,743 B</span><small>−9.4% · Oxc</small></td><td><span>11,255 → 9,396 B</span><small>−16.5% · Terser</small></td><td><span>9,875 → 8,433 B</span><small>−14.6% · Terser</small></td><td><a href="https://yeargun.github.io/rehype-stringifylil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-gfmlil/">remark-gfm</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>41,973 → 31,262 B</span><small>−25.5% · Oxc</small></td><td><span>12,380 → 11,334 B</span><small>−8.4% · Terser</small></td><td><span>11,178 → 10,134 B</span><small>−9.3% · Terser</small></td><td><a href="https://yeargun.github.io/remark-gfmlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-breakslil/">remark-breaks</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>2,988 → 2,566 B</span><small>−14.1% · Terser</small></td><td><span>1,284 → 1,186 B</span><small>−7.6% · Terser</small></td><td><span>1,173 → 1,067 B</span><small>−9.0% · Terser</small></td><td><a href="https://yeargun.github.io/remark-breakslil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-mathlil/">remark-math</a><small>Portable main-entry API; see the linked dependency boundary.</small></th><td><span>6,112 → 6,072 B</span><small>−0.7% · Oxc</small></td><td><span>2,265 → 2,446 B</span><small>+8.0% · Oxc</small></td><td><span>2,041 → 2,203 B</span><small>+7.9% · Oxc</small></td><td><a href="https://yeargun.github.io/remark-mathlil/comparison.json">Files &amp; tests ↗</a><small>Measured 2026-10-03</small></td></tr>
+<!-- landing-ports:end -->
+</tbody></table></div></section>
+      <section class="landing-section landing-wrap" id="build-times"><div class="landing-heading"><h2>Build wall time</h2><p>Original / LilScript seconds for each objective, from the linked measurements. These are individual sequential runs, not averaged build-speed benchmarks. Original source preparation and final-delivery stages differ between libraries; see each row’s method.</p></div><div class="benchmark-table-wrap"><table><thead><tr><th>Library</th><th>Raw · original / LilScript</th><th>gzip · original / LilScript</th><th>Brotli · original / LilScript</th><th>Timing scope</th></tr></thead><tbody>
+<!-- landing-builds:start -->
+<tr><th scope="row"><a href="https://yeargun.github.io/katexlil/">KaTeX</a></th><td>0.234 / 10.28 s</td><td>0.234 / 6.73 s</td><td>1.86 / 13.64 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/react-markdownlil/">react-markdown</a></th><td>2.35 / 63.45 s</td><td>2.35 / 77.83 s</td><td>2.35 / 163.96 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/markedlil/">Marked</a></th><td>0.221 / 14.79 s</td><td>0.221 / 13.19 s</td><td>0.565 / 29.87 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/zodlil/">Zod</a></th><td>0.214 / 12.69 s</td><td>0.214 / 11.79 s</td><td>0.214 / 19.05 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/motionlil/">Motion</a></th><td>0.359 / 8.18 s</td><td>2.42 / 7.58 s</td><td>2.42 / 9.53 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/jquerylil/">jQuery</a></th><td>0.221 / 81.13 s</td><td>2.10 / 70.99 s</td><td>2.10 / 170.31 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/posthoglil/">PostHog</a></th><td>3.69 / 4.25 s</td><td>2.45 / 2.89 s</td><td>2.45 / 3.00 s</td><td>Source bundling + selected delivery minifier; candidate also includes LilScript compilation. See recorded stage exclusions.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/monacolil/">Monaco</a></th><td>1.40 / 35.75 s</td><td>1.40 / 27.32 s</td><td>48.33 / 81.83 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/mobxlil/">MobX</a></th><td>0.208 / 70.11 s</td><td>0.208 / 60.82 s</td><td>0.208 / 109.80 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/cnlil/">cn</a></th><td>0.181 / 14.60 s</td><td>0.181 / 9.08 s</td><td>0.181 / 12.99 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/playcanvaslil/">PlayCanvas</a></th><td>0.751 / 8.09 s</td><td>0.751 / 5.23 s</td><td>0.751 / 21.23 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/solidlil/">Solid compatibility runtime</a></th><td>0.231 / 16.35 s</td><td>0.231 / 41.96 s</td><td>1.41 / 124.56 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/rehypelil/">rehype</a></th><td>0.215 / 48.61 s</td><td>1.49 / 45.25 s</td><td>1.49 / 100.01 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remarklil/">remark</a></th><td>1.50 / 43.75 s</td><td>1.50 / 41.89 s</td><td>1.50 / 64.44 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/micromarklil/">micromark</a></th><td>1.28 / 70.33 s</td><td>1.28 / 80.27 s</td><td>1.28 / 225.09 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/mdast-util-from-markdownlil/">mdast-util-from-markdown</a></th><td>1.29 / 72.38 s</td><td>1.29 / 71.46 s</td><td>1.29 / 166.42 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-parselil/">remark-parse</a></th><td>1.27 / 58.74 s</td><td>1.27 / 57.19 s</td><td>1.27 / 159.55 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/unifiedlil/">unified</a></th><td>0.185 / 4.27 s</td><td>0.185 / 3.97 s</td><td>0.380 / 10.23 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/mdast-util-to-hastlil/">mdast-util-to-hast</a></th><td>0.778 / 89.57 s</td><td>0.778 / 57.14 s</td><td>0.778 / 159.62 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-rehypelil/">remark-rehype</a></th><td>0.503 / 61.76 s</td><td>0.503 / 58.28 s</td><td>0.503 / 142.95 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/rehype-katexlil/">rehype-katex</a></th><td>0.172 / 0.465 s</td><td>0.172 / 0.615 s</td><td>0.172 / 1.87 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/hast-util-to-htmllil/">hast-util-to-html</a></th><td>0.183 / 14.34 s</td><td>0.069 / 12.54 s</td><td>0.438 / 52.01 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/rehype-stringifylil/">rehype-stringify</a></th><td>0.184 / 14.59 s</td><td>0.391 / 12.69 s</td><td>0.391 / 49.06 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-gfmlil/">remark-gfm</a></th><td>0.203 / 15.44 s</td><td>0.710 / 13.49 s</td><td>0.710 / 23.36 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-breakslil/">remark-breaks</a></th><td>0.211 / 3.02 s</td><td>0.211 / 8.78 s</td><td>0.211 / 12.39 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<tr><th scope="row"><a href="https://yeargun.github.io/remark-mathlil/">remark-math</a></th><td>0.199 / 7.63 s</td><td>0.199 / 12.34 s</td><td>0.199 / 25.66 s</td><td>Original package bundling + minification / LilScript compilation. Installation, tests and final compression excluded.</td></tr>
+<!-- landing-builds:end -->
+</tbody></table></div></section>
+      <section class="landing-section landing-wrap" id="method"><div class="landing-heading"><h2>What the comparison measures</h2><p>Raw counts uncompressed JavaScript bytes. gzip uses level 9; Brotli uses quality 11 and window 22. Original baselines select the smallest measured original artifact for each codec. A compressed winner need not be the raw winner.</p><p>The size boundary follows the linked library page: shared public exports, a selected subsystem, or the stated full SDK. CSS, fonts, type declarations, external dependencies and extra workers are outside a main-entry JavaScript measurement unless the page explicitly includes them. Compatibility runtimes and partial ports are identified.</p><p>Most original build times include bundling an installed upstream package and minification; they exclude building the upstream repository from source. PostHog records its source and delivery stages separately. Dependencies, tests and final transport compression are excluded. Measurements come from the hosts and dates recorded in each receipt.</p><p>Private property mangling and scalar replacement require proof or explicit source contracts. Download size does not establish parse speed or runtime speed. Runtime comparisons must use equivalent workloads, tested artifacts and the same browser or engine.</p><p><a href="/library-releases.json">Download the complete measurement index</a></p></div></section>
     </main>
 
-    <footer class="site-footer content-width">
-      <span>LilScript benchmark lab</span
-      ><a href="/docs.html#verification">Verification method</a>
+    <footer class="landing-footer landing-wrap">
+      <span>LilScript comparisons</span>
+      <nav aria-label="Footer">
+        <a href="/">Overview</a>
+        <a href="/language.html">Language</a>
+        <a href="/demos.html">Demos</a>
+        <a href="/libraries.html">Library lab</a>
+        <a href="/delivery.html">Lilpack</a>
+        <a href="https://github.com/yeargun/lilscript" target="_blank" rel="noopener">GitHub</a>
+      </nav>
     </footer>
-    <script type="module" src="/src/benchmarks.js"></script>
+    <script type="module" src="/src/site.js"></script>
   </body>
 </html>

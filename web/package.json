@@ -16,7 +16,8 @@
     "preview": "vite preview --port 4174",
     "test": "node --test test/*.test.mjs",
     "test:pages": "node --test test/product-pages.test.mjs test/delivery.test.mjs test/demos.test.mjs",
-    "publish:motion-lab": "node ../benchmarks/popular/publish-motion-lab.mjs"
+    "publish:motion-lab": "node ../benchmarks/popular/publish-motion-lab.mjs",
+    "refresh:libraries": "node scripts/refresh-library-data.mjs && node scripts/landing-cards.mjs"
   },
   "dependencies": {
     "lucide": "^1.28.0"

@@ -5,18 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="SolidLil implementation scope, LSX compilation path, behavior evidence, and bundle-size comparison with SolidJS."
+      content="Current LilScript library bundles versus their minified originals: raw, gzip, Brotli, tested boundaries and build times."
     />
-    <title>SolidLil | LilScript</title>
+    <title>Solid compatibility | LilScript</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/landing.css" />
   </head>
-  <body class="content-page project-page">
+  <body class="content-page landing-page">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
       <a class="wordmark" href="/" aria-label="LilScript home"
         ><span class="wordmark-mark" aria-hidden="true">L</span
         ><span>LilScript</span></a
-      ><button
+      >
+      <button
         class="nav-toggle icon-button"
         type="button"
         aria-label="Toggle navigation"
@@ -26,214 +34,19 @@
       </button>
       <nav class="site-nav" aria-label="Primary navigation"></nav>
     </header>
-    <main id="main-content" class="project-main content-width">
-      <nav class="project-switcher" aria-label="Project pages">
-        <a href="/lilastro.html">Lilastro</a><a href="/lastro.html">Lastro</a
-        ><a class="active" aria-current="page" href="/solidlil.html">SolidLil</a
-        ><a href="/delivery.html">Lilpack</a>
+
+    <main id="main-content" class="content-width"><section class="comparison-intro"><p class="eyebrow">Solid compatibility runtime</p><h1>Experimental Solid 2 support.</h1><p>The <a href="https://yeargun.github.io/solidlil/">SolidLil library page</a> contains the current package, three compression-objective builds, comparisons with the original and paired browser examples.</p></section><section class="content-band"><h2>Compatibility coverage is not exact parity</h2><p>The implementation includes LilScript modules and JavaScript providers. Scheduling, hydration, DOM and server semantics remain incomplete. Its measured bytes describe that compatibility runtime; they do not establish equivalent features or compiler-only savings.</p><p>The examples exercise selected signals, effects, stores, control flow and application interactions. The repository states the upstream target and the separate strict exact-port gate.</p><p><a href="https://yeargun.github.io/solidlil/">Open current measurements and examples →</a> · <a href="https://github.com/yeargun/solidlil">Repository</a></p></section></main>
+
+    <footer class="landing-footer landing-wrap">
+      <span>LilScript comparisons</span>
+      <nav aria-label="Footer">
+        <a href="/">Overview</a>
+        <a href="/language.html">Language</a>
+        <a href="/demos.html">Demos</a>
+        <a href="/libraries.html">Library lab</a>
+        <a href="/delivery.html">Lilpack</a>
+        <a href="https://github.com/yeargun/lilscript" target="_blank" rel="noopener">GitHub</a>
       </nav>
-      <section class="project-hero">
-        <div>
-          <span class="status-tag planned">Exact port in progress</span>
-          <p class="eyebrow">Reactive UI runtime</p>
-          <h1>SolidLil</h1>
-          <p class="lead">
-            The current <code>@itslil/solidjs</code> package is a compatibility
-            prototype, not an exact Solid 2.0 implementation. A file-for-file
-            typed port of the 47-module browser runtime is now the required gate;
-            size comparisons remain withheld until that port and its upstream
-            behavior suite pass.
-          </p>
-          <div class="hero-actions">
-            <a
-              class="primary-link"
-              href="https://yeargun.github.io/solidlil/"
-              target="_blank"
-              rel="noopener"
-              >Open the SolidLil lab<i
-                data-lucide="external-link"
-                aria-hidden="true"
-              ></i></a
-            ><a class="secondary-link" href="/demos.html#solidlil-keyed"
-              >In-repo keyed pair</a
-            ><a class="secondary-link" href="#runtime-comparison"
-              >Read Brotli surfaces</a
-            >
-          </div>
-        </div>
-        <aside class="project-fact">
-          <strong>Current status</strong>
-          <p>
-            The local source audit pins 47 upstream browser-runtime modules.
-            None is yet verified as a matching typed <code>.lil</code> port, so
-            current package and application sizes are not comparison evidence.
-          </p>
-        </aside>
-      </section>
-
-      <section class="project-section" aria-labelledby="solidlil-path">
-        <div class="section-heading">
-          <p class="eyebrow">Required evidence</p>
-          <h2 id="solidlil-path">Source and behavior must both match</h2>
-          <p>
-            Export-name checks and selected demos are not parity. The replacement
-            must mirror the pinned Solid Signals, Solid client, Solid Web, and DOM
-            Expressions files and pass upstream behavior for each module.
-          </p>
-        </div>
-        <div class="responsibility-grid">
-          <article>
-            <span>Source</span>
-            <h3>47 matching modules</h3>
-            <p>
-              Filenames and module boundaries mirror the pinned upstream graph;
-              only the implementation language changes to typed LilScript.
-            </p>
-          </article>
-          <article>
-            <span>Behavior</span>
-            <h3>Upstream differential tests</h3>
-            <p>
-              Scheduler, owners, stores, DOM reconciliation, events, hydration,
-              SSR, and teardown all need exact observable results.
-            </p>
-          </article>
-          <article>
-            <span>Publication</span>
-            <h3>No size winner yet</h3>
-            <p>
-              Size, CPU, and memory comparisons stay withheld until the exact
-              source and behavior gates pass.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section class="project-section" id="runtime-comparison">
-        <div class="section-heading">
-          <p class="eyebrow">Comparison withdrawn</p>
-          <h2>Compatibility coverage is not exact parity</h2>
-          <p>
-            The previous 1.9 reports and current 2.0 prototype remain useful for
-            implementation work, but they do not qualify as Solid runtime size
-            comparisons. See the external lab for the pinned source ledger.
-          </p>
-        </div>
-      </section>
-
-      <section
-        class="project-section"
-        id="comparison"
-        aria-labelledby="solidlil-comparison"
-      >
-        <div class="section-heading">
-          <p class="eyebrow">Archived served-app result</p>
-          <h2 id="solidlil-comparison">Historical todolist snapshot</h2>
-          <p>
-            The table counts the full served todolist application in the checked
-            sibling-worktree snapshot. It stays visible as historical evidence
-            but cannot satisfy the new integrated parity gate.
-          </p>
-        </div>
-        <div class="compact-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Artifact</th>
-                <th>Brotli-11 · primary</th>
-                <th>gzip-9</th>
-                <th>Raw</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th>Solid todolist</th>
-                <td>5,479 B</td>
-                <td>6,077 B</td>
-                <td>15,456 B</td>
-              </tr>
-              <tr class="lilscript-row">
-                <th>SolidLil LSX todolist</th>
-                <td>3,722 B</td>
-                <td>4,226 B</td>
-                <td>10,590 B</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="comparison-note">
-          The archived SolidLil LSX app is 32.1% smaller Brotli, 30.5% smaller
-          gzip, and 31.5% smaller raw. This is an application result within the
-          old implemented slice, not current full Solid or LSX compatibility.
-        </p>
-      </section>
-
-      <section
-        class="project-section split-explanation"
-        aria-labelledby="solidlil-evidence"
-      >
-        <div>
-          <p class="eyebrow">Behavior evidence</p>
-          <h2 id="solidlil-evidence">Prototype coverage is not parity</h2>
-          <p>
-            Existing compatibility tests remain useful regression coverage, but
-            they do not cover the full upstream scheduler, store, hydration,
-            server, and DOM contracts. They no longer qualify the port as exact.
-          </p>
-        </div>
-        <div class="plain-note">
-          <strong>Required next gate</strong>
-          <p>
-            Each mirrored <code>.lil</code> module must pass the corresponding
-            upstream tests, including DOM node identity, event propagation,
-            cleanup ordering, async state, and hydration claims.
-          </p>
-        </div>
-      </section>
-
-      <section
-        class="project-section scope-section"
-        aria-labelledby="solidlil-scope"
-      >
-        <div>
-          <p class="eyebrow">Included today</p>
-          <h2 id="solidlil-scope">Verified browser runtime</h2>
-          <ul>
-            <li>Exact Core, Web, and Store export inventories</li>
-            <li>
-              Ownership, errors, resources, transitions, Suspense, scheduling,
-              and context
-            </li>
-            <li>
-              DOM insertion, events, control flow, portals, teardown, and store
-              proxies
-            </li>
-            <li>
-              Public-safe open-world ESM and export-mangled closed-world runtime
-              builds
-            </li>
-          </ul>
-        </div>
-        <div>
-          <p class="eyebrow">Explicit exclusions</p>
-          <h2>Server-coupled systems</h2>
-          <ul>
-            <li>
-              SSR templates, streaming, serialization, and server resources
-            </li>
-            <li>True hydration markers, event replay, and mismatch recovery</li>
-            <li>Exhaustive type-level and ecosystem-package compatibility</li>
-            <li>
-              Claims beyond the pinned browser runtime and declared 21-family
-              client LSX contract
-            </li>
-          </ul>
-        </div>
-      </section>
-    </main>
-    <footer class="site-footer content-width">
-      <span>SolidLil runtime experiment</span
-      ><a href="/libraries.html">Full library evidence</a>
     </footer>
     <script type="module" src="/src/site.js"></script>
   </body>
