@@ -956,7 +956,8 @@ impl<'a> Printer<'a, '_, '_> {
             Expr::Function(id) if self.module.functions[id.index()].arrow => 2,
             // An optional chain is a left-hand-side expression that a member
             // access, call or `new` must not extend: `(x?.a).b` is not `x?.a.b`.
-            Expr::Conditional { .. } if self.forms.optional[id.index()].is_some() => 16,
+            Expr::Conditional { .. } | Expr::Binary { op: Binary::And, .. }
+                if self.forms.optional[id.index()].is_some() => 16,
             _ => precedence(expression),
         }
     }
@@ -1387,6 +1388,13 @@ impl<'a> Printer<'a, '_, '_> {
                 if integer_intrinsic(*operation) && !self.plain_integer(id) {
                     self.text("|0");
                 }
+            }
+            // `x!=null&&x.a` in a test: the chain alone, `x?.a`.
+            Expr::Binary { op: Binary::And, right, .. } if self.forms.optional[id.index()].is_some() => {
+                let link = self.forms.optional[id.index()].unwrap();
+                let outer = self.optional_link.replace(link);
+                self.expression(*right, 0);
+                self.optional_link = outer;
             }
             Expr::Binary { op, left, right } => {
                 let level = op.precedence();

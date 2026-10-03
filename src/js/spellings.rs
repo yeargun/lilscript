@@ -180,12 +180,14 @@ impl PrintForms {
             if function.strict || !module.arguments_free(FunctionId::new(index)) {
                 continue;
             }
+            budget.work(Analysis, module.expressions.len() as u64)?;
+            let published = module.published_only(FunctionId::new(index));
             let defaults = &mut result.defaults[index];
             defaults.values = budget.filled(class, function.parameters.len(), None)?;
             let mut last = None;
             for statement in &module.regions[function.body.index()].statements {
                 budget.work(Analysis, function.parameters.len() as u64 + 1)?;
-                let Some((parameter, default)) = module.default_check(statement) else {
+                let Some((parameter, default)) = module.default_check(statement, published) else {
                     break;
                 };
                 let Some(position) = function.parameters.iter().position(|&p| p == parameter)
@@ -195,7 +197,13 @@ impl PrintForms {
                 if position < length || last.is_some_and(|last| position <= last) {
                     break;
                 }
-                defaults.values[position] = Some(default);
+                // An `undefined` default is no default (`=void 0` only where
+                // it keeps `length`).
+                defaults.values[position] = (!matches!(
+                    module.expressions[default.index()],
+                    Expr::Literal(Literal::Undefined)
+                ))
+                .then_some(default);
                 last = Some(position);
                 defaults.absorbed += 1;
             }
@@ -1144,6 +1152,94 @@ impl Module {
                     budget,
                 )? {
                     forms.optional[index] = Some(link);
+                }
+            }
+            // Where only truthiness is used, `x!=null&&x.a.b` is `x?.a.b`:
+            // both are falsy when `x` is absent and otherwise the chain.
+            if self.no_document_all {
+                // Test positions of the reachable tree, and how often each
+                // node is reached: a node shared with a value position keeps
+                // its spelling.
+                let mut tests: Vec<ExprId> = Vec::new();
+                let mut reached = vec![0u32; self.expressions.len()];
+                let mut regions = vec![self.root];
+                let mut pending: Vec<ExprId> = Vec::new();
+                loop {
+                    if let Some(id) = pending.pop() {
+                        budget.work(Analysis, 1)?;
+                        reached[id.index()] = reached[id.index()].saturating_add(1);
+                        let expression = &self.expressions[id.index()];
+                        match expression {
+                            Expr::Conditional { condition, .. } => tests.push(*condition),
+                            Expr::Unary { op: Unary::Not, value } => tests.push(*value),
+                            _ => {}
+                        }
+                        for function in expression.created_functions() {
+                            regions.push(self.functions[function.index()].body);
+                        }
+                        expression.visit_children(|child| {
+                            pending.push(child);
+                            Ok::<_, AllocationError>(())
+                        })?;
+                    } else if let Some(region) = regions.pop() {
+                        for statement in &self.regions[region.index()].statements {
+                            match statement {
+                                Statement::If { condition, .. } => tests.push(*condition),
+                                Statement::Loop { condition: Some(condition), .. } => tests.push(*condition),
+                                Statement::Function { function, .. } => {
+                                    regions.push(self.functions[function.index()].body)
+                                }
+                                _ => {}
+                            }
+                            statement.visit_expressions(|root| pending.push(root));
+                            statement.visit_regions(|child| regions.push(child));
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                while let Some(test) = tests.pop() {
+                    budget.work(Analysis, 1)?;
+                    if reached[test.index()] != 1 {
+                        continue;
+                    }
+                    let Expr::Binary { op, left, right } = self.expressions[test.index()] else {
+                        continue;
+                    };
+                    if !matches!(op, Binary::And | Binary::Or) {
+                        continue;
+                    }
+                    let guarded = match (op, &self.expressions[left.index()]) {
+                        (Binary::And, Expr::Binary { op: Binary::NotEqual, left: a, right: b }) => {
+                            match (&self.expressions[a.index()], &self.expressions[b.index()]) {
+                                (Expr::Binding(binding), Expr::Literal(Literal::Null | Literal::Undefined))
+                                | (Expr::Literal(Literal::Null | Literal::Undefined), Expr::Binding(binding)) => {
+                                    self.optional_link(right, *binding)
+                                }
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    };
+                    match guarded {
+                        Some(link) if forms.optional[test.index()].is_none() => {
+                            if self.site_choice(
+                                self.expression_site(test),
+                                ChoiceFamily::OptionalChain,
+                                true,
+                                "optional-member",
+                                8,
+                                Some(choices),
+                                budget,
+                            )? {
+                                forms.optional[test.index()] = Some(link);
+                            }
+                        }
+                        _ => {
+                            tests.push(left);
+                            tests.push(right);
+                        }
+                    }
                 }
             }
         }

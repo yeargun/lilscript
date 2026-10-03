@@ -39,6 +39,7 @@ impl Module {
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
         let mut edits = 0;
+        let int32 = self.int32_bindings(budget)?;
         // Children precede parents in the arena except after a splice, and a
         // rewrite can expose its parent's rule: a few sweeps reach the
         // fixed point on every tree the formation produces.
@@ -50,7 +51,7 @@ impl Module {
                     continue;
                 }
                 if let Some(replacement) =
-                    self.simplified(ExprId::new(index), numeric_lengths, year)
+                    self.simplified(ExprId::new(index), numeric_lengths, year, &int32)
                 {
                     if self.set_expression(ExprId::new(index), replacement) {
                         edits += 1;
@@ -82,7 +83,70 @@ impl Module {
         found
     }
 
-    fn simplified(&self, id: ExprId, numeric_lengths: bool, year: u16) -> Option<Expr> {
+    /// Bindings that always hold an int32: `int` cells, and a binding whose
+    /// one write is its declaration's initializer, an int32 operation
+    /// (`a^b`, `a|0`, `a>>b`, an `int` operation).
+    pub(super) fn int32_bindings(&self, budget: &mut AllocationBudget<'_>) -> Result<Vec<bool>, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        let mut writes = vec![0u32; self.bindings.len()];
+        let mut defined = vec![false; self.bindings.len()];
+        for region in &self.regions {
+            budget.work(Analysis, region.statements.len() as u64)?;
+            for (index, statement) in region.statements.iter().enumerate() {
+                match statement {
+                    Statement::Let { binding, value: Some(value) } => {
+                        writes[binding.index()] += 1;
+                        defined[binding.index()] = self.int32_value(*value);
+                    }
+                    // `let i;i=v`, which declaration merging joins later: the
+                    // assignment is the next statement, so nothing reads `i`
+                    // before it.
+                    Statement::Let { binding, value: None } => {
+                        if let Some(Statement::Evaluate(store)) = region.statements.get(index + 1) {
+                            if let Expr::Assign { target, value } = self.expressions[store.index()] {
+                                if matches!(self.expressions[target.index()], Expr::Binding(found) if found == *binding) {
+                                    defined[binding.index()] = self.int32_value(value);
+                                }
+                            }
+                        }
+                    }
+                    Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
+                        writes[binding.index()] += 2;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        budget.work(Analysis, self.expressions.len() as u64)?;
+        for expression in &self.expressions {
+            if let Expr::Assign { target, .. } = expression {
+                if let Expr::Binding(binding) = self.expressions[target.index()] {
+                    writes[binding.index()] += 1;
+                }
+            }
+        }
+        Ok((0..self.bindings.len())
+            .map(|index| {
+                self.bindings[index].class == Some(ValueClass::Int)
+                    || !self.bindings[index].pinned && writes[index] == 1 && defined[index]
+            })
+            .collect())
+    }
+
+    fn int32_value(&self, id: ExprId) -> bool {
+        match &self.expressions[id.index()] {
+            Expr::ToInt32(_) | Expr::IntBinary { .. } | Expr::IntNegate(_) => true,
+            Expr::Binary { op, .. } => matches!(
+                op,
+                Binary::BitAnd | Binary::BitOr | Binary::BitXor | Binary::ShiftLeft | Binary::ShiftRight
+            ),
+            Expr::Unary { op: Unary::BitNot, .. } => true,
+            Expr::Literal(Literal::Number(n)) => n.fract() == 0.0 && *n >= -2147483648.0 && *n <= 2147483647.0,
+            _ => false,
+        }
+    }
+
+    fn simplified(&self, id: ExprId, numeric_lengths: bool, year: u16, int32: &[bool]) -> Option<Expr> {
         let es2018 = year >= 2018;
         let node = |id: ExprId| &self.expressions[id.index()];
         let same = |a: ExprId, b: ExprId| matches!((node(a), node(b)), (Expr::Binding(x), Expr::Binding(y)) if x == y);
@@ -243,6 +307,34 @@ impl Module {
             }
             Expr::Construct { callee, arguments } if self.pristine_builtins => {
                 self.regex_literal(*callee, arguments, es2018)
+            }
+            // `i<0?i+4294967296:i` of an int32 `i` is its unsigned value,
+            // `i>>>0` (and so `i>=0?i:i+4294967296`).
+            Expr::Conditional { condition, yes, no } => {
+                let int = |id: ExprId| match node(id) {
+                    Expr::Binding(binding) if int32[binding.index()] => Some(*binding),
+                    _ => None,
+                };
+                let lifted = |id: ExprId, binding: BindingId| {
+                    matches!(node(id), Expr::Binary { op: Binary::Add, left, right }
+                        if int(*left) == Some(binding)
+                            && matches!(node(*right), Expr::Literal(Literal::Number(n)) if *n == 4294967296.0))
+                };
+                let Expr::Binary { op, left, right } = node(*condition) else {
+                    return None;
+                };
+                let zero = matches!(node(*right), Expr::Literal(Literal::Number(n)) if *n == 0.0);
+                let binding = int(*left).filter(|_| zero)?;
+                let (negative, positive) = match op {
+                    Binary::Less => (*yes, *no),
+                    Binary::GreaterEqual => (*no, *yes),
+                    _ => return None,
+                };
+                (lifted(negative, binding) && int(positive) == Some(binding)).then(|| Expr::Binary {
+                    op: Binary::UnsignedShiftRight,
+                    left: *left,
+                    right: *right,
+                })
             }
             // `globalThis.RegExp` is `RegExp` (M8.2 A2, diagnosis C19): an
             // ECMAScript builtin is a property of the global object, and

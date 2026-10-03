@@ -257,8 +257,9 @@ impl Walk<'_> {
         let mut defaults = vec![None; function.parameters.len()];
         let mut absorbed = 0;
         let mut last = None;
+        let published = self.module.published_only(id);
         for statement in &self.module.regions[function.body.index()].statements {
-            let Some((parameter, default)) = self.module.default_check(statement) else {
+            let Some((parameter, default)) = self.module.default_check(statement, published) else {
                 break;
             };
             let Some(index) = function.parameters.iter().position(|&p| p == parameter) else {
@@ -267,7 +268,11 @@ impl Walk<'_> {
             if index < length || last.is_some_and(|last| index <= last) {
                 break;
             }
-            defaults[index] = Some(default);
+            defaults[index] = (!matches!(
+                self.module.expressions[default.index()],
+                Expr::Literal(Literal::Undefined)
+            ))
+            .then_some(default);
             last = Some(index);
             absorbed += 1;
         }
@@ -337,13 +342,16 @@ impl Walk<'_> {
             .as_ref()
             .and_then(|forms| forms.optional[id.index()])
         {
-            let Expr::Conditional { yes, no, .. } = &self.module.expressions[id.index()] else {
-                unreachable!("proved optional chain")
-            };
-            let chain = if matches!(self.module.expressions[yes.index()], Expr::Literal(Literal::Undefined)) {
-                *no
-            } else {
-                *yes
+            let chain = match &self.module.expressions[id.index()] {
+                Expr::Conditional { yes, no, .. } => {
+                    if matches!(self.module.expressions[yes.index()], Expr::Literal(Literal::Undefined)) {
+                        *no
+                    } else {
+                        *yes
+                    }
+                }
+                Expr::Binary { right, .. } => *right,
+                _ => unreachable!("proved optional chain"),
             };
             return Canon::Chain(Box::new(self.chain(chain, link)));
         }

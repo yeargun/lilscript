@@ -1493,9 +1493,26 @@ impl Module {
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
         let mut edits = 0;
+        let int32 = self.int32_bindings(budget)?;
         for region in 0..self.regions.len() {
             budget.work(Analysis, 1 + self.regions[region].statements.len() as u64)?;
             let root = region == self.root.index();
+            // `if(i<0)return i+4294967296;return i` of an int32 `i` returns
+            // its unsigned value, `return i>>>0`.
+            let mut index = 0;
+            while index + 1 < self.regions[region].statements.len() {
+                budget.work(Analysis, 1)?;
+                if let Some(test) = self.unsigned_return(region, index, &int32) {
+                    let Expr::Binary { left, right, .. } = self.expressions[test.index()] else {
+                        unreachable!("proved unsigned test")
+                    };
+                    self.set_expression(test, Expr::Binary { op: Binary::UnsignedShiftRight, left, right });
+                    self.set_statement(region, index, Statement::Return(Some(test)));
+                    self.remove_statement(region, index + 1);
+                    edits += 1;
+                }
+                index += 1;
+            }
             let mut index = 0;
             while prunes && index < self.regions[region].statements.len() {
                 budget.work(Analysis, 1)?;
@@ -1590,6 +1607,35 @@ impl Module {
             edits += merges.len();
         }
         Ok(edits)
+    }
+
+    /// The test `i<0` of `if(i<0)return i+4294967296;return i` (statement
+    /// `index` and the next of `region`) for an int32 binding `i`.
+    fn unsigned_return(&self, region: usize, index: usize, int32: &[bool]) -> Option<ExprId> {
+        let statements = &self.regions[region].statements;
+        let Statement::If { condition, yes, no: None } = statements[index] else {
+            return None;
+        };
+        let [Statement::Return(Some(lifted))] = self.regions[yes.index()].statements[..] else {
+            return None;
+        };
+        let Statement::Return(Some(plain)) = statements[index + 1] else {
+            return None;
+        };
+        let Expr::Binary { op: Binary::Less, left, right } = self.expressions[condition.index()] else {
+            return None;
+        };
+        let Expr::Binding(binding) = self.expressions[left.index()] else {
+            return None;
+        };
+        let same = |id: ExprId| matches!(self.expressions[id.index()], Expr::Binding(found) if found == binding);
+        let number = |id: ExprId, value: f64| matches!(self.expressions[id.index()], Expr::Literal(Literal::Number(n)) if n == value);
+        (int32[binding.index()]
+            && number(right, 0.0)
+            && same(plain)
+            && matches!(self.expressions[lifted.index()], Expr::Binary { op: Binary::Add, left, right }
+                if same(left) && number(right, 4294967296.0)))
+        .then_some(condition)
     }
 
     /// `x==null?void 0:x.p` or `x!=null?x.p:void 0` for a binding `x`: the
@@ -2139,7 +2185,44 @@ impl Module {
 
     /// `if(p===void 0)p=D`, or its expression form `p===void 0&&(p=D)`, for
     /// a literal `D`: the parameter and its default.
-    pub(crate) fn default_check(&self, statement: &Statement) -> Option<(BindingId, ExprId)> {
+    /// Whether nothing in the module mentions `function`'s binding (or its
+    /// class's) but the export list: no call of it is the program's own, so
+    /// its parameters receive only what its public contract admits, where a
+    /// defaulted parameter is omitted or `undefined` (a `null` is outside it).
+    pub(crate) fn published_only(&self, function: FunctionId) -> bool {
+        let mut owner = None;
+        for region in &self.regions {
+            for statement in &region.statements {
+                match statement {
+                    Statement::Function { binding, function: found } if *found == function => {
+                        owner = Some(*binding)
+                    }
+                    Statement::Let { binding, value: Some(value) } => match &self.expressions[value.index()] {
+                        Expr::Function(found) if *found == function => owner = Some(*binding),
+                        Expr::Class { constructor: Some(found), .. } if *found == function => {
+                            owner = Some(*binding)
+                        }
+                        _ => {}
+                    },
+                    _ => {}
+                }
+            }
+        }
+        let Some(owner) = owner else {
+            return false;
+        };
+        self.exports.iter().any(|export| export.binding == owner)
+            && !self.bindings[owner.index()].pinned
+            && !self.expressions.iter().any(|expression| matches!(expression, Expr::Binding(found) if *found == owner))
+    }
+
+    /// A body's leading default for a parameter, `if(p===void 0)p=v`, that a
+    /// parameter list spells `p=v`: `v` a literal or a literal array or
+    /// object (evaluated afresh at each call either way). For a function only
+    /// published (`published_only`), whose parameters receive no `null`, the
+    /// loose test `p==null` (and `!p` of an object) is that test too, and an
+    /// `undefined` default is the parameter itself.
+    pub(crate) fn default_check(&self, statement: &Statement, published: bool) -> Option<(BindingId, ExprId)> {
         let (condition, assign) = match statement {
             Statement::If {
                 condition,
@@ -2159,36 +2242,44 @@ impl Module {
             },
             _ => return None,
         };
-        let Expr::Binary {
-            op: Binary::StrictEqual,
-            left,
-            right,
-        } = &self.expressions[condition.index()]
-        else {
-            return None;
-        };
-        let tested = match (
-            &self.expressions[left.index()],
-            &self.expressions[right.index()],
-        ) {
-            (Expr::Binding(tested), Expr::Literal(Literal::Undefined))
-            | (Expr::Literal(Literal::Undefined), Expr::Binding(tested)) => *tested,
+        let tested = match &self.expressions[condition.index()] {
+            Expr::Binary { op, left, right } => {
+                let tested = match (&self.expressions[left.index()], &self.expressions[right.index()]) {
+                    (Expr::Binding(tested), Expr::Literal(nothing))
+                    | (Expr::Literal(nothing), Expr::Binding(tested)) => match (op, nothing) {
+                        (Binary::StrictEqual, Literal::Undefined) => *tested,
+                        (Binary::Equal, Literal::Undefined | Literal::Null) if published => *tested,
+                        _ => return None,
+                    },
+                    _ => return None,
+                };
+                tested
+            }
+            Expr::Unary { op: Unary::Not, value } if published => match self.expressions[value.index()] {
+                Expr::Binding(tested)
+                    if matches!(self.bindings[tested.index()].class, Some(ValueClass::Object | ValueClass::NullableObject)) =>
+                {
+                    tested
+                }
+                _ => return None,
+            },
             _ => return None,
         };
         let Expr::Assign { target, value } = &self.expressions[assign.index()] else {
             return None;
         };
-        match (
-            &self.expressions[target.index()],
-            &self.expressions[value.index()],
-        ) {
-            (Expr::Binding(target), Expr::Literal(literal))
-                if *target == tested && !matches!(literal, Literal::Undefined) =>
-            {
-                Some((tested, *value))
-            }
-            _ => None,
-        }
+        let literal = |id: ExprId| matches!(self.expressions[id.index()], Expr::Literal(_));
+        let fresh = match &self.expressions[value.index()] {
+            Expr::Literal(Literal::Undefined) => published,
+            Expr::Literal(_) => true,
+            Expr::Array(items) => items.iter().all(|item| literal(*item)),
+            Expr::Object(entries) => entries.iter().all(|(key, item)| {
+                matches!(key, Property::Named(name) if name != "__proto__") && literal(*item)
+            }),
+            _ => false,
+        };
+        (fresh && matches!(self.expressions[target.index()], Expr::Binding(target) if target == tested))
+            .then_some((tested, *value))
     }
 
     /// Whether `function`'s body reads no frame of its own: no `this`,
