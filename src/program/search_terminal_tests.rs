@@ -334,6 +334,35 @@ fn local_read_order_polish_protects_the_completed_search_under_each_objective() 
 }
 
 #[test]
+fn private_properties_are_judged_within_the_smallest_search_budget() {
+    let source = include_str!("fixtures/private-fields.lil");
+    for codec in ["raw", "gzip", "brotli"] {
+        let config: crate::config::ProjectConfig = toml::from_str(&format!(
+            "objective.codecs='{codec}'\neffort.level=1\n[policy.tactics]\nscalar-replacement='off'\ninlining='off'"
+        )).unwrap();
+        let resolved = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+        let result = search_source(source, &resolved,
+            Objectives::One(resolved.objective().unwrap().codec), true);
+        let stage = &result.report.objectives[0];
+        let trial = stage.trials.iter().find(|trial| trial.challenger == "private-properties")
+            .expect("private fields must be offered before local spelling enumeration");
+        assert!(matches!(trial.outcome, ChallengerOutcome::Kept | ChallengerOutcome::Rejected),
+            "{codec}: {trial:?}");
+        if codec == "raw" {
+            assert_eq!(trial.outcome, ChallengerOutcome::Kept);
+            assert!(!result.winners[0].as_ref().unwrap().1.contains("accumulatedValue"));
+        }
+    }
+    let config: crate::config::ProjectConfig = toml::from_str(
+        "objective.codecs='raw'\neffort.level=1\n[policy.tactics]\nproperty-mangling='off'\nscalar-replacement='off'\ninlining='off'"
+    ).unwrap();
+    let resolved = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+    let result = search_source(source, &resolved, Objectives::One(Objective::Raw), true);
+    assert!(result.report.objectives[0].trials.iter().any(|trial|
+        trial.challenger == "private-properties" && trial.outcome == ChallengerOutcome::Vetoed));
+}
+
+#[test]
 fn private_properties_polish_protects_the_completed_search_and_replays() {
     let source = include_str!("fixtures/private-fields.lil");
     for (codec, index) in [("raw", 0), ("gzip", 1), ("brotli", 2)] {

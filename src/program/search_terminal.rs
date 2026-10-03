@@ -1002,8 +1002,16 @@ impl Walker<'_, '_, '_> {
             passes += 1;
             self.report.passes += 1;
             let pass = self.report.passes;
-            let kept = self.choice_moves(incumbent, pass, false)?
-                | self.challengers(incumbent, pass)?
+            // Whole-program private naming must get a verdict before local
+            // site enumeration can consume the entire optional budget. Skip
+            // the trial without spending a position when no field is eligible.
+            let properties = if self.formations.properties_inert() {
+                false
+            } else {
+                self.challengers(incumbent, pass, &[Challenger::PrivateProperties])?
+            };
+            let kept = properties | self.choice_moves(incumbent, pass, false)?
+                | self.challengers(incumbent, pass, self.order)?
                 | self.joint_moves(incumbent, pass, JointPhase::Ordinary)?;
             if passes == 1 {
                 self.finish_replay(incumbent)?;
@@ -1180,7 +1188,12 @@ impl Walker<'_, '_, '_> {
 
     /// The declared challengers, each applied to the incumbent's spelling;
     /// a spelling is tried once per pass. Whether one was kept.
-    fn challengers(&mut self, incumbent: &mut Incumbent, pass: usize) -> Result<bool, SearchError> {
+    fn challengers(
+        &mut self,
+        incumbent: &mut Incumbent,
+        pass: usize,
+        order: &[Challenger],
+    ) -> Result<bool, SearchError> {
         let trial = |challenger: Challenger, outcome| ChallengerTrial {
             challenger: challenger.name(),
             pass,
@@ -1192,7 +1205,7 @@ impl Walker<'_, '_, '_> {
         };
         let mut kept = false;
         let mut seen = vec![(incumbent.spelling.effective(), incumbent.choices.clone())];
-        for &challenger in self.order {
+        for &challenger in order {
             self.replay(incumbent)?;
             if self.stopped {
                 self.report
@@ -1237,7 +1250,10 @@ impl Walker<'_, '_, '_> {
             }
             // A family that prints nothing in this candidate prints the
             // incumbent's program: nothing to form.
-            if matches!(challenger, Challenger::Int32Hints) && self.formations.hints_inert() {
+            if (matches!(challenger, Challenger::Int32Hints) && self.formations.hints_inert())
+                || (matches!(challenger, Challenger::PrivateProperties)
+                    && self.formations.properties_inert())
+            {
                 self.report
                     .trials
                     .push(trial(challenger, ChallengerOutcome::Duplicate));

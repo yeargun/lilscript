@@ -1,6 +1,8 @@
-//! Bounded execution of primitive constant calls. A successful result proves
+//! Bounded execution of calls with primitive constant arguments. A successful result proves
 //! the executed path terminates and has no observable effect; an unsupported
 //! operation, capture or exhausted budget supplies no such evidence.
+//! Effect-only queries may transport fresh allocations without inspecting them.
+//! Those opaque results never become constants or whole-function purity claims.
 use super::super::call_graph::Callee;
 use super::super::facts::{
     self, StoredExact as Exact, StoredKnowledge as Knowledge, StoredString, Work,
@@ -478,8 +480,12 @@ pub(super) fn call(
             work,
             steps: MAX_STEPS,
             refusal,
+            opaque_results: false,
         };
-        let value = evaluator.call(unit, call, values, 0);
+        let value = evaluator.call(unit, call, values, 0).and_then(|value| match value {
+            Knowledge::Exact(value) => Some(value),
+            Knowledge::Unknown(_) => None,
+        });
         refusal = if evaluator.work.truncated() {
             Refusal::Limit
         } else {
@@ -493,6 +499,55 @@ pub(super) fn call(
     }
 }
 
+/// Prove just this invocation inert, including termination. Argument and
+/// callee evaluation remain the caller's operations. Only literal arguments
+/// enter this bounded query; captured/host values and unsupported paths keep
+/// the ordinary conservative summary. The caller owns the work/storage ledger.
+pub(in crate::program) fn discardable_call(
+    program: &Program<'_>,
+    effects: &ProgramEffects,
+    unit: UnitId,
+    call: CallId,
+    pristine: bool,
+    work: &mut Work,
+) -> bool {
+    work.temporary(|work| {
+        let Callee::Unit(callee) = effects.graph().callee(unit, call) else {
+            return None;
+        };
+        if program.unit(callee)?.operations.len() > MAX_OPERATIONS {
+            return None;
+        }
+        let data = program.unit(unit)?;
+        let arguments = data.arguments(data.calls[call.index()].arguments)?;
+        if arguments.len() > MAX_OPERATIONS {
+            return None;
+        }
+        let mut args = work.admit(|budget| budget.vector(Scratch, arguments.len()))?;
+        for argument in arguments {
+            work.charge(1).then_some(())?;
+            let CallArgument::Value(value) = argument else { return None; };
+            let operation = &data.operations[data.values[value.index()].definition.index()];
+            let OperationKind::Constant(constant) = operation.kind else { return None; };
+            args.push(match constant {
+                Constant::Integer(value) => Exact::Integer(value),
+                Constant::Number(value) => Exact::Number(value),
+                Constant::Boolean(value) => Exact::Boolean(value),
+                Constant::String(value) => Exact::String(StoredString::Source(value)),
+                Constant::Null => Exact::Null,
+                Constant::Undefined => Exact::Undefined,
+            });
+        }
+        let mut evaluator = Evaluator {
+            program, effects, pristine, work, steps: MAX_STEPS,
+            refusal: Refusal::Unsupported, opaque_results: true,
+        };
+        let completed = evaluator.unit(callee, &args, 1).map(|_| ());
+        evaluator.work.release(Scratch, args)?;
+        completed
+    }).is_some()
+}
+
 struct Evaluator<'a, 'src, 'ledger> {
     program: &'a Program<'src>,
     effects: &'a ProgramEffects,
@@ -500,16 +555,26 @@ struct Evaluator<'a, 'src, 'ledger> {
     work: &'a mut Work<'ledger>,
     steps: u32,
     refusal: Refusal,
+    opaque_results: bool,
 }
 
 enum Flow {
     Next,
-    Return(Exact),
+    Return(Knowledge),
     Break,
     Continue,
 }
 
 impl Evaluator<'_, '_, '_> {
+    fn value(&self, values: &[Knowledge], value: ValueId) -> Option<Knowledge> {
+        match values.get(value.index())? {
+            value @ Knowledge::Exact(_) => Some(value.clone()),
+            value @ Knowledge::Unknown(facts::UnknownReason::MutableOrHostValue)
+                if self.opaque_results => Some(value.clone()),
+            _ => None,
+        }
+    }
+
     fn step(&mut self) -> Option<()> {
         let Some(steps) = self.steps.checked_sub(1) else {
             self.refusal = Refusal::Limit;
@@ -525,7 +590,7 @@ impl Evaluator<'_, '_, '_> {
         call: CallId,
         values: &[Knowledge],
         depth: usize,
-    ) -> Option<Exact> {
+    ) -> Option<Knowledge> {
         self.step()?;
         if depth >= MAX_DEPTH {
             self.refusal = Refusal::Limit;
@@ -579,10 +644,10 @@ impl Evaluator<'_, '_, '_> {
                 let [left, right] = args.as_slice() else {
                     return None;
                 };
-                Some(Exact::Integer(integer(left)?.wrapping_mul(integer(right)?)))
+                Some(Knowledge::Exact(Exact::Integer(integer(left)?.wrapping_mul(integer(right)?))))
             }
             Callee::Builtin(operation) if builtin_primitive(operation) => {
-                builtin(self.program, operation, &args, self.work)
+                builtin(self.program, operation, &args, self.work).map(Knowledge::Exact)
             }
             Callee::Intrinsic(operation) => {
                 let CallTarget::Intrinsic { receiver, .. } = site.target else {
@@ -603,7 +668,7 @@ impl Evaluator<'_, '_, '_> {
                 {
                     self.refusal = Refusal::Engine;
                 }
-                result
+                result.map(Knowledge::Exact)
             }
             Callee::Unit(callee) => self.unit(callee, &args, depth + 1),
             _ => None,
@@ -612,12 +677,13 @@ impl Evaluator<'_, '_, '_> {
         result
     }
 
-    fn unit(&mut self, unit: UnitId, args: &[Exact], depth: usize) -> Option<Exact> {
+    fn unit(&mut self, unit: UnitId, args: &[Exact], depth: usize) -> Option<Knowledge> {
         let data = self.program.unit(unit)?;
         if data.suspension != Suspension::None
             || data.constructor_of.is_some()
             || data.operations.len() > MAX_OPERATIONS
-            || data.parameters.len() != args.len()
+            || args.len() > data.parameters.len()
+            || (!self.opaque_results && data.parameters.len() != args.len())
         {
             return None;
         }
@@ -637,13 +703,17 @@ impl Evaluator<'_, '_, '_> {
             ),
         )?;
         let mut cells = Map::new(Scratch);
-        for (&cell, value) in data.parameters.iter().zip(args) {
+        for (index, &cell) in data.parameters.iter().enumerate() {
+            // Invocation-only proofs execute the checked default prefix with
+            // the actual missing-argument value. Missing is not the declared
+            // default: that initializer may itself have effects or throw.
+            let value = args.get(index).cloned().unwrap_or(Exact::Undefined);
             self.work
-                .admit(|budget| cells.insert(cell, value.clone(), budget))?;
+                .admit(|budget| cells.insert(cell, Knowledge::Exact(value), budget))?;
         }
         let result = match self.region(unit, data.entry, &mut values, &mut cells, depth) {
             Some(Flow::Return(value)) => Some(value),
-            Some(Flow::Next) => Some(Exact::Undefined),
+            Some(Flow::Next) => Some(Knowledge::Exact(Exact::Undefined)),
             Some(Flow::Break | Flow::Continue) | None => None,
         };
         self.work.release(Scratch, values)?;
@@ -656,7 +726,7 @@ impl Evaluator<'_, '_, '_> {
         unit: UnitId,
         region: RegionId,
         values: &mut [Knowledge],
-        cells: &mut Map<CellId, Exact>,
+        cells: &mut Map<CellId, Knowledge>,
         depth: usize,
     ) -> Option<Flow> {
         let data = self.program.unit(unit)?;
@@ -669,9 +739,9 @@ impl Evaluator<'_, '_, '_> {
             match operation.kind {
                 OperationKind::Return => {
                     return Some(Flow::Return(if operands.is_empty() {
-                        Exact::Undefined
+                        Knowledge::Exact(Exact::Undefined)
                     } else {
-                        first()?.clone()
+                        self.value(values, *operands.first()?)?
                     }))
                 }
                 OperationKind::Break => return Some(Flow::Break),
@@ -682,7 +752,7 @@ impl Evaluator<'_, '_, '_> {
                 OperationKind::Initialize(cell)
                     if self.program.cells[cell.index()].owner == unit =>
                 {
-                    let value = first()?.clone();
+                    let value = self.value(values, *operands.first()?)?;
                     self.work
                         .admit(|budget| cells.insert(cell, value, budget))?;
                 }
@@ -705,6 +775,9 @@ impl Evaluator<'_, '_, '_> {
                         ) {
                             return None;
                         }
+                        if self.opaque_results {
+                            result = Some(Knowledge::Unknown(facts::UnknownReason::MutableOrHostValue));
+                        }
                     }
                 }
                 OperationKind::CheckPlace(place) | OperationKind::Store(place) => {
@@ -716,7 +789,7 @@ impl Evaluator<'_, '_, '_> {
                         return None;
                     }
                     if matches!(operation.kind, OperationKind::Store(_)) {
-                        result = Some(first()?.clone());
+                        result = Some(self.value(values, *operands.first()?)?);
                         let value = result.clone()?;
                         self.work
                             .admit(|budget| cells.insert(cell, value, budget))?;
@@ -725,10 +798,10 @@ impl Evaluator<'_, '_, '_> {
                 OperationKind::PrepareCall(_) => {}
                 OperationKind::Call(call) => result = Some(self.call(unit, call, values, depth)?),
                 OperationKind::IsUndefined { nullish, .. } => {
-                    result = Some(Exact::Boolean(
+                    result = Some(Knowledge::Exact(Exact::Boolean(
                         matches!(first()?, Exact::Undefined)
                             || nullish && matches!(first()?, Exact::Null),
-                    ))
+                    )))
                 }
                 OperationKind::Block(child) => {
                     let flow = self.region(unit, child, values, cells, depth)?;
@@ -748,8 +821,7 @@ impl Evaluator<'_, '_, '_> {
                         }
                         result = data.regions[child.index()]
                             .result
-                            .and_then(|value| known(values, value))
-                            .cloned();
+                            .and_then(|value| self.value(values, value));
                     }
                 }
                 OperationKind::Select { yes, no } => {
@@ -761,7 +833,7 @@ impl Evaluator<'_, '_, '_> {
                     if !matches!(flow, Flow::Next) {
                         return Some(flow);
                     }
-                    result = Some(known(values, data.regions[child.index()].result?)?.clone());
+                    result = Some(self.value(values, data.regions[child.index()].result?)?);
                 }
                 OperationKind::ShortCircuit { kind, right } => {
                     let left = first()?.clone();
@@ -779,9 +851,9 @@ impl Evaluator<'_, '_, '_> {
                         if !matches!(flow, Flow::Next) {
                             return Some(flow);
                         }
-                        known(values, data.regions[right.index()].result?)?.clone()
+                        self.value(values, data.regions[right.index()].result?)?
                     } else {
-                        left
+                        Knowledge::Exact(left)
                     });
                 }
                 OperationKind::Loop { test, body, update } => loop {
@@ -809,8 +881,18 @@ impl Evaluator<'_, '_, '_> {
                         return None;
                     }
                 },
+                OperationKind::CopyValue => {
+                    result = Some(self.value(values, *operands.first()?)?);
+                }
+                OperationKind::Closure(_)
+                | OperationKind::Allocate {
+                    kind: AllocationKind::Array | AllocationKind::Record(_)
+                        | AllocationKind::Object(_) | AllocationKind::Instance { .. }
+                        | AllocationKind::Struct(_), ..
+                } if self.opaque_results => {
+                    result = Some(Knowledge::Unknown(facts::UnknownReason::MutableOrHostValue));
+                }
                 OperationKind::Constant(_)
-                | OperationKind::CopyValue
                 | OperationKind::IntBinary(_)
                 | OperationKind::Binary(_)
                 | OperationKind::Unary { .. }
@@ -820,13 +902,13 @@ impl Evaluator<'_, '_, '_> {
                     else {
                         return None;
                     };
-                    result = Some(value);
+                    result = Some(Knowledge::Exact(value));
                 }
                 _ => return None,
             }
             if let Some(id) = operation.result {
                 if let Some(value) = result {
-                    values[id.index()] = Knowledge::Exact(value);
+                    values[id.index()] = value;
                 }
             }
         }
@@ -838,6 +920,46 @@ impl Evaluator<'_, '_, '_> {
 mod tests {
     use super::*;
     use std::process::Command;
+
+    #[test]
+    fn invocation_proofs_keep_unknown_effectful_and_nonterminating_paths() {
+        let source = r#"
+            extern void note(int value);
+            export int captured=4;
+            export func()->int make(int? option=null){
+                JsValue bag=object{};
+                if(option!=null){bag["x"]=option;note(1);}
+                return ()=>{note(7);return 9;};
+            }
+            export func()->int writes(){JsValue bag=object{};bag["x"]=1;return ()=>1;}
+            export func()->int reads(){int value=captured;return ()=>value;}
+            export func()->int diverges(){while(true){}return ()=>1;}
+            export func()->int invokes(){note(8);return ()=>1;}
+            export func()->int quiet=make();
+            export func()->int loud=make(3);
+            export func()->int a=writes();
+            export func()->int b=reads();
+            export func()->int c=diverges();
+            export func()->int d=invokes();
+        "#;
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        let checked = crate::analyze(&syntax).unwrap();
+        let program = from_checked_source(&syntax, &checked).unwrap();
+        program.verify().unwrap();
+        let effects = program.effects(super::super::super::call_graph::Seal::Module);
+        let unit = program.initialization[0];
+        let calls = program.unit(unit).unwrap().operations.iter().filter_map(|operation| {
+            if let OperationKind::Call(call) = operation.kind { Some(call) } else { None }
+        }).collect::<Vec<_>>();
+        let answers = calls.iter().map(|&call| {
+            discardable_call(&program, &effects, unit, call, false, &mut Work::bounded(16_384, 1<<20))
+        }).collect::<Vec<_>>();
+        assert_eq!(answers, [true, false, false, false, false, false]);
+        for (work, bytes) in [(0, 1<<20), (16_384, 0)] {
+            assert!(!discardable_call(&program, &effects, unit, calls[0], false, &mut Work::bounded(work, bytes)));
+        }
+    }
 
     fn text(value: &str) -> Exact {
         Exact::String(StoredString::Computed(Arc::new(StringValue::from(value))))

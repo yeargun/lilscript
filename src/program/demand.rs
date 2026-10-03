@@ -1221,6 +1221,34 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                 operation,
                 &domains,
             );
+            // A factory's public summary covers every argument, but a module
+            // initializer may select an inert path with literal arguments.
+            // Prove that invocation before rooting it or classifying its
+            // declaration for downstream tree shaking. Never annotate the
+            // whole factory from this narrower proof.
+            if self.mode == DemandMode::Prune
+                && data.kind == UnitKind::ModuleInitialization
+                && effects[index].requires_evaluation()
+            {
+                if let OperationKind::Call(call) = operation.kind {
+                    let discardable = budget.analysis(|allocation| {
+                        let mut work = facts::Work::admitted(16_384, 1 << 20, allocation.scope());
+                        let discardable = super::rules::evaluate::discardable_call(
+                            self.program, &self.effects, unit, call,
+                            self.contract.assumptions.pristine_builtins, &mut work,
+                        );
+                        work.finish()?;
+                        Ok(discardable)
+                    })?;
+                    if discardable {
+                        effects[index] = EvaluationBehavior {
+                            creates_identity: effects[index].creates_identity,
+                            may_exhaust_resources: effects[index].may_exhaust_resources,
+                            ..EvaluationBehavior::TOTAL
+                        };
+                    }
+                }
+            }
             let id = OpId::from_index(index).unwrap();
             if let Some(value) = operation.result {
                 domains[value.index()] =

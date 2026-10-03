@@ -25,7 +25,24 @@ pub(super) fn apply(
     let facts = editor.program().aggregates_in(request.seal, budget)?;
     if !facts.complete {
         receipt.aggregate_limits += 1;
+        if let Some(limit) = facts.limit {
+            receipt.aggregate_limit_reasons[limit as usize] += 1;
+        }
         return Ok(false);
+    }
+    budget.work(WorkKind::Analysis, facts.sites.len() as u64)?;
+    // These are visits across rule rounds, not distinct source allocations.
+    // Refusal categories can overlap; an object may escape and use dynamic keys.
+    for site in &facts.sites {
+        receipt.aggregate_saturated_sites += u64::from(site.origin_limit);
+        receipt.aggregate_eligibility[0] += 1;
+        receipt.aggregate_eligibility[1] += u64::from(site.escape == Escape::Host);
+        receipt.aggregate_eligibility[2] += u64::from(site.dynamic);
+        receipt.aggregate_eligibility[3] += u64::from(site.identity_observed);
+        receipt.aggregate_eligibility[4] += u64::from(site.escape == Escape::Typed);
+        receipt.aggregate_eligibility[5] += u64::from(
+            site.closed() && site.escape == Escape::Local && site.scalar_kind,
+        );
     }
     receipt.aggregate_analysis_work = receipt
         .aggregate_analysis_work
@@ -62,7 +79,17 @@ pub(super) fn apply(
         .saturating_add(editor.program().cells.len())
         .max(1);
     let limit = (1usize << 22) / scan;
-    budget.with_temporary_context(
+    budget.work(WorkKind::Analysis, facts.sites.len() as u64)?;
+    let eligible = facts
+        .sites
+        .iter()
+        .filter(|allocation| {
+            allocation.closed() && allocation.escape == Escape::Local && allocation.scalar_kind
+        })
+        .count();
+    receipt.scalar_candidates_skipped += eligible.saturating_sub(limit) as u64;
+    let mut refused = 0;
+    let changed = budget.with_temporary_context(
         editor,
         |editor, budget| {
             let program = editor.program();
@@ -99,6 +126,8 @@ pub(super) fn apply(
                     if let Some(plan) = scalar_plan(program, effects, &facts, &links, site, budget)?
                     {
                         budget.push(Retained, &mut plans, plan)?;
+                    } else {
+                        refused += 1;
                     }
                 }
                 Ok::<_, super::RuleError>(plans)
@@ -110,7 +139,9 @@ pub(super) fn apply(
             }
             Ok(!plans.is_empty())
         },
-    )
+    );
+    receipt.scalar_plans_refused += refused;
+    changed
 }
 
 fn fields(

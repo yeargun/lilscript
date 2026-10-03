@@ -24,7 +24,7 @@ mod dce;
 mod defaults;
 mod dirty;
 mod edit;
-mod evaluate;
+pub(super) mod evaluate;
 mod fold;
 mod forward;
 mod inline;
@@ -140,6 +140,11 @@ pub(crate) struct RuleReceipt {
     pub(crate) elided_record_aliases: u32,
     pub(crate) aggregate_analysis_work: u64,
     pub(crate) aggregate_limits: u32,
+    pub(crate) aggregate_limit_reasons: [u32; 4],
+    pub(crate) aggregate_saturated_sites: u64,
+    pub(crate) aggregate_eligibility: [u64; 6],
+    pub(crate) scalar_candidates_skipped: u64,
+    pub(crate) scalar_plans_refused: u64,
 }
 
 impl RuleReceipt {
@@ -199,6 +204,23 @@ impl RuleReceipt {
                 "limit": self.evaluation_refusals[5],
             },
         });
+        result["aggregate_limit_reasons"] = serde_json::json!({
+            "input_size": self.aggregate_limit_reasons[0],
+            "activation_observation": self.aggregate_limit_reasons[1],
+            "propagation_work": self.aggregate_limit_reasons[2],
+            "propagation_rounds": self.aggregate_limit_reasons[3],
+        });
+        result["aggregate_saturated_sites"] = self.aggregate_saturated_sites.into();
+        result["aggregate_site_visits"] = serde_json::json!({
+            "total": self.aggregate_eligibility[0],
+            "host_escape": self.aggregate_eligibility[1],
+            "dynamic_access": self.aggregate_eligibility[2],
+            "identity_observed": self.aggregate_eligibility[3],
+            "typed_transport": self.aggregate_eligibility[4],
+            "scalar_eligible": self.aggregate_eligibility[5],
+        });
+        result["scalar_candidates_skipped"] = self.scalar_candidates_skipped.into();
+        result["scalar_plans_refused"] = self.scalar_plans_refused.into();
         result["call_frequency_work"] = self.call_frequency_work.into();
         result["materialized_default_arguments"] = self.materialized_default_arguments.into();
         result["local_units_visited"] = self.local_units_visited.into();
