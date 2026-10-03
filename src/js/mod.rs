@@ -1106,6 +1106,10 @@ pub struct Module {
     /// function it receives nor reads its `prototype` (Terser's
     /// `unsafe_arrows`).
     pub unconstructed_callbacks: bool,
+    /// The program-private property naming contract
+    /// (`assume_private_underscore_properties`): present when it holds, with
+    /// the preserved names it must not touch. The printer derives the map.
+    pub private_names: Option<std::sync::Arc<[String]>>,
     /// One row per root statement, aligned with the root region (plan
     /// M3.3): its source module and its anchor. Formation writes the rows;
     /// every rule that inserts, removes, moves or fuses a root statement
@@ -1494,9 +1498,11 @@ impl Module {
                 budget.work(Analysis, 1)?;
                 if let Statement::Evaluate(value) = self.regions[region].statements[index] {
                     // A read of a standard global (`Object;`, left by an unused
-                    // alias) is as inert under pristine builtins.
+                    // alias) is as inert under pristine builtins, and so is a
+                    // null-guarded property read when member reads run no code.
                     if self.inert_value(value, budget)?
                         || self.pristine_builtins && self.standard_member(value)
+                        || self.pure_property_reads && self.guarded_read(value)
                     {
                         self.remove_statement(region, index);
                         edits += 1;
@@ -1572,6 +1578,34 @@ impl Module {
             edits += merges.len();
         }
         Ok(edits)
+    }
+
+    /// `x==null?void 0:x.p` or `x!=null?x.p:void 0` for a binding `x`: the
+    /// spelling of an optional read. With member reads assumed to run no code
+    /// (`assume_pure_property_reads`), evaluating it does nothing, since the
+    /// null test keeps the one read from throwing. A statement of it is what an
+    /// unused binding's initializer leaves behind (`document = global?.document`).
+    fn guarded_read(&self, value: ExprId) -> bool {
+        let node = |id: ExprId| &self.expressions[id.index()];
+        let Expr::Conditional { condition, yes, no } = node(value) else {
+            return false;
+        };
+        let Expr::Binary { op, left, right } = node(*condition) else {
+            return false;
+        };
+        let tested = match (node(*left), node(*right)) {
+            (Expr::Binding(binding), Expr::Literal(Literal::Null | Literal::Undefined))
+            | (Expr::Literal(Literal::Null | Literal::Undefined), Expr::Binding(binding)) => *binding,
+            _ => return false,
+        };
+        let (absent, read) = match op {
+            Binary::Equal => (*yes, *no),
+            Binary::NotEqual => (*no, *yes),
+            _ => return false,
+        };
+        matches!(node(absent), Expr::Literal(Literal::Undefined | Literal::Null))
+            && matches!(node(read), Expr::Member { object, property: Property::Named(_) }
+                if matches!(node(*object), Expr::Binding(binding) if *binding == tested))
     }
 
     /// Whether evaluating `value` only creates literals and functions.
@@ -3212,6 +3246,7 @@ impl Module {
             pristine_builtins: false,
             pure_property_reads: false,
             unconstructed_callbacks: false,
+            private_names: None,
             root_rows: vec![],
             integrated_hosts: false,
             entries: vec![],

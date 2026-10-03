@@ -263,6 +263,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             pristine_builtins: false,
             pure_property_reads: false,
             unconstructed_callbacks: false,
+            private_underscore_properties: false,
             numeric_lengths: false,
         },
         effects: JavaScriptEffectPolicy {
@@ -739,6 +740,9 @@ fn form_head(
     module.pristine_builtins = contract.assumptions.pristine_builtins;
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
+    if contract.assumptions.private_underscore_properties {
+        module.private_names = Some(preserved_properties.iter().cloned().collect::<Vec<_>>().into());
+    }
     module.int32_hints = head.int32_hints;
     // The program's value ranges (M6.4b), once per program under its seal.
     let ranges = std::sync::Arc::clone(demand.ranges());

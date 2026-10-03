@@ -41,6 +41,10 @@ pub struct JavaScriptUnsafeAssumptions {
     /// Code outside the program never constructs a function the program
     /// hands it, nor reads its `prototype` (Terser's `unsafe_arrows`).
     pub unconstructed_callbacks: bool,
+    /// A property whose name matches `^_(?!_)` and is not preserved is private
+    /// to the program wherever it occurs, so one program-wide map may rename
+    /// it (Terser's `mangle.properties.regex`, as posthog-js builds with it).
+    pub private_underscore_properties: bool,
     /// A host value's `length` is an int32 Number, as it is for strings,
     /// arrays, typed arrays, `arguments` and functions: size-first's
     /// length-to-number decision.

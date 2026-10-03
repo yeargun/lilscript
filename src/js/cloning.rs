@@ -354,6 +354,7 @@ impl Module {
             pristine_builtins: self.pristine_builtins,
             pure_property_reads: self.pure_property_reads,
             unconstructed_callbacks: self.unconstructed_callbacks,
+            private_names: self.private_names.clone(),
             root_rows: budget.copy_slice(Retained, &self.root_rows)?,
             integrated_hosts: self.integrated_hosts,
             entries: map(&self.entries, budget, |entry, budget| {

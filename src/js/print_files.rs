@@ -122,7 +122,9 @@ pub(in crate::js) fn render_planned_file_admitted(
         }
     }
     local_names.sort_unstable_by_key(|(binding, _)| *binding);
+    let private = super::print::private_map(module);
     let mut printer = Printer {
+        private: private.as_ref(),
         module,
         names,
         literal_alternatives,

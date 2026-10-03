@@ -148,7 +148,9 @@ pub(super) fn render_with_literals_admitted(
                 .map_err(PrintError::Admission)?,
         ),
     };
+    let private = private_map(module);
     let mut printer = Printer {
+        private: private.as_ref(),
         module,
         names,
         literal_alternatives,
@@ -408,6 +410,106 @@ struct Printer<'a, 'budget, 'ledger> {
     planned_structure: PlannedStructure,
     inline: Option<&'a inline::InlineView<'a>>,
     inline_module: Option<u32>,
+    /// Spellings of program-private property names for this render
+    /// (`private_map`), when the naming contract holds.
+    private: Option<&'a std::collections::HashMap<String, String>>,
+}
+
+/// Host property names a generated private spelling never takes: protocol
+/// members host code calls on any object (`then`, `next`, …) and short names
+/// of common host objects (`x`, `id`, `at`, …), so a renamed private field can
+/// neither turn an object into a thenable nor shadow a member host code reads.
+const PRIVATE_SPELLING_AVOIDS: &[&str] = &[
+    "x", "y", "z", "id", "at", "of", "is", "on", "to", "by", "do", "if", "in",
+    "then", "next", "done", "value", "length", "name", "call", "apply", "bind",
+    "get", "set", "has", "add", "constructor", "prototype", "toString", "valueOf",
+    "toJSON", "handleEvent",
+];
+
+/// The spellings of program-private property names for one render, under
+/// the naming contract (`assume_private_underscore_properties`). Every
+/// property name of the tree that matches `^_(?!_)` and is not preserved
+/// gets one spelling, the most frequent the shortest, that no other property
+/// name or string literal of the tree spells and no host protocol uses.
+/// Every occurrence prints through the same map, so a name written in one
+/// module and read through a `JsValue` in another is renamed consistently.
+/// Dynamic keys and strings handed to host functions are left alone, as
+/// Terser's `mangle.properties.regex` leaves them.
+pub(super) fn private_map(module: &Module) -> Option<std::collections::HashMap<String, String>> {
+    use std::collections::{HashMap, HashSet};
+    let preserved = module.private_names.as_ref()?;
+    let private = |name: &str| {
+        name.len() > 1 && name.starts_with('_') && !name.starts_with("__")
+            && !preserved.iter().any(|kept| kept == name)
+    };
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+    let mut taken: HashSet<&str> = PRIVATE_SPELLING_AVOIDS.iter().copied().collect();
+    let mut keys: Vec<&str> = Vec::new();
+    for expression in &module.expressions {
+        match expression {
+            Expr::Member { property: Property::Named(name), .. } => keys.push(name),
+            Expr::Object(entries) => {
+                for (key, _) in entries {
+                    if let Property::Named(name) = key {
+                        keys.push(name);
+                    }
+                }
+            }
+            Expr::Class { methods, .. } => {
+                for (name, _) in methods {
+                    keys.push(name);
+                }
+            }
+            // A string may be a key elsewhere (`o[k]`, `k in o`, a host call):
+            // no private spelling takes it.
+            Expr::Literal(Literal::String(value)) => {
+                if let Some(text) = value.as_unicode() {
+                    if !private(text) {
+                        taken.insert(text);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    for name in keys {
+        if private(name) {
+            *counts.entry(name).or_default() += 1;
+        } else {
+            taken.insert(name);
+        }
+    }
+    if counts.is_empty() {
+        return None;
+    }
+    let mut names: Vec<(&str, usize)> = counts.into_iter().collect();
+    names.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+    const FIRST: &[u8] = b"etaoinsrhldcumfpgwybvkxjqzETAOINSRHLDCUMFPGWYBVKXJQZ";
+    const REST: &[u8] = b"etaoinsrhldcumfpgwybvkxjqzETAOINSRHLDCUMFPGWYBVKXJQZ0123456789";
+    let spelling = |mut index: usize| {
+        let mut text = String::new();
+        text.push(FIRST[index % FIRST.len()] as char);
+        index /= FIRST.len();
+        while index > 0 {
+            index -= 1;
+            text.push(REST[index % REST.len()] as char);
+            index /= REST.len();
+        }
+        text
+    };
+    let mut map = HashMap::with_capacity(names.len());
+    let mut next = 0usize;
+    for (name, _) in names {
+        let short = loop {
+            let candidate = spelling(next);
+            next += 1;
+            if !taken.contains(candidate.as_str()) {
+                break candidate;
+            }
+        };
+        map.insert(name.to_string(), short);
+    }
+    Some(map)
 }
 
 /// The surrounding JavaScript syntax's named-evaluation behavior. A computed
@@ -906,16 +1008,30 @@ impl<'a> Printer<'a, '_, '_> {
         }
     }
 
+    /// A property name as printed: its private spelling under the naming
+    /// contract (`private_map`), otherwise itself.
+    fn property_spelling<'n>(&self, name: &'n str) -> &'n str
+    where
+        'a: 'n,
+    {
+        match self.private.and_then(|map| map.get(name)) {
+            Some(short) => short.as_str(),
+            None => name,
+        }
+    }
+
     fn property(&mut self, property: &Property) {
         match property {
             Property::Named(name) => {
                 self.text(".");
+                let name = self.property_spelling(name);
                 self.text(name);
             }
             Property::Computed(key) => {
                 // `o["name"]` and `o.name` read the same property.
                 if let Some(name) = self.identifier_key(*key) {
                     self.text(".");
+                    let name = self.property_spelling(name);
                     self.text(name);
                     return;
                 }
@@ -1300,7 +1416,10 @@ impl<'a> Printer<'a, '_, '_> {
                 self.expression(*object, 18);
                 self.text("?.");
                 match property {
-                    Property::Named(name) => self.text(name),
+                    Property::Named(name) => {
+                        let name = self.property_spelling(name);
+                        self.text(name)
+                    }
                     Property::Computed(key) => {
                         self.text("[");
                         self.expression(*key, 0);
@@ -1462,8 +1581,10 @@ impl<'a> Printer<'a, '_, '_> {
                     // the key's own spelling (`__proto__` never, it would set
                     // the prototype in one form and not the other).
                     let spelled = match (key, literal) {
-                        (_, Some(name)) => Some(name),
-                        (Property::Named(name), None) if name != "__proto__" => Some(name.as_str()),
+                        (_, Some(name)) => Some(self.property_spelling(name)),
+                        (Property::Named(name), None) if name != "__proto__" => {
+                            Some(self.property_spelling(name.as_str()))
+                        }
                         _ => None,
                     };
                     let shorthand =
@@ -1477,14 +1598,20 @@ impl<'a> Printer<'a, '_, '_> {
                         continue;
                     }
                     match (key, literal) {
-                        (_, Some(name)) => self.text(name),
+                        (_, Some(name)) => {
+                            let name = self.property_spelling(name);
+                            self.text(name)
+                        }
                         (Property::Computed(_), None) if numeric.is_some() => {
                             self.text(numeric.unwrap())
                         }
                         (Property::Computed(_), None) if quoted.is_some() => {
                             self.string(quoted.unwrap().0)
                         }
-                        (Property::Named(name), None) => self.text(name),
+                        (Property::Named(name), None) => {
+                            let name = self.property_spelling(name);
+                            self.text(name)
+                        }
                         // A computed key is an AssignmentExpression, so a
                         // sequence needs parentheses: `{[(a,b)]:v}`.
                         (Property::Computed(key), None) => {
@@ -1532,6 +1659,7 @@ impl<'a> Printer<'a, '_, '_> {
                     self.function(*constructor);
                 }
                 for (method, function) in methods {
+                    let method = self.property_spelling(method);
                     self.text(method);
                     self.function(*function);
                 }

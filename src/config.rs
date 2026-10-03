@@ -1050,6 +1050,7 @@ impl ProjectConfig {
                         pristine_builtins: self.javascript.assume_pristine_builtins,
                         pure_property_reads: self.javascript.assume_pure_property_reads,
                         unconstructed_callbacks: self.javascript.assume_unconstructed_callbacks,
+                        private_underscore_properties: self.javascript.assume_private_underscore_properties,
                         numeric_lengths: self
                             .javascript
                             .compression_enabled(CompressionDecision::LengthToNumberElision),
@@ -1793,6 +1794,15 @@ pub struct JavaScriptConfig {
     /// function either way. False by default: a library cannot know what its
     /// callers do with its callbacks.
     pub assume_unconstructed_callbacks: bool,
+    /// Every static occurrence of a property name that matches `^_(?!_)` and is
+    /// not in `mangle.preserve_properties` is private to the program: member
+    /// reads and writes on any value, object-literal keys and class members are
+    /// renamed through one program-wide map, the way Terser's
+    /// `mangle.properties.regex` treats them (posthog-js's own build relies on
+    /// it). Dynamic keys (`o[k]`, `"_x" in o`, strings passed to host functions)
+    /// are not renamed. False by default: it is a naming contract the port
+    /// states, never something the compiler can prove.
+    pub assume_private_underscore_properties: bool,
     /// Keep the exact source `name` of every function whose name some code
     /// could read, not only of published exports. Off by default: an exported
     /// function always keeps its source name (D2), while an internal function
@@ -1840,6 +1850,7 @@ impl Default for JavaScriptConfig {
             assume_pristine_builtins: false,
             assume_pure_property_reads: false,
             assume_unconstructed_callbacks: false,
+            assume_private_underscore_properties: false,
             keep_function_names: false,
             keep_published_function_names: true,
             strip_debug: false,

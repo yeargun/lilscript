@@ -344,6 +344,7 @@ fn render_inner(
     };
     {
         let mut out = Printer {
+            private: printer.private,
             local_names: printer.local_names,
             module: printer.module,
             names: printer.names,

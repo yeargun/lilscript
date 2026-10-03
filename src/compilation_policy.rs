@@ -1241,6 +1241,7 @@ impl ResolvedPolicy {
                 "pristine_builtins":language.assumptions.pristine_builtins,
                 "pure_property_reads":language.assumptions.pure_property_reads,
                 "unconstructed_callbacks":language.assumptions.unconstructed_callbacks,
+                "private_underscore_properties":language.assumptions.private_underscore_properties,
                 "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_debug":language.effects.strip_debug,
                 "strip_console_calls":language.effects.strip_console_calls,
