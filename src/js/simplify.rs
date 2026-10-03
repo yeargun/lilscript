@@ -16,6 +16,7 @@
 //!   sums and string builtins.
 //! * `s+(e+"")` is `s+e` when `s` is a string: both convert `e` once, after
 //!   `s` is evaluated and before the sum.
+//! * `"a"+"b"` of two string literals is `"ab"`.
 //! * `x.length|0` is `x.length` under the numeric-length assumption.
 //! * `new RegExp("p","f")` of literal strings is `/p/f` under pristine
 //!   builtins, when the pattern is in the subset whose literal and constructor
@@ -180,6 +181,15 @@ impl Module {
                 left,
                 right,
             } => {
+                // `"a"+"b"` is `"ab"`: both operands are literals, so the sum
+                // runs nothing and concatenates exactly their code units.
+                // Constant inlining leaves these behind (`MOBILE+"/"`), and a
+                // longer sum folds from the left across sweeps.
+                if let (Expr::Literal(Literal::String(a)), Expr::Literal(Literal::String(b))) =
+                    (node(*left), node(*right))
+                {
+                    return Some(Expr::Literal(Literal::String(a.concat(b))));
+                }
                 if self.empty_string(*right) && self.known(*left) == Some(Known::String) {
                     return Some(node(*left).clone());
                 }
