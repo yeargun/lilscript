@@ -262,7 +262,7 @@ module identities; selecting an output never rewrites source text.
 Additional outputs inherit primary controls unless overridden. Allowed overrides
 are `format`, `mode`, `entries`, `codecs`, `directory`, `entry_names`, `chunk_names`,
 `module_names`, `global`, `global_binding`, `globals`, `external_specifiers`, `es_module_marker`,
-`exports`, `default_interop`, `annotations`, `export_placement`,
+`exports`, `default_interop`, `annotations`, `lazy_functions`, `export_placement`,
 `source_maps`, `sources_content`, `source_root` and `preload`. An annotation or
 facade setting inherited from an ESM primary must be explicitly changed for a
 format where it is unavailable. Empty `codecs` inherits the objective set; a

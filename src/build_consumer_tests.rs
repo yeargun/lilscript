@@ -379,6 +379,40 @@ fn d2_const_product_graph_views_share_aliases_across_entries() {
 }
 
 #[test]
+fn d2_lazy_functions_spell_load_time_functions_as_function() {
+    // Functions the root creates (a source function, lambdas stored by a root
+    // initializer) become `function`s; a lambda created inside one of them
+    // keeps its arrow. Behavior is the same either way.
+    let source = "class Rule { int id; func(int)->int run; init(int id, func(int)->int run) { this.id = id; this.run = run; } }
+int twice(int n) { return n * 2; }
+Rule[] rules = [new Rule(1, (int x) => twice(x) + 1), new Rule(2, (int x) => { func(int)->int inner = (int y) => y * 3; return inner(x) + twice(x); })];
+export int total(int x) { int sum = 0; for (Rule rule of rules) { sum += rule.run(x); } return sum; }
+export int quad(int n) { return twice(twice(n)); }";
+    let probe = "import{total,quad}from'./main.mjs';const got=[total(1),total(5),quad(3)].join();if(got!=='8,36,12')throw new Error(got);console.log('ok')";
+    for effort in [0, 13] {
+        let mut codes = Vec::new();
+        for lazy in [false, true] {
+            let mut config = config("single", "esm", effort);
+            config.optimization.inlining = Some(false);
+            config.delivery.lazy_functions = lazy;
+            let built = compile_source(source, &config, ServiceOptions::default()).unwrap();
+            let artifact = built.javascript(Objective::Raw).unwrap();
+            let code = if artifact.files().is_empty() { artifact.javascript().to_owned() } else { artifact.files().iter().map(|file| file.code.as_str()).collect::<Vec<_>>().join("\n") };
+            let work = Workspace::new(&format!("lazy-functions-{effort}-{lazy}"));
+            fs::write(work.0.join("main.mjs"), &code).unwrap();
+            fs::write(work.0.join("probe.mjs"), probe).unwrap();
+            let output = Command::new("node").arg(work.0.join("probe.mjs")).output().unwrap();
+            assert!(output.status.success(), "effort {effort}, lazy {lazy}: {}\n{code}", String::from_utf8_lossy(&output.stderr));
+            assert_eq!(output.stdout, b"ok\n");
+            codes.push(code);
+        }
+        let (off, on) = (&codes[0], &codes[1]);
+        assert!(on.matches("function").count() > off.matches("function").count(), "effort {effort}:\n{off}\n{on}");
+        assert!(on.contains("=>"), "effort {effort}: the nested lambda keeps its arrow\n{on}");
+    }
+}
+
+#[test]
 fn d2_consumer_annotations_follow_proofs_and_explicit_controls() {
     let source = "int[] make(int n){return [n,n+1];}export int[] data=make(3);export int answer(int n){return n+1;}export int side(){print(99);return 0;}export int effect=side();";
     for (annotations, calls, functions) in [

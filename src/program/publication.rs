@@ -897,6 +897,22 @@ fn prepare_delivery_in(
     // rules and before naming; the plan is stored on the tree.
     if let Some(contract) = policy.delivery() {
         module.consumer_annotations = contract.container.annotations;
+        if contract.container.lazy_functions
+            && crate::js::delivery::spell_lazy_functions(module)
+            && module.print_forms.is_some()
+        {
+            module.refresh_print_choices(
+                choices.families,
+                choices.rules,
+                &choices.choices,
+                policy
+                    .javascript_contract()
+                    .expect("JavaScript target")
+                    .ecmascript
+                    .year(),
+                budget,
+            )?;
+        }
         let entries = semantic.program.entries().len();
         if module.delivery.is_none()
             && (entries > 1 || !contract.select.is_empty() || !module.imports.is_empty() || module.root_rows.iter().any(|row| row.origin == crate::js::RowOrigin::Host) || module.expressions.iter().any(|node| matches!(node, crate::js::Expr::LoadModule { .. }))

@@ -1233,6 +1233,7 @@ impl ProjectConfig {
                 default_interop: delivery.default_interop,
                 strict: library,
                 annotations: delivery.annotations,
+                lazy_functions: delivery.lazy_functions,
                 source_maps: delivery.source_maps,
                 sources_content: delivery.sources_content,
                 source_root: delivery.source_root.clone(),
@@ -2191,6 +2192,11 @@ pub struct DeliveryConfig {
     /// Consumer hints, only when semantic discardability is proven. These
     /// comments add bytes to a standalone artifact; choose them for bundlers.
     pub annotations: ConsumerAnnotations,
+    /// Spell the functions a file creates while it loads as `function`, never
+    /// as arrows, so engines defer parsing their bodies to the first call:
+    /// V8 parses an arrow's body together with the code that creates it.
+    /// Costs bytes (`function` against `=>`); off by default.
+    pub lazy_functions: bool,
     pub export_placement: ExportPlacement,
     pub source_maps: SourceMaps,
     pub sources_content: bool,
@@ -2239,6 +2245,7 @@ impl Default for DeliveryConfig {
             select: Vec::new(),
             also: Vec::new(),
             annotations: ConsumerAnnotations::Off,
+            lazy_functions: false,
             export_placement: ExportPlacement::Auto,
             source_maps: SourceMaps::Off,
             sources_content: true,
@@ -2291,6 +2298,7 @@ pub struct AdditionalOutput {
     pub exports: Option<CjsExports>,
     pub default_interop: Option<DefaultInterop>,
     pub annotations: Option<ConsumerAnnotations>,
+    pub lazy_functions: Option<bool>,
     pub export_placement: Option<ExportPlacement>,
     pub source_maps: Option<SourceMaps>,
     pub sources_content: Option<bool>,
@@ -2313,7 +2321,7 @@ impl AdditionalOutput {
         macro_rules! inherit_optional {
             ($($field:ident),*) => { $(if let Some(value) = &self.$field { config.delivery.$field = Some(value.clone()); })* };
         }
-        inherit!(mode, global_binding, globals, external_specifiers, es_module_marker, exports, default_interop, annotations, export_placement, source_maps, sources_content, preload);
+        inherit!(mode, global_binding, globals, external_specifiers, es_module_marker, exports, default_interop, annotations, lazy_functions, export_placement, source_maps, sources_content, preload);
         inherit_optional!(entry_names, chunk_names, module_names, global, source_root, directory);
         config
     }

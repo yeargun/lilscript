@@ -379,6 +379,7 @@ mode = "single"               # single | split | preserve-modules
 preload = "none"              # none | entry | all
 host_modules = "external"     # external | auto | embed
 annotations = "off"           # off | calls | functions | all; bundler-facing ESM library
+lazy_functions = false        # true: functions created at load are `function`, parsed on first call
 export_placement = "auto"     # auto | facade; facade requires split/preserved ESM library
 source_maps = "off"           # off | inline | external; exact final-file debugging metadata
 sources_content = true       # include original source text in enabled maps
@@ -1210,6 +1211,27 @@ the semantic effects proof for every admitted argument, including termination
 and no callback invocation. A declared `pure` function alone is insufficient.
 Development checks remain observable and do not receive function hints. Other
 formats diagnose this option rather than silently ignoring it.
+
+`lazy_functions = true` spells every function a file creates while it loads
+(source functions, and lambdas that root initializers create or store) as
+`function`, never as an arrow. V8 parses an arrow's body together with the code
+that creates it, so a module whose functions are arrows parses all of their
+bodies at import; a `function` body is only pre-scanned there and parsed when it
+is first called. Use it when import time matters more than the last bytes, for
+example a library loaded on a page's critical path. A source function whose
+module binding settles at instantiation becomes its declaration, as the source
+declared it; other functions become function expressions in place. A function
+that reads a frame (`this`, `arguments`, `super`, direct `eval`) keeps its arrow,
+and lambdas created inside functions keep theirs, since their enclosing body is
+already deferred. It applies at every effort level and in every format, before
+naming, so the search scores the bytes it ships. Default `false`: `function`
+costs bytes. Measured on lil2-micromark's browser build (2026-10-04, the
+commit adding this option, level 12, Brotli objective): 13,254 to 13,344 Brotli bytes (+0.7%);
+cold import in Chromium 151 from 6.6 to 5.4 ms (upstream micromark: 5.0 ms),
+import plus first run from 17.1 to 15.7 ms; Firefox 153 unchanged within its
+1 ms timer. A workload result, not a promise for other programs. No semantic
+assumption: a converted function reads no frame, and a hoisted declaration is
+the source's own.
 
 `export_placement = "auto"` lets placement fold a public entry facade into its
 implementation when initialization and sharing proofs allow it. `"facade"`

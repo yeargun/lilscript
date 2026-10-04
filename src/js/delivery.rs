@@ -4311,6 +4311,66 @@ fn verify(
     Ok(())
 }
 
+/// `[delivery] lazy_functions`: the functions a file creates while it loads
+/// are spelled `function`. An engine parses an arrow's body together with the
+/// code that creates it (V8 defers only `function` bodies, outside a script's
+/// top level), so a module of arrows parses all of its code at import; a
+/// `function` body is pre-scanned and parsed when it is first called.
+///
+/// A root binding of a source function, settled at instantiation, becomes the
+/// function's declaration, as the source declared it. Any other function the
+/// root's frame creates becomes a function expression in place. A function
+/// that reads a frame (`this`, `arguments`, `super`, direct `eval`) keeps its
+/// arrow, and the functions its body creates are the root frame's. Returns
+/// whether the tree changed.
+pub(crate) fn spell_lazy_functions(module: &mut Module) -> bool {
+    let mut changed = false;
+    let root = module.root.index();
+    for index in 0..module.regions[root].statements.len() {
+        let Statement::Let { binding, value: Some(value) } = module.regions[root].statements[index] else { continue; };
+        let Expr::Function(function) = module.expressions[value.index()] else { continue; };
+        if !module.functions[function.index()].arrow
+            || module.settled.get(binding.index()).copied().flatten() != Some(0)
+            || !module.frame_free(function)
+        {
+            continue;
+        }
+        module.functions[function.index()].arrow = false;
+        module.regions[root].statements[index] = Statement::Function { binding, function };
+        changed = true;
+    }
+    let mut arrows = Vec::new();
+    let mut regions = vec![module.root];
+    let mut expressions = Vec::new();
+    while let Some(region) = regions.pop() {
+        for statement in &module.regions[region.index()].statements {
+            statement.visit_expressions(|root| expressions.push(root));
+            statement.visit_regions(|child| regions.push(child));
+        }
+        while let Some(id) = expressions.pop() {
+            let expression = &module.expressions[id.index()];
+            if let Expr::Function(function) = *expression {
+                if module.functions[function.index()].arrow {
+                    if module.frame_free(function) {
+                        arrows.push(function);
+                    } else {
+                        regions.push(module.functions[function.index()].body);
+                    }
+                }
+            }
+            let _ = expression.visit_children(|child| {
+                expressions.push(child);
+                Ok::<_, ()>(())
+            });
+        }
+    }
+    for function in arrows {
+        module.functions[function.index()].arrow = false;
+        changed = true;
+    }
+    changed
+}
+
 #[cfg(test)]
 #[path = "delivery_admission_tests.rs"]
 mod admission_tests;

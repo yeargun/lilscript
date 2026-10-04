@@ -219,6 +219,9 @@ impl DeliveryContract {
 #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize)]
 pub struct ContainerContract {
     pub annotations: crate::config::ConsumerAnnotations,
+    /// Functions created while a file loads are spelled `function`, which
+    /// engines parse on first call (`[delivery] lazy_functions`).
+    pub lazy_functions: bool,
     pub source_maps: crate::config::SourceMaps,
     pub sources_content: bool,
     pub source_root: Option<String>,
@@ -246,7 +249,7 @@ impl ContainerContract {
         for (key,value) in &self.external_specifiers { external_specifiers.push((budget.string(Retained,key)?,budget.string(Retained,value)?)); }
         Ok(Self { global:self.global.as_ref().map(|s| budget.string(Retained,s)).transpose()?,globals,external_specifiers,
             source_maps:self.source_maps,sources_content:self.sources_content,source_root:self.source_root.as_ref().map(|s|budget.string(Retained,s)).transpose()?,
-            annotations:self.annotations,global_binding:self.global_binding, es_module_marker:self.es_module_marker,exports:self.exports,default_interop:self.default_interop,strict:self.strict })
+            annotations:self.annotations,lazy_functions:self.lazy_functions,global_binding:self.global_binding, es_module_marker:self.es_module_marker,exports:self.exports,default_interop:self.default_interop,strict:self.strict })
     }
 }
 
