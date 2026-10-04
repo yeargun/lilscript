@@ -407,6 +407,7 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let mut dropped = 0;
+        let mut disordered = false;
         for index in 0..self.expressions.len() {
             budget.work(Analysis, 1)?;
             let Expr::Class { constructor: Some(constructor), .. } = &self.expressions[index] else {
@@ -468,11 +469,77 @@ impl Module {
                 next = Some(position);
                 keep -= 1;
             }
-            let removed: Vec<usize> = defaults[keep..].iter().map(|(at, _)| *at).collect();
+            let mut removed: Vec<usize> = defaults[keep..].iter().map(|(at, _)| *at).collect();
+            // A default the body stores a parameter over (`this.f=null;…;
+            // this.f=p`) takes the parameter in place when nothing between
+            // writes it: the field is created at the same point, holding its
+            // final value, which nothing could read in between.
+            let parameters = &self.functions[constructor.index()].parameters;
+            let mut moved: Vec<(usize, usize, ExprId)> = Vec::new();
+            for (k, &(at, _)) in defaults[..keep].iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                let Some(position) = first[k] else { continue };
+                let Statement::Evaluate(store) = self.regions[body.index()].statements[position] else { continue };
+                let Some((_, value)) = self.this_store(store) else { continue };
+                let parameter = match self.expressions[value.index()] {
+                    Expr::Binding(binding) if parameters.contains(&binding) => binding,
+                    _ => continue,
+                };
+                let mut written = false;
+                for between in at + 1..position {
+                    let statement = &self.regions[body.index()].statements[between];
+                    let mut roots: Vec<ExprId> = Vec::new();
+                    let mut regions: Vec<RegionId> = Vec::new();
+                    statement.visit_expressions(|id| roots.push(id));
+                    statement.visit_regions(|id| regions.push(id));
+                    while let Some(region) = regions.pop() {
+                        for nested in &self.regions[region.index()].statements {
+                            nested.visit_expressions(|id| roots.push(id));
+                            nested.visit_regions(|id| regions.push(id));
+                        }
+                    }
+                    while let Some(id) = roots.pop() {
+                        budget.work(Analysis, 1)?;
+                        let expression = &self.expressions[id.index()];
+                        if matches!(expression, Expr::Assign { target, .. }
+                            if matches!(self.expressions[target.index()], Expr::Binding(found) if found == parameter))
+                        {
+                            written = true;
+                        }
+                        let _ = expression.visit_children(|child| {
+                            roots.push(child);
+                            Ok::<_, AllocationError>(())
+                        });
+                    }
+                    if written {
+                        break;
+                    }
+                }
+                if !written {
+                    let Statement::Evaluate(placeholder) = self.regions[body.index()].statements[at] else { continue };
+                    moved.push((position, at, placeholder));
+                    let _ = value;
+                }
+            }
+            for &(position, _, placeholder) in &moved {
+                let Statement::Evaluate(store) = self.regions[body.index()].statements[position] else { continue };
+                let Some((_, value)) = self.this_store(store) else { continue };
+                let Expr::Assign { target, .. } = self.expressions[placeholder.index()] else { continue };
+                // The value node stands later in the arena than the store it
+                // now belongs to: expression order is restored below.
+                self.set_expression(placeholder, Expr::Assign { target, value });
+                disordered = true;
+                removed.push(position);
+            }
+            removed.sort_unstable();
+            removed.dedup();
             for &at in removed.iter().rev() {
                 self.remove_statement(body.index(), at);
             }
             dropped += removed.len();
+        }
+        if disordered {
+            self.renumber(budget)?;
         }
         Ok(dropped)
     }
@@ -492,7 +559,17 @@ impl Module {
     /// object of them (`inert_value` without its functions, which close over
     /// `this` in an arrow).
     fn placeholder_value(&self, value: ExprId, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
-        Ok(!self.expression_observes_this(value, budget)? && self.inert_value(value, budget)?)
+        if self.expression_observes_this(value, budget)? {
+            return Ok(false);
+        }
+        if self.inert_value(value, budget)? {
+            return Ok(true);
+        }
+        // `new Uint8Array(0)`: a builtin construction of literals runs no
+        // code under pristine builtins, and its fresh object is unobserved.
+        Ok(self.pristine_builtins
+            && matches!(&self.expressions[value.index()], Expr::ConstructIntrinsic { arguments, .. }
+                if arguments.iter().all(|argument| matches!(self.expressions[argument.index()], Expr::Literal(_)))))
     }
 
     fn expression_observes_this(&self, value: ExprId, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {

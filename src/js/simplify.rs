@@ -308,6 +308,35 @@ impl Module {
             Expr::Construct { callee, arguments } if self.pristine_builtins => {
                 self.regex_literal(*callee, arguments, es2018)
             }
+            // `(x|0)&k` is `x&k`: a bitwise operator converts its operands
+            // with ToInt32 (ToUint32 for shift counts and `>>>`'s left), which
+            // reduce modulo 2^32 as `|0` already did; with a literal on the
+            // other side the one conversion happens at the same point.
+            Expr::Binary {
+                op: op @ (Binary::BitAnd
+                | Binary::BitOr
+                | Binary::BitXor
+                | Binary::ShiftLeft
+                | Binary::ShiftRight
+                | Binary::UnsignedShiftRight),
+                left,
+                right,
+            } => {
+                let literal = |id: ExprId| matches!(node(id), Expr::Literal(Literal::Number(_)));
+                match (node(*left), node(*right)) {
+                    (Expr::ToInt32(inner), _) if literal(*right) => Some(Expr::Binary {
+                        op: *op,
+                        left: *inner,
+                        right: *right,
+                    }),
+                    (_, Expr::ToInt32(inner)) if literal(*left) => Some(Expr::Binary {
+                        op: *op,
+                        left: *left,
+                        right: *inner,
+                    }),
+                    _ => None,
+                }
+            }
             // `i<0?i+4294967296:i` of an int32 `i` is its unsigned value,
             // `i>>>0` (and so `i>=0?i:i+4294967296`).
             Expr::Conditional { condition, yes, no } => {

@@ -156,6 +156,7 @@ fn target_reach_requests_match_the_original_capture_and_strictness_walk() {
             base: Some(shared),
             constructor: None,
             methods: vec![("method".into(), FunctionId::new(0))],
+            members: vec![],
         },
     );
     module.regions[root.index()]

@@ -419,6 +419,24 @@ impl Walk<'_> {
                 };
                 Canon::member(self.expression(*object), key)
             }
+            Expr::Call { callee, arguments, .. }
+                if self.module.print_forms.as_ref().is_some_and(|forms| forms.spread[id.index()]) =>
+            {
+                let (sources, entries) = self.module.spread_assign(*callee, arguments).expect("proved spread form");
+                Canon::Object(
+                    sources
+                        .iter()
+                        .map(|source| (Some(Canon::Other("spread-key")), Canon::Spread(Box::new(self.expression(*source)))))
+                        .chain(entries.iter().map(|(key, value)| {
+                            let key = match key {
+                                Property::Named(_) => None,
+                                Property::Computed(key) => Canon::key(self.expression(*key)),
+                            };
+                            (key, self.expression(*value))
+                        }))
+                        .collect(),
+                )
+            }
             Expr::Call {
                 callee, arguments, ..
             } => Canon::Call(
@@ -467,6 +485,7 @@ impl Walk<'_> {
                 base,
                 constructor,
                 methods,
+                members,
                 ..
             } => Canon::Class(
                 base.map(|base| Box::new(self.expression(base))),
@@ -474,6 +493,7 @@ impl Walk<'_> {
                     .iter()
                     .copied()
                     .chain(methods.iter().map(|(_, function)| *function))
+                    .chain(members.iter().map(|member| member.function))
                     .map(|function| self.function(function))
                     .collect(),
             ),

@@ -734,6 +734,7 @@ impl Lowering<'_, '_> {
             base,
             constructor,
             methods,
+            members: Vec::new(),
         })
     }
     fn class_method(&mut self, node: &ast::Function<'_>, name: &str) -> Lowered<FunctionId> {

@@ -49,6 +49,9 @@ pub struct JavaScriptUnsafeAssumptions {
     /// null test is exactly a test for `null` or `undefined` (Terser's compress
     /// folds `x === null || x === undefined` into `null == x`).
     pub no_document_all: bool,
+    /// No object the program copies has an own `__proto__` property, so
+    /// `Object.assign({}, a, {k: v})` is the object spread `{...a, k: v}`.
+    pub no_proto_keys: bool,
     /// A host value's `length` is an int32 Number, as it is for strings,
     /// arrays, typed arrays, `arguments` and functions: size-first's
     /// length-to-number decision.

@@ -61,6 +61,7 @@ fn payloads() -> Vec<(&'static str, Module)> {
                 base: None,
                 constructor: None,
                 methods: vec![],
+                members: vec![],
             },
         ),
         (
@@ -70,6 +71,7 @@ fn payloads() -> Vec<(&'static str, Module)> {
                 base: None,
                 constructor: None,
                 methods: vec![(text.clone(), FunctionId::new(0))],
+                members: vec![],
             },
         ),
         ("regexp", Expr::Regex(text.clone())),

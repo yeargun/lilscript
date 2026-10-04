@@ -484,9 +484,12 @@ pub(super) fn private_map(module: &Module) -> Option<std::collections::HashMap<S
                     }
                 }
             }
-            Expr::Class { methods, .. } => {
+            Expr::Class { methods, members, .. } => {
                 for (name, _) in methods {
                     keys.push(name);
+                }
+                for member in members {
+                    keys.push(&member.name);
                 }
             }
             // A string may be a key elsewhere (`o[k]`, `k in o`, a host call):
@@ -1039,6 +1042,7 @@ impl<'a> Printer<'a, '_, '_> {
         match expression {
             Expr::Literal(Literal::String(_)) => self.observed_literal(id).is_none(),
             Expr::Object(_) | Expr::Function(_) | Expr::Class { .. } => true,
+            Expr::Call { .. } if self.forms.spread[id.index()] => true,
             Expr::Binary { op, left, .. } => self.statement_needs_group(*left, op.precedence()),
             Expr::ToInt32(value) => self.statement_needs_group(*value, Binary::BitOr.precedence()),
             Expr::IntBinary { op, left, .. } => {
@@ -1141,6 +1145,7 @@ impl<'a> Printer<'a, '_, '_> {
 
     fn receiver(&mut self, value: ExprId) {
         let force = self.observed_literal(value).is_some()
+            || self.forms.spread[value.index()]
             || matches!(
                 self.module.expressions[value.index()],
                 Expr::Literal(Literal::Number(_)) | Expr::Object(_) | Expr::Function(_)
@@ -1429,6 +1434,12 @@ impl<'a> Printer<'a, '_, '_> {
                 self.receiver(*object);
                 self.property(property);
             }
+            // `Object.assign({},a,{k:v})` as the spread `{...a,k:v}`.
+            Expr::Call { callee, arguments, .. } if self.forms.spread[id.index()] => {
+                let module = self.module;
+                let (sources, entries) = module.spread_assign(*callee, arguments).expect("proved spread form");
+                self.object_literal(sources, entries);
+            }
             Expr::Call {
                 callee,
                 arguments,
@@ -1610,98 +1621,7 @@ impl<'a> Printer<'a, '_, '_> {
                 self.text(if *delegate { "yield*" } else { "yield " });
                 self.expression(*value, 2);
             }
-            Expr::Object(entries) => {
-                self.text("{");
-                for (index, (key, value)) in entries.iter().enumerate() {
-                    if !self.output.work(1) {
-                        return;
-                    }
-                    if index != 0 {
-                        self.text(",");
-                    }
-                    // `{["name"]:v}` and `{name:v}` define the same own data
-                    // property, and both name an anonymous function `name`;
-                    // only `__proto__:` would set the prototype instead.
-                    let literal = match key {
-                        Property::Computed(key) => self
-                            .identifier_key(*key)
-                            .filter(|name| *name != "__proto__"),
-                        Property::Named(_) => None,
-                    };
-                    // A canonical integer key is `32:`, the same own data
-                    // property as `"32":` (L2 spelling; Closure's printer,
-                    // Terser's `print_property_name`, esbuild and Oxc all
-                    // print it so).
-                    let numeric = match (key, literal) {
-                        (Property::Computed(key), None) => self.number_key(*key, false),
-                        _ => None,
-                    };
-                    // Any other literal string key is `"s":`, the same own
-                    // data property as `["s"]:`.
-                    let quoted = match (key, literal, numeric) {
-                        (Property::Computed(key), None, None) => self.string_key(*key),
-                        _ => None,
-                    };
-                    // `{k}` is `{k:k}`: the value is a reference printed with
-                    // the key's own spelling (`__proto__` never, it would set
-                    // the prototype in one form and not the other).
-                    let spelled = match (key, literal) {
-                        (_, Some(name)) => Some(self.property_spelling(name)),
-                        (Property::Named(name), None) if name != "__proto__" => {
-                            Some(self.property_spelling(name.as_str()))
-                        }
-                        _ => None,
-                    };
-                    let shorthand =
-                        spelled.is_some_and(|name| match &self.module.expressions[value.index()] {
-                            Expr::Binding(binding) => self.local(*binding) == name && !self.member_binding(*binding),
-                            Expr::Host(host) => host.name == *name,
-                            _ => false,
-                        });
-                    if shorthand {
-                        self.text(spelled.unwrap());
-                        continue;
-                    }
-                    match (key, literal) {
-                        (_, Some(name)) => {
-                            let name = self.property_spelling(name);
-                            self.text(name)
-                        }
-                        (Property::Computed(_), None) if numeric.is_some() => {
-                            self.text(numeric.unwrap())
-                        }
-                        (Property::Computed(_), None) if quoted.is_some() => {
-                            self.string(quoted.unwrap().0)
-                        }
-                        (Property::Named(name), None) => {
-                            let name = self.property_spelling(name);
-                            self.text(name)
-                        }
-                        // A computed key is an AssignmentExpression, so a
-                        // sequence needs parentheses: `{[(a,b)]:v}`.
-                        (Property::Computed(key), None) => {
-                            self.text("[");
-                            self.expression(*key, 2);
-                            self.text("]");
-                        }
-                    }
-                    self.text(":");
-                    let inferred = match (key, literal) {
-                        (_, Some(name)) => InferredName::Known(name),
-                        (Property::Computed(_), None) if numeric.is_some() => {
-                            InferredName::Known(numeric.unwrap())
-                        }
-                        (Property::Computed(_), None) if quoted.is_some() => {
-                            InferredName::Known(quoted.unwrap().1)
-                        }
-                        (Property::Named(name), None) if name == "__proto__" => InferredName::None,
-                        (Property::Named(name), None) => InferredName::Known(name),
-                        (Property::Computed(_), None) => InferredName::Computed,
-                    };
-                    self.expression_with_name(*value, 2, inferred);
-                }
-                self.text("}");
-            }
+            Expr::Object(entries) => self.object_literal(&[], entries),
             Expr::Function(function) => {
                 self.function_expression(*function);
             }
@@ -1710,6 +1630,7 @@ impl<'a> Printer<'a, '_, '_> {
                 base,
                 constructor,
                 methods,
+                members,
             } => {
                 self.text("class ");
                 self.text(name);
@@ -1728,6 +1649,15 @@ impl<'a> Printer<'a, '_, '_> {
                     self.text(method);
                     self.function(*function);
                 }
+                for member in members {
+                    self.text(match member.kind {
+                        MemberKind::Getter => "get ",
+                        MemberKind::Static => "static ",
+                    });
+                    let name = self.property_spelling(&member.name);
+                    self.text(name);
+                    self.function(member.function);
+                }
                 self.text("}");
             }
             Expr::SuperCall { arguments } => {
@@ -1738,6 +1668,108 @@ impl<'a> Printer<'a, '_, '_> {
         if parens {
             self.text(")");
         }
+    }
+
+    /// An object literal: `...source` for each source (the spread form of
+    /// `Object.assign({},…)`), then its entries.
+    fn object_literal(&mut self, sources: &[ExprId], entries: &'a [(Property, ExprId)]) {
+        self.text("{");
+        for (index, source) in sources.iter().enumerate() {
+            if index != 0 {
+                self.text(",");
+            }
+            self.text("...");
+            self.expression(*source, 2);
+        }
+        for (index, (key, value)) in entries.iter().enumerate() {
+            if !self.output.work(1) {
+                return;
+            }
+            if index != 0 || !sources.is_empty() {
+                self.text(",");
+            }
+            // `{["name"]:v}` and `{name:v}` define the same own data
+            // property, and both name an anonymous function `name`;
+            // only `__proto__:` would set the prototype instead.
+            let literal = match key {
+                Property::Computed(key) => self
+                    .identifier_key(*key)
+                    .filter(|name| *name != "__proto__"),
+                Property::Named(_) => None,
+            };
+            // A canonical integer key is `32:`, the same own data
+            // property as `"32":` (L2 spelling; Closure's printer,
+            // Terser's `print_property_name`, esbuild and Oxc all
+            // print it so).
+            let numeric = match (key, literal) {
+                (Property::Computed(key), None) => self.number_key(*key, false),
+                _ => None,
+            };
+            // Any other literal string key is `"s":`, the same own
+            // data property as `["s"]:`.
+            let quoted = match (key, literal, numeric) {
+                (Property::Computed(key), None, None) => self.string_key(*key),
+                _ => None,
+            };
+            // `{k}` is `{k:k}`: the value is a reference printed with
+            // the key's own spelling (`__proto__` never, it would set
+            // the prototype in one form and not the other).
+            let spelled = match (key, literal) {
+                (_, Some(name)) => Some(self.property_spelling(name)),
+                (Property::Named(name), None) if name != "__proto__" => {
+                    Some(self.property_spelling(name.as_str()))
+                }
+                _ => None,
+            };
+            let shorthand =
+                spelled.is_some_and(|name| match &self.module.expressions[value.index()] {
+                    Expr::Binding(binding) => self.local(*binding) == name && !self.member_binding(*binding),
+                    Expr::Host(host) => host.name == *name,
+                    _ => false,
+                });
+            if shorthand {
+                self.text(spelled.unwrap());
+                continue;
+            }
+            match (key, literal) {
+                (_, Some(name)) => {
+                    let name = self.property_spelling(name);
+                    self.text(name)
+                }
+                (Property::Computed(_), None) if numeric.is_some() => {
+                    self.text(numeric.unwrap())
+                }
+                (Property::Computed(_), None) if quoted.is_some() => {
+                    self.string(quoted.unwrap().0)
+                }
+                (Property::Named(name), None) => {
+                    let name = self.property_spelling(name);
+                    self.text(name)
+                }
+                // A computed key is an AssignmentExpression, so a
+                // sequence needs parentheses: `{[(a,b)]:v}`.
+                (Property::Computed(key), None) => {
+                    self.text("[");
+                    self.expression(*key, 2);
+                    self.text("]");
+                }
+            }
+            self.text(":");
+            let inferred = match (key, literal) {
+                (_, Some(name)) => InferredName::Known(name),
+                (Property::Computed(_), None) if numeric.is_some() => {
+                    InferredName::Known(numeric.unwrap())
+                }
+                (Property::Computed(_), None) if quoted.is_some() => {
+                    InferredName::Known(quoted.unwrap().1)
+                }
+                (Property::Named(name), None) if name == "__proto__" => InferredName::None,
+                (Property::Named(name), None) => InferredName::Known(name),
+                (Property::Computed(_), None) => InferredName::Computed,
+            };
+            self.expression_with_name(*value, 2, inferred);
+        }
+        self.text("}");
     }
 
     fn named_function_expression(&mut self, id: FunctionId, name: &StringValue) {
@@ -1873,6 +1905,7 @@ impl<'a> Printer<'a, '_, '_> {
         }
         match expression {
             Expr::Object(_) => true,
+            Expr::Call { .. } if self.forms.spread[id.index()] => true,
             Expr::Binary { op, left, .. } => self.leading_object(*left, op.precedence()),
             Expr::ToInt32(value) => self.leading_object(*value, Binary::BitOr.precedence()),
             Expr::IntBinary { op, left, .. } => {

@@ -265,6 +265,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             unconstructed_callbacks: false,
             private_underscore_properties: false,
             no_document_all: false,
+            no_proto_keys: false,
             numeric_lengths: false,
         },
         effects: JavaScriptEffectPolicy {
@@ -742,6 +743,7 @@ fn form_head(
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
     module.no_document_all = contract.assumptions.no_document_all;
+    module.no_proto_keys = contract.assumptions.no_proto_keys;
     if contract.assumptions.private_underscore_properties {
         module.private_names = Some(preserved_properties.iter().cloned().collect::<Vec<_>>().into());
     }
@@ -5749,6 +5751,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             base,
             constructor: (!implicit).then_some(constructor),
             methods,
+            members: Vec::new(),
         };
         self.class_witness_registration(class, expression)
     }

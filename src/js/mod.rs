@@ -313,6 +313,9 @@ pub enum Expr {
         base: Option<ExprId>,
         constructor: Option<FunctionId>,
         methods: Vec<(String, FunctionId)>,
+        /// Members after the prototype methods, in order: prototype getters
+        /// (`get name(){}`) and static methods (`static name(){}`).
+        members: Vec<ClassMember>,
     },
     /// `super(arguments)`, only in a class constructor: runs the base
     /// constructor, after which `this` is the new instance.
@@ -355,18 +358,20 @@ impl Expr {
     /// The functions this expression creates, each once: a function value,
     /// or a class value's constructor and methods.
     pub(crate) fn created_functions(&self) -> impl Iterator<Item = FunctionId> + '_ {
-        let (first, methods) = match self {
-            Self::Function(function) => (Some(*function), &[][..]),
+        let (first, methods, members) = match self {
+            Self::Function(function) => (Some(*function), &[][..], &[][..]),
             Self::Class {
                 constructor,
                 methods,
+                members,
                 ..
-            } => (*constructor, methods.as_slice()),
-            _ => (None, &[][..]),
+            } => (*constructor, methods.as_slice(), members.as_slice()),
+            _ => (None, &[][..], &[][..]),
         };
         first
             .into_iter()
             .chain(methods.iter().map(|(_, function)| *function))
+            .chain(members.iter().map(|member| member.function))
     }
     /// Whether this expression creates a function (see `created_functions`).
     pub(crate) fn creates_function(&self) -> bool {
@@ -841,6 +846,22 @@ pub struct Function {
     pub suspension: Suspension,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemberKind {
+    /// `get name(){…}`: a configurable, non-enumerable prototype accessor.
+    Getter,
+    /// `static name(…){…}`: a writable, configurable, non-enumerable method
+    /// of the class itself.
+    Static,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassMember {
+    pub kind: MemberKind,
+    pub name: String,
+    pub function: FunctionId,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Suspension {
     #[default]
@@ -1113,6 +1134,9 @@ pub struct Module {
     /// The contract assumes no value is `document.all`
     /// (`assume_no_document_all`): a loose null test is an exact one.
     pub no_document_all: bool,
+    /// The contract assumes no copied object has an own `__proto__`
+    /// (`assume_no_proto_keys`).
+    pub no_proto_keys: bool,
     /// One row per root statement, aligned with the root region (plan
     /// M3.3): its source module and its anchor. Formation writes the rows;
     /// every rule that inserts, removes, moves or fuses a root statement
@@ -1537,6 +1561,33 @@ impl Module {
                             continue;
                         }
                     }
+                    // `c&&"k" in new X(…)` unused is `c&&new X(…)`: a fresh
+                    // instance of a pristine builtin has its own properties,
+                    // so testing one runs nothing.
+                    if self.pristine_builtins {
+                        if let Expr::Binary { op: Binary::And | Binary::Or, right, .. } = self.expressions[value.index()] {
+                            if let Expr::Binary { op: Binary::In, left: key, right: object } = self.expressions[right.index()] {
+                                let builtin = |callee: ExprId| {
+                                    self.standard_member(callee)
+                                        || match &self.expressions[callee.index()] {
+                                            Expr::Host(host) => crate::catalog::host_properties::is_host_property(&host.name),
+                                            Expr::Member { property: Property::Named(name), .. } => {
+                                                crate::catalog::host_properties::is_host_property(name)
+                                                    && name.starts_with(|c: char| c.is_ascii_uppercase())
+                                            }
+                                            _ => false,
+                                        }
+                                };
+                                if matches!(self.expressions[key.index()], Expr::Literal(Literal::String(_)))
+                                    && matches!(&self.expressions[object.index()], Expr::Construct { callee, .. } if builtin(*callee))
+                                {
+                                    let node = self.expressions[object.index()].clone();
+                                    self.set_expression(right, node);
+                                    edits += 1;
+                                }
+                            }
+                        }
+                    }
                 }
                 index += 1;
             }
@@ -1607,6 +1658,137 @@ impl Module {
             edits += merges.len();
         }
         Ok(edits)
+    }
+
+    /// `Object.assign({},s…,{k:v…})` as an object spread: the sources and the
+    /// trailing literal's entries. The sources after the first and the
+    /// entries evaluate nothing with effects, so copying each source as it
+    /// is reached (the spread) and after all are evaluated (the call) cannot
+    /// differ; no entry is `__proto__`, which a literal would make the
+    /// prototype.
+    pub(crate) fn spread_assign<'m>(
+        &'m self,
+        callee: ExprId,
+        arguments: &'m [ExprId],
+    ) -> Option<(&'m [ExprId], &'m [(Property, ExprId)])> {
+        let Expr::Member { object, property: Property::Named(method) } = &self.expressions[callee.index()] else {
+            return None;
+        };
+        let object_global = match &self.expressions[object.index()] {
+            Expr::Host(host) => host.name == "Object" && matches!(host.kind, crate::catalog::HostKind::Standard(_)),
+            Expr::Binding(binding) => self.standard_global(*binding) && self.bindings[binding.index()].spelling == "Object",
+            _ => false,
+        };
+        if method != "assign" || !object_global || arguments.len() < 2 {
+            return None;
+        }
+        if !matches!(&self.expressions[arguments[0].index()], Expr::Object(entries) if entries.is_empty()) {
+            return None;
+        }
+        let rest = &arguments[1..];
+        let literal = match rest.last().map(|last| &self.expressions[last.index()]) {
+            Some(Expr::Object(entries)) if rest.len() > 1 => Some(entries.as_slice()),
+            _ => None,
+        };
+        let sources = if literal.is_some() { &rest[..rest.len() - 1] } else { rest };
+        if sources.iter().any(|source| matches!(self.expressions[source.index()], Expr::Spread(_))) {
+            return None;
+        }
+        if !sources[1..].iter().all(|&source| self.effect_free(source)) {
+            return None;
+        }
+        let entries = literal.unwrap_or(&[]);
+        for (key, value) in entries {
+            let proto = match key {
+                Property::Named(name) => name == "__proto__",
+                Property::Computed(key) => {
+                    !self.effect_free(*key)
+                        || matches!(&self.expressions[key.index()], Expr::Literal(Literal::String(name)) if name.as_unicode() == Some("__proto__"))
+                        || !matches!(self.expressions[key.index()], Expr::Literal(_))
+                }
+            };
+            if proto || !self.effect_free(*value) {
+                return None;
+            }
+        }
+        Some((sources, entries))
+    }
+
+    /// Evaluating `id` changes nothing a later evaluation could see: no call,
+    /// construction, assignment or suspension, and member reads only where
+    /// they run no code.
+    pub(crate) fn effect_free(&self, id: ExprId) -> bool {
+        self.effect_free_within(id, 2)
+    }
+
+    /// `effect_free`, where a call of a module function whose body is one
+    /// effect-free `return` counts too (`depth` such calls deep).
+    fn effect_free_within(&self, id: ExprId, depth: u32) -> bool {
+        let node = &self.expressions[id.index()];
+        if let Expr::Call { callee, arguments, invocation: Invocation::Value } = node {
+            let Expr::Binding(binding) = self.expressions[callee.index()] else {
+                return false;
+            };
+            return depth > 0
+                && self.expression_function(binding, depth - 1)
+                && arguments.iter().all(|&argument| self.effect_free_within(argument, depth));
+        }
+        let own = match node {
+            Expr::Literal(_) | Expr::Binding(_) | Expr::Host(_) | Expr::This | Expr::Regex(_) | Expr::Function(_) => true,
+            Expr::Member { .. } => self.pure_property_reads,
+            Expr::Unary { op, .. } => !matches!(op, Unary::Delete),
+            Expr::Binary { op, .. } => !matches!(op, Binary::In | Binary::InstanceOf),
+            Expr::Conditional { .. } | Expr::Array(_) | Expr::Object(_) | Expr::ToInt32(_) | Expr::IntBinary { .. } | Expr::IntNegate(_) => true,
+            _ => false,
+        };
+        if !own {
+            return false;
+        }
+        if matches!(node, Expr::Function(_)) {
+            return true;
+        }
+        let mut children = true;
+        let _ = node.visit_children(|child| {
+            children &= self.effect_free_within(child, depth);
+            Ok::<_, ()>(())
+        });
+        children
+    }
+
+    /// Whether `binding` always holds a function whose body is one `return`
+    /// of an effect-free expression, reading no frame of its own.
+    fn expression_function(&self, binding: BindingId, depth: u32) -> bool {
+        if self.bindings[binding.index()].pinned {
+            return false;
+        }
+        let mut function = None;
+        let mut writes = 0;
+        for statement in &self.regions[self.root.index()].statements {
+            match statement {
+                Statement::Function { binding: found, function: created } if *found == binding => {
+                    function = Some(*created);
+                    writes += 1;
+                }
+                Statement::Let { binding: found, value: Some(value) } if *found == binding => {
+                    writes += 1;
+                    if let Expr::Function(created) = self.expressions[value.index()] {
+                        function = Some(created);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(function) = function.filter(|_| writes == 1) else {
+            return false;
+        };
+        if self.expressions.iter().any(|expression| matches!(expression, Expr::Assign { target, .. }
+            if matches!(self.expressions[target.index()], Expr::Binding(found) if found == binding)))
+        {
+            return false;
+        }
+        let body = self.functions[function.index()].body;
+        matches!(self.regions[body.index()].statements[..], [Statement::Return(Some(value))]
+            if self.frame_free(function) && self.effect_free_within(value, depth))
     }
 
     /// The test `i<0` of `if(i<0)return i+4294967296;return i` (statement
@@ -3453,6 +3635,7 @@ impl Module {
             unconstructed_callbacks: false,
             private_names: None,
             no_document_all: false,
+            no_proto_keys: false,
             root_rows: vec![],
             integrated_hosts: false,
             entries: vec![],

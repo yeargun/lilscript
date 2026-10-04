@@ -903,6 +903,7 @@ fn g1_compact_names_visit_class_constructors_and_prototype_methods() {
             base: None,
             constructor: Some(constructor),
             methods: vec![("read".into(), method)],
+            members: vec![],
         },
         None,
     );

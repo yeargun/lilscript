@@ -34,6 +34,8 @@ pub(crate) struct PrintForms {
     pub defaults: Vec<Defaults>,
     pub optional: Vec<Option<ExprId>>,
     pub logical_assignments: Vec<Option<Logical>>,
+    /// `Object.assign({},a,…,{k:v})` printed as the spread `{...a,…,k:v}`.
+    pub spread: Vec<bool>,
 }
 impl PrintForms {
     pub(super) fn clone_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
@@ -48,6 +50,7 @@ impl PrintForms {
             }))?,
             optional: budget.copy_slice(Retained, &self.optional)?,
             logical_assignments: budget.copy_slice(Retained, &self.logical_assignments)?,
+            spread: budget.copy_slice(Retained, &self.spread)?,
         })
     }
 
@@ -59,6 +62,7 @@ impl PrintForms {
             + self.optional.len() * std::mem::size_of::<Option<ExprId>>()
             + self.logical_assignments.len() * std::mem::size_of::<Option<Logical>>()
             + self.quotes.len()
+            + self.spread.len()
             + self.defaults.len() * std::mem::size_of::<Defaults>()
             + self
                 .defaults
@@ -84,6 +88,7 @@ impl PrintForms {
             defaults: budget.vector(class, module.functions.len())?,
             optional: budget.filled(class, module.expressions.len(), None)?,
             logical_assignments: budget.filled(class, module.regions.len(), None)?,
+            spread: budget.filled(class, module.expressions.len(), false)?,
         };
         result
             .defaults
@@ -1114,6 +1119,15 @@ impl Module {
         choices: &ChoiceMap,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
+        // Object spread is ES2018.
+        if year >= 2018 && self.no_proto_keys && self.pristine_builtins {
+            for (index, expression) in self.expressions.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                if let Expr::Call { callee, arguments, .. } = expression {
+                    forms.spread[index] = self.spread_assign(*callee, arguments).is_some();
+                }
+            }
+        }
         if year >= 2020 {
             for index in 0..self.expressions.len() {
                 budget.work(Analysis, 1)?;
@@ -1186,6 +1200,8 @@ impl Module {
                             match statement {
                                 Statement::If { condition, .. } => tests.push(*condition),
                                 Statement::Loop { condition: Some(condition), .. } => tests.push(*condition),
+                                // A discarded value needs less than its truthiness.
+                                Statement::Evaluate(value) => tests.push(*value),
                                 Statement::Function { function, .. } => {
                                     regions.push(self.functions[function.index()].body)
                                 }

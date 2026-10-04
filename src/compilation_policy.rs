@@ -1243,6 +1243,7 @@ impl ResolvedPolicy {
                 "unconstructed_callbacks":language.assumptions.unconstructed_callbacks,
                 "private_underscore_properties":language.assumptions.private_underscore_properties,
                 "no_document_all":language.assumptions.no_document_all,
+                "no_proto_keys":language.assumptions.no_proto_keys,
                 "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_debug":language.effects.strip_debug,
                 "strip_console_calls":language.effects.strip_console_calls,

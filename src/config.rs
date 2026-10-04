@@ -1052,6 +1052,7 @@ impl ProjectConfig {
                         unconstructed_callbacks: self.javascript.assume_unconstructed_callbacks,
                         private_underscore_properties: self.javascript.assume_private_underscore_properties,
                         no_document_all: self.javascript.assume_no_document_all,
+                        no_proto_keys: self.javascript.assume_no_proto_keys,
                         numeric_lengths: self
                             .javascript
                             .compression_enabled(CompressionDecision::LengthToNumberElision),
@@ -1812,6 +1813,13 @@ pub struct JavaScriptConfig {
     /// `null == x`, and so do down-levelling compilers that lower `x?.a` to
     /// `x == null ? void 0 : x.a`. False by default.
     pub assume_no_document_all: bool,
+    /// No object the program copies has an own `__proto__` property: the only
+    /// difference between `Object.assign({}, a, {k: v})` (whose copy would set
+    /// the prototype through Object.prototype's setter) and the object spread
+    /// `{...a, k: v}` (which defines an own property), so the call prints as
+    /// the spread (ES2018) where the sources after the first and the literal's
+    /// values have no effects. False by default.
+    pub assume_no_proto_keys: bool,
     /// Keep the exact source `name` of every function whose name some code
     /// could read, not only of published exports. Off by default: an exported
     /// function always keeps its source name (D2), while an internal function
@@ -1861,6 +1869,7 @@ impl Default for JavaScriptConfig {
             assume_unconstructed_callbacks: false,
             assume_private_underscore_properties: false,
             assume_no_document_all: false,
+            assume_no_proto_keys: false,
             keep_function_names: false,
             keep_published_function_names: true,
             strip_debug: false,

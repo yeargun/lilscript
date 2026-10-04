@@ -80,11 +80,15 @@ impl Expr {
                     }
                 }
             }
-            Self::Class { name, methods, .. } => {
+            Self::Class { name, methods, members, .. } => {
                 bytes = vector_bytes(methods)?;
+                add(&mut bytes, vector_bytes(members)?)?;
                 add(&mut bytes, name.capacity() as u64)?;
                 for (name, _) in methods {
                     add(&mut bytes, name.capacity() as u64)?;
+                }
+                for member in members {
+                    add(&mut bytes, member.name.capacity() as u64)?;
                 }
             }
             Self::Regex(text) => bytes = text.capacity() as u64,
@@ -219,12 +223,16 @@ impl Expr {
                 base,
                 constructor,
                 methods,
+                members,
             } => Class {
                 name: text(name, budget)?,
                 base: *base,
                 constructor: *constructor,
                 methods: map(methods, budget, |(name, function), budget| {
                     Ok((text(name, budget)?, *function))
+                })?,
+                members: map(members, budget, |member, budget| {
+                    Ok(ClassMember { kind: member.kind, name: text(&member.name, budget)?, function: member.function })
                 })?,
             },
             SuperCall { arguments } => SuperCall {
@@ -356,6 +364,7 @@ impl Module {
             unconstructed_callbacks: self.unconstructed_callbacks,
             private_names: self.private_names.clone(),
             no_document_all: self.no_document_all,
+            no_proto_keys: self.no_proto_keys,
             root_rows: budget.copy_slice(Retained, &self.root_rows)?,
             integrated_hosts: self.integrated_hosts,
             entries: map(&self.entries, budget, |entry, budget| {
