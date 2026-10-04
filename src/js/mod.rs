@@ -1726,12 +1726,18 @@ impl Module {
     fn effect_free_within(&self, id: ExprId, depth: u32) -> bool {
         let node = &self.expressions[id.index()];
         if let Expr::Call { callee, arguments, invocation: Invocation::Value } = node {
-            let Expr::Binding(binding) = self.expressions[callee.index()] else {
-                return false;
+            let pure_callee = match self.expressions[callee.index()] {
+                Expr::Binding(binding) => depth > 0 && self.expression_function(binding, depth - 1),
+                // An inlined helper, `(a=>a[0]||{})(x)`.
+                Expr::Function(function) => {
+                    depth > 0
+                        && self.frame_free(function)
+                        && matches!(self.regions[self.functions[function.index()].body.index()].statements[..],
+                            [Statement::Return(Some(value))] if self.effect_free_within(value, depth - 1))
+                }
+                _ => false,
             };
-            return depth > 0
-                && self.expression_function(binding, depth - 1)
-                && arguments.iter().all(|&argument| self.effect_free_within(argument, depth));
+            return pure_callee && arguments.iter().all(|&argument| self.effect_free_within(argument, depth));
         }
         let own = match node {
             Expr::Literal(_) | Expr::Binding(_) | Expr::Host(_) | Expr::This | Expr::Regex(_) | Expr::Function(_) => true,

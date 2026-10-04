@@ -308,6 +308,19 @@ impl Module {
             Expr::Construct { callee, arguments } if self.pristine_builtins => {
                 self.regex_literal(*callee, arguments, es2018)
             }
+            // `...[...x]` is `...x`: the fresh array holds exactly what
+            // iterating `x` gives, in order, and its own (pristine) iterator
+            // gives that back.
+            Expr::Spread(inner) if self.pristine_builtins => match node(*inner) {
+                Expr::Array(items) => match items.as_slice() {
+                    [only] => match node(*only) {
+                        Expr::Spread(source) => Some(Expr::Spread(*source)),
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
             // `(x|0)&k` is `x&k`: a bitwise operator converts its operands
             // with ToInt32 (ToUint32 for shift counts and `>>>`'s left), which
             // reduce modulo 2^32 as `|0` already did; with a literal on the
