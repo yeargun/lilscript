@@ -483,6 +483,7 @@ pub enum Challenger {
     ConditionalReturns,
     LogicalBranches,
     Int32Hints,
+    PrivateProperties,
     StringConstants,
     ExpressionInlining,
     CallSpecialization,
@@ -565,6 +566,7 @@ impl Challenger {
             Self::ConditionalReturns => "conditional-returns",
             Self::LogicalBranches => "logical-branches",
             Self::Int32Hints => "int32-hints",
+            Self::PrivateProperties => "private-properties",
             Self::StringConstants => "string-constants",
             Self::ExpressionInlining => "expression-inlining",
             Self::CallSpecialization => "call-specialization",
@@ -603,6 +605,7 @@ impl Challenger {
             }
             Self::LogicalBranches => families.statements.logical_branches ^= true,
             Self::Int32Hints => families.int32_hints ^= true,
+            Self::PrivateProperties => families.property_mangling ^= true,
             Self::SelfNamed => next.self_named ^= true,
             Self::ReadOrder => next.read_order ^= true,
             Self::CompoundAssignments => families.compound_assignments ^= true,
