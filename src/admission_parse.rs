@@ -215,6 +215,19 @@ impl Canon {
 /// the end so a chain folds whole; empty statements are dropped.
 pub(crate) fn statement_list(mut statements: Vec<Canon>) -> Vec<Canon> {
     statements.retain(|statement| *statement != Canon::Other("empty"));
+    // `a,b;` is `a;b;`: an expression statement of a sequence is its items.
+    if statements.iter().any(|statement| matches!(statement, Canon::Expr(value) if matches!(**value, Canon::Sequence(_)))) {
+        statements = statements
+            .into_iter()
+            .flat_map(|statement| match statement {
+                Canon::Expr(value) => match *value {
+                    Canon::Sequence(items) => items.into_iter().map(|item| Canon::Expr(boxed(item))).collect::<Vec<_>>(),
+                    other => vec![Canon::Expr(boxed(other))],
+                },
+                other => vec![other],
+            })
+            .collect();
+    }
     let mut index = statements.len();
     while index >= 2 {
         index -= 1;

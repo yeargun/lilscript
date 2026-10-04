@@ -2282,6 +2282,41 @@ impl<'a> Printer<'a, '_, '_> {
         if !self.output.work(1) {
             return;
         }
+        // `if(c)a,b;` is `if(c){a;b}` for plain expression statements.
+        let module = self.module;
+        let statements = &module.regions[id.index()].statements;
+        let plain = |statement: &Statement| match statement {
+            Statement::Evaluate(value) => match &module.expressions[value.index()] {
+                Expr::Binary { op: Binary::And | Binary::Or, .. } => false,
+                Expr::Unary { op: Unary::Void, .. } => false,
+                Expr::Assign { target, value } => !(matches!(module.expressions[target.index()], Expr::Binding(_))
+                    && matches!(module.expressions[value.index()], Expr::Conditional { .. })),
+                Expr::Sequence(_) | Expr::ToInt32(_) => false,
+                _ => true,
+            },
+            _ => false,
+        };
+        if statements.len() >= 2 && statements.iter().all(plain) {
+            let Statement::Evaluate(first) = statements[0] else { unreachable!() };
+            let group = self.statement_needs_group(first, 0);
+            if group {
+                self.text("(");
+            }
+            for (index, statement) in statements.iter().enumerate() {
+                let Statement::Evaluate(value) = statement else { unreachable!() };
+                if index != 0 {
+                    self.text(",");
+                }
+                self.expression(*value, 2);
+            }
+            if group {
+                self.text(")");
+            }
+            if !(closing && !before_else) {
+                self.text(";");
+            }
+            return;
+        }
         if let [only] = self.module.regions[id.index()].statements.as_slice() {
             let braceless = Self::simple(only)
                 || !before_else
