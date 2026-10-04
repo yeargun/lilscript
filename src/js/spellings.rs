@@ -1069,6 +1069,83 @@ impl Module {
         }
         None
     }
+    /// A loose null test of a pure member chain (`a.b[c] == null`), when
+    /// member reads run no code: reading it twice or once is the same.
+    fn nullish_chain_test(&self, condition: ExprId) -> Option<(ExprId, bool)> {
+        if !self.no_document_all || !self.pure_property_reads {
+            return None;
+        }
+        let Expr::Binary { op, left, right } = self.expressions[condition.index()] else {
+            return None;
+        };
+        let absent = match op {
+            Binary::Equal => true,
+            Binary::NotEqual => false,
+            _ => return None,
+        };
+        for (value, nothing) in [(left, right), (right, left)] {
+            if matches!(self.expressions[nothing.index()], Expr::Literal(Literal::Null | Literal::Undefined))
+                && matches!(self.expressions[value.index()], Expr::Member { .. })
+                && self.pure_chain(value)
+            {
+                return Some((value, absent));
+            }
+        }
+        None
+    }
+    /// A member chain of named or literal keys over a binding, `this` or a
+    /// host global, with computed keys that are such chains or literals.
+    pub(super) fn pure_chain(&self, id: ExprId) -> bool {
+        match &self.expressions[id.index()] {
+            Expr::Binding(_) | Expr::This | Expr::Host(_) | Expr::Literal(_) => true,
+            Expr::Member { object, property } => {
+                self.pure_chain(*object)
+                    && match property {
+                        Property::Named(_) => true,
+                        Property::Computed(key) => self.pure_chain(*key),
+                    }
+            }
+            _ => false,
+        }
+    }
+    /// Structural equality of two pure chains.
+    pub(super) fn same_chain(&self, a: ExprId, b: ExprId) -> bool {
+        match (&self.expressions[a.index()], &self.expressions[b.index()]) {
+            (Expr::Binding(x), Expr::Binding(y)) => x == y,
+            (Expr::This, Expr::This) => true,
+            (Expr::Host(x), Expr::Host(y)) => x.name == y.name,
+            (Expr::Literal(x), Expr::Literal(y)) => x == y,
+            (Expr::Member { object: oa, property: pa }, Expr::Member { object: ob, property: pb }) => {
+                self.same_chain(*oa, *ob)
+                    && match (pa, pb) {
+                        (Property::Named(x), Property::Named(y)) => x == y,
+                        (Property::Computed(x), Property::Computed(y)) => self.same_chain(*x, *y),
+                        _ => false,
+                    }
+            }
+            _ => false,
+        }
+    }
+    /// `optional_link` for a chain read from a pure member chain `tested`.
+    fn optional_chain_link(&self, chain: ExprId, tested: ExprId) -> Option<ExprId> {
+        let mut id = chain;
+        loop {
+            match &self.expressions[id.index()] {
+                Expr::Member { object, .. } => {
+                    if self.same_chain(*object, tested) {
+                        return Some(id);
+                    }
+                    id = *object;
+                }
+                Expr::Call { callee, invocation: Invocation::Reference, .. }
+                    if matches!(self.expressions[callee.index()], Expr::Member { .. }) =>
+                {
+                    id = *callee
+                }
+                _ => return None,
+            }
+        }
+    }
     /// `optional_link` for a chain read from a host global.
     fn optional_host_link(&self, chain: ExprId, name: &str) -> Option<ExprId> {
         let mut id = chain;
@@ -1142,6 +1219,12 @@ impl Module {
                         continue;
                     }
                     self.optional_link(chain, binding)
+                } else if let Some((tested, absent)) = self.nullish_chain_test(condition) {
+                    let (nothing, chain) = if absent { (yes, no) } else { (no, yes) };
+                    if !matches!(self.expressions[nothing.index()], Expr::Literal(Literal::Undefined)) {
+                        continue;
+                    }
+                    self.optional_chain_link(chain, tested)
                 } else if let Some((name, absent)) = self.nullish_host_test(condition) {
                     let (nothing, chain) = if absent { (yes, no) } else { (no, yes) };
                     if !matches!(self.expressions[nothing.index()], Expr::Literal(Literal::Undefined)) {

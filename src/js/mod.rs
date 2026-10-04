@@ -1517,6 +1517,7 @@ impl Module {
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
         let mut edits = self.unshare_null_tests(budget)?;
+        edits += self.inline_chain_temps(budget)?;
         let int32 = self.int32_bindings(budget)?;
         for region in 0..self.regions.len() {
             budget.work(Analysis, 1 + self.regions[region].statements.len() as u64)?;
@@ -1688,27 +1689,16 @@ impl Module {
         if candidates.is_empty() {
             return Ok(0);
         }
-        budget.work(Analysis, self.expressions.len() as u64)?;
+        // Mentions in reachable code only: arena remnants are not reads.
         let mut reads = vec![0u32; self.bindings.len()];
         let mut written = vec![false; self.bindings.len()];
-        for expression in &self.expressions {
-            match expression {
-                Expr::Binding(binding) => reads[binding.index()] += 1,
-                Expr::Assign { target, .. } => {
-                    if let Expr::Binding(binding) = self.expressions[target.index()] {
-                        written[binding.index()] = true;
-                    }
-                }
-                _ => {}
+        self.walk_mentions(&mut vec![self.root], &mut Vec::new(), budget, |binding, write| {
+            if write {
+                written[binding.index()] = true;
+            } else {
+                reads[binding.index()] = reads[binding.index()].saturating_add(1);
             }
-        }
-        for region in &self.regions {
-            for statement in &region.statements {
-                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } = statement {
-                    written[binding.index()] = true;
-                }
-            }
-        }
+        })?;
         let mut edits = 0;
         let mut removals: Vec<(usize, usize)> = Vec::new();
         for (region, index, temp, tested, op) in candidates {
@@ -1752,6 +1742,181 @@ impl Module {
             self.renumber(budget)?;
         }
         Ok(edits)
+    }
+
+    /// `let e=a.b[c];x=e==null?void 0:e.d` is `x=a.b[c]==null?void 0:a.b[c].d`
+    /// — `x=a.b[c]?.d` — when the next statement's value is that conditional,
+    /// its two reads are all of `e`, and no binding the chain reads is ever
+    /// written: member reads run no code, and nothing runs between.
+    fn inline_chain_temps(&mut self, budget: &mut AllocationBudget<'_>) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        if !self.no_document_all || !self.pure_property_reads {
+            return Ok(0);
+        }
+        // Mentions in reachable code only: arena remnants are not reads.
+        let mut reads = vec![0u32; self.bindings.len()];
+        let mut written = vec![false; self.bindings.len()];
+        self.walk_mentions(&mut vec![self.root], &mut Vec::new(), budget, |binding, write| {
+            if write {
+                written[binding.index()] = true;
+            } else {
+                reads[binding.index()] = reads[binding.index()].saturating_add(1);
+            }
+        })?;
+        let mut edits = 0;
+        for region in 0..self.regions.len() {
+            let mut index = 0;
+            while index + 1 < self.regions[region].statements.len() {
+                budget.work(Analysis, 1)?;
+                let Statement::Let { binding: temp, value: Some(chain) } = self.regions[region].statements[index] else {
+                    index += 1;
+                    continue;
+                };
+                let root = match self.regions[region].statements[index + 1] {
+                    Statement::Let { value: Some(value), .. } | Statement::Evaluate(value) | Statement::Return(Some(value)) => value,
+                    _ => {
+                        index += 1;
+                        continue;
+                    }
+                };
+                let stable = |module: &Self| {
+                    let mut pending = vec![chain];
+                    while let Some(id) = pending.pop() {
+                        if let Expr::Binding(binding) = module.expressions[id.index()] {
+                            if written[binding.index()] || module.bindings[binding.index()].pinned {
+                                return false;
+                            }
+                        }
+                        let _ = module.expressions[id.index()].visit_children(|child| {
+                            pending.push(child);
+                            Ok::<_, ()>(())
+                        });
+                    }
+                    true
+                };
+                // The conditional reading `temp`, wherever the statement holds
+                // it among effect-free evaluations.
+                let Some(found) = self.conditional_reading(root, temp) else {
+                    index += 1;
+                    continue;
+                };
+                if !self.effect_free_except(root, found) {
+                    index += 1;
+                    continue;
+                }
+                let Expr::Conditional { condition, yes, no } = self.expressions[found.index()] else {
+                    index += 1;
+                    continue;
+                };
+                let Expr::Binary { op: op @ (Binary::Equal | Binary::NotEqual), left, right } = self.expressions[condition.index()] else {
+                    index += 1;
+                    continue;
+                };
+                let operand = match (&self.expressions[left.index()], &self.expressions[right.index()]) {
+                    (Expr::Binding(found), Expr::Literal(Literal::Null | Literal::Undefined)) if *found == temp => left,
+                    (Expr::Literal(Literal::Null | Literal::Undefined), Expr::Binding(found)) if *found == temp => right,
+                    _ => {
+                        index += 1;
+                        continue;
+                    }
+                };
+                let (nothing, chained) = if op == Binary::Equal { (yes, no) } else { (no, yes) };
+                let link = self.optional_link(chained, temp);
+                let qualifies = !self.bindings[temp.index()].pinned
+                    && !written[temp.index()]
+                    && reads[temp.index()] == 2
+                    && matches!(self.expressions[chain.index()], Expr::Member { .. })
+                    && self.pure_chain(chain)
+                    && stable(self)
+                    && matches!(self.expressions[nothing.index()], Expr::Literal(Literal::Undefined))
+                    && link.is_some();
+                if !qualifies {
+                    index += 1;
+                    continue;
+                }
+                let link = link.unwrap();
+                let Expr::Member { object: root_read, .. } = self.expressions[link.index()] else { unreachable!() };
+                // The test reads the chain itself; the link reads a copy.
+                let top = self.expressions[chain.index()].clone();
+                self.set_expression(operand, top);
+                let copy = self.clone_chain(chain, budget)?;
+                let copied = self.expressions[copy.index()].clone();
+                self.set_expression(root_read, copied);
+                self.remove_statement(region, index);
+                edits += 1;
+            }
+        }
+        if edits > 0 {
+            self.renumber(budget)?;
+        }
+        Ok(edits)
+    }
+
+    /// The conditional under `root` whose test is a null test of `temp`.
+    fn conditional_reading(&self, root: ExprId, temp: BindingId) -> Option<ExprId> {
+        let mut pending = vec![root];
+        while let Some(id) = pending.pop() {
+            let expression = &self.expressions[id.index()];
+            if let Expr::Conditional { condition, .. } = expression {
+                if let Expr::Binary { op: Binary::Equal | Binary::NotEqual, left, right } = self.expressions[condition.index()] {
+                    if [left, right].iter().any(|side| matches!(self.expressions[side.index()], Expr::Binding(found) if found == temp)) {
+                        return Some(id);
+                    }
+                }
+            }
+            if expression.creates_function() {
+                continue;
+            }
+            let _ = expression.visit_children(|child| {
+                pending.push(child);
+                Ok::<_, ()>(())
+            });
+        }
+        None
+    }
+
+    /// `effect_free` for everything under `root` but the subtree `except`.
+    fn effect_free_except(&self, root: ExprId, except: ExprId) -> bool {
+        if root == except {
+            return true;
+        }
+        let node = &self.expressions[root.index()];
+        let own = match node {
+            Expr::Literal(_) | Expr::Binding(_) | Expr::Host(_) | Expr::This | Expr::Regex(_) | Expr::Function(_) => true,
+            Expr::Member { .. } => self.pure_property_reads,
+            Expr::Unary { op, .. } => !matches!(op, Unary::Delete),
+            Expr::Binary { op, .. } => !matches!(op, Binary::In | Binary::InstanceOf),
+            Expr::Conditional { .. } | Expr::Array(_) | Expr::Object(_) | Expr::ToInt32(_) | Expr::IntBinary { .. } | Expr::IntNegate(_) | Expr::Template(_) => true,
+            _ => false,
+        };
+        if !own {
+            return false;
+        }
+        if matches!(node, Expr::Function(_)) {
+            return true;
+        }
+        let mut children = true;
+        let _ = node.visit_children(|child| {
+            children &= self.effect_free_except(child, except);
+            Ok::<_, ()>(())
+        });
+        children
+    }
+
+    /// A fresh copy of a pure chain (`pure_chain`), node by node.
+    fn clone_chain(&mut self, id: ExprId, budget: &mut AllocationBudget<'_>) -> Result<ExprId, AllocationError> {
+        let node = match self.expressions[id.index()].clone() {
+            Expr::Member { object, property } => {
+                let object = self.clone_chain(object, budget)?;
+                let property = match property {
+                    Property::Named(name) => Property::Named(name),
+                    Property::Computed(key) => Property::Computed(self.clone_chain(key, budget)?),
+                };
+                Expr::Member { object, property }
+            }
+            other => other,
+        };
+        self.expression_in(node, None, budget)
     }
 
     /// `Object.assign({},s…,{k:v…})` as an object spread: the sources and the
