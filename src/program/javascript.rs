@@ -5468,7 +5468,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         length = Some(0);
                     }
                 }
-                let strict = self.plan(child).strict_frame || declared_method.is_some();
+                // Module code is strict already: no directive to print.
+                let strict = (self.plan(child).strict_frame || declared_method.is_some())
+                    && !self.contract.execution.guarantees_strict_execution();
                 if method.is_none()
                     && (self.plan(child).generator_entry.is_some()
                         || !private && private_cell.is_none())

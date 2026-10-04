@@ -1516,7 +1516,7 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
-        let mut edits = 0;
+        let mut edits = self.unshare_null_tests(budget)?;
         let int32 = self.int32_bindings(budget)?;
         for region in 0..self.regions.len() {
             budget.work(Analysis, 1 + self.regions[region].statements.len() as u64)?;
@@ -1656,6 +1656,100 @@ impl Module {
                 self.remove_statement(region, index);
             }
             edits += merges.len();
+        }
+        Ok(edits)
+    }
+
+    /// `let t=x!=null;…t?x.a:void 0` — a null test value numbering shared —
+    /// tests `x` again at each conditional once every read of `t` is the test
+    /// of a conditional whose chain reads `x` (and `x` is never written): two
+    /// reads instead of one temporary, and each conditional is then `x?.a`
+    /// (`assume_no_document_all`). The temporary's declaration goes.
+    fn unshare_null_tests(&mut self, budget: &mut AllocationBudget<'_>) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        if !self.no_document_all {
+            return Ok(0);
+        }
+        // Candidate temporaries: (region, statement, temp, tested, op, literal).
+        let mut candidates: Vec<(usize, usize, BindingId, BindingId, Binary)> = Vec::new();
+        for (region, data) in self.regions.iter().enumerate() {
+            budget.work(Analysis, data.statements.len() as u64)?;
+            for (index, statement) in data.statements.iter().enumerate() {
+                let Statement::Let { binding, value: Some(value) } = *statement else { continue };
+                let Expr::Binary { op: op @ (Binary::NotEqual | Binary::Equal), left, right } = self.expressions[value.index()] else { continue };
+                let (Expr::Binding(tested), Expr::Literal(Literal::Null | Literal::Undefined)) =
+                    (&self.expressions[left.index()], &self.expressions[right.index()]) else { continue };
+                if self.bindings[binding.index()].pinned || self.bindings[tested.index()].pinned {
+                    continue;
+                }
+                candidates.push((region, index, binding, *tested, op));
+            }
+        }
+        if candidates.is_empty() {
+            return Ok(0);
+        }
+        budget.work(Analysis, self.expressions.len() as u64)?;
+        let mut reads = vec![0u32; self.bindings.len()];
+        let mut written = vec![false; self.bindings.len()];
+        for expression in &self.expressions {
+            match expression {
+                Expr::Binding(binding) => reads[binding.index()] += 1,
+                Expr::Assign { target, .. } => {
+                    if let Expr::Binding(binding) = self.expressions[target.index()] {
+                        written[binding.index()] = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        for region in &self.regions {
+            for statement in &region.statements {
+                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } = statement {
+                    written[binding.index()] = true;
+                }
+            }
+        }
+        let mut edits = 0;
+        let mut removals: Vec<(usize, usize)> = Vec::new();
+        for (region, index, temp, tested, op) in candidates {
+            budget.work(Analysis, self.expressions.len() as u64)?;
+            if written[temp.index()] || written[tested.index()] {
+                continue;
+            }
+            // Every read of `temp` is a conditional's whole test with a chain
+            // read from `tested` on the present side and `undefined` on the other.
+            let mut sites: Vec<usize> = Vec::new();
+            for (at, expression) in self.expressions.iter().enumerate() {
+                let Expr::Conditional { condition, yes, no } = *expression else { continue };
+                if !matches!(self.expressions[condition.index()], Expr::Binding(found) if found == temp) {
+                    continue;
+                }
+                let (nothing, chain) = if op == Binary::NotEqual { (no, yes) } else { (yes, no) };
+                if matches!(self.expressions[nothing.index()], Expr::Literal(Literal::Undefined))
+                    && self.optional_link(chain, tested).is_some()
+                {
+                    sites.push(at);
+                }
+            }
+            if sites.is_empty() || sites.len() as u32 != reads[temp.index()] {
+                continue;
+            }
+            for at in sites {
+                let Expr::Conditional { yes, no, .. } = self.expressions[at] else { unreachable!() };
+                let left = self.expression_in(Expr::Binding(tested), None, budget)?;
+                let right = self.expression_in(Expr::Literal(Literal::Null), None, budget)?;
+                let condition = self.expression_in(Expr::Binary { op, left, right }, None, budget)?;
+                self.set_expression(ExprId::new(at), Expr::Conditional { condition, yes, no });
+                edits += 1;
+            }
+            removals.push((region, index));
+        }
+        removals.sort_unstable();
+        for &(region, index) in removals.iter().rev() {
+            self.remove_statement(region, index);
+        }
+        if edits > 0 {
+            self.renumber(budget)?;
         }
         Ok(edits)
     }
