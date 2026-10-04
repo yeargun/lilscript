@@ -5746,8 +5746,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             && self.module.regions[formed.body.index()]
                 .statements
                 .is_empty();
+        // The class's own name, as the contract keeps published names;
+        // otherwise anonymous, named by its binding as a minifier names it.
+        let keeps_name = self.contract.abi.keep_published_function_names || self.contract.abi.keep_function_names;
         let expression = js::Expr::Class {
-            name: definition.name.clone(),
+            name: if keeps_name { definition.name.clone() } else { String::new() },
             base,
             constructor: (!implicit).then_some(constructor),
             methods,

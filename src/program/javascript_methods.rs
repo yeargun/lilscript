@@ -801,9 +801,10 @@ impl Formation<'_, '_, '_, '_, '_> {
         let Some(body) = self.program.unit(unit) else {
             return Ok(None);
         };
+        // An async body is an `async` method (a generator stays outlined).
         if body.kind != UnitKind::Function
             || body.constructor_of.is_some()
-            || body.suspension != Suspension::None
+            || body.suspension == Suspension::Generator
             || body.parameters.is_empty()
             || self.struct_plan.wrapped(unit)
             || self.struct_boundary_unit(unit)
@@ -1217,7 +1218,11 @@ impl Formation<'_, '_, '_, '_, '_> {
                 // A class body is strict (legality: `prototype_method_form`).
                 strict: false,
                 length,
-                suspension: js::Suspension::None,
+                // `async name(){…}`; a generator never takes this form.
+                suspension: match program.unit(method).map(|data| data.suspension) {
+                    Some(Suspension::Async) => js::Suspension::Async,
+                    _ => js::Suspension::None,
+                },
             },
         )?;
         self.budget.push(

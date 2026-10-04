@@ -1632,8 +1632,11 @@ impl<'a> Printer<'a, '_, '_> {
                 methods,
                 members,
             } => {
-                self.text("class ");
-                self.text(name);
+                self.text("class");
+                if !name.is_empty() {
+                    self.text(" ");
+                    self.text(name);
+                }
                 if let Some(base) = base {
                     self.text(" extends ");
                     // The heritage is a LeftHandSideExpression.
@@ -1645,6 +1648,9 @@ impl<'a> Printer<'a, '_, '_> {
                     self.function(*constructor);
                 }
                 for (method, function) in methods {
+                    if self.module.functions[function.index()].suspension == Suspension::Async {
+                        self.text("async ");
+                    }
                     let method = self.property_spelling(method);
                     self.text(method);
                     self.function(*function);
@@ -1855,6 +1861,36 @@ impl<'a> Printer<'a, '_, '_> {
         }
         if function.arrow {
             self.text("=>");
+            // `=>(a,b,v)` is `=>{a;b;return v}` for plain expression
+            // statements (admission folds both into one sequence).
+            if let (false, [leading @ .., Statement::Return(Some(value))]) = (
+                function.strict,
+                &self.module.regions[function.body.index()].statements[absorbed..],
+            ) {
+                let module = self.module;
+                let plain = |statement: &Statement| match statement {
+                    Statement::Evaluate(value) => match &module.expressions[value.index()] {
+                        Expr::Binary { op: Binary::And | Binary::Or, .. } => false,
+                        Expr::Unary { op: Unary::Void, .. } => false,
+                        Expr::Assign { target, value } => !(matches!(module.expressions[target.index()], Expr::Binding(_))
+                            && matches!(module.expressions[value.index()], Expr::Conditional { .. })),
+                        Expr::Sequence(_) => false,
+                        _ => true,
+                    },
+                    _ => false,
+                };
+                if !leading.is_empty() && leading.iter().all(plain) {
+                    self.text("(");
+                    for statement in leading {
+                        let Statement::Evaluate(item) = statement else { unreachable!() };
+                        self.expression(*item, 2);
+                        self.text(",");
+                    }
+                    self.expression(*value, 2);
+                    self.text(")");
+                    return;
+                }
+            }
             // `=>value` is `=>{return value}`. Its body cannot begin with `{`.
             if let (false, [Statement::Return(Some(value))]) = (
                 function.strict,

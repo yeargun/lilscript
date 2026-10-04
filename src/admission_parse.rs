@@ -239,6 +239,26 @@ pub(crate) fn statement_list(mut statements: Vec<Canon>) -> Vec<Canon> {
             );
         }
     }
+    // `a;b;return c` is `return a,b,c`: expression statements before a final
+    // return join it as a sequence.
+    if let Some(Canon::Return(Some(_))) = statements.last() {
+        let mut first = statements.len() - 1;
+        while first > 0 && matches!(statements[first - 1], Canon::Expr(_)) {
+            first -= 1;
+        }
+        if first + 1 < statements.len() {
+            let Some(Canon::Return(Some(returned))) = statements.pop() else { unreachable!() };
+            let mut items: Vec<Canon> = statements
+                .drain(first..)
+                .map(|statement| match statement {
+                    Canon::Expr(value) => *value,
+                    _ => unreachable!("an expression statement"),
+                })
+                .collect();
+            items.push(*returned);
+            statements.push(Canon::Return(Some(boxed(Canon::Sequence(items)))));
+        }
+    }
     statements
 }
 
