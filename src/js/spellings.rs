@@ -279,17 +279,40 @@ fn compound(module: &Module, target: ExprId, value: ExprId) -> Option<(Binary, E
     ) {
         return None;
     }
-    let place = |id: ExprId| match &module.expressions[id.index()] {
-        Expr::Binding(binding) => Some((Some(*binding), None)),
-        Expr::Member {
-            object,
-            property: Property::Named(name),
-        } => match module.expressions[object.index()] {
-            Expr::Binding(binding) => Some((Some(binding), Some(name.as_str()))),
-            Expr::This => Some((None, Some(name.as_str()))),
+    // `a[k]=a[k]+v` is `a[k]+=v` for a key of primitive type: converting it
+    // to a property key twice or once runs no code either way.
+    #[derive(PartialEq)]
+    enum Key<'a> {
+        Name(&'a str),
+        Binding(BindingId),
+        Number(u64),
+    }
+    let place = |id: ExprId| {
+        let (object, key) = match &module.expressions[id.index()] {
+            Expr::Binding(binding) => return Some((Some(*binding), None)),
+            Expr::Member { object, property: Property::Named(name) } => (*object, Key::Name(name.as_str())),
+            Expr::Member { object, property: Property::Computed(key) } => {
+                let key = match module.expressions[key.index()] {
+                    Expr::Binding(binding)
+                        if matches!(
+                            module.bindings[binding.index()].class,
+                            Some(ValueClass::Int | ValueClass::Number | ValueClass::String)
+                        ) =>
+                    {
+                        Key::Binding(binding)
+                    }
+                    Expr::Literal(Literal::Number(number)) => Key::Number(number.to_bits()),
+                    _ => return None,
+                };
+                (*object, key)
+            }
+            _ => return None,
+        };
+        match module.expressions[object.index()] {
+            Expr::Binding(binding) => Some((Some(binding), Some(key))),
+            Expr::This => Some((None, Some(key))),
             _ => None,
-        },
-        _ => None,
+        }
     };
     (place(target)? == place(left)?).then_some((op, right))
 }

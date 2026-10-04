@@ -3247,6 +3247,97 @@ impl Module {
             counts[export.binding.index()] = (u32::MAX, u32::MAX);
         }
         let mut collapsed = 0;
+        // `f((…,t=x,…),{k:t})` is `f((…,…),{k:x})` when that write and read
+        // are all of `t`, `x` is a binding or a literal, and everything
+        // evaluated between them (the sequence's later items, the arguments
+        // up to the one reading `t`) is effect-free or stores an effect-free
+        // value in another such temporary: a struct update that snapshots
+        // mutable locals (`Object.assign((s={},o=a,s),e,{c:o})`).
+        for index in 0..self.expressions.len() {
+            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            let (Expr::Call { arguments, .. } | Expr::Construct { arguments, .. }) = &self.expressions[index] else {
+                continue;
+            };
+            let arguments = arguments.clone();
+            for (at, &argument) in arguments.iter().enumerate() {
+                let Expr::Sequence(items) = &self.expressions[argument.index()] else { continue };
+                let items = items.clone();
+                let temp_of = |module: &Self, counts: &[(u32, u32)], item: ExprId| -> Option<(BindingId, ExprId)> {
+                    let Expr::Assign { target, value } = module.expressions[item.index()] else { return None };
+                    let Expr::Binding(temp) = module.expressions[target.index()] else { return None };
+                    (counts[temp.index()] == (1, 1)
+                        && !module.bindings[temp.index()].pinned
+                        && matches!(module.expressions[value.index()], Expr::Binding(_) | Expr::Literal(_)))
+                    .then_some((temp, value))
+                };
+                let temps: Vec<BindingId> = items[..items.len() - 1]
+                    .iter()
+                    .filter_map(|&item| temp_of(self, &counts, item).map(|(temp, _)| temp))
+                    .collect();
+                if temps.is_empty() {
+                    continue;
+                }
+                let allowed = |module: &Self, item: ExprId| {
+                    module.effect_free(item)
+                        || matches!(module.expressions[item.index()], Expr::Assign { target, value }
+                            if matches!(module.expressions[target.index()], Expr::Binding(found) if temps.contains(&found))
+                                && module.effect_free(value))
+                };
+                let mut removed = Vec::new();
+                for (k, &item) in items[..items.len() - 1].iter().enumerate() {
+                    let Some((temp, value)) = temp_of(self, &counts, item) else { continue };
+                    // A temporary's value is never itself one of these temporaries.
+                    if matches!(self.expressions[value.index()], Expr::Binding(source) if temps.contains(&source)) {
+                        continue;
+                    }
+                    // The one read of `temp`, outside any function, in a later argument.
+                    let mut read = None;
+                    for (offset, &later) in arguments[at + 1..].iter().enumerate() {
+                        let mut pending = vec![later];
+                        while let Some(id) = pending.pop() {
+                            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                            if matches!(self.expressions[id.index()], Expr::Binding(found) if found == temp) {
+                                read = Some((at + 1 + offset, id));
+                                break;
+                            }
+                            self.expressions[id.index()].visit_children(|child| {
+                                pending.push(child);
+                                Ok::<_, AllocationError>(())
+                            })?;
+                        }
+                        if read.is_some() {
+                            break;
+                        }
+                    }
+                    let Some((reader, read)) = read else { continue };
+                    if !items[k + 1..].iter().all(|&later| allowed(self, later))
+                        || !arguments[at + 1..=reader].iter().all(|&later| self.effect_free(later))
+                    {
+                        continue;
+                    }
+                    let node = self.expressions[value.index()].clone();
+                    *self.expression_mut(read) = node;
+                    counts[temp.index()] = (0, 0);
+                    removed.push(k);
+                }
+                if removed.is_empty() {
+                    continue;
+                }
+                let kept: Vec<ExprId> = items
+                    .iter()
+                    .enumerate()
+                    .filter(|(k, _)| !removed.contains(k))
+                    .map(|(_, &item)| item)
+                    .collect();
+                let node = if let [only] = kept.as_slice() {
+                    self.expressions[only.index()].clone()
+                } else {
+                    Expr::Sequence(kept)
+                };
+                *self.expression_mut(argument) = node;
+                collapsed += removed.len();
+            }
+        }
         for index in 0..self.expressions.len() {
             budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
             let Expr::Sequence(items) = &self.expressions[index] else {

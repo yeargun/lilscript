@@ -62,6 +62,78 @@ impl Module {
                 break;
             }
         }
+        edits += self.strip_test_negations(budget)?;
+        Ok(edits)
+    }
+
+    /// `!!x` where only truthiness is used (a condition, a `!` operand, a
+    /// discarded value, an operand of `&&`/`||` in one of those) is `x`:
+    /// `ToBoolean` runs no code. A node shared with a value position keeps
+    /// its spelling.
+    fn strip_test_negations(&mut self, budget: &mut AllocationBudget<'_>) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        let mut tests: Vec<ExprId> = Vec::new();
+        let mut reached = budget.filled(AllocationClass::Scratch, self.expressions.len(), 0u32)?;
+        let mut regions = vec![self.root];
+        let mut pending: Vec<ExprId> = Vec::new();
+        loop {
+            if let Some(id) = pending.pop() {
+                budget.work(Analysis, 1)?;
+                reached[id.index()] = reached[id.index()].saturating_add(1);
+                let expression = &self.expressions[id.index()];
+                match expression {
+                    Expr::Conditional { condition, .. } => tests.push(*condition),
+                    Expr::Unary { op: Unary::Not, value } => tests.push(*value),
+                    _ => {}
+                }
+                for function in expression.created_functions() {
+                    regions.push(self.functions[function.index()].body);
+                }
+                expression.visit_children(|child| {
+                    pending.push(child);
+                    Ok::<_, AllocationError>(())
+                })?;
+            } else if let Some(region) = regions.pop() {
+                for statement in &self.regions[region.index()].statements {
+                    match statement {
+                        Statement::If { condition, .. } => tests.push(*condition),
+                        Statement::Loop { condition: Some(condition), .. } => tests.push(*condition),
+                        Statement::Evaluate(value) => tests.push(*value),
+                        Statement::Function { function, .. } => regions.push(self.functions[function.index()].body),
+                        _ => {}
+                    }
+                    statement.visit_expressions(|root| pending.push(root));
+                    statement.visit_regions(|child| regions.push(child));
+                }
+            } else {
+                break;
+            }
+        }
+        let mut edits = 0;
+        while let Some(test) = tests.pop() {
+            budget.work(Analysis, 1)?;
+            if reached[test.index()] != 1 || self.holds_observed(test) {
+                continue;
+            }
+            match self.expressions[test.index()] {
+                Expr::Unary { op: Unary::Not, value } => {
+                    if let Expr::Unary { op: Unary::Not, value: inner } = self.expressions[value.index()] {
+                        if reached[value.index()] == 1 {
+                            let replacement = self.expressions[inner.index()].clone();
+                            if self.set_expression(test, replacement) {
+                                edits += 1;
+                                tests.push(test);
+                            }
+                        }
+                    }
+                }
+                Expr::Binary { op: Binary::And | Binary::Or, left, right } => {
+                    tests.push(left);
+                    tests.push(right);
+                }
+                _ => {}
+            }
+        }
         Ok(edits)
     }
 
