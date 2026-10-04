@@ -10,7 +10,7 @@ const definitions=[
  ['zodlil','Zod','Node package root; locale provider external.'],
  ['motionlil','Motion','Full Motion DOM entry; no React integration.'],
  ['jquerylil','jQuery','Browser singleton and jQuery API.'],
- ['posthoglil','PostHog','Standard browser SDK; optional extension downloads excluded.'],
+ ['posthoglil','PostHog','Seven submodules, each compared with PostHog’s own build of the same code; totals of the seven.'],
  ['monacolil','Monaco','Partial editor namespace; CSS and workers excluded.'],
  ['mobxlil','MobX','Production MobX 7 API.'],
  ['cnlil','cn','Main class-merging API, including its tables.'],
@@ -26,14 +26,21 @@ const libraries=[];
 for(const [name,title,scope] of definitions){
  const homepage=`https://yeargun.github.io/${name}/`;
  const special=name==='posthoglil';
- const evidence=new URL(special?'evidence/sdk.json':'comparison.json',homepage).href;
+ const evidence=new URL(special?'evidence.json':'comparison.json',homepage).href;
  const {data,sha256:evidenceSha256}=await json(evidence);
  let objectives,upstream,measuredAt,compilerSha256,timingScope;
  if(special){
-  const surface=data.surfaces.find(x=>x.id==='standard');
-  objectives=surface.objectives.map(row=>({objective:row.objective,originalBytes:row.baseline[row.metric],lilscriptBytes:row.artifact[row.metric],originalTool:row.baseline.lane,originalBuildSeconds:row.originalBuildSeconds,lilscriptBuildSeconds:row.totalBuildSeconds,originalArtifact:new URL(row.baseline.file.replace('artifacts/',''),homepage).href,lilscriptArtifact:new URL(row.artifact.file.replace('artifacts/',''),homepage).href,originalSha256:row.baseline.sha256,lilscriptSha256:row.artifact.sha256}));
-  upstream=`${data.upstream.name}@${data.upstream.version}`;measuredAt=data.generatedAt;compilerSha256=surface.objectives[0].compiler.sha256;
-  timingScope='Source bundling + selected delivery minifier; candidate also includes LilScript compilation. See recorded stage exclusions.';
+  // posthoglil compares seven submodules, each on its own; the row is their totals. The original side
+  // of each module is its smallest upstream build for that codec (PostHog's build, esbuild or Oxc).
+  const rows=data.results.results, sum=f=>rows.reduce((a,r)=>a+f(r),0);
+  for(const [href,sha256] of Object.entries(data.files))if(hash(await bytes(new URL(href,homepage).href))!==sha256)throw Error(`${name}: ${href} public bytes differ`);
+  objectives=['raw','gzip','brotli'].map(objective=>({objective,
+   originalBytes:sum(r=>r.best[objective].bytes),lilscriptBytes:sum(r=>r.lilscript[objective][objective]),
+   originalTool:'smallest upstream per module',
+   originalBuildSeconds:+sum(r=>r.upstream[r.best[objective].lane].seconds).toFixed(3),lilscriptBuildSeconds:+sum(r=>r.lilscript[objective].seconds).toFixed(2),
+   originalArtifact:evidence,lilscriptArtifact:evidence,originalSha256:evidenceSha256,lilscriptSha256:evidenceSha256}));
+  upstream=`posthog-js@${data.meta.upstreamVersion}`;measuredAt=data.results.date;compilerSha256=data.meta.compilerSha256;
+  timingScope='Per submodule, summed: upstream bundling and minifier / LilScript compilation. Installation, tests and final compression excluded.';
  }else{
   if(data.schemaVersion!==4)throw Error(`${name}: current objective comparison missing`);
   objectives=data.objectives.map(row=>({objective:row.objective,originalBytes:row.original.sizes[row.metric],lilscriptBytes:row.lilscript.sizes[row.metric],originalTool:row.original.tool,originalBuildSeconds:row.original.buildSeconds,lilscriptBuildSeconds:row.lilscript.buildSeconds,originalArtifact:new URL(row.original.artifact,homepage).href,lilscriptArtifact:new URL(row.lilscript.artifact,homepage).href,originalSha256:row.original.sha256,lilscriptSha256:row.lilscript.sha256}));
@@ -45,8 +52,8 @@ for(const [name,title,scope] of definitions){
   for(const side of ['original','lilscript'])if(hash(await bytes(row[side+'Artifact']))!==row[side+'Sha256'])throw Error(`${name}/${row.objective}: ${side} public bytes differ`);
   if(!(row.originalBytes>0&&row.lilscriptBytes>0&&row.lilscriptBuildSeconds>0))throw Error(`${name}: incomplete measurement`);
  }
- const packageEvidence=new URL(special?'evidence/package.json':'package-build.json',homepage).href;
- const {data:packageBuild}=await json(packageEvidence);
+ const packageEvidence=new URL(special?'evidence.json':'package-build.json',homepage).href;
+ const {data:packageBuild}=special?{data:{packageVersion:'not on npm (submodule showcase)'}}:await json(packageEvidence);
  if(!special&&!packageBuild.validation?.ok)throw Error(`${name}: package validation missing`);
  libraries.push({name,title,scope,upstream,homepage,evidence,evidenceSha256,packageEvidence,packageVersion:special?packageBuild.packageVersion:packageBuild.version,measuredAt,compilerSha256,timingScope,objectives});
  console.log(`Verified published measurements: ${name}`);

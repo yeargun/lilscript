@@ -11,7 +11,7 @@ test("library evidence discloses incomplete implementations and external boundar
   assert.match(byName.motionlil.scope, /no React integration/i);
   assert.match(byName.zodlil.scope, /locale provider external/i);
   assert.match(byName['react-markdownlil'].scope, /React external/i);
-  assert.match(byName.posthoglil.scope, /standard browser SDK/i);
+  assert.match(byName.posthoglil.scope, /seven submodules/i);
 });
 test("library page links all measured ports, three codecs and build times", async () => {
   const page = await read("libraries.html");
