@@ -350,6 +350,19 @@ impl Module {
                     _ => None,
                 }
             }
+            // With a boolean test `c`: `c?!0:x` is `c||x` and `c?x:!1` is
+            // `c&&x` (the same value either way, `c` evaluated once).
+            Expr::Conditional { condition, yes, no }
+                if self.known(*condition) == Some(Known::Boolean)
+                    && (matches!(node(*yes), Expr::Literal(Literal::Bool(true)))
+                        || matches!(node(*no), Expr::Literal(Literal::Bool(false)))) =>
+            {
+                if matches!(node(*yes), Expr::Literal(Literal::Bool(true))) {
+                    Some(Expr::Binary { op: Binary::Or, left: *condition, right: *no })
+                } else {
+                    Some(Expr::Binary { op: Binary::And, left: *condition, right: *yes })
+                }
+            }
             // `i<0?i+4294967296:i` of an int32 `i` is its unsigned value,
             // `i>>>0` (and so `i>=0?i:i+4294967296`).
             Expr::Conditional { condition, yes, no } => {
