@@ -3017,6 +3017,49 @@ impl Module {
             counts[temp.index()] = (0, 0);
             collapsed += 1;
         }
+        // `f((t=v,a),t)` is `f(a,v)` when that write and read are all of `t`
+        // and evaluating `v` and `a` changes nothing the other could see.
+        for index in 0..self.expressions.len() {
+            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            let (Expr::Call { arguments, .. } | Expr::Construct { arguments, .. }) = &self.expressions[index] else {
+                continue;
+            };
+            let mut swap = None;
+            for (at, &argument) in arguments.iter().enumerate() {
+                let Expr::Sequence(items) = &self.expressions[argument.index()] else { continue };
+                let [assign, value] = items.as_slice() else { continue };
+                let Expr::Assign { target, value: stored } = self.expressions[assign.index()] else { continue };
+                let Expr::Binding(temp) = self.expressions[target.index()] else { continue };
+                if counts[temp.index()] != (1, 1) || self.bindings[temp.index()].pinned {
+                    continue;
+                }
+                let Some(later) = arguments[at + 1..].iter().position(|&later| {
+                    matches!(self.expressions[later.index()], Expr::Binding(found) if found == temp)
+                }) else {
+                    continue;
+                };
+                // Nothing between may change what `v` reads either.
+                let between = &arguments[at + 1..at + 1 + later];
+                if self.effect_free(stored)
+                    && self.effect_free(*value)
+                    && between.iter().all(|&argument| self.effect_free(argument))
+                {
+                    swap = Some((at, at + 1 + later, *value, stored));
+                    break;
+                }
+            }
+            let Some((at, later, value, stored)) = swap else { continue };
+            let mut arguments = arguments.clone();
+            arguments[at] = value;
+            arguments[later] = stored;
+            let node = match &self.expressions[index] {
+                Expr::Call { callee, invocation, .. } => Expr::Call { callee: *callee, arguments, invocation: *invocation },
+                Expr::Construct { callee, .. } => Expr::Construct { callee: *callee, arguments },
+                _ => unreachable!("matched a call"),
+            };
+            *self.expression_mut(ExprId::new(index)) = node;
+            collapsed += 1;
+        }
         Ok(collapsed)
     }
 

@@ -465,8 +465,16 @@ impl Module {
         }
         let nullish = |value: &Literal| matches!(value, Literal::Null | Literal::Undefined);
         let undefined = |value: &Literal| matches!(value, Literal::Undefined);
-        // One side is the loose test against `null`/`undefined`; the other the
-        // strict test against `undefined`, which the loose one already covers.
+        // `x===null||x===void 0` is `x==null` when no value is `document.all`
+        // (and `x!==null&&x!==void 0` is `x!=null`): the strict pair tests
+        // exactly the two values the loose test does. The loose comparison
+        // node is the left one, rewritten in place.
+        if self.no_document_all && a.0 == strict && b.0 == strict && nullish(&a.2) && nullish(&b.2) && a.2 != b.2 {
+            let Expr::Binary { left: operand, right: literal, .. } = self.expressions[left.index()] else {
+                return None;
+            };
+            return Some(Expr::Binary { op: loose, left: operand, right: literal });
+        }
         let keep = if a.0 == loose && nullish(&a.2) && b.0 == strict && undefined(&b.2) {
             left
         } else if b.0 == loose && nullish(&b.2) && a.0 == strict && undefined(&a.2) {
