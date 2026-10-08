@@ -430,6 +430,55 @@ fn d2_consumer_annotations_follow_proofs_and_explicit_controls() {
 }
 
 #[test]
+fn consumer_call_hints_follow_the_factory_invocation_and_preserve_callbacks() {
+    let source = r#"
+        extern void note(int value);
+        export func()->int make(int? option=null) {
+            JsValue inherited=object{};
+            if(option!=null){inherited["option"]=option;note(1);}
+            return ()=>{note(7);return 9;};
+        }
+        export func()->int quiet=make();
+        export func()->int loud=make(3);
+    "#;
+    for annotations in [crate::config::ConsumerAnnotations::Off, crate::config::ConsumerAnnotations::All] {
+        let work = Workspace::new(&format!("factory-hints-{annotations:?}"));
+        let entry = work.source("entry", source);
+        let mut settings = config("preserve-modules", "esm", 0);
+        settings.optimization.constant_folding = Some(false);
+        settings.optimization.inlining = Some(false);
+        settings.delivery.annotations = annotations;
+        let built = compile_entries(&[entry], &settings, ServiceOptions::default()).unwrap();
+        let code = built.javascript(Objective::Raw).unwrap().files().iter()
+            .map(|file| file.code.as_str()).collect::<Vec<_>>().join("\n");
+        assert_eq!(code.matches("/*#__PURE__*/").count(),
+            usize::from(annotations == crate::config::ConsumerAnnotations::All), "{code}");
+        assert!(!code.contains("/*#__NO_SIDE_EFFECTS__*/"), "public factory or callback was annotated: {code}");
+        work.execute(&built, "const seen=[];globalThis.note=v=>seen.push(v);let writes=0;Object.defineProperty(Object.prototype,'option',{configurable:true,set(){writes++}});const api=await import('./entry.js');if(seen.join()!=='1'||writes!==1)throw Error('initialization');if(api.quiet()!==9||api.loud()!==9)throw Error('callback');api.make(5)();delete Object.prototype.option;if(seen.join()!=='1,7,7,1,7'||writes!==2)throw Error('effects:'+seen);console.log('ok');");
+    }
+}
+
+#[test]
+fn consumer_default_call_hints_keep_default_effects_and_throws() {
+    let work = Workspace::new("default-factory-hints");
+    let entry = work.source("entry", r#"
+        extern int observeDefault();
+        export func()->int make(int value=observeDefault()) { return ()=>value; }
+        export func()->int withDefault=make();
+        export func()->int explicit=make(3);
+    "#);
+    let mut settings = config("preserve-modules", "esm", 0);
+    settings.optimization.constant_folding = Some(false);
+    settings.optimization.inlining = Some(false);
+    settings.delivery.annotations = crate::config::ConsumerAnnotations::All;
+    let built = compile_entries(&[entry], &settings, ServiceOptions::default()).unwrap();
+    let code = built.javascript(Objective::Raw).unwrap().files().iter()
+        .map(|file| file.code.as_str()).collect::<Vec<_>>().join("\n");
+    assert_eq!(code.matches("/*#__PURE__*/").count(), 1, "{code}");
+    work.execute(&built, "let calls=0;globalThis.observeDefault=()=>{calls++;return 7};const api=await import('./entry.js');if(calls!==1||api.withDefault()!==7||api.explicit()!==3)throw Error('default effects');const failure=Error('default throw');globalThis.observeDefault=()=>{throw failure};let caught;try{api.make()}catch(error){caught=error}if(caught!==failure||api.make(9)()!==9)throw Error('default throw or explicit argument');console.log('ok');");
+}
+
+#[test]
 fn d2_side_effect_metadata_includes_dependencies_and_foreign_modules() {
     let work = Workspace::new("effects");
     work.source("effects", "print(41);export int value=3;");
