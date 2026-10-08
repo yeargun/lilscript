@@ -1,0 +1,1 @@
+function noopDirectiveTransform(){return{props:[]}}export{noopDirectiveTransform as Qh};

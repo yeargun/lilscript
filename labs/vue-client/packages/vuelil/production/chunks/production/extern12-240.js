@@ -1,0 +1,1 @@
+import SN from"node:path";export{SN};

@@ -1,0 +1,1 @@
+import{PN}from"./extern9-235.js";function Tl(a){return new PN({max:a})}export{Tl};

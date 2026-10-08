@@ -1,0 +1,1 @@
+import{EQ}from"./extern0-228.js";import{KN}from"./index-199.js";EQ(KN,"compile",-1);

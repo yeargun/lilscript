@@ -1,0 +1,1 @@
+import{EQ}from"./extern0-228.js";import{zl,Al}from"./index-52.js";import"./compiler-core-205.js";import{mk}from"./parserOptions-39.js";import{nk}from"./errors-40.js";import{uk}from"./transformStyle-41.js";EQ(zl,"compile",1);EQ(nk,"createDOMCompilerError",2);EQ(Al,"parse",1);EQ(mk,"parserOptions",-1);EQ(uk,"transformStyle",1);

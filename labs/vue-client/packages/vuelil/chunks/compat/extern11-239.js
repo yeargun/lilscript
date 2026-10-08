@@ -1,0 +1,1 @@
+import GO from"hash-sum";export{GO};

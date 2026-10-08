@@ -1,0 +1,1 @@
+import{parse as eO}from"@babel/parser";export{eO};

@@ -1,0 +1,1 @@
+import{sp}from"./utils-81.js";function processDefineExpose(a,b){if(sp(b,fs)){if(a.hasDefineExposeCall)a.error("duplicate "+fs+"() call",b);a.hasDefineExposeCall=!0;return!0}return!1}let fs="defineExpose";export{processDefineExpose as es,fs};

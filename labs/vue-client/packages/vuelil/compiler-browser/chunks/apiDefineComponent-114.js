@@ -1,0 +1,1 @@
+import{hi,Bi}from"./general-31.js";function defineComponent(a,b){return!hi(a)?a:Bi({name:a.name},b,{setup:a})}export{defineComponent as zx};

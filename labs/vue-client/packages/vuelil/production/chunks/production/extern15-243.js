@@ -1,0 +1,1 @@
+import WN from"node:process";export{WN};

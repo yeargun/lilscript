@@ -1,0 +1,1 @@
+import{LRUCache as ON}from"lru-cache";export{ON};

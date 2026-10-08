@@ -1,0 +1,1 @@
+import UO,{Rule as RO}from"postcss";export{RO,UO};

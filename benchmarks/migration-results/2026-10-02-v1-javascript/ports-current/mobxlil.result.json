@@ -1,0 +1,180 @@
+{
+ "schema": 1,
+ "kind": "lilscript-port-result",
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-3/bin/lilscript-9500df391444d3a1",
+  "sha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-3/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "objective": "shipped",
+ "patches": "none",
+ "checks": "production",
+ "node": "v24.20.0",
+ "completed": "2026-10-02T14:25:47.527Z",
+ "result": {
+  "port": "mobxlil",
+  "source": {
+   "path": "/home/azureuser/mobxlil",
+   "head": "56f25b2d69a7ae34ee9c5bb5dd051628aeadf371",
+   "dirty": true
+  },
+  "compilerWrapper": {
+   "path": "/home/azureuser/lilscript-work/out/v1-ports-production-3/runs/mobxlil/lilscript-wrapper",
+   "sha256": "dc9076d7214693db25614f360529fad75694e7bffa04421e88d9b925f3ffa139",
+   "targetSha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240"
+  },
+  "build": {
+   "command": "npm run build",
+   "status": 0,
+   "ms": 1087990,
+   "timedOut": false,
+   "compilerInvocations": 9,
+   "errors": [],
+   "receipts": [
+    {
+     "source": ".tmp/build-report.json",
+     "path": "logs/mobxlil.build-report.json",
+     "sha256": "cff8d73be3e726b61dd5c98d9e3691451c941f17eb500be573de972b07332ec9"
+    },
+    {
+     "source": "dist/lilscript.manifest.json",
+     "path": "logs/mobxlil.lilscript.manifest.json",
+     "sha256": "4acb5f62bd047de1ccdbebae13e10ae7914498df0b5afa935894a8da3206f877"
+    }
+   ]
+  },
+  "artifacts": [
+   {
+    "path": "dist/index.js",
+    "bytes": 255,
+    "sha256": "945050791144e28077bade9b417acf8ab34b5f3e52bd1730512145b4be2fea7c",
+    "raw": 255,
+    "gzip9": 203,
+    "brotli11": 175
+   },
+   {
+    "path": "dist/mobx.cjs.development.js",
+    "bytes": 117145,
+    "sha256": "1b51a91aa37a3750d505e976f4af90c2c15a31a6cfa487616456ae3072b99006",
+    "raw": 117145,
+    "gzip9": 27093,
+    "brotli11": 23754
+   },
+   {
+    "path": "dist/mobx.cjs.production.js",
+    "bytes": 65559,
+    "sha256": "d7b7cac0cc700637d791bea85f9b7e28d52ce14c5568d882cf4f468b10d3fbbe",
+    "raw": 65559,
+    "gzip9": 17281,
+    "brotli11": 15306
+   },
+   {
+    "path": "dist/mobx.cjs.production.min.js",
+    "bytes": 65289,
+    "sha256": "4c27d49af72d73dca5e604b2790828ffe4ac08a5572c49da4156e9115cbe7e5d",
+    "raw": 65289,
+    "gzip9": 17945,
+    "brotli11": 15944
+   },
+   {
+    "path": "dist/mobx.dev.esm.js",
+    "bytes": 113012,
+    "sha256": "e2354eff3714df17a74f07391d6fac27533f78459b9919722d78d50b0aef1546",
+    "raw": 113012,
+    "gzip9": 26725,
+    "brotli11": 23281
+   },
+   {
+    "path": "dist/mobx.esm.development.js",
+    "bytes": 113012,
+    "sha256": "e2354eff3714df17a74f07391d6fac27533f78459b9919722d78d50b0aef1546",
+    "raw": 113012,
+    "gzip9": 26725,
+    "brotli11": 23281
+   },
+   {
+    "path": "dist/mobx.esm.js",
+    "bytes": 58250,
+    "sha256": "c4674969501c6761f0171bfe070ec196c1dc2373acd27afac4dd2a34276a3b60",
+    "raw": 58250,
+    "gzip9": 17250,
+    "brotli11": 15358
+   },
+   {
+    "path": "dist/mobx.esm.production.min.js",
+    "bytes": 61027,
+    "sha256": "2284349f97525eb26af87a17a1a1f06f7592dd3afd0ba373af813b5e28e19940",
+    "raw": 61027,
+    "gzip9": 17788,
+    "brotli11": 15805
+   },
+   {
+    "path": "dist/mobx.mjs",
+    "bytes": 58250,
+    "sha256": "c4674969501c6761f0171bfe070ec196c1dc2373acd27afac4dd2a34276a3b60",
+    "raw": 58250,
+    "gzip9": 17250,
+    "brotli11": 15358
+   },
+   {
+    "path": "dist/mobx.umd.development.js",
+    "bytes": 117457,
+    "sha256": "8d8cbefc5c0a80fccc3af5a3a6017514fbe9dc43b0fd9a07b9da54148e0c6fcf",
+    "raw": 117457,
+    "gzip9": 27211,
+    "brotli11": 23795
+   },
+   {
+    "path": "dist/mobx.umd.production.js",
+    "bytes": 62447,
+    "sha256": "f91811761bb0a8011342bff55f6ad14aa74fc56c48a4240e8ad02760dd5d177c",
+    "raw": 62447,
+    "gzip9": 17502,
+    "brotli11": 15605
+   },
+   {
+    "path": "dist/mobx.umd.production.min.js",
+    "bytes": 65588,
+    "sha256": "e362d024ab1d923b9d1c45af788e0771e0461c8666aee32b5a52d5be78921664",
+    "raw": 65588,
+    "gzip9": 18075,
+    "brotli11": 16034
+   }
+  ],
+  "compilerInvocations": 9,
+  "test": {
+   "command": "npm test",
+   "status": 0,
+   "signal": null,
+   "ms": 55123,
+   "compilerInvocations": 0,
+   "artifactChanges": [],
+   "tests": 780,
+   "pass": 769,
+   "fail": 0,
+   "failing": [],
+   "tail": "> @itslil/mobx@7.0.1 test\n> node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs\n\n\n\nTest Suites: 37 passed, 37 total\nTests:       11 skipped, 769 passed, 780 total\nSnapshots:   32 passed, 32 total\nTime:        54.249 s\nRan all test suites."
+  },
+  "failing": [],
+  "ledgered": [],
+  "regressions": [],
+  "nowPassing": [
+   "(build failed)",
+   "Test suite failed to run"
+  ],
+  "ledgerEntries": [
+   {
+    "index": 0,
+    "owner": "M12.2 (the port's rebuild on the current compiler: drop the refused key, define its host globals for the development bundle)"
+   }
+  ],
+  "state": "green"
+ }
+}

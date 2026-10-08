@@ -1,0 +1,1 @@
+import GO from"postcss-selector-parser";export{GO};

@@ -1,0 +1,1 @@
+import KO,{Rule as HO}from"postcss";export{HO,KO};

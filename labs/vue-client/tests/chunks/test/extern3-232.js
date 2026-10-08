@@ -1,0 +1,1 @@
+import{DecodingMode as FR,EntityDecoder as GR,decodeHTML as HR,decodeHTMLAttribute as IR,htmlDecodeTree as JR}from"entities/decode";export{FR,GR,HR,IR,JR};

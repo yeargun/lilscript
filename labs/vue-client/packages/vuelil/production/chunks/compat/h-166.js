@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-32.js";import{ZG,bH,jH}from"./vnode-163.js";import{zP}from"./extern21-249.js";function h(a,b,c){try{ZG(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?bH(b)?jH(a,null,[b]):jH(a,b):jH(a,null,b);if(d>3)c=zP(arguments,2);else if(d==3&&bH(c))c=[c];return jH(a,b,c)}finally{ZG(1,!1)}}export{h as xI};

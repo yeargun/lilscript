@@ -1,0 +1,1 @@
+import cO,{Rule as _N}from"postcss";export{_N,cO};

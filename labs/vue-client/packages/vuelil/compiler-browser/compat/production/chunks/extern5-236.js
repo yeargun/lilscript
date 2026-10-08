@@ -1,0 +1,1 @@
+import KO from"magic-string";export{KO};

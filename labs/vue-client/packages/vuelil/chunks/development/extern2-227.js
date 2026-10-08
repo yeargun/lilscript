@@ -1,0 +1,1 @@
+import{parse as gO,parseExpression as MQ}from"@babel/parser";export{gO,MQ};

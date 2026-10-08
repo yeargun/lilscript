@@ -1,11 +1,1 @@
-"use strict";
-const { Fragment, h } = require("../dist/vuelil-packages.cjs").vue_runtime;
-function jsx(type, props, key) {
-  const { children, ...rest } = props || {};
-  if (arguments.length > 2) rest.key = key;
-  return h(type, rest, children);
-}
-exports.Fragment = Fragment;
-exports.jsx = jsx;
-exports.jsxDEV = jsx;
-exports.jsxs = jsx;
+(($e,$r,$o)=>{"use strict";$o.defineProperty($e,"Fragment",{enumerable:true,get:()=>$0["Fragment"]});$o.defineProperty($e,"jsx",{enumerable:true,get:()=>a});$o.defineProperty($e,"jsxDEV",{enumerable:true,get:()=>a});$o.defineProperty($e,"jsxs",{enumerable:true,get:()=>a});let $0=$r("../../../packages/vuelil/compiler-cjs/development/vue.runtime.cjs");let $lh0=(function(){function createJsx(h){return function jsx(type,props,key){const{children,...rest}=props??{};if(arguments.length>2)rest.key=key;return h(type,rest,children);};};return {get "createJsx"(){return createJsx}}})();let b=$lh0["createJsx"];let a=b($0["h"]);return $e})(exports,require,Object);

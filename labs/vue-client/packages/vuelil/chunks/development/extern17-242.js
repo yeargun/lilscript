@@ -1,0 +1,1 @@
+import nO from"postcss-modules";export{nO};

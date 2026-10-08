@@ -1,0 +1,1 @@
+import{parse as aO}from"node:url";export{aO};

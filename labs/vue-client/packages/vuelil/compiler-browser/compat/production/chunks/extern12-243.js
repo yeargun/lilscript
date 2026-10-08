@@ -1,0 +1,1 @@
+import{parse as HO}from"node:url";export{HO};

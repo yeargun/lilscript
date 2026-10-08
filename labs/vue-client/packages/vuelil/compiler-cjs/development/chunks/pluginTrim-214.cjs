@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"at",{enumerable:true,get:()=>at});let at=function(){return{postcssPlugin:"vue-sfc-trim",Once:function(a){a.walk(function(a){let b=a.type+"",c=a.raws;if(b=="rule"||b=="atrule"){if(c.before)c.before="\n";if("after" in c&&c.after)c.after="\n"}})}}};at.postcss=!0;return $$e})(exports,require,Object);

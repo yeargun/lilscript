@@ -33,5 +33,740 @@
     "path": "/home/azureuser/lilscript-work/out/v1-mdast-development-90/from-markdown.mjs",
     "sha256": "ef174cbbe0ad75a1d7c90ebdc562cd888b94691b94e0289299a7b57ef5de0315",
     "bytes": 74107
+  },
+  "inputs": {
+    "root": 0,
+    "entries": [
+      {
+        "name": "entry",
+        "module": 0
+      }
+    ],
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/entry.lil",
+        "bytes": 78,
+        "sha256": "f0f45324b5f212e1941e1fcb4e70e485f46f5949ceecbca0a5088342d214a37a",
+        "dependencies": [
+          1
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/from-markdown.lil",
+        "bytes": 23031,
+        "sha256": "78894f1bafbd7b1717b28b6f4ffa140cca0fcec02c92e7b6951a5c33ca551bae",
+        "dependencies": [
+          2,
+          3,
+          52,
+          53,
+          54,
+          55,
+          38,
+          28,
+          14,
+          56,
+          57
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/host.lil",
+        "bytes": 9584,
+        "sha256": "6badb1a179beafd2e5fc92d05c784290b3407412ab9a58769a85dbfe33e2f357",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/parse.lil",
+        "bytes": 1180,
+        "sha256": "b036c2932912ef350c629c126601292bda49caab2a0152d77988dcb979481d83",
+        "dependencies": [
+          4,
+          6,
+          9,
+          11,
+          12,
+          19,
+          20
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-combine-extensions.lil",
+        "bytes": 1615,
+        "sha256": "45dda94d1f191795642dac1e553985170a046717ad685685a9c61453a1768cfd",
+        "dependencies": [
+          2,
+          5
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-chunked.lil",
+        "bytes": 1226,
+        "sha256": "da747a8e78fa84b0a467616f68d83384737e53ad1b016e83f9fb803d2edf8e54",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/create-tokenizer.lil",
+        "bytes": 11638,
+        "sha256": "d587bd8a701c469fb05407a1b988231862430bc2d1cbaa0198218a705d41e690",
+        "dependencies": [
+          2,
+          7,
+          5,
+          8
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-character.lil",
+        "bytes": 1611,
+        "sha256": "634af98913dfb47ab2fcdf6fd17e2b4733bc26608f78609e110ce0d33bdf4a15",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-resolve-all.lil",
+        "bytes": 432,
+        "sha256": "d7df6ed1af3b6b922a3f3150f0fc8f94cf4f38852f32819513c56a5a0c546a74",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/initialize/content.lil",
+        "bytes": 1869,
+        "sha256": "3f4959b21c63be2570bbc74960af330e4b6a9646fbb348cef55300baabff2d45",
+        "dependencies": [
+          2,
+          10,
+          7
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/factory-space.lil",
+        "bytes": 903,
+        "sha256": "a5932f5e1b06d6517cdc43a5b0a12cfc9a6b875e94d9c937213f5192fb3b50ba",
+        "dependencies": [
+          7
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/initialize/document.lil",
+        "bytes": 8336,
+        "sha256": "d74de0315b97b124e43f302f64eb4cfd2cc1466dafd00639d20b818a84958856",
+        "dependencies": [
+          2,
+          10,
+          7,
+          5
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/initialize/flow.lil",
+        "bytes": 1333,
+        "sha256": "4ed3a38963b8557e3d1cf818ad7ba0f9bcd3f90c2268f91962891ec3fb14f1e7",
+        "dependencies": [
+          2,
+          10,
+          13,
+          15
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/blank-line.lil",
+        "bytes": 855,
+        "sha256": "115d2dcacdf715b02efce52caac3960d5b855939a68dc0a20817491e8b1194b0",
+        "dependencies": [
+          10,
+          7,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/symbol/types.lil",
+        "bytes": 10985,
+        "sha256": "6ae172165319ad71396ca532ec544326d82d9625f8ee46090d02a587e40c1aa8",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/content.lil",
+        "bytes": 3353,
+        "sha256": "05cc704bd51c0eaf8b9740bd243bbd92842e77a0c6d0372834c76d42ca6a7620",
+        "dependencies": [
+          10,
+          7,
+          16,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-subtokenize.lil",
+        "bytes": 6388,
+        "sha256": "2b22576838b22844e1b6d793a4ee542deb73a396ae594b53ce1d9550ff0fe69a",
+        "dependencies": [
+          2,
+          5,
+          17
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/splice-buffer.lil",
+        "bytes": 4341,
+        "sha256": "9fcce40f739a2119a7bb0b44ad7ec6c69344173854feedef3e528d168102f512",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/symbol/constants.lil",
+        "bytes": 2986,
+        "sha256": "c89476d798ffe1eb1f9843219c41cd1d19849707ceb9fc18d5583b5ae2470188",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/initialize/text.lil",
+        "bytes": 5354,
+        "sha256": "85651ec8148ff18619ca4e46f5e5e4ea5c810c537b6e69d807fc824e4a1f1905",
+        "dependencies": [
+          2
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/constructs.lil",
+        "bytes": 2829,
+        "sha256": "74cb525c1651cc300f78f4770c648d3593c4e2dc3f4a45351e459b29be14d84a",
+        "dependencies": [
+          21,
+          24,
+          25,
+          26,
+          27,
+          30,
+          31,
+          32,
+          33,
+          40,
+          41,
+          42,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          51,
+          50,
+          19
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/attention.lil",
+        "bytes": 6546,
+        "sha256": "35d47c10695c713c471cc468088ac8cf975ce0d48e7dff237d951112a09f5632",
+        "dependencies": [
+          5,
+          22,
+          8,
+          23,
+          18,
+          14,
+          2
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-classify-character.lil",
+        "bytes": 574,
+        "sha256": "80373b35201103ddfd5b5a942d97e1ab492fee40858c395d9e9113d2255d4477",
+        "dependencies": [
+          7,
+          18
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/symbol/codes.lil",
+        "bytes": 6185,
+        "sha256": "762a3e62e1500ba78d71f8218fcb2e7e357ea3795d21bb5e81b8d4287f513c19",
+        "dependencies": [
+          2
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/autolink.lil",
+        "bytes": 4541,
+        "sha256": "97e7eb8b4b33f23df8600b7d811b5cfbbb8df23bfc01dfa25fb528a085d55703",
+        "dependencies": [
+          7,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/block-quote.lil",
+        "bytes": 2637,
+        "sha256": "eae45318d2972f4be0fd616cb243d59dd366cb61209b13796d651cfc8297ab49",
+        "dependencies": [
+          10,
+          7,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/character-escape.lil",
+        "bytes": 1021,
+        "sha256": "20193c0809adfe18e77d04a7a782ad437d912f3de997a402930af8e46031c6ab",
+        "dependencies": [
+          7,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/character-reference.lil",
+        "bytes": 3258,
+        "sha256": "b355201b60833cf854ca7328b4cd1a9d405ae491b4d1b5a70178313c8c16c71a",
+        "dependencies": [
+          28,
+          7,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/decode-named.lil",
+        "bytes": 262,
+        "sha256": "e4150b19e19a214e7ccfb5d6762bdce62fde30b8cc907642d911f9ea87b9e6e8",
+        "dependencies": [
+          29,
+          2
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/character-entities.lil",
+        "bytes": 37271,
+        "sha256": "c8b6618cbfd0fdf86d5c36b8a4ed1e4ee141a25088251142a20fe599fca210b3",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/code-fenced.lil",
+        "bytes": 9309,
+        "sha256": "3f4bb3f8b531e3729291c8dcdeab6d6a8e6fc2449eafac161d818f2ddbb27a1e",
+        "dependencies": [
+          10,
+          7,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/code-indented.lil",
+        "bytes": 3348,
+        "sha256": "fb8705076d7529695e7da77e235cd90de1af56c92b7ec746de3af9499a2f8be8",
+        "dependencies": [
+          10,
+          7,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/code-text.lil",
+        "bytes": 4856,
+        "sha256": "d35e0cdd7e33ae98579152b3114a826ff43fe69b3802b9e9db7c58fae8ee4388",
+        "dependencies": [
+          7,
+          23,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/definition.lil",
+        "bytes": 4776,
+        "sha256": "38becb049d8509a9239480090acf683d90d24ad4ef4e8b35f14e92c326788011",
+        "dependencies": [
+          34,
+          35,
+          10,
+          36,
+          37,
+          7,
+          38,
+          23,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/factory-destination.lil",
+        "bytes": 4413,
+        "sha256": "5be6c3c02bacd604c1501b85b6785602ed8b447a85679f85e6ee7351964bb161",
+        "dependencies": [
+          7,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/factory-label.lil",
+        "bytes": 2994,
+        "sha256": "6376115906bbfbce66d13f0a50ff3b921922135b18b6e66d290eb0b54221f21d",
+        "dependencies": [
+          7,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/factory-title.lil",
+        "bytes": 2913,
+        "sha256": "f22c5e3e9919b86b7f2e0cc8b38f6cc1182e88917c9f3fcb61cbdba56404a07c",
+        "dependencies": [
+          10,
+          7,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/factory-whitespace.lil",
+        "bytes": 841,
+        "sha256": "e63b322526936f7e746978a4a3e6d56b315dcd01bde6732cf9d94bfb93845d36",
+        "dependencies": [
+          10,
+          7,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-normalize-identifier.lil",
+        "bytes": 348,
+        "sha256": "9c605bcd8454ea59378864ba8abfb67315008fbdea73f96e9fb09e76594fe20e",
+        "dependencies": [
+          39
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/symbol/values.lil",
+        "bytes": 3599,
+        "sha256": "1aabedd9c760c573fd1ea24d07ae9d35d207bbe61a0ecc62985f0953fc73c3e9",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/hard-break-escape.lil",
+        "bytes": 763,
+        "sha256": "92b8a9e28270f61184e6572a8e0640c33f7fbd163c24dde1255d7211e7ca0b2a",
+        "dependencies": [
+          7,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/heading-atx.lil",
+        "bytes": 4166,
+        "sha256": "9d2fd673aab15d904d2b876aa66e7c92ac30c14f8b838ea34b58d4af0f9d269c",
+        "dependencies": [
+          10,
+          7,
+          5,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/html-flow.lil",
+        "bytes": 16559,
+        "sha256": "ba2daf14d7cd5c29ab123ce10374c26fb784770eebf8348ce73bb5a58c3a67ef",
+        "dependencies": [
+          7,
+          43,
+          23,
+          23,
+          18,
+          14,
+          13
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-html-tag-name.lil",
+        "bytes": 475,
+        "sha256": "db2a6d54b5cbdbc8273a776f7b609fb2ed9b90f87242c1d26801ef11771b0380",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/html-text.lil",
+        "bytes": 12529,
+        "sha256": "1e386a681a07b86327fc72dd7735683e86367f0a183a817976a302c0b3da26fa",
+        "dependencies": [
+          10,
+          7,
+          23,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/label-end.lil",
+        "bytes": 11956,
+        "sha256": "4192d0a356f2953a56f695f038c3920ab20305956b310d7061b4cd8bc5274f1d",
+        "dependencies": [
+          34,
+          35,
+          36,
+          37,
+          7,
+          5,
+          38,
+          8,
+          23,
+          18,
+          14,
+          2
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/label-start-image.lil",
+        "bytes": 1387,
+        "sha256": "e4a9ba23857880369a5b7912a5316c41173094574b6b5b6721447a399a7e7673",
+        "dependencies": [
+          23,
+          14,
+          45
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/label-start-link.lil",
+        "bytes": 1006,
+        "sha256": "e350229f5af2055c3a065af25bacaa22765e13f1fb9c137df624cfac1b89d002",
+        "dependencies": [
+          23,
+          14,
+          45
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/line-ending.lil",
+        "bytes": 577,
+        "sha256": "a448ed6a6485a776f3e67941bebef001cdbe486f23bdfd4664842178973d39be",
+        "dependencies": [
+          10,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/list.lil",
+        "bytes": 8247,
+        "sha256": "3a8e976a8a6ccdc8330f26561caa457040ecf0c2d86773551abc505180ef4119",
+        "dependencies": [
+          10,
+          7,
+          23,
+          18,
+          14,
+          13,
+          50
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/thematic-break.lil",
+        "bytes": 1755,
+        "sha256": "5776bda5a2850218bd3c4c9fdc796d46c8979b2deac17c7e19376c6816a54313",
+        "dependencies": [
+          10,
+          7,
+          18,
+          14
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/core/setext-underline.lil",
+        "bytes": 3858,
+        "sha256": "4e4ca3c5448dd4955789148a6f77ee089c20d55702db91657a92f0641bc6752b",
+        "dependencies": [
+          10,
+          7,
+          14,
+          2
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/postprocess.lil",
+        "bytes": 156,
+        "sha256": "0ea578b00bed09960e8f9c2d06f962b9e626fec4a528beaba4be30f2c5c50b31",
+        "dependencies": [
+          16
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/preprocess.lil",
+        "bytes": 2259,
+        "sha256": "ce28b92f70b3bd54428324b0f6695ca162aa5df1d2e0f431fde1f8ef4638e9b8",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-decode-numeric.lil",
+        "bytes": 563,
+        "sha256": "03d27ae0446af7f4aa870de13c4c41b65bf53f7a12731c8ee96694f34f95f4fc",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/micromark/util-decode-string.lil",
+        "bytes": 946,
+        "sha256": "df8465926f8b05577467dfc4fb4ed42f28b71574e541002cfc2395275c5fc907",
+        "dependencies": [
+          28,
+          54
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/stringify-position.lil",
+        "bytes": 556,
+        "sha256": "4a625ab59ab7059b489f26d9089f6f69530cb5a56044eaf1ad71f4de8d1b0663",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/src/to-string.lil",
+        "bytes": 719,
+        "sha256": "d1d84463da85bc5a419f8755e502fcfa8a26c60e2dddd6c737e7b2c9d9884a93",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ],
+    "host_modules": [],
+    "host_reserved": []
+  },
+  "policy_fingerprint": null,
+  "resources": {
+    "baseline_work": 218529152,
+    "optional_work": 0,
+    "codec_work": 0,
+    "peak_retained_bytes": 29357861,
+    "frontend_logical_work": 192931281,
+    "frontend_allocation_accounting": "partial",
+    "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+    "source_buffer_capacity": 393344,
+    "frontend_phase_accounting": {
+      "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+      "main_parse_arena": "not repeated; discovery programs reused",
+      "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+      "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+      "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+      "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+      "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+      "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+      "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+      "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+      "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+      "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+      "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+      "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+      "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+      "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+      "semantic_verification": "pre-admitted work and owned scratch",
+      "module_metadata": "uninstrumented"
+    },
+    "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+    "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+    "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+    "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+    "target_allocation_accounting": "partial",
+    "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+    "retained_bytes_after_handoff": 0
+  },
+  "oracle_driver": {
+    "path": "mdast-compare.mjs",
+    "sha256": "56c5cba3c57161e6bdd4dd74ba618b658d511cb12525caa9e859903c5a82c20b"
+  },
+  "oracle_dependencies": [
+    {
+      "name": "commonmark.json",
+      "path": "/home/azureuser/mdast-util-from-markdownlil/node_modules/commonmark.json/index.js",
+      "version": "0.31.0",
+      "package_root": "/home/azureuser/mdast-util-from-markdownlil/node_modules/commonmark.json",
+      "files": {
+        "index.js": "d12a345cdc8b059054f26740e711fe31eae9aa6bb7e1b4dbe0e8331057610e25",
+        "package.json": "ed3ab31c15207fd82fd3718ea7223076ebc7c33693baed4d365cb99706da5047"
+      }
+    },
+    {
+      "name": "mdast-util-from-markdown",
+      "path": "/home/azureuser/mdast-util-from-markdownlil/node_modules/mdast-util-from-markdown/index.js",
+      "version": "2.0.3",
+      "package_root": "/home/azureuser/mdast-util-from-markdownlil/node_modules/mdast-util-from-markdown",
+      "files": {
+        "dev/index.js": "0746a4015c41abf71353218a53f328659c33f62fbf6ad67c5fb0e7330d80c8b3",
+        "dev/lib/index.js": "bc4760bec02ae905b362fbe7eb7dd935ceb49cfcff8728c6cc07f5940a1a26c8",
+        "dev/lib/types.js": "2c785c7622923005c12bd4a5515388ead64d8773b31af8fe325431a453f05250",
+        "index.js": "b5ac1d75a898f7e28ae90ce26ab937b5f574bd5b4e8c17745bd15ba78a4a33f5",
+        "lib/index.js": "2b19a9873232679ef08429e08c5836c865a54d8113ae5d58cb9409a60863727b",
+        "lib/types.js": "ee0a88bd47513fbc61140074a08400d8d3ef38fcf9d01d3731b8eba56f4d45cb",
+        "package.json": "4f7c4700c78d6781af46eb12b2f908b0503d8beefa8b2cea0fbfe9de8444e438"
+      }
+    }
+  ],
+  "dependency_lock": {
+    "path": "/home/azureuser/lilscript-work/out/v1-ports-production-2/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/package-lock.json",
+    "sha256": "e92ef96f04f213e4a1649b1d62e31404005752a3419d589e950d71feed40109c"
+  },
+  "node": {
+    "path": "/home/azureuser/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+    "sha256": "89af8424dd53e560b1933f87ba650d8bf57c83ca5a04600eefb31f416aabbae7",
+    "version": "v24.20.0"
   }
 }

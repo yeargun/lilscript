@@ -1,0 +1,1 @@
+import YO from"node:path";export{YO};

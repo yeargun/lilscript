@@ -1,0 +1,1 @@
+import"./shared-210.js";import{ky,py}from"./compatConfig-117.js";import{$h}from"./general-31.js";function RC(a){ky(py.INSTANCE_LISTENERS+"",a);let b={},c=a.vnode.props;if(!c)return b;for(let a in c)if($h(a))b[a.charAt(2).toLowerCase()+a.slice(3)]=c[a];return b}export{RC};

@@ -1,0 +1,1 @@
+let js=/\bawait\b/;export{js};

@@ -1,0 +1,1 @@
+import dP from"postcss-selector-parser";export{dP};

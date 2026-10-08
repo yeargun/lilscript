@@ -1,0 +1,1 @@
+import{parse as LO}from"@babel/parser";export{LO};

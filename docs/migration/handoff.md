@@ -45,6 +45,10 @@ but misses closures that capture it when a later call changes its input facts.
 Algorithm 90 also schedules those readers. The reduced regression passes all 24
 JavaScript format/objective lanes; the affected rule batch is qualified, and a
 fresh development Markdown output matches upstream on all 652 CommonMark inputs.
+The complete production Markdown package also passes 744 of 746 checks, resolving
+all 305 additional runtime failures. Only two stale site-receipt tests remain
+for V2; tests neither rebuild nor alter any artifact. Its current receipt is
+retained under `ports-current/` in the V1 evidence.
 The third fleet is running serially on candidate 6: Markdown, Motion, MobX,
 KaTeX, then the 18 remaining ports. Work directory
 `lilscript-work/out/v1-ports-production-3`; log

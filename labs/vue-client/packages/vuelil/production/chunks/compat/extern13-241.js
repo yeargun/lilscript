@@ -1,0 +1,1 @@
+import{parse as yO}from"node:url";export{yO};

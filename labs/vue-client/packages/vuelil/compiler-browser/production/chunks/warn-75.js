@@ -1,0 +1,1 @@
+function Do(a){if(!(typeof process!="undefined"&&process.env.NODE_ENV+""=="production")&&!Go&&!Fo[a]){Fo[a]=!0;Eo(a)}}function Eo(a){console.warn("\u001b[1m\u001b[33m[@vue/compiler-sfc]\u001b[0m\u001b[33m "+a+"\u001b[0m\n")}let Fo={},Go=!1;export{Do,Eo};

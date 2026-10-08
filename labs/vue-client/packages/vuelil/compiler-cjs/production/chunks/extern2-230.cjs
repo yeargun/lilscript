@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"VN",{enumerable:true,get:()=>$$0["parse"]});$$o.defineProperty($$e,"yQ",{enumerable:true,get:()=>$$0["parseExpression"]});let $$0=$$r("@babel/parser");return $$e})(exports,require,Object);

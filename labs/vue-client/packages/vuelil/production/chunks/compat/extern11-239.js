@@ -1,0 +1,1 @@
+import wO from"hash-sum";export{wO};

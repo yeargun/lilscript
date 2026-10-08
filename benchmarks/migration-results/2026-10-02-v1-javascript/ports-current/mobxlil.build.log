@@ -1,0 +1,8 @@
+
+> @itslil/mobx@7.0.1 build
+> node scripts/build.mjs
+
+Built 12 compiler-written artifacts (development, production, min, package)
+
+warning: javascript: `policy.tactics.naming-search` is unavailable because required tactic `identifier-mangling` is disabled
+warning: javascript: `policy.tactics.naming-alphabet` is unavailable because required tactic `identifier-mangling` is disabled

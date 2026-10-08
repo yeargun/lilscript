@@ -1,0 +1,53 @@
+
+> motionlil@0.1.5 test
+> node --test test/node.test.mjs test/array-identity.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs test/shared-graph.test.mjs
+
+✔ array utilities preserve upstream identity, NaN and sparse-array behavior (2.175487ms)
+✔ array utilities retain receiver, method order and strict index comparison (0.256481ms)
+✔ moveItem retains number indices, sparse spreading and item identity (1.036672ms)
+✔ ESM entry points load without a browser global (2.986726ms)
+✔ pure utilities and MotionValue behavior work (2.694239ms)
+✔ CommonJS entry points expose the same public names (73.248095ms)
+✔ every Motion DOM export is present on the full entry (0.578284ms)
+✔ default entry keeps the JS consumer API (0.335719ms)
+✔ public constructor compatibility covers common direct usage (0.554889ms)
+✔ MotionValue uses its public prototype and preserves method defaults (0.881311ms)
+✔ group compatibility preserves existing native accessors and completion promises (0.573615ms)
+✔ ESM entry points share the same frame queue, values and control constructors (41.445038ms)
+✔ value type tables use Motion's object keys, identities and defaults (1.05657ms)
+✔ subscriptions preserve mutation order, omitted arguments and the cleared array (0.679323ms)
+✔ MotionValue start resolves with undefined (1.04626ms)
+✔ keyframe helpers preserve null, undefined, holes and nonnumeric values like Motion (1.04088ms)
+✔ transition lookup uses property access, nullish fallback and inherited properties (0.526676ms)
+✔ mix preserves Motion's numeric and mixer-returning overloads (20.634545ms)
+✖ named imports do not pull the whole consumer graph (2579.509236ms)
+✔ all installed code is exactly the compiler delivery, with complete package effects (299.790256ms)
+✔ all ten ESM and CJS entry points preserve the public export sets (329.489468ms)
+✔ the distributed animate module survives a second Terser pass (1403.645619ms)
+✔ Vite bundles the public package entry (4164.956484ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 22
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4479.182371
+
+✖ failing tests:
+
+test at test/shake.test.mjs:31:1
+✖ named imports do not pull the whole consumer graph (2579.509236ms)
+  AssertionError [ERR_ASSERTION]: animateMini stayed too large: 43239
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-3/runs/motionlil/motionlil/test/shake.test.mjs:38:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+

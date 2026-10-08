@@ -1,0 +1,1 @@
+import aP from"node:process";export{aP};

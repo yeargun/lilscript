@@ -1,0 +1,1 @@
+import{PQ}from"./extern0-226.js";import{Co}from"./index-74.js";PQ(Co,"compile",1);

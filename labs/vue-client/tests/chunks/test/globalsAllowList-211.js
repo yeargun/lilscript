@@ -1,0 +1,1 @@
+import{pc}from"./makeMap-8.js";let Si=pc("Infinity,undefined,NaN,isFinite,isNaN,parseFloat,parseInt,decodeURI,"+"decodeURIComponent,encodeURI,encodeURIComponent,Math,Number,Date,Array,"+"Object,Boolean,String,RegExp,Map,Set,JSON,Intl,BigInt,console,Error,Symbol"),Ti=Si;export{Si,Ti};

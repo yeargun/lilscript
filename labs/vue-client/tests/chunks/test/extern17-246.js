@@ -1,0 +1,1 @@
+import gP from"postcss-modules";export{gP};

@@ -1,0 +1,1 @@
+import{EQ}from"./extern0-226.js";import{Co}from"./index-74.js";EQ(Co,"compile",1);

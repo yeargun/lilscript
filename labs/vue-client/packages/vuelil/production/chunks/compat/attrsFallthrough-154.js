@@ -1,0 +1,1 @@
+import"./shared-211.js";import{_x,fy}from"./compatConfig-118.js";import{$h}from"./general-32.js";function IE(a,b){return a=="is"?!0:(a=="class"||a=="style")&&_x(fy.INSTANCE_ATTRS_CLASS_STYLE+"",b)?!0:$h(a)&&_x(fy.INSTANCE_LISTENERS+"",b)?!0:a.startsWith("routerView")||a=="registerRouteInstance"?!0:!1}export{IE};

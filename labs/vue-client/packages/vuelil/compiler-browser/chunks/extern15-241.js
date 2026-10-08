@@ -1,0 +1,1 @@
+import mO,{Rule as jO}from"postcss";export{jO,mO};

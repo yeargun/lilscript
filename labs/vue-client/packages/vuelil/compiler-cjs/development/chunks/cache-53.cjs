@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"Sl",{enumerable:true,get:()=>Sl});let $$0=$$r("./extern10-235.cjs");function Sl(a){return new $$0["YN"]({max:a})}return $$e})(exports,require,Object);

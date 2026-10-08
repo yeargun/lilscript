@@ -1,0 +1,1 @@
+import bP from"postcss-modules";export{bP};

@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"HO",{enumerable:true,get:()=>$$0["Rule"]});$$o.defineProperty($$e,"KO",{enumerable:true,get:()=>$$0});let $$0=$$r("postcss");return $$e})(exports,require,Object);

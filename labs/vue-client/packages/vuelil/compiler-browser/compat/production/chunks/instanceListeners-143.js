@@ -1,0 +1,1 @@
+import"./shared-214.js";import{fy,ky}from"./compatConfig-118.js";import{$h}from"./general-32.js";function TC(a){fy(ky.INSTANCE_LISTENERS+"",a);let b={},c=a.vnode.props;if(!c)return b;for(let a in c)if($h(a))b[a.charAt(2).toLowerCase()+a.slice(3)]=c[a];return b}export{TC};

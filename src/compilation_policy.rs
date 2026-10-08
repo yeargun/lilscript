@@ -48,7 +48,10 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version71 preserves per-module identity for opaque embedded hosts.
 // Version90 funds completed effort-winner admission before optional exhaustion
 // and requeues captured parameter readers when their complete call set changes.
-pub const POLICY_ALGORITHM_VERSION: u32 = 90;
+// Version92 confines saturated aggregate origins to their alias component and
+// evaluates omitted defaults when proving an individual factory invocation.
+// Version94 judges private-property naming before local site enumeration.
+pub const POLICY_ALGORITHM_VERSION: u32 = 94;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -590,7 +593,8 @@ pub struct OptimizationObjective {
 // Version 8 gates deferred seeds at 14 by default and adds naming/field refinements.
 // Version 9 offers all legal site alternatives and extra joint moves from effort 14.
 // Version10 refines live allocation after the completed naming tails.
-pub const WALK_SCHEDULE_VERSION: u32 = 10;
+// Version11 judges private properties before local spelling enumeration.
+pub const WALK_SCHEDULE_VERSION: u32 = 11;
 
 /// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
 /// plan M3.5): budgets are counts (AM1), never the clock.

@@ -1,0 +1,1 @@
+import{UO}from"./extern6-235.js";function createCache(a=500){return El?new Map:new UO({max:a})}let El=!1;export{createCache as Dl};

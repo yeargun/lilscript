@@ -1,0 +1,1 @@
+function OE(){return Object.create(QE)}function PE(a){return Object.getPrototypeOf(a)===QE}let QE={};export{OE,PE};

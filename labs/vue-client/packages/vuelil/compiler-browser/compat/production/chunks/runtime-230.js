@@ -1,0 +1,1 @@
+import{qO}from"./createCompatVue-203.js";import"./runtime-core-226.js";import{NI}from"./index-225.js";let BO=qO();BO.compile=function(){{let a="Runtime compilation is not supported in this build of Vue.";a=a+" Configure your bundler to alias \"vue\" to \"@vue/compat/dist/vue.esm-bundler.js\".";NI(a)}};export{BO};

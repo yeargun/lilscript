@@ -1,0 +1,1 @@
+import $O from"postcss-selector-parser";export{$O};

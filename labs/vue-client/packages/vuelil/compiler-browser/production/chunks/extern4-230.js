@@ -1,0 +1,1 @@
+import{parse as WN}from"@babel/parser";export{WN};

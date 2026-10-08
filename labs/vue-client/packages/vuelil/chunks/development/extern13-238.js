@@ -1,0 +1,1 @@
+import{parse as cO}from"node:url";export{cO};

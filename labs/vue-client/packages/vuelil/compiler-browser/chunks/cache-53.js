@@ -1,0 +1,1 @@
+import{ZN}from"./extern9-235.js";function Tl(a){return new ZN({max:a})}export{Tl};

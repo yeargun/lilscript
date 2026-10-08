@@ -1,5 +1,1 @@
-"use strict";
-module.exports = require("../../dist/vuelil-packages.cjs")["compiler_ssr"];
-if (false) {
-  exports.compile = module.exports.compile;
-}
+(($e,$r,$o)=>{"use strict";$o.defineProperty($e,"compile",{enumerable:true,get:()=>$0["compile"]});let $0=$r("../../../../packages/vuelil/compiler-cjs/development/compiler-ssr.cjs");return $e})(exports,require,Object);

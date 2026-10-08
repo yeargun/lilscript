@@ -1,0 +1,1 @@
+import"./runtime-dom-227.js";import{PI}from"./customFormatter-167.js";function wO(){console.info("You are running a development build of Vue.\n"+"Make sure to use the production build (*.prod.js) when deploying for production.");PI()}export{wO};

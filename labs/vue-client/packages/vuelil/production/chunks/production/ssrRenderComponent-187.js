@@ -1,0 +1,1 @@
+import"./runtime-dom-223.js";import{gN}from"./render-196.js";import{MG}from"./vnode-161.js";function ssrRenderComponent(a,b=null,c=null,d=null,e){return gN(MG(a,b,c),d,e)}export{ssrRenderComponent as LM};

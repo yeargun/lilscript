@@ -1,0 +1,1 @@
+import"./shared-214.js";import{ey,ky}from"./compatConfig-118.js";import{$h}from"./general-32.js";function NE(a,b){return a=="is"?!0:(a=="class"||a=="style")&&ey(ky.INSTANCE_ATTRS_CLASS_STYLE+"",b)?!0:$h(a)&&ey(ky.INSTANCE_LISTENERS+"",b)?!0:a.startsWith("routerView")||a=="registerRouteInstance"?!0:!1}export{NE};

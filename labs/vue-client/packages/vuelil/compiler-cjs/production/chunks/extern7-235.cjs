@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"YN",{enumerable:true,get:()=>$$0["walk"]});let $$0=$$r("estree-walker");return $$e})(exports,require,Object);

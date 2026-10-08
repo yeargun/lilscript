@@ -1,0 +1,1 @@
+import{ki,Li}from"./general-32.js";import{Kw}from"./warning-111.js";function toHandlers(a,b=!1){let c={};if(cD&&!ki(a)){Kw("v-on with no argument expects an object value.");return c}for(let d in a){let e="";if(b&&dD.test(d))e="on:"+d;else e=Li(d)+"";c[e]=a[d]}return c}let cD=!1,dD=/[A-Z]/;export{toHandlers as bD};

@@ -1,0 +1,1 @@
+import RO from"postcss-selector-parser";export{RO};

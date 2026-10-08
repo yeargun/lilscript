@@ -1026,8 +1026,11 @@ to replace closed array, object and class storage with fields. Immutable aliases
 and captured references share the same bank, with a separate bank for each
 activation. Identity observations, dynamic keys, unknown writers, host escape
 and unsupported capture timing retain the aggregate. The analysis tracks at
-most eight origins, 64 propagation rounds and 16,777,216 propagation operations;
-a missing or exhausted proof never permits a rewrite. Additional scalar/alias
+most eight origins per alias set, 64 propagation rounds and 16,777,216 propagation operations.
+An overflowing alias set permanently excludes all its known and subsequent
+allocation origins from rewriting; unrelated allocations remain analyzable.
+Exhausting the whole-program limits still declines the entire proof.
+A missing or exhausted proof never permits a rewrite. Additional scalar/alias
 scans have bounded work, fields are limited to 256 per allocation, and aggregate
 analysis declines programs above 524,288 combined values and cells. This spends compilation work to remove allocations and
 accesses; introducing field locals can change raw and compressed sizes. For
@@ -1059,6 +1062,23 @@ separate exposed allocations, folded fields, flattened namespace calls, removed 
 stores, scalar banks and elided aliases from analysis work. Native delivery
 reports actual `ownership_transfers`. These counts describe changed work, not
 measured runtime speed or guaranteed compressed-size wins.
+
+Rule receipts also expose `aggregate_limit_reasons` for whole-program refusals,
+`aggregate_saturated_sites` for origins excluded by alias overflow, and
+`aggregate_site_visits` for host escape, dynamic access, identity observation,
+typed transport and scalar eligibility. These are cumulative analysis visits
+across rounds, with overlapping categories, not distinct allocations.
+`scalar_candidates_skipped` counts eligible sites beyond the bounded scan;
+`scalar_plans_refused` counts attempted plans that could not prove complete
+uses or initialization. These diagnostics distinguish missing opportunities
+from exhausted analysis without relaxing any semantic boundary.
+
+Property mangling is a permission, not a forced spelling. A bounded ordinary
+walk judges private-field names near its beginning, before enumerating local
+statement alternatives; programs without eligible fields skip that formation.
+The later property refinement remains available after other changes. Each
+trial must improve the complete artifact under the requested codec, and
+`property-mangling = "off"` vetoes both stages.
 
 `naming-alphabet` permits joint trials that reorder identifier characters by
 their frequency in the currently delivered JavaScript. It also requires
@@ -1208,6 +1228,16 @@ consumer may ignore them. The selected codec scores their actual bytes. Call
 hints require a movable, discardable source definition; function hints require
 the semantic effects proof for every admitted argument, including termination
 and no callback invocation. A declared `pure` function alone is insufficient.
+With dead-code elimination enabled, module-initializer calls also use bounded
+execution of small bodies with literal arguments. This can prove that a default
+factory call merely allocates a closure even when other arguments invoke host
+code. It adds bounded analysis work and can remove a large unused dependency
+graph in a consuming bundle; it never marks the whole factory pure. Unknown
+paths, captures, property operations, effects and exhausted proof limits retain
+the call. The same `annotations` control governs whether the call hint is emitted.
+Omitted arguments are evaluated as `undefined` through the checked default
+initializer. An effectful or throwing default prevents a hint for that
+invocation, even if an invocation with an explicit argument is discardable.
 Development checks remain observable and do not receive function hints. Other
 formats diagnose this option rather than silently ignoring it.
 

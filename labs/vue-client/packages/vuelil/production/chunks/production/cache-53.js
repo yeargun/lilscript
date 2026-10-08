@@ -1,0 +1,1 @@
+import{ON}from"./extern10-238.js";function Sl(a){return new ON({max:a})}export{Sl};

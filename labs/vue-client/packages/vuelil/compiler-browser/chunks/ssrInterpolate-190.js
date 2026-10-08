@@ -1,0 +1,1 @@
+import"./shared-210.js";import{wj}from"./escapeHtml-34.js";import{Tj}from"./toDisplayString-36.js";function ssrInterpolate(a){return wj(Tj(a))}export{ssrInterpolate as aN};

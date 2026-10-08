@@ -1,0 +1,1 @@
+import{walk as hO}from"estree-walker";export{hO};

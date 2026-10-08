@@ -1,0 +1,1 @@
+import{walk as QO}from"estree-walker";export{QO};

@@ -1,0 +1,1 @@
+import{_N}from"./extern10-235.js";function Sl(a){return new _N({max:a})}export{Sl};

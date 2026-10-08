@@ -1,0 +1,1 @@
+import QN from"hash-sum";export{QN};

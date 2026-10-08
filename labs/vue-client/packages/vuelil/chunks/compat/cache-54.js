@@ -1,0 +1,1 @@
+import{FO}from"./extern10-238.js";function Sl(a){return new FO({max:a})}export{Sl};

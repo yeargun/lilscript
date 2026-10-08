@@ -1,0 +1,1 @@
+import"./compiler-dom-210.js";import{ya,za,Aa,Fa}from"./ast-4.js";import{nk,ok}from"./errors-40.js";function po(a,b,c){if(!a.exp)c.onError(nk(ok.X_V_SHOW_NO_EXPRESSION));let e=ya([za("display",Aa("none",!0))]);return{props:[za("style",Fa(a.exp,Aa("null",!1),e,!1))]}}export{po};

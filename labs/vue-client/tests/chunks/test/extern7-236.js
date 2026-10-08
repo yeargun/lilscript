@@ -1,0 +1,1 @@
+import $O from"magic-string";export{$O};

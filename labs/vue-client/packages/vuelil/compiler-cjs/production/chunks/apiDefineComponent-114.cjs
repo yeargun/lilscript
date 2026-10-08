@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"yx",{enumerable:true,get:()=>defineComponent});let $$0=$$r("./general-31.cjs");function defineComponent(a,b){return!(0,$$0["hi"])(a)?a:(0,$$0["Bi"])({name:a.name},b,{setup:a})}return $$e})(exports,require,Object);

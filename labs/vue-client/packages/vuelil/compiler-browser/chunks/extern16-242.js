@@ -1,0 +1,1 @@
+import lO from"postcss-modules";export{lO};

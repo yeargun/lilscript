@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"kg",{enumerable:true,get:()=>kg});$$o.defineProperty($$e,"lg",{enumerable:true,get:()=>lg});let kg={STABLE:1,1:"STABLE",DYNAMIC:2,2:"DYNAMIC",FORWARDED:3,3:"FORWARDED"},lg={1:"STABLE",2:"DYNAMIC",3:"FORWARDED"};return $$e})(exports,require,Object);

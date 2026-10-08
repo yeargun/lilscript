@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"is",{enumerable:true,get:()=>is});let is=/\bawait\b/;return $$e})(exports,require,Object);

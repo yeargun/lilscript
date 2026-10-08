@@ -1,7 +1,8 @@
 //! Allocation identity and field observations on the shared program.
 //!
 //! An origin set is a may-alias answer, never a uniqueness certificate. The
-//! bounded monotone solve retains every origin or abandons the whole answer.
+//! bounded monotone solve retains every origin or conservatively closes the
+//! overflowing alias component to optimization. Unrelated sites remain usable.
 //! Consumers separately prove activation, initialization and complete uses.
 use super::analysis_storage as storage;
 use super::call_graph::{Callee, EdgeKind, Seal};
@@ -56,26 +57,44 @@ impl Sites {
 pub(super) struct Origins {
     pub sites: Sites,
     pub unknown: bool,
+    saturated: bool,
 }
 impl Origins {
     fn unknown() -> Self {
         Self {
             sites: Sites::default(),
             unknown: true,
+            saturated: false,
         }
     }
-    fn join(&mut self, other: &Self) -> bool {
+    fn join(&mut self, other: &Self, allocations: &mut [AllocationFacts]) {
         self.unknown |= other.unknown;
+        if self.saturated || other.saturated {
+            self.saturate(other, allocations);
+            return;
+        }
         for site in other.sites.iter() {
             if !self.sites.contains(&site) {
                 if self.sites.len() == MAX_ORIGINS {
-                    return false;
+                    self.saturate(other, allocations);
+                    return;
                 }
                 self.sites.push(site);
             }
         }
         self.sites.sort();
-        true
+    }
+    fn saturate(&mut self, other: &Self, allocations: &mut [AllocationFacts]) {
+        // Dropping a may-alias origin is legal only after permanently denying
+        // rewrites of that allocation. Future inputs to this component are
+        // denied too, including origins discovered on a later backedge.
+        for site in self.sites.iter().chain(other.sites.iter()) {
+            allocations[site].escape = Escape::Host;
+            allocations[site].origin_limit = true;
+        }
+        self.sites = Sites::default();
+        self.unknown = true;
+        self.saturated = true;
     }
     pub fn single(&self) -> Option<usize> {
         (!self.unknown && self.sites.len() == 1).then(|| self.sites.values[0] as usize)
@@ -114,6 +133,7 @@ pub(super) struct AllocationFacts {
     pub captured: bool,
     pub record: bool,
     pub scalar_kind: bool,
+    pub origin_limit: bool,
 }
 impl AllocationFacts {
     pub fn field(&self, key: Key) -> Option<usize> {
@@ -123,6 +143,14 @@ impl AllocationFacts {
         self.escape != Escape::Host && !self.identity_observed && !self.dynamic
     }
 }
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Limit {
+    InputSize,
+    ActivationObservation,
+    PropagationWork,
+    PropagationRounds,
+}
+
 #[derive(Debug)]
 pub(crate) struct ProgramAggregates {
     deps: Deps,
@@ -130,6 +158,7 @@ pub(crate) struct ProgramAggregates {
     values: Vec<Vec<Origins>>,
     cells: Vec<Origins>,
     pub(super) complete: bool,
+    pub(super) limit: Option<Limit>,
     pub(super) work: usize,
 }
 impl ProgramAggregates {
@@ -212,6 +241,7 @@ impl ProgramAggregates {
                     values: Vec::new(),
                     cells: Vec::new(),
                     complete: false,
+                    limit: Some(Limit::InputSize),
                     work: 0,
                 });
             }
@@ -229,6 +259,7 @@ impl ProgramAggregates {
                 values,
                 cells: budget.filled(Retained, program.cells.len(), Origins::default())?,
                 complete: false,
+                limit: Some(Limit::PropagationRounds),
                 work: 0,
             };
             let graph = effects.graph();
@@ -236,6 +267,7 @@ impl ProgramAggregates {
             let blocked = free.iter().any(|free| !free);
             storage::release(free, Retained, budget)?;
             if blocked {
+                result.limit = Some(Limit::ActivationObservation);
                 return Ok(result);
             }
             for unit in &program.units {
@@ -318,6 +350,7 @@ impl ProgramAggregates {
                             captured: false,
                             record,
                             scalar_kind,
+                            origin_limit: false,
                         },
                     )?;
                 }
@@ -361,23 +394,20 @@ impl ProgramAggregates {
                                         }
                                         _ => Origins::unknown(),
                                     };
-                                    if !next.join(&origin) {
-                                        break 'rounds;
-                                    }
+                                    next.join(&origin, &mut result.sites);
                                 }
                             }
                             _ => next.unknown = true,
                         }
                         let old = result.cells[cell.index()].clone();
-                        if !result.cells[cell.index()].join(&next) {
-                            break 'rounds;
-                        }
+                        result.cells[cell.index()].join(&next, &mut result.sites);
                         changed |= old != result.cells[cell.index()];
                     }
                     for operation in &data.operations {
                         budget.work(WorkKind::Analysis, MAX_ORIGINS as u64)?;
                         result.work += 1;
                         if result.work > MAX_WORK {
+                            result.limit = Some(Limit::PropagationWork);
                             break 'rounds;
                         }
                         let args = data.operands(operation.operands).unwrap_or(&[]);
@@ -397,17 +427,13 @@ impl ProgramAggregates {
                             if let Some(cell) = cell {
                                 let next = result.value(id, input).clone();
                                 let old = result.cells[cell.index()].clone();
-                                if !result.cells[cell.index()].join(&next) {
-                                    break 'rounds;
-                                }
+                                result.cells[cell.index()].join(&next, &mut result.sites);
                                 changed |= old != result.cells[cell.index()];
                             }
                             if matches!(operation.kind, OperationKind::Return) {
                                 let next = result.value(id, input).clone();
                                 let old = returns[id.index()].clone();
-                                if !returns[id.index()].join(&next) {
-                                    break 'rounds;
-                                }
+                                returns[id.index()].join(&next, &mut result.sites);
                                 changed |= old != returns[id.index()];
                             }
                         }
@@ -439,9 +465,7 @@ impl ProgramAggregates {
                                         .map_or_else(Origins::unknown, |v| {
                                             result.value(id, v).clone()
                                         });
-                                    if !next.join(&origin) {
-                                        break 'rounds;
-                                    }
+                                    next.join(&origin, &mut result.sites);
                                 }
                                 next
                             }
@@ -452,18 +476,14 @@ impl ProgramAggregates {
                                 let origin = data.regions[right.index()]
                                     .result
                                     .map_or_else(Origins::unknown, |v| result.value(id, v).clone());
-                                if !next.join(&origin) {
-                                    break 'rounds;
-                                }
+                                next.join(&origin, &mut result.sites);
                                 next
                             }
                             _ => Origins::unknown(),
                         };
                         let slot = &mut result.values[id.index()][value.index()];
                         let old = slot.clone();
-                        if !slot.join(&next) {
-                            break 'rounds;
-                        }
+                        slot.join(&next, &mut result.sites);
                         changed |= *slot != old;
                     }
                 }
@@ -476,6 +496,7 @@ impl ProgramAggregates {
                 return Ok(result);
             }
             result.complete = true;
+            result.limit = None;
             result.observe(program, effects, budget)?;
             Ok(result)
         })

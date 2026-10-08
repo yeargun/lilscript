@@ -1,0 +1,1 @@
+import OO from"node:process";export{OO};

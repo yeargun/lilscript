@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"WN",{enumerable:true,get:()=>$$0});let $$0=$$r("node:process");return $$e})(exports,require,Object);

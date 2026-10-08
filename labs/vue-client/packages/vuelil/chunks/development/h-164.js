@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-31.js";import{LG,PG,XG}from"./vnode-161.js";import{eP}from"./extern21-246.js";function h(a,b,c){try{LG(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?PG(b)?XG(a,null,[b]):XG(a,b):XG(a,null,b);if(d>3)c=eP(arguments,2);else if(d==3&&PG(c))c=[c];return XG(a,b,c)}finally{LG(1,!1)}}export{h as jI};

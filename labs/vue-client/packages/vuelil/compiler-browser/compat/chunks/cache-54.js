@@ -1,0 +1,1 @@
+import{PO}from"./extern9-240.js";function Tl(a){return new PO({max:a})}export{Tl};

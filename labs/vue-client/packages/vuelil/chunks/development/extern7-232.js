@@ -1,0 +1,1 @@
+import{walk as jO}from"estree-walker";export{jO};

@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"SM",{enumerable:true,get:()=>ssrInterpolate});let $$0=$$r("./shared-209.cjs");let $$1=$$r("./escapeHtml-34.cjs");let $$2=$$r("./toDisplayString-36.cjs");function ssrInterpolate(a){return(0,$$1["wj"])((0,$$2["Tj"])(a))}return $$e})(exports,require,Object);

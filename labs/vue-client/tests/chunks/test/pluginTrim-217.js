@@ -1,0 +1,1 @@
+let ft=(0,function(){return{postcssPlugin:"vue-sfc-trim",Once:function(a){a.walk(function(a){let b=a.type+"",c=a.raws;if(b=="rule"||b=="atrule"){if(c.before)c.before="\n";if("after" in c&&c.after)c.after="\n"}})}}});ft.postcss=!0;export{ft};

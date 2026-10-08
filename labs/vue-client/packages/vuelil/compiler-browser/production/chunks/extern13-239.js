@@ -1,0 +1,1 @@
+import{minimatch as YN}from"minimatch";export{YN};

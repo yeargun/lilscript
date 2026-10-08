@@ -1,0 +1,133 @@
+{
+ "schema": 1,
+ "kind": "lilscript-port-result",
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/v1-js-candidate-6/lilscript",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-3/bin/lilscript-9500df391444d3a1",
+  "sha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240",
+  "version": "lilscript 0.1.0"
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/out/v1-ports-production-3/bin/lilscript-be0fb75fd6b87226",
+  "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "objective": "shipped",
+ "patches": "none",
+ "checks": "production",
+ "node": "v24.20.0",
+ "completed": "2026-10-02T13:59:08.779Z",
+ "result": {
+  "port": "mdast-util-from-markdownlil",
+  "source": {
+   "path": "/home/azureuser/mdast-util-from-markdownlil",
+   "head": "0dc4389b2cba31213220fd2f9f0b4d2ee9bcf81a",
+   "dirty": true
+  },
+  "compilerWrapper": {
+   "path": "/home/azureuser/lilscript-work/out/v1-ports-production-3/runs/mdast-util-from-markdownlil/lilscript-wrapper",
+   "sha256": "c8ecd9aeb533c254cd4012c6ad27a4d82d3d684fe36bf362b14cd98668c13cdd",
+   "targetSha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240"
+  },
+  "build": {
+   "command": "npm run build",
+   "status": 0,
+   "ms": 931333,
+   "timedOut": false,
+   "compilerInvocations": 5,
+   "errors": [],
+   "receipts": [
+    {
+     "source": ".tmp/build-report.json",
+     "path": "logs/mdast-util-from-markdownlil.build-report.json",
+     "sha256": "aa4f12c906f9b7d1bd78f01a08a9f43537b67e2ed10611cb3c6116de81fe9da4"
+    },
+    {
+     "source": "dist/lilscript.manifest.json",
+     "path": "logs/mdast-util-from-markdownlil.lilscript.manifest.json",
+     "sha256": "aabdebfcf10baf687bbdeb0dab41fa5b6b71d5a7c73b67e01be8c0fc23c43a8b"
+    }
+   ]
+  },
+  "artifacts": [
+   {
+    "path": "dist/from-markdown.cjs",
+    "bytes": 76870,
+    "sha256": "a38913a73b317e9a6d159e810da9737da6892601a89d19a9bcaca16824ed6239",
+    "raw": 76870,
+    "gzip9": 27029,
+    "brotli11": 22927
+   },
+   {
+    "path": "dist/from-markdown.closed.js",
+    "bytes": 79891,
+    "sha256": "77ff8a742b54a971070e928d2aa89c056449813d8c2a824c4c4de62e45bb996d",
+    "raw": 79891,
+    "gzip9": 27498,
+    "brotli11": 23232
+   },
+   {
+    "path": "dist/from-markdown.esm.js",
+    "bytes": 76578,
+    "sha256": "0738cb05eaf125e86f045dfe768689d16b22310cb3eb9ab6be6ef72adf3aa682",
+    "raw": 76578,
+    "gzip9": 26997,
+    "brotli11": 22854
+   },
+   {
+    "path": "dist/from-markdown.raw.js",
+    "bytes": 76578,
+    "sha256": "0738cb05eaf125e86f045dfe768689d16b22310cb3eb9ab6be6ef72adf3aa682",
+    "raw": 76578,
+    "gzip9": 26997,
+    "brotli11": 22854
+   },
+   {
+    "path": "dist/from-markdown.umd.js",
+    "bytes": 76961,
+    "sha256": "1e325ec2c6a1420187ba371d5eec099f5bdc72553193c6cea10691df596222d2",
+    "raw": 76961,
+    "gzip9": 27141,
+    "brotli11": 22961
+   }
+  ],
+  "compilerInvocations": 5,
+  "test": {
+   "command": "npm test",
+   "status": 1,
+   "signal": null,
+   "ms": 2190,
+   "compilerInvocations": 0,
+   "artifactChanges": [],
+   "tests": 746,
+   "pass": 744,
+   "fail": 2,
+   "failing": [
+    "has a markedlil-style lab with receipts",
+    "shows the sizes of the files that ship",
+    "site"
+   ],
+   "tail": "  \n      at TestContext.<anonymous> (file:///home/azureuser/lilscript-work/out/v1-ports-production-3/runs/mdast-util-from-markdownlil/mdast-util-from-markdownlil/test/site.test.mjs:42:14)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1397:25)\n      at Suite.processPendingSubtests (node:internal/test_runner/test:969:18)\n      at Test.postRun (node:internal/test_runner/test:1537:19)\n      at Test.run (node:internal/test_runner/test:1462:12)\n      at async Suite.processPendingSubtests (node:internal/test_runner/test:969:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: 76578,\n    expected: 71802,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }"
+  },
+  "failing": [
+   "has a markedlil-style lab with receipts",
+   "shows the sizes of the files that ship",
+   "site"
+  ],
+  "ledgered": [
+   "has a markedlil-style lab with receipts",
+   "shows the sizes of the files that ship",
+   "site"
+  ],
+  "regressions": [],
+  "nowPassing": [],
+  "ledgerEntries": [
+   {
+    "index": 1,
+    "owner": "M12.2 (the port's rebuild on the current compiler refreshes its receipts)"
+   }
+  ],
+  "state": "ledgered"
+ }
+}

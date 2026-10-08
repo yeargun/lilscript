@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-31.js";import{BG,FG,NG}from"./vnode-161.js";import{TO}from"./extern20-246.js";function h(a,b,c){try{BG(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?FG(b)?NG(a,null,[b]):NG(a,b):NG(a,null,b);if(d>3)c=TO(arguments,2);else if(d==3&&FG(c))c=[c];return NG(a,b,c)}finally{BG(1,!1)}}export{h as $H};

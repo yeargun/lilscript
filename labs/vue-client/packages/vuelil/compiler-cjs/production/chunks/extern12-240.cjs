@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"SN",{enumerable:true,get:()=>$$0});let $$0=$$r("node:path");return $$e})(exports,require,Object);

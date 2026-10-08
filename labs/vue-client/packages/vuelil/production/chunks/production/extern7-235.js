@@ -1,0 +1,1 @@
+import{walk as YN}from"estree-walker";export{YN};

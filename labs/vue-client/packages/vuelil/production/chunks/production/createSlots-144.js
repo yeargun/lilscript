@@ -1,0 +1,1 @@
+import{Ci}from"./general-31.js";function createSlots(a,b){let c=b.length;for(let d=0;d<c;++d){let e=b[d];if(Ci(e)){let b=e.length;for(let c=0;c<b;++c){let b=e[c];a[b.name]=b.fn}}else if(e)if(e.key)a[e.name]=function(){let a=e.fn.apply(e,arguments);if(a)a.key=e.key;return a};else a[e.name]=e.fn}return a}export{createSlots as WC};

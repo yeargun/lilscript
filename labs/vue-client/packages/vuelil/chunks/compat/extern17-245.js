@@ -1,0 +1,1 @@
+import UO from"postcss-modules";export{UO};

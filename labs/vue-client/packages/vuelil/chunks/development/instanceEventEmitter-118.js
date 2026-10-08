@@ -1,0 +1,1 @@
+import"./shared-209.js";import{Zw,bx}from"./errorHandling-111.js";import"./compatConfig-117.js";function yy(a,b,c){let d=(a=>{let b=zy.get(a);if(!b){b=Object.create(null);zy.set(a,b)}return b})(a)[b];if(d)Zw(d.map(function(b){return b.bind(a.proxy)}),a,bx.COMPONENT_EVENT_HANDLER,c);return a.proxy}let zy=new globalThis.WeakMap;export{yy};

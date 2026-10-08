@@ -1,0 +1,1 @@
+import MO from"node:process";export{MO};

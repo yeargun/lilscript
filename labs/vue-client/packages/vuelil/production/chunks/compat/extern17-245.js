@@ -1,0 +1,1 @@
+import JO from"postcss-modules";export{JO};

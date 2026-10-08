@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-31.js";import{JG,NG,VG}from"./vnode-161.js";import{cP}from"./extern20-246.js";function h(a,b,c){try{JG(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?NG(b)?VG(a,null,[b]):VG(a,b):VG(a,null,b);if(d>3)c=cP(arguments,2);else if(d==3&&NG(c))c=[c];return VG(a,b,c)}finally{JG(1,!1)}}export{h as gI};

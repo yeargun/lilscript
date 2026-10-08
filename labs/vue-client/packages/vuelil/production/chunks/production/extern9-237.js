@@ -1,0 +1,1 @@
+import{createRequire as GQ}from"node:module";export{GQ};

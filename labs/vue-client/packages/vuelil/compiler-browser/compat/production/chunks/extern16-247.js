@@ -1,0 +1,1 @@
+import TO from"postcss-modules";export{TO};

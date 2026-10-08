@@ -1,0 +1,1 @@
+import{LRUCache as PN}from"lru-cache";export{PN};

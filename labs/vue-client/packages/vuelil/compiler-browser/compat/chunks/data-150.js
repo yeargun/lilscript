@@ -1,0 +1,1 @@
+import"./shared-214.js";import{fy,py}from"./compatConfig-118.js";import{oi}from"./general-32.js";function gE(a,b){for(let c in b){let d=a[c],e=b[c];if(c in a&&oi(d)&&oi(e)){fy(py.OPTIONS_DATA_MERGE+"",null,c);gE(d,e)}else a[c]=e}return a}export{gE};

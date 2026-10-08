@@ -1,0 +1,1 @@
+import fO from"magic-string";export{fO};

@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-32.js";import{kH,oH,wH}from"./vnode-163.js";import{TP}from"./extern20-251.js";function h(a,b,c){try{kH(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?oH(b)?wH(a,null,[b]):wH(a,b):wH(a,null,b);if(d>3)c=TP(arguments,2);else if(d==3&&oH(c))c=[c];return wH(a,b,c)}finally{kH(1,!1)}}export{h as JI};

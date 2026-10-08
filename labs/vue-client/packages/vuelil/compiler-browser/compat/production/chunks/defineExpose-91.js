@@ -1,0 +1,1 @@
+import{qp}from"./utils-81.js";function cs(a,b){if(qp(b,ds)){if(a.hasDefineExposeCall)a.error("duplicate "+ds+"() call",b);a.hasDefineExposeCall=!0;return!0}return!1}let ds="defineExpose";export{cs,ds};

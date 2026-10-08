@@ -1,0 +1,6 @@
+
+> motionlil@0.1.5 build
+> node scripts/build.mjs
+
+Built ten production entries and five output groups with LilScript in 447474 ms
+

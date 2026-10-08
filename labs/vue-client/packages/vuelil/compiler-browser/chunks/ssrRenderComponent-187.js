@@ -1,0 +1,1 @@
+import"./runtime-dom-223.js";import{qN}from"./render-196.js";import{VG}from"./vnode-161.js";function ssrRenderComponent(a,b=null,c=null,d=null,e){return qN(VG(a,b,c),d,e)}export{ssrRenderComponent as VM};

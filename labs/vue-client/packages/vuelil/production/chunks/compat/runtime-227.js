@@ -1,0 +1,1 @@
+import{iO}from"./createCompatVue-201.js";import"./runtime-core-223.js";let tO=iO();tO.compile=function(){};export{tO};

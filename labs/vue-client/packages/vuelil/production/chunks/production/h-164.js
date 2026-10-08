@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-31.js";import{AG,EG,MG}from"./vnode-161.js";import{SO}from"./extern21-249.js";function h(a,b,c){try{AG(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?EG(b)?MG(a,null,[b]):MG(a,b):MG(a,null,b);if(d>3)c=SO(arguments,2);else if(d==3&&EG(c))c=[c];return MG(a,b,c)}finally{AG(1,!1)}}export{h as $H};

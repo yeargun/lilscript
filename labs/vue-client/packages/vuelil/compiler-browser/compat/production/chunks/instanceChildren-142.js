@@ -1,0 +1,1 @@
+import"./shared-214.js";import{fy,ky}from"./compatConfig-118.js";import{Qi}from"./shapeFlags-211.js";function RC(a,b){if(a.component)b.push(a.component.proxy);else if(((a.shapeFlag|0)&(Qi.ARRAY_CHILDREN|0))!=0){let d=a.children,c=d.length;for(let a=0;a<c;++a)RC(d[a],b)}}function SC(a){fy(ky.INSTANCE_CHILDREN+"",a);let b=[];if(a.subTree)RC(a.subTree,b);return b}export{SC};

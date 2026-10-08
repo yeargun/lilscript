@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-32.js";import{fH,jH,rH}from"./vnode-163.js";import{KP}from"./extern21-249.js";function h(a,b,c){try{fH(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?jH(b)?rH(a,null,[b]):rH(a,b):rH(a,null,b);if(d>3)c=KP(arguments,2);else if(d==3&&jH(c))c=[c];return rH(a,b,c)}finally{fH(1,!1)}}export{h as FI};

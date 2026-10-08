@@ -1,0 +1,1 @@
+import"./shared-211.js";import{Xx,fy}from"./compatConfig-118.js";import{oi}from"./general-32.js";function VD(a,b){for(let c in b){let d=a[c],e=b[c];if(c in a&&oi(d)&&oi(e)){Xx(fy.OPTIONS_DATA_MERGE+"",null,c);VD(d,e)}else a[c]=e}return a}export{VD};

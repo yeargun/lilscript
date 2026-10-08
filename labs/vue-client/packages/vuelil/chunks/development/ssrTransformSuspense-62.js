@@ -1,0 +1,1 @@
+import"./compiler-dom-210.js";import{_m}from"./runtimeHelpers-59.js";import{ho}from"./ssrCodegenTransform-69.js";import{Da}from"./ast-4.js";function un(a,b){let c=vn.get(a);if(!c)return;let d=c.wipSlots;for(let a=0;a<d.length;++a){let c=d[a];c.fn.body=ho(c,b)}b.pushStatement(Da(b.helper(_m),["_push",c.slotsExp]))}let vn=new WeakMap;export{un,vn};

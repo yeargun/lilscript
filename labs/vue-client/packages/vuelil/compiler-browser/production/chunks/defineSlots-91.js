@@ -1,0 +1,1 @@
+import{qp}from"./utils-80.js";function es(a,b,c){if(!qp(b,fs))return!1;if(a.hasDefineSlotsCall)a.error("duplicate "+fs+"() call",b);a.hasDefineSlotsCall=!0;if(b.arguments.length>0)a.error(fs+"() cannot accept arguments",b);if(c){let c=a.startOffset|0,d=a.helper("useSlots")+"";a.s.overwrite(c+(b.start|0)|0,c+(b.end|0)|0,d+"()")}return!0}let fs="defineSlots";export{es,fs};

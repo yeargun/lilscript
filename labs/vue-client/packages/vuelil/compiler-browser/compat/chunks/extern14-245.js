@@ -1,0 +1,1 @@
+import XO from"node:process";export{XO};

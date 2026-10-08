@@ -1,0 +1,1 @@
+import{PQ}from"./extern0-226.js";import{zl,Al}from"./index-52.js";import"./compiler-core-206.js";import{mk}from"./parserOptions-39.js";import{nk}from"./errors-40.js";import{uk}from"./transformStyle-41.js";PQ(zl,"compile",1);PQ(nk,"createDOMCompilerError",2);PQ(Al,"parse",1);PQ(mk,"parserOptions",-1);PQ(uk,"transformStyle",1);

@@ -1,0 +1,1 @@
+function RE(){return Object.create(TE)}function SE(a){return Object.getPrototypeOf(a)===TE}let TE={};export{RE,SE};

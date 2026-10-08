@@ -1,0 +1,1 @@
+import PN from"hash-sum";export{PN};

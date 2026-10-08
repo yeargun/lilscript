@@ -1,0 +1,1 @@
+import{SourceMapGenerator as QN,SourceMapConsumer as TN}from"source-map-js";export{QN,TN};

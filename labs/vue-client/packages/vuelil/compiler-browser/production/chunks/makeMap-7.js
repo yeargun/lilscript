@@ -1,0 +1,1 @@
+function makeMap(a){let b=Object.create(null),c=a.split(",");for(let a=0;a<c.length;++a)b[c[a]]=1;return function(a){return a in b}}export{makeMap as pc};

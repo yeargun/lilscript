@@ -1,0 +1,1 @@
+function ssrRenderSuspense(a,b){let c=b.default;if(c)c();else a("<!---->")}export{ssrRenderSuspense as sN};

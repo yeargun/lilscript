@@ -1,0 +1,1 @@
+import{parse as SN}from"node:url";export{SN};

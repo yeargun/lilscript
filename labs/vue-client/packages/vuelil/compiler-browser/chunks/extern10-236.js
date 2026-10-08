@@ -1,0 +1,1 @@
+import $N from"hash-sum";export{$N};

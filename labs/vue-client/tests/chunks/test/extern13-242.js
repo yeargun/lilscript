@@ -1,0 +1,1 @@
+import{parse as XO}from"node:url";export{XO};

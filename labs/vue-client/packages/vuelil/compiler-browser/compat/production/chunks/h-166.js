@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-32.js";import{cH,gH,oH}from"./vnode-163.js";import{IP}from"./extern20-251.js";function h(a,b,c){try{cH(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?gH(b)?oH(a,null,[b]):oH(a,b):oH(a,null,b);if(d>3)c=IP(arguments,2);else if(d==3&&gH(c))c=[c];return oH(a,b,c)}finally{cH(1,!1)}}export{h as BI};

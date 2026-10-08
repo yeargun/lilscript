@@ -10,14 +10,14 @@
   "motionlil": {
     "classification": "source boundary",
     "change": "Public array identity helpers now take JsValue and retain strict index comparison. Native/value-struct equality was not their contract. moveItem indices use float and JavaScript splice coercion, matching upstream number inputs.",
-    "check": "Ten-entry target check passes. The three array utility differential tests pass on each independently selected raw/gzip/Brotli effort-15 output (9 tests). Full production package/consumer qualification remains pending.",
+    "check": "Ten-entry target check and all nine utility/objective tests pass. Candidate 6 full production package: 22/23 tests pass, with all observed behavior/export checks green. The remaining consumer tree-shaking test retains 43,239 bytes for animateMini; its 20,000-byte bar is unchanged. Current receipt: ports-current/motionlil.result.json.",
     "commit": "dddd208d4316824f32fe7afa722a526f0d78b398"
   },
   "mobxlil": {
     "classification": "test build workflow",
     "observation": "The complete package built; npm test then replaced it with development-only dist, so three production imports failed. 766 passed; 11 upstream skips.",
     "change": "npm test uses the completed package. test:build explicitly builds before testing.",
-    "qualification": "Affected production tests and workflow recheck pending; initial failures remain retained.",
+    "qualification": "Candidate 6 production package: 37 suites and 769 tests pass, 11 upstream skips, 32 snapshots pass. Tests perform no compiler invocation and leave all compiled artifact hashes unchanged. Current receipt: ports-current/mobxlil.result.json.",
     "commit": "56f25b2d69a7ae34ee9c5bb5dd051628aeadf371"
   },
   "jquerylil": {
@@ -75,6 +75,8 @@
     "classification": "compiler captured-parameter propagation",
     "observation": "Fresh candidate 5: 439 of 746 checks passed, 307 failed, including stale site receipts. The callback factory reduced to a compiler defect, independent of the library.",
     "change": "Algorithm 90 revisits closures reading a parameter when the complete call set supplies new input facts.",
-    "qualification": "The reduced callback fixture passes 24 JavaScript lanes across raw/gzip/Brotli and IIFE/ESM/CJS/bare; candidate 5 failed all 12 production lanes. Full fresh library qualification is in progress. Fresh development output matches upstream on all 652 CommonMark inputs."
+    "qualification": "Candidate 6 clean production package: 744 of 746 checks pass. All 305 additional failures from candidate 5 are resolved. Only the two original site receipt tests (three names including their suite) remain owned by V2. Tests invoke no compiler and do not modify delivered artifacts.",
+    "compiler_sha256": "9500df391444d3a1fa85c40e84c905a4abe68d051af0a891d45a7b4db097a240",
+    "evidence": "ports-current/mdast-util-from-markdownlil.result.json"
   }
 }

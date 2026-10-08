@@ -1,0 +1,1 @@
+import{createRequire as UQ}from"node:module";export{UQ};

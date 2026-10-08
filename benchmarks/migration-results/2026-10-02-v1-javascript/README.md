@@ -219,8 +219,11 @@ Two actual compiler defects are repaired in [candidate 6](compiler-identity-6.js
   24 JavaScript lanes, including formation controls. Six native lanes explicitly
   exclude this JavaScript-host fixture; the portable native closure check passes.
   A [fresh development library](captured-callback/mdast-development.json) matches
-  upstream exactly on all 652 CommonMark inputs. Full package qualification is
-  running on candidate 6, followed by Motion, MobX, KaTeX and the remaining ports.
+  upstream exactly on all 652 CommonMark inputs. The [fresh production package](ports-current/mdast-util-from-markdownlil.result.json)
+  passes 744 of 746 checks: all 305 additional candidate-5 failures are resolved.
+  Only two stale site-receipt tests remain for V2. Tests neither recompile nor
+  replace any delivered file. The serial fleet continues with Motion, MobX,
+  KaTeX and the remaining ports.
 
 [Focused Rust qualification](compiler-repairs-90/qualification.json) retains
 each initial failure and its recheck. The final affected rule/search batch has
@@ -230,6 +233,13 @@ their two affected rechecks are also covered. No whole-library rerun is claimed.
 
 The Markdown build was deliberately paused for 705 seconds during the focused
 Rust build; its receipt's wall time is not controlled compile-cost evidence.
+This refers to the earlier candidate-5 run. Candidate 6's complete package build
+took 931 seconds without that pause. Those two runs are not a paired cost study.
+
+The [root TOML cleanup](root-config/qualification.json) removes four retired
+frontier controls that only emitted warnings, adopts explicit policy version 3,
+and documents effort/tactic/resource controls. At the configured effort 13,
+the resolved contract, permissions, objective and ceilings are exactly unchanged.
 
 The runner now preserves build receipts before tests can overwrite them and
 reports changed/deleted artifacts afterwards. It skips dependent suites after a

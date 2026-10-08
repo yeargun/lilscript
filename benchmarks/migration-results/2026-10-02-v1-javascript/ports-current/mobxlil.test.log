@@ -1,0 +1,11 @@
+
+> @itslil/mobx@7.0.1 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs
+
+
+
+Test Suites: 37 passed, 37 total
+Tests:       11 skipped, 769 passed, 780 total
+Snapshots:   32 passed, 32 total
+Time:        54.249 s
+Ran all test suites.

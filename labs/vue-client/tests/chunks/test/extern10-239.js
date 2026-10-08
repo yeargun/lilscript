@@ -1,0 +1,1 @@
+import{createRequire as MR}from"node:module";export{MR};

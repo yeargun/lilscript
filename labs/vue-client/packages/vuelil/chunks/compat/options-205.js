@@ -1,0 +1,1 @@
+let mh={DATA:"data",PROPS:"props",PROPS_ALIASED:"props-aliased",SETUP_LET:"setup-let",SETUP_CONST:"setup-const",SETUP_REACTIVE_CONST:"setup-reactive-const",SETUP_MAYBE_REF:"setup-maybe-ref",SETUP_REF:"setup-ref",OPTIONS:"options",LITERAL_CONST:"literal-const"};export{mh};

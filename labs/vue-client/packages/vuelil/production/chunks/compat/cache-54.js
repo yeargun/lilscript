@@ -1,0 +1,1 @@
+import{vO}from"./extern10-238.js";function Sl(a){return new vO({max:a})}export{Sl};

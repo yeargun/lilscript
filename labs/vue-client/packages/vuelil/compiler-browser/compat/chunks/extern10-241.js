@@ -1,0 +1,1 @@
+import QO from"hash-sum";export{QO};

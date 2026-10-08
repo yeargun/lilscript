@@ -1,0 +1,1 @@
+import VO from"hash-sum";export{VO};

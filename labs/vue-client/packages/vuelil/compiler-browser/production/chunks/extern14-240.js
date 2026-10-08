@@ -1,0 +1,1 @@
+import XN from"node:process";export{XN};

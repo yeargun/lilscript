@@ -1,0 +1,1 @@
+import{gw}from"./computed-109.js";import{bI,II}from"./component-165.js";function computed(a,b=void 0){let c=gw(a,b,II);if(QI){let a=bI();if(a&&a.appContext.config.warnRecursiveComputed)c._warnRecursive=!0}return c}let QI=!0;export{computed as PI};

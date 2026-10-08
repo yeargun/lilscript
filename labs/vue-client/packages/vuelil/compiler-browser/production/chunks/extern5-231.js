@@ -1,0 +1,1 @@
+import VN from"magic-string";export{VN};

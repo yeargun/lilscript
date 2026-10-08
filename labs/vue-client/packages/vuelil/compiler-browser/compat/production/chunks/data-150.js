@@ -1,0 +1,1 @@
+import"./shared-214.js";import{ay,ky}from"./compatConfig-118.js";import{oi}from"./general-32.js";function $D(a,b){for(let c in b){let d=a[c],e=b[c];if(c in a&&oi(d)&&oi(e)){ay(ky.OPTIONS_DATA_MERGE+"",null,c);$D(d,e)}else a[c]=e}return a}export{$D};

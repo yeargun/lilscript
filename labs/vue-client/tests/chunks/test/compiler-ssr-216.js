@@ -1,0 +1,1 @@
+import{KR}from"./extern0-229.js";import{Do}from"./index-75.js";KR(Do,"compile",1);

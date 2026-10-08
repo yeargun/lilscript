@@ -1,0 +1,1 @@
+import{SQ}from"./extern0-225.js";import{Bo}from"./index-74.js";SQ(Bo,"compile",1);

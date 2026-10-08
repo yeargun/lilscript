@@ -1,0 +1,1 @@
+import iO from"postcss-selector-parser";export{iO};

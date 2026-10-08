@@ -1,0 +1,1 @@
+import"./shared-213.js";import{py,uy}from"./compatConfig-119.js";import{Qi}from"./shapeFlags-210.js";function _C(a,b){if(a.component)b.push(a.component.proxy);else if(((a.shapeFlag|0)&(Qi.ARRAY_CHILDREN|0))!=0){let d=a.children,c=d.length;for(let a=0;a<c;++a)_C(d[a],b)}}function aD(a){py(uy.INSTANCE_CHILDREN+"",a);let b=[];if(a.subTree)_C(a.subTree,b);return b}export{aD};

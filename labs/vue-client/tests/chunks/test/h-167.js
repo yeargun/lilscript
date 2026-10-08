@@ -1,0 +1,1 @@
+import{ki,Ci}from"./general-32.js";import{rH,vH,DH}from"./vnode-164.js";import{YP}from"./extern21-250.js";function h(a,b,c){try{rH(-1,!1);let d=arguments.length;if(d==2)return ki(b)&&!Ci(b)?vH(b)?DH(a,null,[b]):DH(a,b):DH(a,null,b);if(d>3)c=YP(arguments,2);else if(d==3&&vH(c))c=[c];return DH(a,b,c)}finally{rH(1,!1)}}export{h as RI};

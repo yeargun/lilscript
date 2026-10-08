@@ -1,0 +1,1 @@
+import{EO}from"./extern9-240.js";function Tl(a){return new EO({max:a})}export{Tl};

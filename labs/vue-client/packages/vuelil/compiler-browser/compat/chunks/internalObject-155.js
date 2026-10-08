@@ -1,0 +1,1 @@
+function WE(){return Object.create(YE)}function XE(a){return Object.getPrototypeOf(a)===YE}let YE={};export{WE,XE};

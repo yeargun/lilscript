@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"kE",{enumerable:true,get:()=>kE});$$o.defineProperty($$e,"lE",{enumerable:true,get:()=>lE});function kE(){return Object.create(mE)}function lE(a){return Object.getPrototypeOf(a)===mE}let mE={};return $$e})(exports,require,Object);

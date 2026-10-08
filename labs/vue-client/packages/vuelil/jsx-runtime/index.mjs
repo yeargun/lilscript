@@ -1,7 +1,1 @@
-import { Fragment, h } from "../vue.runtime.js";
-function jsx(type, props, key) {
-  const { children, ...rest } = props ?? {};
-  if (arguments.length > 2) rest.key = key;
-  return h(type, rest, children);
-}
-export { Fragment, jsx, jsx as jsxDEV, jsx as jsxs };
+import{h as c,Fragment as d}from"../../../packages/vuelil/vue.runtime.js";let $lh0=(function(){function createJsx(h){return function jsx(type,props,key){const{children,...rest}=props??{};if(arguments.length>2)rest.key=key;return h(type,rest,children);};};return {get "createJsx"(){return createJsx}}})();let b=$lh0["createJsx"];let a=b(c);export{d as Fragment,a as jsx,a as jsxDEV,a as jsxs};

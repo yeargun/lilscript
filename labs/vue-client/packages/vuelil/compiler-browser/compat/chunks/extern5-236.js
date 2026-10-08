@@ -1,0 +1,1 @@
+import VO from"magic-string";export{VO};

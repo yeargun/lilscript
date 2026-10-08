@@ -1,0 +1,1 @@
+import{tR}from"./extern0-231.js";import{zl,Al}from"./index-53.js";import"./compiler-core-210.js";import{mk}from"./parserOptions-40.js";import{nk}from"./errors-41.js";import{uk}from"./transformStyle-42.js";tR(zl,"compile",1);tR(nk,"createDOMCompilerError",2);tR(Al,"parse",1);tR(mk,"parserOptions",-1);tR(uk,"transformStyle",1);

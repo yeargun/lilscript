@@ -1,0 +1,1 @@
+import{bw}from"./computed-107.js";import{vH,aI}from"./component-162.js";function computed(a,b=void 0){let c=bw(a,b,aI);if(iI){let a=vH();if(a&&a.appContext.config.warnRecursiveComputed)c._warnRecursive=!0}return c}let iI=!0;export{computed as hI};

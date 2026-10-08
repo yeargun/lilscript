@@ -1,0 +1,1 @@
+import fO from"node:process";export{fO};

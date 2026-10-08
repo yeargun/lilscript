@@ -1,0 +1,1 @@
+import hO from"node:process";export{hO};

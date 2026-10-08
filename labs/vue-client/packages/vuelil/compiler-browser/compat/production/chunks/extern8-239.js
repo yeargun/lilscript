@@ -1,0 +1,1 @@
+import{SourceMapGenerator as GO,SourceMapConsumer as JO}from"source-map-js";export{GO,JO};

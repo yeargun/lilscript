@@ -1,0 +1,1 @@
+import"./shared-210.js";import{ay,ky}from"./compatConfig-117.js";import{oi}from"./general-31.js";function xD(a,b){for(let c in b){let d=a[c],e=b[c];if(c in a&&oi(d)&&oi(e)){ay(ky.OPTIONS_DATA_MERGE+"",null,c);xD(d,e)}else a[c]=e}return a}export{xD};

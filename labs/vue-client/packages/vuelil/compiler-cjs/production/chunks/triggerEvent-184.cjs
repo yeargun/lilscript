@@ -1,0 +1,1 @@
+(($$e,$$r,$$o)=>{"use strict";$$o.defineProperty($$e,"zM",{enumerable:true,get:()=>triggerEvent});let $$0=$$r("./general-31.cjs");function triggerEvent(a,b){let c=arguments[2];if(c===void 0)c=[];let d=a.eventListeners;if(d){let a=d[b];if(a)if((0,$$0["Ci"])(a)){for(let b=0;b<a.length;++b)a[b].apply(void 0,c)}else a.apply(void 0,c)}}return $$e})(exports,require,Object);

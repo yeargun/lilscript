@@ -1,0 +1,1 @@
+import{parse as RN}from"node:url";export{RN};

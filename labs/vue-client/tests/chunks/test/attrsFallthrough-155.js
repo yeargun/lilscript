@@ -1,0 +1,1 @@
+import"./shared-213.js";import{oy,uy}from"./compatConfig-119.js";import{$h}from"./general-32.js";function $E(a,b){return a=="is"?!0:(a=="class"||a=="style")&&oy(uy.INSTANCE_ATTRS_CLASS_STYLE+"",b)?!0:$h(a)&&oy(uy.INSTANCE_LISTENERS+"",b)?!0:a.startsWith("routerView")||a=="registerRouteInstance"?!0:!1}export{$E};

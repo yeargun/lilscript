@@ -12,6 +12,38 @@ const STORAGE: RuleRequest = RuleRequest {
     pristine_builtins: false,
     seal: Seal::Module,
 };
+
+#[test]
+fn saturated_alias_component_keeps_independent_scalar_storage() {
+    let mut source = String::from("int sample(int n){int[] merged=[0];");
+    for n in 1..=10 {
+        source.push_str(&format!("if(n=={n})merged=[{n}];"));
+    }
+    source.push_str("int[] state=[n,1];state[0]+=state[1];return merged[0]+state[0];}for(int n=0;n<=11;n+=1)print(sample(n));");
+    checked(&source, "1\n3\n5\n7\n9\n11\n13\n15\n17\n19\n21\n12\n", STORAGE, |_, receipt| {
+        assert_eq!(receipt.aggregate_limits, 0, "{receipt:?}");
+        assert!(receipt.aggregate_saturated_sites >= 11, "{receipt:?}");
+        assert!(receipt.scalarized_allocations > 0, "{receipt:?}");
+    });
+}
+
+#[test]
+fn saturated_aliases_keep_late_inputs_mutable_through_calls_and_backedges() {
+    let mut source = String::from("int mutate(int[] a){a[0]+=1;return a[0];}int sample(){");
+    for n in 0..12 {
+        source.push_str(&format!("int[] a{n}=[{n}];"));
+    }
+    source.push_str("int total=0;");
+    for n in 0..12 {
+        source.push_str(&format!("total+=mutate(a{n});"));
+    }
+    source.push_str("int[] selected=a0;for(int i=0;i<2;i+=1){selected[0]+=3;selected=a11;}print(a0[0]);print(a11[0]);int[] local=[total,2];local[0]+=local[1];return local[0];}print(sample());");
+    checked(&source, "4\n15\n80\n", RuleRequest { fold: true, ..STORAGE }, |_, receipt| {
+        assert_eq!(receipt.aggregate_limits, 0, "{receipt:?}");
+        assert!(receipt.aggregate_saturated_sites >= 12, "{receipt:?}");
+        assert!(receipt.scalarized_allocations > 0, "{receipt:?}");
+    });
+}
 pub(super) fn checked(
     source: &str,
     expected: &str,

@@ -1,0 +1,1 @@
+import{$h}from"./general-32.js";import{LM,$M}from"./nodeOps-183.js";function cN(a,b,c,d){LM({type:$M.PATCH,targetNode:a,propKey:b,propPrevValue:c,propNextValue:d});a.props[b]=d;if($h(b)){let c=b.slice(2).toLowerCase();if(b.charAt(2)==":")c=b.slice(3);let e=a.eventListeners;if(!e){e={};a.eventListeners=e}e[c]=d}}export{cN};

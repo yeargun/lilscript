@@ -1,0 +1,1 @@
+import"./runtime-dom-223.js";import{oI}from"./index-221.js";function ssrGetDirectiveProps(a,b,c=void 0,d,e){if(e===void 0)e={};if(typeof b!="function"&&b.getSSRProps){let g={dir:b,instance:(0,oI.getComponentPublicInstance)(a.$),value:c,oldValue:void 0,arg:d,modifiers:e},f=b.getSSRProps(g,null);if(f)return f}return{}}export{ssrGetDirectiveProps as VM};

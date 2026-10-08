@@ -1,0 +1,1 @@
+let is=/\bawait\b/;export{is};

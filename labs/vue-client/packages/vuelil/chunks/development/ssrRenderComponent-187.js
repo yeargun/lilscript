@@ -1,0 +1,1 @@
+import"./runtime-dom-222.js";import{tN}from"./render-196.js";import{XG}from"./vnode-161.js";function ssrRenderComponent(a,b=null,c=null,d=null,e){return tN(XG(a,b,c),d,e)}export{ssrRenderComponent as YM};

@@ -1,0 +1,1 @@
+import FO from"hash-sum";export{FO};

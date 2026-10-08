@@ -1,0 +1,1 @@
+function kE(){return Object.create(mE)}function lE(a){return Object.getPrototypeOf(a)===mE}let mE={};export{kE,lE};

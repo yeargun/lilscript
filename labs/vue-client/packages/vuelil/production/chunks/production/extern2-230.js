@@ -1,0 +1,1 @@
+import{parse as VN,parseExpression as yQ}from"@babel/parser";export{VN,yQ};

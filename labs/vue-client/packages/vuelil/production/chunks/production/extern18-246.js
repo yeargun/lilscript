@@ -1,0 +1,1 @@
+import ZN from"postcss-selector-parser";export{ZN};

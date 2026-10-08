@@ -1,0 +1,1 @@
+import QO from"postcss-selector-parser";export{QO};

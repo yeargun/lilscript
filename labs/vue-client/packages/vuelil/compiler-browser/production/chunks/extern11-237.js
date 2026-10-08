@@ -1,0 +1,1 @@
+import TN from"node:path";export{TN};

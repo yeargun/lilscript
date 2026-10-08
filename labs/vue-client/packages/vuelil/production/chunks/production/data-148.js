@@ -1,0 +1,1 @@
+import"./shared-209.js";import{_x,jy}from"./compatConfig-117.js";import{oi}from"./general-31.js";function wD(a,b){for(let c in b){let d=a[c],e=b[c];if(c in a&&oi(d)&&oi(e)){_x(jy.OPTIONS_DATA_MERGE+"",null,c);wD(d,e)}else a[c]=e}return a}export{wD};

@@ -1,0 +1,1 @@
+import{nk,ok}from"./errors-40.js";import{bk}from"./runtimeHelpers-38.js";function Tk(a,b,c){if(!a.exp)(0,c.onError)(nk(ok.X_V_SHOW_NO_EXPRESSION|0,a.loc));return{props:[],needRuntime:(0,c.helper)(bk)}}export{Tk};

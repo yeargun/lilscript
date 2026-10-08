@@ -1,0 +1,1 @@
+function warnOnce(a){if(!(typeof process!="undefined"&&process.env.NODE_ENV+""=="production")&&!Ho&&!Go[a]){Go[a]=!0;warn(a)}}function warn(a){console.warn("\u001b[1m\u001b[33m[@vue/compiler-sfc]\u001b[0m\u001b[33m "+a+"\u001b[0m\n")}let Go={},Ho=!1;export{warnOnce as Eo,warn as Fo};

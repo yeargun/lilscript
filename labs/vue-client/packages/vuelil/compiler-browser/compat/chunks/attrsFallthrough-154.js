@@ -1,0 +1,1 @@
+import"./shared-214.js";import{jy,py}from"./compatConfig-118.js";import{$h}from"./general-32.js";function VE(a,b){return a=="is"?!0:(a=="class"||a=="style")&&jy(py.INSTANCE_ATTRS_CLASS_STYLE+"",b)?!0:$h(a)&&jy(py.INSTANCE_LISTENERS+"",b)?!0:a.startsWith("routerView")||a=="registerRouteInstance"?!0:!1}export{VE};

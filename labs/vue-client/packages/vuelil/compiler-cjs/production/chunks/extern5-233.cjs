@@ -1,0 +1,1 @@
+const $host=(function(){function hostCreateHtmlDecoder(){return document.createElement("div");};return {get "hostCreateHtmlDecoder"(){return hostCreateHtmlDecoder}}})();Object.defineProperty(exports,'default',{value:$host});

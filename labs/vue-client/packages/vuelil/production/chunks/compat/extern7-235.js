@@ -1,0 +1,1 @@
+import{walk as FO}from"estree-walker";export{FO};

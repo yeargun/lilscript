@@ -1,0 +1,6 @@
+
+> @itslil/mdast-util-from-markdown@2.0.4 build
+> node scripts/build.mjs --compile
+
+Built 5 compiler-written artifacts (public, closed)
+
